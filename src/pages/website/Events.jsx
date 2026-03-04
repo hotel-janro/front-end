@@ -1,5 +1,6 @@
+// Events.jsx - Wedding & Events Page (Pure JavaScript)
 import React from "react";
-import EventCard from "../../components/website/EventCard"; // Standard import
+import { EventCard } from "../../components/website/EventCard.jsx";
 
 const HALLS = [
   {
@@ -40,7 +41,7 @@ const HALLS = [
   },
 ];
 
-const Events = ({ onBook }) => {
+export function Events({ onBook }) {
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <div className="bg-[#0F172A] py-20 text-center">
@@ -61,6 +62,4 @@ const Events = ({ onBook }) => {
       </div>
     </div>
   );
-};
-
-export default Events;
+}

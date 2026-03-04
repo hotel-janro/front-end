@@ -1,8 +1,9 @@
+// Navbar.jsx - Navigation Bar Component (Pure JavaScript)
 import React, { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom"; 
+import { Link, useLocation, useNavigate } from "react-router";
 import { Menu, X, Crown, User, LogOut } from "lucide-react";
 
-const Navbar = ({ isLoggedIn, user, onLogout }) => {
+export function Navbar({ isLoggedIn, user, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -127,6 +128,4 @@ const Navbar = ({ isLoggedIn, user, onLogout }) => {
       )}
     </nav>
   );
-};
-
-export default Navbar;
+}

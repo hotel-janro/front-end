@@ -1,6 +1,7 @@
+// Button.jsx - Reusable Button Component (Pure JavaScript)
 import React from "react";
 
-const Button = ({ children, variant = "primary", className = "", onClick, type = "button", disabled = false }) => {
+export function Button({ children, variant = "primary", className = "", onClick, type = "button", disabled = false }) {
   const base = "px-6 py-3 rounded-lg transition-all duration-300 cursor-pointer inline-flex items-center justify-center gap-2";
 
   const variants = {
@@ -21,6 +22,4 @@ const Button = ({ children, variant = "primary", className = "", onClick, type =
       {children}
     </button>
   );
-};
-
-export default Button;
+}

@@ -1,6 +1,8 @@
+// Home.jsx - Home Page (Pure JavaScript)
 import React from "react";
-import { Link } from "react-router-dom";
-import Button from "../../components/common/Button"; 
+import { Link } from "react-router";
+import { Button } from "../../components/common/Button.jsx";
+import { ImageWithFallback } from "../../components/common/ImageWithFallback.jsx";
 import {
   Bed, Car, UtensilsCrossed, Waves, Star,
   ArrowRight, Quote,
@@ -44,13 +46,13 @@ const testimonials = [
   { name: "Emily Williams", role: "Family Vacation", text: "Perfect for families! The kids loved the pool and we enjoyed the fine dining. Will definitely return next year.", rating: 5 },
 ];
 
-const Home = () => {
+export function Home() {
   return (
     <div>
       {/* Hero Section */}
       <section className="relative h-[90vh] min-h-[600px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
-          <img src={HERO_IMG} alt="Hotel Janro" className="w-full h-full object-cover" loading="lazy" />
+          <ImageWithFallback src={HERO_IMG} alt="Hotel Janro" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0F172A]/90 via-[#0F172A]/70 to-[#0F172A]/40" />
         </div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -68,7 +70,7 @@ const Home = () => {
           <div className="flex flex-wrap gap-4 justify-center">
             <Link to="/rooms">
               <Button variant="primary" className="text-lg px-8 py-4">
-                Book Now <ArrowRight className="w-5 h-5 inline" />
+                Book Now <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
             <Link to="/about">
@@ -106,15 +108,15 @@ const Home = () => {
             {featuredRooms.map((room) => (
               <div key={room.name} className="bg-white rounded-2xl shadow-lg overflow-hidden group hover:shadow-2xl transition-all duration-500 border border-gray-100">
                 <div className="relative h-56 overflow-hidden">
-                  <img src={room.image} alt={room.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" />
-                  <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm font-semibold">{room.price}/night</div>
+                  <ImageWithFallback src={room.image} alt={room.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                  <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">{room.price}/night</div>
                 </div>
                 <div className="p-6">
-                  <h3 className="text-[#0F172A] text-xl mb-2 font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>{room.name}</h3>
+                  <h3 className="text-[#0F172A] mb-2" style={{ fontFamily: "DM Serif Display, serif" }}>{room.name}</h3>
                   <p className="text-gray-500 text-sm mb-4">Experience comfort and elegance in our beautifully appointed room.</p>
                   <Link to="/rooms">
-                    <Button variant="ghost" className="!px-0 text-sm font-semibold text-[#0F172A]">
-                      View Details <ArrowRight className="w-4 h-4 inline ml-1" />
+                    <Button variant="ghost" className="!px-0 text-sm">
+                      View Details <ArrowRight className="w-4 h-4" />
                     </Button>
                   </Link>
                 </div>
@@ -122,7 +124,7 @@ const Home = () => {
             ))}
           </div>
           <div className="text-center mt-10">
-            <Link to="/rooms"><Button variant="secondary" className="px-6 py-3">View All Rooms</Button></Link>
+            <Link to="/rooms"><Button variant="secondary">View All Rooms</Button></Link>
           </div>
         </div>
       </section>
@@ -132,7 +134,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative rounded-2xl overflow-hidden h-[400px]">
-              <img src={EVENT_IMG} alt="Wedding & Events" className="w-full h-full object-cover" loading="lazy" />
+              <ImageWithFallback src={EVENT_IMG} alt="Wedding & Events" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/50 to-transparent" />
             </div>
             <div>
@@ -151,7 +153,7 @@ const Home = () => {
                   </li>
                 ))}
               </ul>
-              <Link to="/events"><Button variant="secondary" className="px-6 py-3">Explore Venues</Button></Link>
+              <Link to="/events"><Button variant="secondary">Explore Venues</Button></Link>
             </div>
           </div>
         </div>
@@ -169,10 +171,10 @@ const Home = () => {
               <p className="text-gray-500 mb-6 leading-relaxed">
                 Savor extraordinary cuisines crafted by our world-renowned chefs. From lavish breakfast buffets to intimate candlelit dinners, every meal is a masterpiece.
               </p>
-              <Link to="/restaurant"><Button variant="secondary" className="px-6 py-3">View Menu</Button></Link>
+              <Link to="/restaurant"><Button variant="secondary">View Menu</Button></Link>
             </div>
             <div className="order-1 lg:order-2 relative rounded-2xl overflow-hidden h-[400px]">
-              <img src={FOOD_IMG} alt="Fine Dining" className="w-full h-full object-cover" loading="lazy" />
+              <ImageWithFallback src={FOOD_IMG} alt="Fine Dining" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/50 to-transparent" />
             </div>
           </div>
@@ -188,11 +190,11 @@ const Home = () => {
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8">
             {facilities.map((f) => (
-              <div key={f.label} className="flex flex-col items-center gap-3 group cursor-pointer">
+              <div key={f.label} className="flex flex-col items-center gap-3 group">
                 <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-[#D4AF37] transition-all duration-300">
                   <f.icon className="w-7 h-7 text-[#D4AF37] group-hover:text-[#0F172A] transition-colors" />
                 </div>
-                <span className="text-gray-300 text-sm font-medium">{f.label}</span>
+                <span className="text-gray-300 text-sm">{f.label}</span>
               </div>
             ))}
           </div>
@@ -218,7 +220,7 @@ const Home = () => {
                     <Star key={i} className="w-4 h-4 text-[#D4AF37] fill-[#D4AF37]" />
                   ))}
                 </div>
-                <p className="text-[#0F172A] font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>{t.name}</p>
+                <p className="text-[#0F172A]" style={{ fontFamily: "DM Serif Display, serif" }}>{t.name}</p>
                 <p className="text-gray-400 text-sm">{t.role}</p>
               </div>
             ))}
@@ -227,6 +229,4 @@ const Home = () => {
       </section>
     </div>
   );
-};
-
-export default Home;
+}

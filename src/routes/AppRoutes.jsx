@@ -1,17 +1,16 @@
+// AppRoutes.jsx - Application Routes (Pure JavaScript)
 import React from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom"; // Fixed import
+import { Routes, Route, Navigate, useNavigate } from "react-router";
+import { Home } from "../pages/website/Home.jsx";
+import { Rooms } from "../pages/website/Rooms.jsx";
+import { Events } from "../pages/website/Events.jsx";
+import { Restaurant } from "../pages/website/Restaurant.jsx";
+import { About } from "../pages/website/About.jsx";
+import { Contact } from "../pages/website/Contact.jsx";
+import { Login } from "../pages/website/Login.jsx";
+import { Register } from "../pages/website/Register.jsx";
 
-// Importing Pages
-import Home from "../pages/website/Home";
-import Rooms from "../pages/website/Rooms";
-import Events from "../pages/website/Events";
-import Restaurant from "../pages/website/Restaurant";
-import About from "../pages/website/About";
-import Contact from "../pages/website/Contact";
-import Login from "../pages/website/Login";
-import Register from "../pages/website/Register";
-
-const AppRoutes = ({ isLoggedIn, user, onLogin, onRegister }) => {
+export function AppRoutes({ isLoggedIn, user, onLogin, onRegister }) {
   const navigate = useNavigate();
 
   const protectedBook = (data) => {
@@ -49,6 +48,4 @@ const AppRoutes = ({ isLoggedIn, user, onLogin, onRegister }) => {
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
-};
-
-export default AppRoutes;
+}

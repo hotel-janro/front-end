@@ -1,5 +1,6 @@
+// Footer.jsx - Footer Component (Pure JavaScript)
 import React from "react";
-import { Link } from "react-router-dom"; // Fixed import
+import { Link } from "react-router";
 import { Crown, Phone, Mail, MapPin, Facebook, Instagram } from "lucide-react";
 
 const WhatsAppIcon = () => (
@@ -8,7 +9,7 @@ const WhatsAppIcon = () => (
   </svg>
 );
 
-const Footer = () => {
+export function Footer() {
   return (
     <footer className="bg-[#0F172A] text-gray-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -31,7 +32,7 @@ const Footer = () => {
                 { Icon: WhatsAppIcon, href: "#" },
               ].map((social, i) => (
                 <a key={i} href={social.href} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all">
-                  <social.Icon className="w-4 h-4" />
+                  <social.Icon />
                 </a>
               ))}
             </div>
@@ -87,6 +88,4 @@ const Footer = () => {
       </div>
     </footer>
   );
-};
-
-export default Footer;
+}
