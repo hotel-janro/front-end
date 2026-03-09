@@ -1,35 +1,57 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+// App.jsx - Main Application Entry (Pure JavaScript)
+// Main entry is now JSX and the app is fully JavaScript.
+import React, { useState, useEffect } from "react";
+import { BrowserRouter, useNavigate, useLocation } from "react-router";
+import { Navbar } from "./components/common/Navbar.jsx";
+import { Footer } from "./components/common/Footer.jsx";
+import { AppRoutes } from "./routes/AppRoutes.jsx";
+function ScrollToTop() {
+    const { pathname } = useLocation();
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [pathname]);
+    return null;
 }
-
-export default App
+function AppInner() {
+    const navigate = useNavigate();
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [user, setUser] = useState(null);
+    useEffect(() => {
+        const savedUser = localStorage.getItem("janro_user");
+        if (savedUser) {
+            setUser(JSON.parse(savedUser));
+            setIsLoggedIn(true);
+        }
+    }, []);
+    const handleLogin = (userData) => {
+        setUser(userData);
+        setIsLoggedIn(true);
+        localStorage.setItem("janro_user", JSON.stringify(userData));
+        navigate("/");
+    };
+    const handleRegister = (userData) => {
+        setUser(userData);
+        setIsLoggedIn(true);
+        localStorage.setItem("janro_user", JSON.stringify(userData));
+        navigate("/");
+    };
+    const handleLogout = () => {
+        setUser(null);
+        setIsLoggedIn(false);
+        localStorage.removeItem("janro_user");
+        navigate("/");
+    };
+    return (<div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+      <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>
+      <main className="flex-1">
+        <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister}/>
+      </main>
+      <Footer />
+    </div>);
+}
+export default function App() {
+    return (<BrowserRouter>
+      <ScrollToTop />
+      <AppInner />
+    </BrowserRouter>);
+}
