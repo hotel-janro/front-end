@@ -1,4 +1,4 @@
-// Footer.jsx - Footer Component (Pure JavaScript)
+
 import React from "react";
 import { Link } from "react-router";
 import { Crown, Phone, Mail, MapPin, Facebook, Instagram } from "lucide-react";
