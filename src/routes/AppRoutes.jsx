@@ -9,9 +9,13 @@ import { About } from "../pages/website/About.jsx";
 import { Contact } from "../pages/website/Contact.jsx";
 import { Login } from "../pages/website/Login.jsx";
 import { Register } from "../pages/website/Register.jsx";
+import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
+import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
 
-export function AppRoutes({ isLoggedIn, user, onLogin, onRegister }) {
+export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const navigate = useNavigate();
+  const isAdmin = user?.role === "admin";
+  const postAuthPath = isAdmin ? "/admin" : "/";
 
   const protectedBook = (data) => {
     if (!isLoggedIn) {
@@ -39,12 +43,20 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister }) {
       <Route path="/contact" element={<Contact />} />
       <Route
         path="/login"
-        element={isLoggedIn ? <Navigate to="/" replace /> : <Login onLogin={onLogin} />}
+        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Login onLogin={onLogin} />}
       />
       <Route
         path="/register"
-        element={isLoggedIn ? <Navigate to="/" replace /> : <Register onRegister={onRegister} />}
+        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Register onRegister={onRegister} />}
       />
+      {/* Admin Dashboard Routes */}
+      <Route
+        path="/admin"
+        element={isLoggedIn && isAdmin ? <DashboardLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
+      >
+        <Route index element={<AdminDashboard />} />
+      </Route>
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
