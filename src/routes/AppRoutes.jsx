@@ -11,6 +11,7 @@ import { Login } from "../pages/website/Login.jsx";
 import { Register } from "../pages/website/Register.jsx";
 import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
 import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
+import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const navigate = useNavigate();
@@ -55,6 +56,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isAdmin ? <DashboardLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="pool" element={<AdminPool />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
