@@ -12,11 +12,13 @@ import { Register } from "../pages/website/Register.jsx";
 import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
 import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
+import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
-  const postAuthPath = isAdmin ? "/admin" : "/";
+  const isReception = user?.role === "reception";
+  const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : "/";
 
   const protectedBook = (data) => {
     if (!isLoggedIn) {
@@ -58,6 +60,11 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route index element={<AdminDashboard />} />
         <Route path="pool" element={<AdminPool />} />
       </Route>
+
+      <Route
+        path="/reception"
+        element={isLoggedIn && isReception ? <ReceptionDashboard /> : <Navigate to="/login" replace />}
+      />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

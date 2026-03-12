@@ -36,7 +36,7 @@ export function Login({ onLogin }) {
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg mb-4 text-sm">{error}</div>
         )}
         <div className="mb-4 text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-          Admin demo: sign in with an email containing "admin" (example: admin@hotelpro.com)
+          Role demo: use an email containing "admin" for Admin or "reception" for Reception.
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -89,6 +89,14 @@ export function Login({ onLogin }) {
           className="w-full mt-3 border border-blue-200 rounded-lg py-3 px-4 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all duration-300 cursor-pointer text-sm font-medium"
         >
           Continue as Admin Demo
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onLogin({ email: "reception@hotelpro.com", name: "Reception User", role: "reception" })}
+          className="w-full mt-3 border border-emerald-200 rounded-lg py-3 px-4 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all duration-300 cursor-pointer text-sm font-medium"
+        >
+          Continue as Reception Demo
         </button>
 
         <p className="text-center text-sm text-gray-400 mt-6">

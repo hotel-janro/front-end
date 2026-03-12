@@ -84,3 +84,24 @@ export const poolSlots = [
     status: "Available",
   },
 ];
+
+export const weddingBookings = [
+  {
+    id: "w-001",
+    customerName: "Sophia Martinez",
+    hallName: "Grand Lotus Hall",
+    eventDate: "2026-03-20",
+    eventTime: "6:00 PM",
+    guestCount: 180,
+    status: "Confirmed",
+  },
+  {
+    id: "w-002",
+    customerName: "Daniel Brooks",
+    hallName: "Skyline Ballroom",
+    eventDate: "2026-03-24",
+    eventTime: "1:00 PM",
+    guestCount: 120,
+    status: "Confirmed",
+  },
+];
