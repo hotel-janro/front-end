@@ -36,7 +36,7 @@ export function Login({ onLogin }) {
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg mb-4 text-sm">{error}</div>
         )}
         <div className="mb-4 text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-          Role demo: use an email containing "admin" for Admin or "reception" for Reception.
+          Role demo: use an email containing "admin", "reception", or "cashier".
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>

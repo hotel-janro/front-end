@@ -11,6 +11,7 @@ function getUserRole(userData) {
     if (userData?.role) return userData.role;
     if (email.includes("admin")) return "admin";
     if (email.includes("reception") || email.includes("reciption") || email.includes("frontdesk")) return "reception";
+    if (email.includes("cashier") || email.includes("pos")) return "cashier";
     return "guest";
 }
 
@@ -40,14 +41,31 @@ function AppInner() {
         setUser(nextUser);
         setIsLoggedIn(true);
         localStorage.setItem("janro_user", JSON.stringify(nextUser));
-        navigate(role === "admin" ? "/admin" : role === "reception" ? "/reception" : "/");
+        navigate(
+            role === "admin"
+                ? "/admin"
+                : role === "reception"
+                ? "/reception"
+                : role === "cashier"
+                ? "/cashier"
+                : "/"
+        );
     };
     const handleRegister = (userData) => {
-        const nextUser = { ...userData, role: "guest" };
+        const role = getUserRole(userData);
+        const nextUser = { ...userData, role };
         setUser(nextUser);
         setIsLoggedIn(true);
         localStorage.setItem("janro_user", JSON.stringify(nextUser));
-        navigate("/");
+        navigate(
+            role === "admin"
+                ? "/admin"
+                : role === "reception"
+                ? "/reception"
+                : role === "cashier"
+                ? "/cashier"
+                : "/"
+        );
     };
     const handleLogout = () => {
         setUser(null);
@@ -56,7 +74,10 @@ function AppInner() {
         navigate("/");
     };
     const location = useLocation();
-        const isDashboardRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/reception");
+        const isDashboardRoute =
+            location.pathname.startsWith("/admin") ||
+            location.pathname.startsWith("/reception") ||
+            location.pathname.startsWith("/cashier");
 
     return (<div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
             {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>}

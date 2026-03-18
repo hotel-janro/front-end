@@ -13,12 +13,14 @@ import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
 import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
+import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
   const isReception = user?.role === "reception";
-  const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : "/";
+  const isCashier = user?.role === "cashier";
+  const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : isCashier ? "/cashier" : "/";
 
   const protectedBook = (data) => {
     if (!isLoggedIn) {
@@ -64,6 +66,11 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       <Route
         path="/reception"
         element={isLoggedIn && isReception ? <ReceptionDashboard /> : <Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="/cashier"
+        element={isLoggedIn && isCashier ? <CashierDashboard /> : <Navigate to="/login" replace />}
       />
 
       <Route path="*" element={<Navigate to="/" replace />} />
