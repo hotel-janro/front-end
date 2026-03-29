@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -30,6 +30,14 @@ import { poolBookings, weddingBookings } from '../../../data/newMockData.js';
 export function ReceptionDashboard() {
   const [now, setNow] = useState(new Date());
   const [activeTab, setActiveTab] = useState('Dashboard');
+  const navigate = useNavigate();
+
+  const handleTabClick = (tabLabel) => {
+    setActiveTab(tabLabel);
+    if (tabLabel === 'Pool Access') {
+      navigate('/reception/pool');
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -156,7 +164,7 @@ export function ReceptionDashboard() {
                   <button
                     key={tab.label}
                     type="button"
-                    onClick={() => setActiveTab(tab.label)}
+                    onClick={() => handleTabClick(tab.label)}
                     className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                       isActive
                         ? 'bg-white text-indigo-700'
