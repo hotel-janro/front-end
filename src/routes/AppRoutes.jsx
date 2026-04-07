@@ -22,6 +22,10 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       navigate("/login");
       return;
     }
+    if (data?.room) {
+      alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}.\n\nRoom: ${data.room.name}\nGuests: ${data.guests}\nAvailable rooms: ${data.room.availableRooms ?? "N/A"}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
+      return;
+    }
     alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}. Your booking details have been saved.\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
   };
 

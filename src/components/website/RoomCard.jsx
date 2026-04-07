@@ -7,7 +7,9 @@ import { ImageWithFallback } from "../common/ImageWithFallback.jsx";
 export function RoomCard({ room, onBook }) {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
-  const [guests, setGuests] = useState(1);
+  const isStandardRoom = room.name === "Standard Room";
+  const [selectedGuests, setSelectedGuests] = useState(1);
+  const guests = isStandardRoom ? selectedGuests : room.defaultGuests ?? 1;
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500 group border border-gray-100">
@@ -52,20 +54,34 @@ export function RoomCard({ room, onBook }) {
               />
             </div>
           </div>
-          <div>
-            <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-              <Users className="w-3 h-3" /> Guests
-            </label>
-            <select
-              value={guests}
-              onChange={(e) => setGuests(Number(e.target.value))}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
-            >
-              {[1, 2, 3, 4, 5, 6].map((n) => (
-                <option key={n} value={n}>{n} {n === 1 ? "Guest" : "Guests"}</option>
-              ))}
-            </select>
-          </div>
+          {isStandardRoom ? (
+            <div>
+              <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                <Users className="w-3 h-3" /> Guests
+              </label>
+              <select
+                value={selectedGuests}
+                onChange={(e) => setSelectedGuests(Number(e.target.value))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
+              >
+                {[1, 2, 3, 4].map((n) => (
+                  <option key={n} value={n}>{n} {n === 1 ? "Guest" : "Guests"}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                <Users className="w-3 h-3" /> Occupancy
+              </label>
+              <p className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] text-[#0F172A]">
+                {room.occupancyText ?? `${guests} ${guests === 1 ? "Guest" : "Guests"}`}
+              </p>
+            </div>
+          )}
+          <p className="text-xs text-[#0F172A] bg-[#F8FAFC] border border-gray-200 rounded-lg px-3 py-2">
+            Available rooms: {room.availableRooms ?? "N/A"}
+          </p>
         </div>
 
         <Button

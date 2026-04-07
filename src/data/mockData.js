@@ -3,9 +3,9 @@
 export const dashboardStats = {
   totalRevenue: 125430,
   monthlyRevenue: 18750,
-  totalRooms: 45,
-  occupiedRooms: 15,
-  availableRooms: 6,
+  totalRooms: 10,
+  occupiedRooms: 5,
+  availableRooms: 5,
   todayCheckIns: 3,
   todayCheckOuts: 2,
 };
