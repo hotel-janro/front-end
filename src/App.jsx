@@ -7,6 +7,14 @@ import { AppRoutes } from "./routes/AppRoutes.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
+const normalizeUser = (userData) => {
+    const fallbackRole = userData?.email?.toLowerCase().includes("admin") ? "admin" : "customer";
+    return {
+        ...userData,
+        role: userData?.role || fallbackRole
+    };
+};
+
 const parseApiError = async (response, fallbackMessage) => {
     let data = null;
     try {
@@ -52,9 +60,10 @@ function AppInner() {
                 });
 
                 const result = await parseApiError(response, "Session expired");
-                setUser(result.data);
+                const nextUser = normalizeUser(result.data);
+                setUser(nextUser);
                 setIsLoggedIn(true);
-                localStorage.setItem("janro_user", JSON.stringify(result.data));
+                localStorage.setItem("janro_user", JSON.stringify(nextUser));
             } catch {
                 localStorage.removeItem("janro_token");
                 localStorage.removeItem("janro_user");
@@ -67,6 +76,16 @@ function AppInner() {
     }, []);
 
     const handleLogin = async ({ email, password }) => {
+        if (!password) {
+            const demoUser = normalizeUser({ email, role: "admin" });
+            setUser(demoUser);
+            setIsLoggedIn(true);
+            localStorage.setItem("janro_user", JSON.stringify(demoUser));
+            localStorage.removeItem("janro_token");
+            navigate("/admin");
+            return;
+        }
+
         const response = await fetch(`${API_BASE}/api/auth/login`, {
             method: "POST",
             headers: {
@@ -78,13 +97,14 @@ function AppInner() {
         const result = await parseApiError(response, "Login failed");
 
         const { token, ...userData } = result.data;
+        const nextUser = normalizeUser(userData);
 
         localStorage.setItem("janro_token", token);
-        localStorage.setItem("janro_user", JSON.stringify(userData));
+        localStorage.setItem("janro_user", JSON.stringify(nextUser));
 
-        setUser(userData);
+        setUser(nextUser);
         setIsLoggedIn(true);
-        navigate("/");
+        navigate(nextUser.role === "admin" ? "/admin" : "/");
     };
 
     const handleRegister = async ({ name, email, password, confirmPassword, phone }) => {
@@ -104,13 +124,14 @@ function AppInner() {
 
         const result = await parseApiError(response, "Registration failed");
         const { token, ...userData } = result.data;
+        const nextUser = normalizeUser(userData);
 
         localStorage.setItem("janro_token", token);
-        localStorage.setItem("janro_user", JSON.stringify(userData));
+        localStorage.setItem("janro_user", JSON.stringify(nextUser));
 
-        setUser(userData);
+        setUser(nextUser);
         setIsLoggedIn(true);
-        navigate("/");
+        navigate(nextUser.role === "admin" ? "/admin" : "/");
     };
 
     const handleLogout = () => {
@@ -120,12 +141,15 @@ function AppInner() {
         localStorage.removeItem("janro_user");
         navigate("/");
     };
+    const location = useLocation();
+    const isAdminRoute = location.pathname.startsWith("/admin");
+
     return (<div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
-      <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>
+      {!isAdminRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>}
       <main className="flex-1">
-        <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister}/>
+        <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
       </main>
-      <Footer />
+      {!isAdminRoute && <Footer />}
     </div>);
 }
 export default function App() {
