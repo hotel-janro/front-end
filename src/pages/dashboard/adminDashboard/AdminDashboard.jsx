@@ -34,7 +34,7 @@ export function AdminDashboard() {
       change: "+12.5%",
       trend: "up",
       icon: DollarSign,
-      color: "bg-green-50 text-green-600",
+      color: "bg-[#D4AF37]/20 text-[#9A7812]",
     },
     {
       title: "Occupancy Rate",
@@ -42,7 +42,7 @@ export function AdminDashboard() {
       change: "+5.2%",
       trend: "up",
       icon: Bed,
-      color: "bg-blue-50 text-blue-600",
+      color: "bg-[#0F172A]/10 text-[#0F172A]",
     },
     {
       title: "Total Bookings",
@@ -50,7 +50,7 @@ export function AdminDashboard() {
       change: "+8.3%",
       trend: "up",
       icon: Calendar,
-      color: "bg-purple-50 text-purple-600",
+      color: "bg-[#1E3A8A]/15 text-[#1E3A8A]",
     },
     {
       title: "Monthly Revenue",
@@ -58,16 +58,19 @@ export function AdminDashboard() {
       change: "+8.1%",
       trend: "up",
       icon: TrendingUp,
-      color: "bg-orange-50 text-orange-600",
+      color: "bg-[#F8FAFC] text-[#0F172A]",
     },
   ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 mt-1">
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8">
+        <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+        <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+          Admin Dashboard
+        </h1>
+        <p className="text-slate-300 mt-2">
           Welcome back! Here&apos;s your hotel overview
         </p>
       </div>
@@ -79,30 +82,30 @@ export function AdminDashboard() {
           return (
             <div
               key={index}
-              className="bg-white p-6 rounded-xl shadow-sm border border-gray-100"
+              className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10"
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">{stat.title}</p>
-                  <h3 className="text-2xl font-semibold text-gray-900 mt-2">
+                  <p className="text-sm text-slate-500">{stat.title}</p>
+                  <h3 className="text-2xl font-semibold text-[#0F172A] mt-2">
                     {stat.value}
                   </h3>
                   <div className="flex items-center gap-1 mt-2">
                     {stat.trend === "up" ? (
-                      <ArrowUpRight className="w-4 h-4 text-green-600" />
+                      <ArrowUpRight className="w-4 h-4 text-[#9A7812]" />
                     ) : (
                       <ArrowDownRight className="w-4 h-4 text-red-600" />
                     )}
                     <span
                       className={`text-sm ${
                         stat.trend === "up"
-                          ? "text-green-600"
+                          ? "text-[#9A7812]"
                           : "text-red-600"
                       }`}
                     >
                       {stat.change}
                     </span>
-                    <span className="text-sm text-gray-500">vs last month</span>
+                    <span className="text-sm text-slate-500">vs last month</span>
                   </div>
                 </div>
                 <div className={`p-3 rounded-lg ${stat.color}`}>
@@ -117,51 +120,51 @@ export function AdminDashboard() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Chart */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10">
+          <h3 className="text-lg text-[#0F172A] mb-4" style={{ fontFamily: "DM Serif Display, serif" }}>
             Revenue Overview
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="month" stroke="#9ca3af" />
               <YAxis stroke="#9ca3af" />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#fff",
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid #D4AF37",
                   borderRadius: "8px",
                 }}
               />
               <Line
                 type="monotone"
                 dataKey="revenue"
-                stroke="#3b82f6"
+                stroke="#D4AF37"
                 strokeWidth={2}
-                dot={{ fill: "#3b82f6", r: 4 }}
+                dot={{ fill: "#D4AF37", r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Occupancy Chart */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10">
+          <h3 className="text-lg text-[#0F172A] mb-4" style={{ fontFamily: "DM Serif Display, serif" }}>
             Weekly Occupancy
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={occupancyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="day" stroke="#9ca3af" />
               <YAxis stroke="#9ca3af" />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#fff",
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid #D4AF37",
                   borderRadius: "8px",
                 }}
               />
-              <Bar dataKey="occupancy" fill="#10b981" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="occupancy" fill="#0F172A" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -169,42 +172,42 @@ export function AdminDashboard() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <ArrowUpRight className="w-6 h-6 text-blue-600" />
+            <div className="p-3 bg-[#D4AF37]/20 rounded-lg">
+              <ArrowUpRight className="w-6 h-6 text-[#9A7812]" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Today&apos;s Check-ins</p>
-              <h3 className="text-2xl font-semibold text-gray-900">
+              <p className="text-sm text-slate-500">Today&apos;s Check-ins</p>
+              <h3 className="text-2xl font-semibold text-[#0F172A]">
                 {dashboardStats.todayCheckIns}
               </h3>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-orange-50 rounded-lg">
-              <ArrowDownRight className="w-6 h-6 text-orange-600" />
+            <div className="p-3 bg-[#0F172A]/10 rounded-lg">
+              <ArrowDownRight className="w-6 h-6 text-[#0F172A]" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Today&apos;s Check-outs</p>
-              <h3 className="text-2xl font-semibold text-gray-900">
+              <p className="text-sm text-slate-500">Today&apos;s Check-outs</p>
+              <h3 className="text-2xl font-semibold text-[#0F172A]">
                 {dashboardStats.todayCheckOuts}
               </h3>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-50 rounded-lg">
-              <Bed className="w-6 h-6 text-purple-600" />
+            <div className="p-3 bg-[#1E3A8A]/15 rounded-lg">
+              <Bed className="w-6 h-6 text-[#1E3A8A]" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Available Rooms</p>
-              <h3 className="text-2xl font-semibold text-gray-900">
+              <p className="text-sm text-slate-500">Available Rooms</p>
+              <h3 className="text-2xl font-semibold text-[#0F172A]">
                 {dashboardStats.availableRooms}
               </h3>
             </div>
