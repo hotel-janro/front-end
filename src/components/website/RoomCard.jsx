@@ -10,6 +10,7 @@ export function RoomCard({ room, onBook }) {
   const isStandardRoom = room.name === "Standard Room";
   const [selectedGuests, setSelectedGuests] = useState(1);
   const guests = isStandardRoom ? selectedGuests : room.defaultGuests ?? 1;
+  const formattedPrice = Number(room.price || 0).toLocaleString("en-LK");
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500 group border border-gray-100">
@@ -20,7 +21,7 @@ export function RoomCard({ room, onBook }) {
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
         <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">
-          ${room.price}/night
+          Rs. {formattedPrice}/night
         </div>
       </div>
       <div className="p-6">

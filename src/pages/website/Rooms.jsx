@@ -6,7 +6,7 @@ const ROOMS = [
   {
     id: 1,
     name: "Standard Room",
-    price: 50000,
+    price: 5000,
     description: "Comfortable and elegant, our Standard Room features a king-size bed, work desk, and modern amenities for a pleasant stay.",
     availableRooms: 6,
     occupancyText: "Up to 4 persons",
@@ -26,7 +26,7 @@ const ROOMS = [
   {
     id: 3,
     name: "Honeymoon Suite",
-    price: 150000,
+    price: 15000,
     description: "A romantic escape with private pool, candlelit dining setup, rose petal turndown, and couples spa treatment.",
     availableRooms: 2,
     occupancyText: "Couple only ",
