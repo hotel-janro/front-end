@@ -9,7 +9,7 @@ export function Register({ onRegister }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.password || !form.confirmPassword) {
       setError("Please fill in all fields.");
@@ -23,8 +23,18 @@ export function Register({ onRegister }) {
       setError("Password must be at least 6 characters.");
       return;
     }
-    setError("");
-    onRegister({ email: form.email, name: form.name });
+
+    try {
+      setError("");
+      await onRegister({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        confirmPassword: form.confirmPassword,
+      });
+    } catch (err) {
+      setError(err.message || "Registration failed");
+    }
   };
 
   const update = (field, value) => setForm({ ...form, [field]: value });
@@ -91,7 +101,7 @@ export function Register({ onRegister }) {
         {/* Google Sign Up */}
         <button
           type="button"
-          onClick={() => onRegister({ email: "google@gmail.com", name: "Google User" })}
+          onClick={() => setError("Google sign up is not connected yet.")}
           className="w-full flex items-center justify-center gap-3 border border-gray-200 rounded-lg py-3 px-4 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 cursor-pointer"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
