@@ -82,7 +82,6 @@ function AppInner() {
             setIsLoggedIn(true);
             localStorage.setItem("janro_user", JSON.stringify(demoUser));
             localStorage.removeItem("janro_token");
-            navigate("/admin");
             return;
         }
 
@@ -104,7 +103,6 @@ function AppInner() {
 
         setUser(nextUser);
         setIsLoggedIn(true);
-        navigate(nextUser.role === "admin" ? "/admin" : "/");
     };
 
     const handleRegister = async ({ name, email, password, confirmPassword, phone }) => {
