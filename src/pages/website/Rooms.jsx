@@ -35,7 +35,7 @@ const ROOMS = [
   },
 ];
 
-export function Rooms({ onBook }) {
+export function Rooms({ onBook, isLoggedIn = false }) {
   const [rooms, setRooms] = useState(ROOMS);
 
   const handleRoomBook = (bookingData) => {
@@ -85,7 +85,7 @@ export function Rooms({ onBook }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {rooms.map((room) => (
-            <RoomCard key={room.id} room={room} onBook={handleRoomBook} />
+            <RoomCard key={room.id} room={room} onBook={handleRoomBook} isLoggedIn={isLoggedIn} />
           ))}
         </div>
       </div>

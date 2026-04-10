@@ -4,13 +4,29 @@ import { Users, Calendar } from "lucide-react";
 import { Button } from "../common/Button.jsx";
 import { ImageWithFallback } from "../common/ImageWithFallback.jsx";
 
-export function RoomCard({ room, onBook }) {
+const HONEYMOON_DECORATION_ITEMS = [
+  "Rose petals on bed",
+  "Flower bouquet",
+  "Scented candles",
+  "Heart balloon setup",
+  "Chocolate gift box"
+];
+
+export function RoomCard({ room, onBook, isLoggedIn = false }) {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const isStandardRoom = room.name === "Standard Room";
+  const isHoneymoonSuite = room.name.toLowerCase().includes("honeymoon");
   const [selectedGuests, setSelectedGuests] = useState(1);
+  const [selectedDecorations, setSelectedDecorations] = useState([]);
   const guests = isStandardRoom ? selectedGuests : room.defaultGuests ?? 1;
   const formattedPrice = Number(room.price || 0).toLocaleString("en-LK");
+
+  const toggleDecoration = (item) => {
+    setSelectedDecorations((prev) =>
+      prev.includes(item) ? prev.filter((value) => value !== item) : [...prev, item]
+    );
+  };
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500 group border border-gray-100">
@@ -83,12 +99,47 @@ export function RoomCard({ room, onBook }) {
           <p className="text-xs text-[#0F172A] bg-[#F8FAFC] border border-gray-200 rounded-lg px-3 py-2">
             Available rooms: {room.availableRooms ?? "N/A"}
           </p>
+
+          {isHoneymoonSuite && isLoggedIn && (
+            <div>
+              <label className="text-xs text-gray-500 block mb-2">
+                Complimentary romantic decorations
+              </label>
+              <div className="space-y-2 rounded-lg border border-gray-200 bg-[#F8FAFC] p-3">
+                {HONEYMOON_DECORATION_ITEMS.map((item) => (
+                  <label key={item} className="flex items-center gap-2 text-sm text-[#0F172A]">
+                    <input
+                      type="checkbox"
+                      checked={selectedDecorations.includes(item)}
+                      onChange={() => toggleDecoration(item)}
+                      className="h-4 w-4 accent-[#D4AF37]"
+                    />
+                    {item}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isHoneymoonSuite && !isLoggedIn && (
+            <p className="text-xs text-[#0F172A] bg-[#F8FAFC] border border-gray-200 rounded-lg px-3 py-2">
+              Login to choose honeymoon decoration items during booking.
+            </p>
+          )}
         </div>
 
         <Button
           variant="secondary"
           className="w-full"
-          onClick={() => onBook({ room, checkIn, checkOut, guests })}
+          onClick={() =>
+            onBook({
+              room,
+              checkIn,
+              checkOut,
+              guests,
+              decorationItems: isHoneymoonSuite && isLoggedIn ? selectedDecorations : []
+            })
+          }
         >
           Book Room
         </Button>
