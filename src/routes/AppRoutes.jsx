@@ -13,6 +13,7 @@ import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
 import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
+import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.jsx";
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
@@ -64,6 +65,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route index element={<AdminDashboard />} />
         <Route path="pool" element={<AdminPool />} />
         <Route path="staff" element={<AdminStaff />} />
+        <Route path="settings" element={<AdminSettings />} />
       </Route>
 
       <Route
