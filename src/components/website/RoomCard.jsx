@@ -121,11 +121,6 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
             </div>
           )}
 
-          {isHoneymoonSuite && !isLoggedIn && (
-            <p className="text-xs text-[#0F172A] bg-[#F8FAFC] border border-gray-200 rounded-lg px-3 py-2">
-              Login to choose honeymoon decoration items during booking.
-            </p>
-          )}
         </div>
 
         <Button
