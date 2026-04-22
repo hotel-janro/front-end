@@ -22,6 +22,14 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       navigate("/login");
       return;
     }
+    if (data?.room) {
+      const decorationText = data.decorationItems?.length
+        ? `\nHoneymoon decorations: ${data.decorationItems.join(", ")}`
+        : "";
+
+      alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}.\n\nRoom: ${data.room.name}\nGuests: ${data.guests}${decorationText}\nAvailable rooms: ${data.room.availableRooms ?? "N/A"}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
+      return;
+    }
     alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}. Your booking details have been saved.\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
   };
 
@@ -36,7 +44,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/rooms" element={<Rooms onBook={protectedBook} />} />
+      <Route path="/rooms" element={<Rooms onBook={protectedBook} isLoggedIn={isLoggedIn} />} />
       <Route path="/events" element={<Events onBook={protectedBook} />} />
       <Route path="/restaurant" element={<Restaurant onOrder={protectedOrder} />} />
       <Route path="/about" element={<About />} />

@@ -3,9 +3,9 @@
 export const dashboardStats = {
   totalRevenue: 125430,
   monthlyRevenue: 18750,
-  totalRooms: 45,
-  occupiedRooms: 15,
-  availableRooms: 6,
+  totalRooms: 10,
+  occupiedRooms: 5,
+  availableRooms: 5,
   todayCheckIns: 3,
   todayCheckOuts: 2,
 };
@@ -26,11 +26,11 @@ export const revenueData = [
 ];
 
 export const occupancyData = [
-  { day: 'Mon', occupancy: 65 },
-  { day: 'Tue', occupancy: 72 },
-  { day: 'Wed', occupancy: 58 },
-  { day: 'Thu', occupancy: 80 },
-  { day: 'Fri', occupancy: 90 },
-  { day: 'Sat', occupancy: 95 },
-  { day: 'Sun', occupancy: 78 },
+  { day: 'Mon', occupancy: 6 },
+  { day: 'Tue', occupancy: 7 },
+  { day: 'Wed', occupancy: 5 },
+  { day: 'Thu', occupancy: 8 },
+  { day: 'Fri', occupancy: 9 },
+  { day: 'Sat', occupancy: 10 },
+  { day: 'Sun', occupancy: 8 },
 ];
