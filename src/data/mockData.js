@@ -34,3 +34,45 @@ export const occupancyData = [
   { day: 'Sat', occupancy: 10 },
   { day: 'Sun', occupancy: 8 },
 ];
+
+export const bookings = [
+  {
+    id: 'b-001',
+    guestName: 'Liam Carter',
+    roomNumber: '201',
+    roomType: 'Deluxe',
+    guests: 2,
+    status: 'Confirmed',
+    totalAmount: 420,
+    checkOut: '2026-03-15',
+  },
+  {
+    id: 'b-002',
+    guestName: 'Ava Thompson',
+    roomNumber: '305',
+    roomType: 'Suite',
+    guests: 3,
+    status: 'Checked-In',
+    totalAmount: 780,
+    checkOut: '2026-03-13',
+  },
+  {
+    id: 'b-003',
+    guestName: 'Noah Wilson',
+    roomNumber: '109',
+    roomType: 'Standard',
+    guests: 1,
+    status: 'Confirmed',
+    totalAmount: 240,
+    checkOut: '2026-03-16',
+  },
+];
+
+export const rooms = [
+  { id: 'r-101', number: '101', status: 'Available' },
+  { id: 'r-102', number: '102', status: 'Occupied' },
+  { id: 'r-103', number: '103', status: 'Reserved' },
+  { id: 'r-104', number: '104', status: 'Maintenance' },
+  { id: 'r-105', number: '105', status: 'Occupied' },
+  { id: 'r-106', number: '106', status: 'Available' },
+];
