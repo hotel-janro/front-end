@@ -62,6 +62,7 @@ function AppInner() {
             }
 
             try {
+                // Try to get user profile with current access token
                 const response = await fetch(`${API_BASE}/api/auth/me`, {
                     headers: {
                         "Content-Type": "application/json",
@@ -69,16 +70,44 @@ function AppInner() {
                     }
                 });
 
-                const result = await parseApiError(response, "Session expired");
-                const nextUser = normalizeUser(result.data);
-                setUser(nextUser);
-                setIsLoggedIn(true);
-                localStorage.setItem("janro_user", JSON.stringify(nextUser));
-            } catch {
-                localStorage.removeItem("janro_token");
-                localStorage.removeItem("janro_user");
-                setUser(null);
-                setIsLoggedIn(false);
+                if (response.status === 401) {
+                    // Access token might be expired (15 min), try to refresh it
+                    const savedRefreshToken = localStorage.getItem("janro_refresh_token");
+                    if (!savedRefreshToken) throw new Error("No refresh token");
+
+                    const refreshResponse = await fetch(`${API_BASE}/api/auth/refresh`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ refreshToken: savedRefreshToken })
+                    });
+
+                    const refreshData = await parseApiError(refreshResponse, "Refresh failed");
+                    const newToken = refreshData.token;
+
+                    // Save new access token
+                    localStorage.setItem("janro_token", newToken);
+                    
+                    // Retry getting user profile with NEW token
+                    const retryResponse = await fetch(`${API_BASE}/api/auth/me`, {
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${newToken}`
+                        }
+                    });
+                    const retryResult = await parseApiError(retryResponse, "Session retry failed");
+                    const nextUser = normalizeUser(retryResult.data);
+                    setUser(nextUser);
+                    setIsLoggedIn(true);
+                } else {
+                    const result = await parseApiError(response, "Session expired");
+                    const nextUser = normalizeUser(result.data);
+                    setUser(nextUser);
+                    setIsLoggedIn(true);
+                    localStorage.setItem("janro_user", JSON.stringify(nextUser));
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
+                handleLogout(); // Clear everything if both tokens fail
             }
         };
 
@@ -115,10 +144,13 @@ function AppInner() {
 
         const result = await parseApiError(response, "Login failed");
 
-        const { token, ...apiUserData } = result.data;
-        const nextUser = normalizeUser(apiUserData);
+        const { token, refreshToken, ...userData } = result.data;
+
+        const nextUser = normalizeUser(userData);
 
         localStorage.setItem("janro_token", token);
+        localStorage.setItem("janro_refresh_token", refreshToken);
+
         localStorage.setItem("janro_user", JSON.stringify(nextUser));
 
         setUser(nextUser);
@@ -150,10 +182,13 @@ function AppInner() {
         });
 
         const result = await parseApiError(response, "Registration failed");
-        const { token, ...apiUserData } = result.data;
-        const nextUser = normalizeUser(apiUserData);
+        const { token, refreshToken, ...userData } = result.data;
+
+        const nextUser = normalizeUser(userData);
 
         localStorage.setItem("janro_token", token);
+        localStorage.setItem("janro_refresh_token", refreshToken);
+
         localStorage.setItem("janro_user", JSON.stringify(nextUser));
 
         setUser(nextUser);
@@ -173,6 +208,7 @@ function AppInner() {
         setUser(null);
         setIsLoggedIn(false);
         localStorage.removeItem("janro_token");
+        localStorage.removeItem("janro_refresh_token");
         localStorage.removeItem("janro_user");
         navigate("/");
     };
