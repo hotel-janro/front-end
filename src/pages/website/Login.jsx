@@ -10,14 +10,18 @@ export function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
       setError("Please fill in all fields.");
       return;
     }
-    setError("");
-    onLogin({ email, name: email.split("@")[0] });
+    try {
+      setError("");
+      await onLogin({ email, password });
+    } catch (err) {
+      setError(err.message || "Invalid email or password");
+    }
   };
 
   return (
@@ -71,7 +75,7 @@ export function Login({ onLogin }) {
         {/* Google Sign In */}
         <button
           type="button"
-          onClick={() => onLogin({ email: "google@gmail.com", name: "Google User" })}
+          onClick={() => setError("Google sign in is not connected yet.")}
           className="w-full flex items-center justify-center gap-3 border border-gray-200 rounded-lg py-3 px-4 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 cursor-pointer"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">

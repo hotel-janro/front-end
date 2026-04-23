@@ -1,19 +1,44 @@
-// App.jsx - Main Application Entry (Pure JavaScript)
-// Main entry is now JSX and the app is fully JavaScript.
+
 import React, { useState, useEffect } from "react";
 import { BrowserRouter, useNavigate, useLocation } from "react-router";
 import { Navbar } from "./components/common/Navbar.jsx";
 import { Footer } from "./components/common/Footer.jsx";
 import { AppRoutes } from "./routes/AppRoutes.jsx";
 
-function getUserRole(userData) {
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+const normalizeUser = (userData) => {
     const email = userData?.email?.toLowerCase() || "";
-    if (userData?.role) return userData.role;
-    if (email.includes("admin")) return "admin";
-    if (email.includes("reception") || email.includes("reciption") || email.includes("frontdesk")) return "reception";
-    if (email.includes("cashier") || email.includes("pos")) return "cashier";
-    return "guest";
-}
+    let fallbackRole = "customer";
+    if (userData?.role) {
+        fallbackRole = userData.role;
+    } else if (email.includes("admin")) {
+        fallbackRole = "admin";
+    } else if (email.includes("reception") || email.includes("reciption") || email.includes("frontdesk")) {
+        fallbackRole = "reception";
+    } else if (email.includes("cashier") || email.includes("pos")) {
+        fallbackRole = "cashier";
+    }
+    return {
+        ...userData,
+        role: userData?.role || fallbackRole
+    };
+};
+
+const parseApiError = async (response, fallbackMessage) => {
+    let data = null;
+    try {
+        data = await response.json();
+    } catch {
+        throw new Error(fallbackMessage);
+    }
+
+    if (!response.ok || !data.success) {
+        throw new Error(data.message || fallbackMessage);
+    }
+
+    return data;
+};
 
 function ScrollToTop() {
     const { pathname } = useLocation();
@@ -26,50 +51,128 @@ function AppInner() {
     const navigate = useNavigate();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState(null);
+
     useEffect(() => {
         const savedUser = localStorage.getItem("janro_user");
-        if (savedUser) {
-            const parsedUser = JSON.parse(savedUser);
-            const role = getUserRole(parsedUser);
-            setUser({ ...parsedUser, role });
-            setIsLoggedIn(true);
-        }
+        const savedToken = localStorage.getItem("janro_token");
+
+        const verifySavedSession = async () => {
+            if (!savedUser || !savedToken) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${savedToken}`
+                    }
+                });
+
+                const result = await parseApiError(response, "Session expired");
+                const nextUser = normalizeUser(result.data);
+                setUser(nextUser);
+                setIsLoggedIn(true);
+                localStorage.setItem("janro_user", JSON.stringify(nextUser));
+            } catch {
+                localStorage.removeItem("janro_token");
+                localStorage.removeItem("janro_user");
+                setUser(null);
+                setIsLoggedIn(false);
+            }
+        };
+
+        verifySavedSession();
     }, []);
-    const handleLogin = (userData) => {
-        const role = getUserRole(userData);
-        const nextUser = { ...userData, role };
+
+    const handleLogin = async (userData) => {
+        const { email, password } = userData;
+        if (!password) {
+            const demoUser = normalizeUser(userData);
+            setUser(demoUser);
+            setIsLoggedIn(true);
+            localStorage.setItem("janro_user", JSON.stringify(demoUser));
+            localStorage.removeItem("janro_token");
+            navigate(
+                demoUser.role === "admin"
+                    ? "/admin"
+                    : demoUser.role === "reception"
+                    ? "/reception"
+                    : demoUser.role === "cashier"
+                    ? "/cashier"
+                    : "/"
+            );
+            return;
+        }
+
+        const response = await fetch(`${API_BASE}/api/auth/login`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ email: email.trim(), password })
+        });
+
+        const result = await parseApiError(response, "Login failed");
+
+        const { token, ...apiUserData } = result.data;
+        const nextUser = normalizeUser(apiUserData);
+
+        localStorage.setItem("janro_token", token);
+        localStorage.setItem("janro_user", JSON.stringify(nextUser));
+
         setUser(nextUser);
         setIsLoggedIn(true);
-        localStorage.setItem("janro_user", JSON.stringify(nextUser));
         navigate(
-            role === "admin"
+            nextUser.role === "admin"
                 ? "/admin"
-                : role === "reception"
+                : nextUser.role === "reception"
                 ? "/reception"
-                : role === "cashier"
+                : nextUser.role === "cashier"
                 ? "/cashier"
                 : "/"
         );
     };
-    const handleRegister = (userData) => {
-        const role = getUserRole(userData);
-        const nextUser = { ...userData, role };
+
+    const handleRegister = async ({ name, email, password, confirmPassword, phone }) => {
+        const response = await fetch(`${API_BASE}/api/auth/register`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: name.trim(),
+                email: email.trim(),
+                password,
+                confirmPassword,
+                phone
+            })
+        });
+
+        const result = await parseApiError(response, "Registration failed");
+        const { token, ...apiUserData } = result.data;
+        const nextUser = normalizeUser(apiUserData);
+
+        localStorage.setItem("janro_token", token);
+        localStorage.setItem("janro_user", JSON.stringify(nextUser));
+
         setUser(nextUser);
         setIsLoggedIn(true);
-        localStorage.setItem("janro_user", JSON.stringify(nextUser));
         navigate(
-            role === "admin"
+            nextUser.role === "admin"
                 ? "/admin"
-                : role === "reception"
+                : nextUser.role === "reception"
                 ? "/reception"
-                : role === "cashier"
+                : nextUser.role === "cashier"
                 ? "/cashier"
                 : "/"
         );
     };
+
     const handleLogout = () => {
         setUser(null);
         setIsLoggedIn(false);
+        localStorage.removeItem("janro_token");
         localStorage.removeItem("janro_user");
         navigate("/");
     };
