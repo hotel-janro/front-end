@@ -27,7 +27,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         ? `\nHoneymoon decorations: ${data.decorationItems.join(", ")}`
         : "";
 
-      alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}.\n\nRoom: ${data.room.name}\nGuests: ${data.guests}${decorationText}\nAvailable rooms: ${data.room.availableRooms ?? "N/A"}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
+      alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}.\n\nRoom: ${data.room.name}\nGuests: ${data.guests}${decorationText}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
       return;
     }
     alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}. Your booking details have been saved.\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
