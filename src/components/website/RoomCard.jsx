@@ -96,9 +96,6 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
               </p>
             </div>
           )}
-          <p className="text-xs text-[#0F172A] bg-[#F8FAFC] border border-gray-200 rounded-lg px-3 py-2">
-            Available rooms: {room.availableRooms ?? "N/A"}
-          </p>
 
           {isHoneymoonSuite && isLoggedIn && (
             <div>

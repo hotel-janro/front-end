@@ -1,11 +1,13 @@
 // EventCard.jsx - Event/Hall Card Component (Pure JavaScript)
-import React, { useState } from "react";
+import React from "react";
 import { Users, Calendar, MapPin } from "lucide-react";
 import { Button } from "../common/Button.jsx";
 import { ImageWithFallback } from "../common/ImageWithFallback.jsx";
 
-export function EventCard({ hall, onBook }) {
-  const [eventDate, setEventDate] = useState("");
+export function EventCard({ hall, onBook, selectedDate, onDateChange }) {
+  const hasSelectedDate = Boolean(selectedDate);
+  const isHallAvailable = hall.isAvailable !== false;
+  const canBook = hasSelectedDate && isHallAvailable;
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500 group border border-gray-100">
@@ -39,14 +41,21 @@ export function EventCard({ hall, onBook }) {
               ${hall.price.toLocaleString()}
             </span>
           </div>
+
+          {hasSelectedDate && (
+            <p className={`text-xs mb-2 ${isHallAvailable ? "text-green-700" : "text-red-600"}`}>
+              {isHallAvailable ? "Available for selected date" : hall.reason || "Not available for selected date"}
+            </p>
+          )}
+
           <div>
             <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
               <Calendar className="w-3 h-3" /> Event Date
             </label>
             <input
               type="date"
-              value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
+              value={selectedDate}
+              onChange={(e) => onDateChange(e.target.value)}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#D4AF37]"
             />
           </div>
@@ -55,9 +64,10 @@ export function EventCard({ hall, onBook }) {
         <Button
           variant="secondary"
           className="w-full"
-          onClick={() => onBook({ hall, eventDate })}
+          disabled={!canBook}
+          onClick={() => onBook({ hall, eventDate: selectedDate })}
         >
-          Book Hall
+          {!hasSelectedDate ? "Select Date to Book" : isHallAvailable ? "Book Hall" : "Unavailable"}
         </Button>
       </div>
     </div>
