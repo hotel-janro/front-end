@@ -1,4 +1,4 @@
-// Login.jsx - Login Page (Pure JavaScript)
+// Login Page
 import React, { useState } from "react";
 import { Link } from "react-router";
 import { Button } from "../../components/common/Button.jsx";
