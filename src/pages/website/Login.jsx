@@ -103,6 +103,14 @@ export function Login({ onLogin }) {
           Continue as Reception Demo
         </button>
 
+        <button
+          type="button"
+          onClick={() => onLogin({ email: "cashier@hotelpro.com", name: "Cashier User", role: "cashier" })}
+          className="w-full mt-3 border border-amber-200 rounded-lg py-3 px-4 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all duration-300 cursor-pointer text-sm font-medium"
+        >
+          Continue as Cashier Demo
+        </button>
+
         <p className="text-center text-sm text-gray-400 mt-6">
           Don't have an account?{" "}
           <Link to="/register" className="text-[#1E3A8A] hover:text-[#D4AF37] transition-colors">
