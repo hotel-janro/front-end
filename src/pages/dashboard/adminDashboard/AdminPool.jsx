@@ -1,14 +1,76 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Waves, Clock, Users, DollarSign, Plus, Search } from 'lucide-react';
-import { poolSlots, poolBookings } from '../../../data/newMockData.js';
+import { poolSlots, poolBookings as mockPoolBookings } from '../../../data/newMockData.js';
 import './AdminPool.css';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const defaultForm = {
+  guestName: '',
+  guestEmail: '',
+  roomNumber: '',
+  date: '',
+  timeSlot: 'Morning (09:00 - 11:00)',
+  numberOfGuests: '1',
+  pricePerPerson: '25',
+  status: 'Confirmed'
+};
+
+const normalizeBooking = (booking, index = 0) => {
+  const fallbackId = booking?.id || String(index + 1).padStart(3, '0');
+  const bookingId = booking?._id || fallbackId;
+
+  return {
+    id: fallbackId,
+    _id: bookingId,
+    guestName: booking?.guestName || '',
+    guestEmail: booking?.guestEmail || '',
+    roomNumber: booking?.roomNumber || '',
+    date: booking?.date || new Date().toISOString(),
+    timeSlot: booking?.timeSlot || '',
+    numberOfGuests: Number(booking?.numberOfGuests || 0),
+    status: booking?.status || 'Confirmed',
+    totalAmount: Number(booking?.totalAmount || 0),
+    pricePerPerson: Number(booking?.pricePerPerson || 0)
+  };
+};
 
 export function AdminPool() {
   const [activeTab, setActiveTab] = useState('bookings');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [bookings, setBookings] = useState(mockPoolBookings.map((booking, index) => normalizeBooking(booking, index)));
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [formData, setFormData] = useState(defaultForm);
 
-  const filteredBookings = poolBookings.filter((booking) => {
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/pool-bookings`);
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || 'Failed to load pool bookings');
+        }
+
+        const normalized = (result.bookings || []).map((booking, index) => normalizeBooking(booking, index));
+        setBookings(normalized);
+        setFetchError('');
+      } catch (error) {
+        setFetchError(error.message || 'Could not load pool bookings');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBookings();
+  }, []);
+
+  const filteredBookings = bookings.filter((booking) => {
     const matchesSearch =
       booking.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (booking.roomNumber && booking.roomNumber.includes(searchTerm));
@@ -54,9 +116,66 @@ export function AdminPool() {
     return 'admin-pool__progress-fill admin-pool__progress-fill--low';
   };
 
-  const totalBookings = poolBookings.length;
-  const activeBookings = poolBookings.filter((b) => b.status === 'Checked-In').length;
-  const totalRevenue = poolBookings.reduce((sum, booking) => sum + booking.totalAmount, 0);
+  const totalBookings = bookings.length;
+  const activeBookings = bookings.filter((b) => b.status === 'Checked-In').length;
+  const totalRevenue = bookings.reduce((sum, booking) => sum + booking.totalAmount, 0);
+
+  const timeSlotOptions = useMemo(() => {
+    const slots = new Set(poolSlots.map((slot) => `${slot.timeSlot} (${slot.startTime} - ${slot.endTime})`));
+
+    bookings.forEach((booking) => {
+      if (booking.timeSlot) {
+        slots.add(booking.timeSlot);
+      }
+    });
+
+    return Array.from(slots);
+  }, [bookings]);
+
+  const handleOpenBookingModal = () => {
+    setSubmitError('');
+    setFormData(defaultForm);
+    setIsModalOpen(true);
+  };
+
+  const handleFormChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((previous) => ({ ...previous, [name]: value }));
+  };
+
+  const handleCreateBooking = async (event) => {
+    event.preventDefault();
+    setSubmitError('');
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/pool-bookings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...formData,
+          numberOfGuests: Number(formData.numberOfGuests),
+          pricePerPerson: Number(formData.pricePerPerson)
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to create booking');
+      }
+
+      setBookings((previous) => [normalizeBooking(result.booking), ...previous]);
+      setIsModalOpen(false);
+      setFormData(defaultForm);
+    } catch (error) {
+      setSubmitError(error.message || 'Failed to create booking');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -65,7 +184,7 @@ export function AdminPool() {
           <h1 className="text-3xl font-semibold text-gray-900">Pool Management</h1>
           <p className="mt-1 text-gray-500">Manage pool access, time slots, and bookings</p>
         </div>
-        <button className="admin-pool__action-button self-start">
+        <button className="admin-pool__action-button self-start" onClick={activeTab === 'bookings' ? handleOpenBookingModal : undefined}>
           <Plus className="admin-pool__action-icon" />
           {activeTab === 'bookings' ? 'New Booking' : 'Add Time Slot'}
         </button>
@@ -93,6 +212,11 @@ export function AdminPool() {
       </div>
 
       <div className="admin-pool__panel">
+        {fetchError && (
+          <div className="admin-pool__inline-alert">
+            {fetchError}
+          </div>
+        )}
         <div className="flex border-b border-gray-200">
           <div>
             <button onClick={() => setActiveTab('bookings')} className={getTabClass('bookings')}>Bookings</button>
@@ -131,7 +255,7 @@ export function AdminPool() {
               </thead>
               <tbody className="admin-pool__table-body">
                 {filteredBookings.map((booking) => (
-                  <tr key={booking.id} className="admin-pool__table-row">
+                  <tr key={booking._id || booking.id} className="admin-pool__table-row">
                     <td className="admin-pool__table-cell"><span className="admin-pool__booking-code">#POOL-{booking.id.padStart(3, '0')}</span></td>
                     <td className="admin-pool__table-cell"><div><div className="admin-pool__guest-name">{booking.guestName}</div><div className="admin-pool__guest-email">{booking.guestEmail}</div></div></td>
                     <td className="admin-pool__table-cell">{booking.roomNumber || 'N/A'}</td>
@@ -144,7 +268,8 @@ export function AdminPool() {
                 ))}
               </tbody>
             </table>
-            {filteredBookings.length === 0 && (<div className="py-12 text-center"><p className="text-gray-500">No bookings found</p></div>)}
+            {isLoading && <div className="py-12 text-center"><p className="text-gray-500">Loading bookings...</p></div>}
+            {!isLoading && filteredBookings.length === 0 && (<div className="py-12 text-center"><p className="text-gray-500">No bookings found</p></div>)}
           </div>
         ) : (
           <div className="p-6">
@@ -179,6 +304,81 @@ export function AdminPool() {
           </div>
         )}
       </div>
+
+      {isModalOpen && (
+        <div className="admin-pool__modal-overlay" role="dialog" aria-modal="true">
+          <div className="admin-pool__modal-card">
+            <div className="admin-pool__modal-head">
+              <h2 className="admin-pool__modal-title">Create Pool Booking</h2>
+              <button type="button" className="admin-pool__modal-close" onClick={() => setIsModalOpen(false)}>
+                Close
+              </button>
+            </div>
+
+            <form className="admin-pool__modal-form" onSubmit={handleCreateBooking}>
+              <label className="admin-pool__field">
+                Guest Name
+                <input className="admin-pool__input" name="guestName" value={formData.guestName} onChange={handleFormChange} required />
+              </label>
+
+              <label className="admin-pool__field">
+                Guest Email
+                <input className="admin-pool__input" type="email" name="guestEmail" value={formData.guestEmail} onChange={handleFormChange} required />
+              </label>
+
+              <label className="admin-pool__field">
+                Room Number (Optional)
+                <input className="admin-pool__input" name="roomNumber" value={formData.roomNumber} onChange={handleFormChange} />
+              </label>
+
+              <label className="admin-pool__field">
+                Date
+                <input className="admin-pool__input" type="date" name="date" value={formData.date} onChange={handleFormChange} required />
+              </label>
+
+              <label className="admin-pool__field">
+                Time Slot
+                <select className="admin-pool__select" name="timeSlot" value={formData.timeSlot} onChange={handleFormChange} required>
+                  {timeSlotOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="admin-pool__field">
+                Number Of Guests
+                <input className="admin-pool__input" type="number" min="1" name="numberOfGuests" value={formData.numberOfGuests} onChange={handleFormChange} required />
+              </label>
+
+              <label className="admin-pool__field">
+                Price Per Person
+                <input className="admin-pool__input" type="number" min="0" step="0.01" name="pricePerPerson" value={formData.pricePerPerson} onChange={handleFormChange} required />
+              </label>
+
+              <label className="admin-pool__field">
+                Status
+                <select className="admin-pool__select" name="status" value={formData.status} onChange={handleFormChange}>
+                  <option value="Confirmed">Confirmed</option>
+                  <option value="Checked-In">Checked-In</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </label>
+
+              {submitError && <p className="admin-pool__form-error">{submitError}</p>}
+
+              <div className="admin-pool__modal-actions">
+                <button type="button" className="admin-pool__secondary-btn" onClick={() => setIsModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="admin-pool__primary-btn" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : 'Save Booking'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

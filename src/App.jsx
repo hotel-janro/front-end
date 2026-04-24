@@ -164,9 +164,9 @@ function AppInner() {
 
         const result = await parseApiError(response, "Login failed");
 
-        const { token, refreshToken, ...userData } = result.data;
+        const { token, refreshToken, ...apiUserData } = result.data;
 
-        const nextUser = normalizeUser(userData);
+        const nextUser = normalizeUser(apiUserData);
 
         localStorage.setItem("janro_token", token);
         localStorage.setItem("janro_refresh_token", refreshToken);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ArrowLeft,
@@ -9,22 +9,58 @@ import {
   Plus,
   UserCheck,
 } from 'lucide-react';
-import { poolSlots, poolBookings } from '../../../data/newMockData.js';
+import { poolSlots, poolBookings as mockPoolBookings } from '../../../data/newMockData.js';
 import './ReciptionPool.css';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const normalizeBooking = (booking, index = 0) => ({
+  id: booking?.id || String(index + 1).padStart(3, '0'),
+  _id: booking?._id || booking?.id || String(index + 1),
+  guestName: booking?.guestName || '',
+  guestEmail: booking?.guestEmail || '',
+  roomNumber: booking?.roomNumber || '',
+  date: booking?.date || new Date().toISOString(),
+  timeSlot: booking?.timeSlot || '',
+  numberOfGuests: Number(booking?.numberOfGuests || 0),
+  status: booking?.status || 'Confirmed',
+  totalAmount: Number(booking?.totalAmount || 0)
+});
 
 export function ReceptionPool() {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState('slots');
   const [searchTerm, setSearchTerm] = useState('');
+  const [bookings, setBookings] = useState(mockPoolBookings.map((booking, index) => normalizeBooking(booking, index)));
 
-  const filteredBookings = poolBookings.filter((booking) =>
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/pool-bookings`);
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          return;
+        }
+
+        const normalized = (result.bookings || []).map((booking, index) => normalizeBooking(booking, index));
+        setBookings(normalized);
+      } catch {
+        // Keep mock data as fallback if API is unavailable.
+      }
+    };
+
+    fetchBookings();
+  }, []);
+
+  const filteredBookings = bookings.filter((booking) =>
     booking.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (booking.roomNumber && booking.roomNumber.includes(searchTerm))
   );
 
-  const totalGuests = poolBookings.reduce((sum, b) => sum + b.numberOfGuests, 0);
-  const activeNow = poolBookings.filter((b) => b.status === 'Checked-In').length;
-  const totalRevenue = poolBookings.reduce((sum, b) => sum + b.totalAmount, 0);
+  const totalGuests = bookings.reduce((sum, b) => sum + b.numberOfGuests, 0);
+  const activeNow = bookings.filter((b) => b.status === 'Checked-In').length;
+  const totalRevenue = bookings.reduce((sum, b) => sum + b.totalAmount, 0);
 
   const getSlotFillPercent = (slot) => Math.round((slot.bookedCount / slot.capacity) * 100);
 
@@ -216,7 +252,7 @@ export function ReceptionPool() {
 
               return (
                 <div
-                  key={booking.id}
+                  key={booking._id || booking.id}
                   className="reception-pool-booking-card"
                 >
                   <div className="reception-pool-booking-row">
