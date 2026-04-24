@@ -1,4 +1,4 @@
-// Login.jsx - Login Page (Pure JavaScript)
+// Login Page
 import React, { useState } from "react";
 import { Link } from "react-router";
 import { Button } from "../../components/common/Button.jsx";
@@ -10,14 +10,18 @@ export function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
       setError("Please fill in all fields.");
       return;
     }
-    setError("");
-    onLogin({ email, name: email.split("@")[0] });
+    try {
+      setError("");
+      await onLogin({ email, password });
+    } catch (err) {
+      setError(err.message || "Invalid email or password");
+    }
   };
 
   return (
@@ -36,7 +40,7 @@ export function Login({ onLogin }) {
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg mb-4 text-sm">{error}</div>
         )}
         <div className="mb-4 text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-          Admin demo: sign in with an email containing "admin" (example: admin@hotelpro.com)
+          Role demo: use an email containing "admin", "reception", or "cashier".
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -71,7 +75,7 @@ export function Login({ onLogin }) {
         {/* Google Sign In */}
         <button
           type="button"
-          onClick={() => onLogin({ email: "google@gmail.com", name: "Google User" })}
+          onClick={() => setError("Google sign in is not connected yet.")}
           className="w-full flex items-center justify-center gap-3 border border-gray-200 rounded-lg py-3 px-4 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 cursor-pointer"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -89,6 +93,14 @@ export function Login({ onLogin }) {
           className="w-full mt-3 border border-blue-200 rounded-lg py-3 px-4 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all duration-300 cursor-pointer text-sm font-medium"
         >
           Continue as Admin Demo
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onLogin({ email: "reception@hotelpro.com", name: "Reception User", role: "reception" })}
+          className="w-full mt-3 border border-emerald-200 rounded-lg py-3 px-4 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all duration-300 cursor-pointer text-sm font-medium"
+        >
+          Continue as Reception Demo
         </button>
 
         <p className="text-center text-sm text-gray-400 mt-6">

@@ -79,7 +79,7 @@ export function Restaurant({ onOrder }) {
       <div className="bg-[#0F172A] py-20 text-center">
         <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Culinary Excellence</p>
         <h1 className="text-4xl md:text-5xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-          Restaurant & Bar
+          Restaurant
         </h1>
         <p className="text-gray-400 mt-4 max-w-xl mx-auto">
           Savor extraordinary flavors crafted by our world-class chefs.

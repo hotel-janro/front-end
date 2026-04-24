@@ -11,15 +11,31 @@ import { Login } from "../pages/website/Login.jsx";
 import { Register } from "../pages/website/Register.jsx";
 import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
 import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
+import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
+import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
+import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.jsx";
+import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
+import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
+import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
-  const postAuthPath = isAdmin ? "/admin" : "/";
+  const isReception = user?.role === "reception";
+  const isCashier = user?.role === "cashier";
+  const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : isCashier ? "/cashier" : "/";
 
   const protectedBook = (data) => {
     if (!isLoggedIn) {
       navigate("/login");
+      return;
+    }
+    if (data?.room) {
+      const decorationText = data.decorationItems?.length
+        ? `\nHoneymoon decorations: ${data.decorationItems.join(", ")}`
+        : "";
+
+      alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}.\n\nRoom: ${data.room.name}\nGuests: ${data.guests}${decorationText}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
       return;
     }
     alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}. Your booking details have been saved.\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
@@ -36,7 +52,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/rooms" element={<Rooms onBook={protectedBook} />} />
+      <Route path="/rooms" element={<Rooms onBook={protectedBook} isLoggedIn={isLoggedIn} />} />
       <Route path="/events" element={<Events onBook={protectedBook} />} />
       <Route path="/restaurant" element={<Restaurant onOrder={protectedOrder} />} />
       <Route path="/about" element={<About />} />
@@ -55,7 +71,25 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isAdmin ? <DashboardLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="pool" element={<AdminPool />} />
+        <Route path="staff" element={<AdminStaff />} />
+        <Route path="settings" element={<AdminSettings />} />
       </Route>
+
+      <Route
+        path="/reception"
+        element={isLoggedIn && isReception ? <ReceptionDashboard /> : <Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="/reception/pool"
+        element={isLoggedIn && isReception ? <ReceptionPool /> : <Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="/cashier"
+        element={isLoggedIn && isCashier ? <CashierDashboard /> : <Navigate to="/login" replace />}
+      />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
