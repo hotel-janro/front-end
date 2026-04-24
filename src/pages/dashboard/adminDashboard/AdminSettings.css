@@ -1,0 +1,174 @@
+.admin-settings-tab {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.admin-settings-tab--active {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.admin-settings-tab--inactive {
+  color: #374151;
+}
+
+.admin-settings-tab--inactive:hover {
+  background: #f3f4f6;
+}
+
+.admin-settings-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.admin-settings-control {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: #ffffff;
+}
+
+.admin-settings-control:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.admin-settings-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.admin-settings-switch__input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.admin-settings-switch__track {
+  position: relative;
+  width: 2.75rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: #d1d5db;
+  transition: background-color 0.2s ease;
+}
+
+.admin-settings-switch__track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  transition: transform 0.2s ease;
+}
+
+.admin-settings-switch__input:checked + .admin-settings-switch__track {
+  background: #2563eb;
+}
+
+.admin-settings-switch__input:checked + .admin-settings-switch__track::after {
+  transform: translateX(1.25rem);
+}
+
+.admin-settings-switch__input:focus + .admin-settings-switch__track {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.admin-settings-color-chip {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  border-width: 2px;
+}
+
+.admin-settings-color-chip--active {
+  border-color: transparent;
+}
+
+.admin-settings-color-chip--blue {
+  background: #2563eb;
+  border-color: #1d4ed8;
+}
+
+.admin-settings-color-chip--purple {
+  background: #9333ea;
+}
+
+.admin-settings-color-chip--purple:hover {
+  border-color: #7e22ce;
+}
+
+.admin-settings-color-chip--green {
+  background: #16a34a;
+}
+
+.admin-settings-color-chip--green:hover {
+  border-color: #15803d;
+}
+
+.admin-settings-color-chip--orange {
+  background: #ea580c;
+}
+
+.admin-settings-color-chip--orange:hover {
+  border-color: #c2410c;
+}
+
+.admin-settings-color-chip--pink {
+  background: #db2777;
+}
+
+.admin-settings-color-chip--pink:hover {
+  border-color: #be185d;
+}
+
+.admin-settings-gateway-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.admin-settings-gateway-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.admin-settings-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.5rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.admin-settings-primary-btn:hover {
+  background: #1d4ed8;
+}

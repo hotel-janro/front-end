@@ -8,7 +8,17 @@ import { AppRoutes } from "./routes/AppRoutes.jsx";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const normalizeUser = (userData) => {
-    const fallbackRole = userData?.email?.toLowerCase().includes("admin") ? "admin" : "customer";
+    const email = userData?.email?.toLowerCase() || "";
+    let fallbackRole = "customer";
+    if (userData?.role) {
+        fallbackRole = userData.role;
+    } else if (email.includes("admin")) {
+        fallbackRole = "admin";
+    } else if (email.includes("reception") || email.includes("reciption") || email.includes("frontdesk")) {
+        fallbackRole = "reception";
+    } else if (email.includes("cashier") || email.includes("pos")) {
+        fallbackRole = "cashier";
+    }
     return {
         ...userData,
         role: userData?.role || fallbackRole
@@ -104,13 +114,23 @@ function AppInner() {
         verifySavedSession();
     }, []);
 
-    const handleLogin = async ({ email, password }) => {
+    const handleLogin = async (userData) => {
+        const { email, password } = userData;
         if (!password) {
-            const demoUser = normalizeUser({ email, role: "admin" });
+            const demoUser = normalizeUser(userData);
             setUser(demoUser);
             setIsLoggedIn(true);
             localStorage.setItem("janro_user", JSON.stringify(demoUser));
             localStorage.removeItem("janro_token");
+            navigate(
+                demoUser.role === "admin"
+                    ? "/admin"
+                    : demoUser.role === "reception"
+                    ? "/reception"
+                    : demoUser.role === "cashier"
+                    ? "/cashier"
+                    : "/"
+            );
             return;
         }
 
@@ -135,6 +155,15 @@ function AppInner() {
 
         setUser(nextUser);
         setIsLoggedIn(true);
+        navigate(
+            nextUser.role === "admin"
+                ? "/admin"
+                : nextUser.role === "reception"
+                ? "/reception"
+                : nextUser.role === "cashier"
+                ? "/cashier"
+                : "/"
+        );
     };
 
     const handleRegister = async ({ name, email, password, confirmPassword, phone }) => {
@@ -164,7 +193,15 @@ function AppInner() {
 
         setUser(nextUser);
         setIsLoggedIn(true);
-        navigate(nextUser.role === "admin" ? "/admin" : "/");
+        navigate(
+            nextUser.role === "admin"
+                ? "/admin"
+                : nextUser.role === "reception"
+                ? "/reception"
+                : nextUser.role === "cashier"
+                ? "/cashier"
+                : "/"
+        );
     };
 
     const handleLogout = () => {
@@ -176,14 +213,17 @@ function AppInner() {
         navigate("/");
     };
     const location = useLocation();
-    const isAdminRoute = location.pathname.startsWith("/admin");
+        const isDashboardRoute =
+            location.pathname.startsWith("/admin") ||
+            location.pathname.startsWith("/reception") ||
+            location.pathname.startsWith("/cashier");
 
     return (<div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
-      {!isAdminRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>}
+            {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>}
       <main className="flex-1">
         <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
       </main>
-      {!isAdminRoute && <Footer />}
+            {!isDashboardRoute && <Footer />}
     </div>);
 }
 export default function App() {
