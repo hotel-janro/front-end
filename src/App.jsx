@@ -134,10 +134,10 @@ function AppInner() {
         verifySavedSession();
     }, []);
 
-    const handleLogin = async (userData) => {
-        const { email, password } = userData;
+    const handleLogin = async (credentials) => {
+        const { email, password } = credentials;
         if (!password) {
-            const demoUser = normalizeUser(userData);
+            const demoUser = normalizeUser(credentials);
             setUser(demoUser);
             setIsLoggedIn(true);
             localStorage.setItem("janro_user", JSON.stringify(demoUser));
