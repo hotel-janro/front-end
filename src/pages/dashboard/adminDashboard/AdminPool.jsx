@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Waves, Clock, Users, DollarSign, Plus, Search } from 'lucide-react';
+import { useSettings } from '../../../context/SettingsContext.jsx';
 import { poolSlots, poolBookings as mockPoolBookings } from '../../../data/newMockData.js';
 import './AdminPool.css';
 
@@ -12,7 +13,7 @@ const defaultForm = {
   date: '',
   timeSlot: 'Morning (09:00 - 11:00)',
   numberOfGuests: '1',
-  pricePerPerson: '25',
+  pricePerPerson: '500',
   status: 'Confirmed'
 };
 
@@ -36,6 +37,7 @@ const normalizeBooking = (booking, index = 0) => {
 };
 
 export function AdminPool() {
+  const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState('bookings');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -206,7 +208,7 @@ export function AdminPool() {
         <div className="admin-pool__stat-card">
           <div className="admin-pool__stat-content">
             <div className="admin-pool__stat-icon-wrap admin-pool__stat-icon-wrap--green"><DollarSign className="admin-pool__stat-icon" /></div>
-            <div><p className="text-sm text-gray-600">Total Revenue</p><h3 className="text-2xl font-semibold text-gray-900">${totalRevenue}</h3></div>
+            <div><p className="text-sm text-gray-600">Total Revenue</p><h3 className="text-2xl font-semibold text-gray-900">{settings.currency.symbol}{totalRevenue}</h3></div>
           </div>
         </div>
       </div>
@@ -263,7 +265,7 @@ export function AdminPool() {
                     <td className="admin-pool__table-cell">{booking.timeSlot}</td>
                     <td className="admin-pool__table-cell">{booking.numberOfGuests}</td>
                     <td className="admin-pool__table-cell"><span className={getStatusClass(booking.status)}>{booking.status}</span></td>
-                    <td className="admin-pool__table-cell"><span className="admin-pool__amount">${booking.totalAmount}</span></td>
+                    <td className="admin-pool__table-cell"><span className="admin-pool__amount">{settings.currency.symbol}{booking.totalAmount}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -286,7 +288,7 @@ export function AdminPool() {
                   <div className="admin-pool__slot-meta">
                     <div className="admin-pool__slot-meta-item"><Clock className="admin-pool__slot-meta-icon" />{slot.startTime} - {slot.endTime}</div>
                     <div className="admin-pool__slot-capacity"><Users className="admin-pool__slot-meta-icon" />{slot.bookedCount} / {slot.capacity} guests</div>
-                    <div className="admin-pool__slot-meta-item"><DollarSign className="admin-pool__slot-meta-icon" />${slot.pricePerPerson} per person</div>
+                    <div className="admin-pool__slot-meta-item"><DollarSign className="admin-pool__slot-meta-icon" />{settings.currency.symbol}{slot.pricePerPerson} per person</div>
                   </div>
                   <div className="admin-pool__slot-progress">
                     <div className="admin-pool__progress-track">

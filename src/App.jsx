@@ -4,6 +4,7 @@ import { BrowserRouter, useNavigate, useLocation } from "react-router";
 import { Navbar } from "./components/common/Navbar.jsx";
 import { Footer } from "./components/common/Footer.jsx";
 import { AppRoutes } from "./routes/AppRoutes.jsx";
+import { SettingsProvider } from "./context/SettingsContext.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -247,8 +248,10 @@ function AppInner() {
     </div>);
 }
 export default function App() {
-    return (<BrowserRouter>
-      <ScrollToTop />
-      <AppInner />
-    </BrowserRouter>);
+    return (<SettingsProvider>
+        <BrowserRouter>
+          <ScrollToTop />
+          <AppInner />
+        </BrowserRouter>
+      </SettingsProvider>);
 }

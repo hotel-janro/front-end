@@ -58,7 +58,7 @@ export const poolSlots = [
     endTime: "11:00",
     capacity: 20,
     bookedCount: 12,
-    pricePerPerson: 25,
+    pricePerPerson: 500,
     status: "Available",
   },
   {
@@ -69,7 +69,7 @@ export const poolSlots = [
     endTime: "15:00",
     capacity: 20,
     bookedCount: 20,
-    pricePerPerson: 20,
+    pricePerPerson: 500,
     status: "Full",
   },
   {
@@ -80,7 +80,7 @@ export const poolSlots = [
     endTime: "17:00",
     capacity: 20,
     bookedCount: 6,
-    pricePerPerson: 15,
+    pricePerPerson: 500,
     status: "Available",
   },
 ];

@@ -2,8 +2,10 @@
 import React, { useState } from "react";
 import { Button } from "../../components/common/Button.jsx";
 import { Phone, Mail, MapPin, Clock, Send } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext";
 
 export function Contact() {
+  const { settings } = useSettings();
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
 
@@ -63,9 +65,9 @@ export function Contact() {
               </h2>
               <div className="space-y-5">
                 {[
-                  { icon: Phone, label: "Phone", value: "+94 11 225 3456" },
-                  { icon: Mail, label: "Email", value: "info@hoteljanro.com" },
-                  { icon: MapPin, label: "Address", value: "No: 10/2, B, Medagodawatta, Malwana-Dompe Road, Dompe 11680, Sri Lanka" },
+                  { icon: Phone, label: "Phone", value:settings.phone },
+                  { icon: Mail, label: "Email", value: settings.email },
+                  { icon: MapPin, label: "Address", value: settings.address },
                   { icon: Clock, label: "Front Desk", value: "24/7 Available" },
                 ].map((item) => (
                   <div key={item.label} className="flex items-start gap-4">

@@ -9,6 +9,7 @@ import {
   Plus,
   UserCheck,
 } from 'lucide-react';
+import { useSettings } from '../../../context/SettingsContext.jsx';
 import { poolSlots, poolBookings as mockPoolBookings } from '../../../data/newMockData.js';
 import './ReciptionPool.css';
 
@@ -29,6 +30,7 @@ const normalizeBooking = (booking, index = 0) => ({
 
 export function ReceptionPool() {
   const navigate = useNavigate();
+  const { settings } = useSettings();
   const [activeView, setActiveView] = useState('slots');
   const [searchTerm, setSearchTerm] = useState('');
   const [bookings, setBookings] = useState(mockPoolBookings.map((booking, index) => normalizeBooking(booking, index)));
@@ -131,7 +133,7 @@ export function ReceptionPool() {
             <DollarSign className="w-5 h-5 text-emerald-600" />
             <span className="text-xs font-medium text-emerald-600">Revenue</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mt-2">${totalRevenue}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">{settings.currency.symbol}{totalRevenue}</p>
           <p className="text-[10px] text-gray-500 mt-1">today's pool revenue</p>
         </div>
       </div>
@@ -211,7 +213,7 @@ export function ReceptionPool() {
                   <div className="flex items-center gap-3 text-xs text-gray-600">
                     <span className="flex items-center gap-1">
                       <DollarSign className="w-3 h-3" />
-                      ${slot.pricePerPerson}/person
+                      {settings.currency.symbol}{slot.pricePerPerson}/person
                     </span>
                   </div>
                   <div className="text-right">
@@ -275,7 +277,7 @@ export function ReceptionPool() {
                       <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${config.bg}`}>
                         {booking.status}
                       </span>
-                      <span className="text-sm font-bold text-gray-900">${booking.totalAmount}</span>
+                      <span className="text-sm font-bold text-gray-900">{settings.currency.symbol}{booking.totalAmount}</span>
                       {config.action && (
                         <button
                           className={`px-3 py-1.5 text-white text-xs font-medium rounded-lg transition-colors ${config.actionColor}`}

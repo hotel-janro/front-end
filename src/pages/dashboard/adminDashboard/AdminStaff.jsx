@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Search, UserPlus, Users as UsersIcon, Briefcase, DollarSign, X } from 'lucide-react';
 import { staffMembers } from '../../../data/newMockData.js';
+import { useSettings } from '../../../context/SettingsContext.jsx';
 import './AdminStaff.css';
 
 export function AdminStaff() {
+  const { settings } = useSettings();
   const [staffList, setStaffList] = useState(staffMembers);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('All');
@@ -360,7 +362,7 @@ export function AdminStaff() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
             <div className="admin-staff-stat-icon admin-staff-stat-icon--purple"><DollarSign /></div>
-            <div><p className="text-sm text-gray-600">Total Salary</p><h3 className="text-2xl font-semibold text-gray-900">${totalSalary.toLocaleString()}/mo</h3></div>
+            <div><p className="text-sm text-gray-600">Total Salary</p><h3 className="text-2xl font-semibold text-gray-900">{settings.currency.symbol}{totalSalary.toLocaleString()}/mo</h3></div>
           </div>
         </div>
       </div>
@@ -413,7 +415,7 @@ export function AdminStaff() {
                   <td className="admin-staff-table-cell"><div><div className="admin-staff-contact-email text-gray-900">{staff.email}</div><div className="admin-staff-contact-phone">{staff.phone}</div></div></td>
                   <td className="admin-staff-table-cell"><span className={`admin-staff-role-badge ${getRoleBadgeColor(staff.role)}`}>{staff.role}</span></td>
                   <td className="admin-staff-table-cell">{staff.department}</td>
-                  <td className="admin-staff-table-cell"><span className="admin-staff-salary">${staff.salary.toLocaleString()}</span></td>
+                  <td className="admin-staff-table-cell"><span className="admin-staff-salary">{settings.currency.symbol}{staff.salary.toLocaleString()}</span></td>
                   <td className="admin-staff-table-cell">{new Date(staff.joinDate).toLocaleDateString()}</td>
                   <td className="admin-staff-table-cell"><span className={`admin-staff-status-badge ${getStatusColor(staff.status)}`}>{staff.status}</span></td>
                   <td className="admin-staff-table-cell">
