@@ -256,3 +256,39 @@ export const staffMembers = [
     status: "Active",
   },
 ];
+
+export const payments = [
+  {
+    id: "pay-001",
+    transactionId: "TXN-2026-001",
+    customerName: "Alice Brown",
+    type: "Room Booking",
+    paymentMethod: "Credit Card",
+    amount: 1500,
+    date: "2026-03-20T10:30:00Z",
+    status: "Completed",
+    referenceNumber: "REF-123456"
+  },
+  {
+    id: "pay-002",
+    transactionId: "TXN-2026-002",
+    customerName: "Charlie Davis",
+    type: "Restaurant",
+    paymentMethod: "Cash",
+    amount: 85,
+    date: "2026-03-20T12:45:00Z",
+    status: "Completed",
+    referenceNumber: ""
+  },
+  {
+    id: "pay-003",
+    transactionId: "TXN-2026-003",
+    customerName: "Emma Stone",
+    type: "Wedding",
+    paymentMethod: "Online Transfer",
+    amount: 5000,
+    date: "2026-03-21T09:15:00Z",
+    status: "Pending",
+    referenceNumber: "TRF-987654"
+  }
+];

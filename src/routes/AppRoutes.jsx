@@ -11,6 +11,10 @@ import { Login } from "../pages/website/Login.jsx";
 import { Register } from "../pages/website/Register.jsx";
 import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
 import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
+import { AdminRestaurant } from "../pages/dashboard/adminDashboard/AdminResturant.jsx";
+import { AdminPOS } from "../pages/dashboard/adminDashboard/AdminPos.jsx";
+import { AdminReports } from "../pages/dashboard/adminDashboard/AdminReports.jsx";
+import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayemnts.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
 import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.jsx";
@@ -83,6 +87,10 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="settings" element={<AdminSettings />} />
         <Route path="guests" element={<AdminGuests />} /> 
         <Route path="events" element={<AdminWedding />} /> 
+        <Route path="restaurant" element={<AdminRestaurant />} />
+        <Route path="orders" element={<AdminPOS />} />
+        <Route path="reports" element={<AdminReports />} />
+        <Route path="payments" element={<AdminPayments />} />
       </Route>
 
       <Route
