@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Waves, Clock, Users, DollarSign, Plus, Search } from 'lucide-react';
+import { Waves, Clock, Users, DollarSign, Plus, Search, Edit2, Trash2 } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 import { poolSlots, poolBookings as mockPoolBookings } from '../../../data/newMockData.js';
 import './AdminPool.css';
@@ -48,6 +48,7 @@ export function AdminPool() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [formData, setFormData] = useState(defaultForm);
+  const [editingBooking, setEditingBooking] = useState(null);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -137,6 +138,7 @@ export function AdminPool() {
   const handleOpenBookingModal = () => {
     setSubmitError('');
     setFormData(defaultForm);
+    setEditingBooking(null);
     setIsModalOpen(true);
   };
 
@@ -145,14 +147,20 @@ export function AdminPool() {
     setFormData((previous) => ({ ...previous, [name]: value }));
   };
 
-  const handleCreateBooking = async (event) => {
+  const handleSubmitBooking = async (event) => {
     event.preventDefault();
     setSubmitError('');
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/pool-bookings`, {
-        method: 'POST',
+      const isEditing = !!editingBooking;
+      const url = isEditing 
+        ? `${API_BASE}/api/pool-bookings/${editingBooking}`
+        : `${API_BASE}/api/pool-bookings`;
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json'
         },
@@ -166,16 +174,61 @@ export function AdminPool() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to create booking');
+        throw new Error(result.message || `Failed to ${isEditing ? 'update' : 'create'} booking`);
       }
 
-      setBookings((previous) => [normalizeBooking(result.booking), ...previous]);
+      const newBooking = normalizeBooking(result.booking);
+      if (isEditing) {
+        setBookings((previous) => previous.map(b => (b._id === editingBooking || b.id === editingBooking) ? newBooking : b));
+      } else {
+        setBookings((previous) => [newBooking, ...previous]);
+      }
+      
       setIsModalOpen(false);
       setFormData(defaultForm);
+      setEditingBooking(null);
     } catch (error) {
-      setSubmitError(error.message || 'Failed to create booking');
+      setSubmitError(error.message || `Failed to ${editingBooking ? 'update' : 'create'} booking`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleEditClick = (booking) => {
+    setSubmitError('');
+    setFormData({
+      guestName: booking.guestName,
+      guestEmail: booking.guestEmail,
+      roomNumber: booking.roomNumber,
+      date: booking.date ? booking.date.split('T')[0] : '',
+      timeSlot: booking.timeSlot,
+      numberOfGuests: booking.numberOfGuests.toString(),
+      pricePerPerson: booking.pricePerPerson.toString(),
+      status: booking.status
+    });
+    setEditingBooking(booking._id || booking.id);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteBooking = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this booking?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/pool-bookings/${id}`, {
+        method: 'DELETE'
+      });
+      
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to delete booking');
+      }
+
+      setBookings((previous) => previous.filter((b) => b._id !== id && b.id !== id));
+    } catch (error) {
+      alert(error.message || 'Failed to delete booking');
     }
   };
 
@@ -253,6 +306,7 @@ export function AdminPool() {
                   <th className="admin-pool__table-header">Guests</th>
                   <th className="admin-pool__table-header">Status</th>
                   <th className="admin-pool__table-header">Amount</th>
+                  <th className="admin-pool__table-header text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="admin-pool__table-body">
@@ -266,6 +320,16 @@ export function AdminPool() {
                     <td className="admin-pool__table-cell">{booking.numberOfGuests}</td>
                     <td className="admin-pool__table-cell"><span className={getStatusClass(booking.status)}>{booking.status}</span></td>
                     <td className="admin-pool__table-cell"><span className="admin-pool__amount">{settings.currency.symbol}{booking.totalAmount}</span></td>
+                    <td className="admin-pool__table-cell text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => handleEditClick(booking)} className="p-1 text-gray-500 hover:text-blue-600 transition-colors" title="Edit Booking">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteBooking(booking._id || booking.id)} className="p-1 text-gray-500 hover:text-red-600 transition-colors" title="Delete Booking">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -311,13 +375,13 @@ export function AdminPool() {
         <div className="admin-pool__modal-overlay" role="dialog" aria-modal="true">
           <div className="admin-pool__modal-card">
             <div className="admin-pool__modal-head">
-              <h2 className="admin-pool__modal-title">Create Pool Booking</h2>
+              <h2 className="admin-pool__modal-title">{editingBooking ? 'Edit Pool Booking' : 'Create Pool Booking'}</h2>
               <button type="button" className="admin-pool__modal-close" onClick={() => setIsModalOpen(false)}>
                 Close
               </button>
             </div>
 
-            <form className="admin-pool__modal-form" onSubmit={handleCreateBooking}>
+            <form className="admin-pool__modal-form" onSubmit={handleSubmitBooking}>
               <label className="admin-pool__field">
                 Guest Name
                 <input className="admin-pool__input" name="guestName" value={formData.guestName} onChange={handleFormChange} required />
@@ -374,7 +438,7 @@ export function AdminPool() {
                   Cancel
                 </button>
                 <button type="submit" className="admin-pool__primary-btn" disabled={isSubmitting}>
-                  {isSubmitting ? 'Saving...' : 'Save Booking'}
+                  {isSubmitting ? 'Saving...' : (editingBooking ? 'Update Booking' : 'Save Booking')}
                 </button>
               </div>
             </form>

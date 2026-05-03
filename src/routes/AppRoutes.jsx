@@ -14,9 +14,14 @@ import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
 import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.jsx";
+import { AdminRooms } from "../pages/dashboard/adminDashboard/AdminRooms.jsx";
+import { AdminBookings } from "../pages/dashboard/adminDashboard/AdminBooking.jsx";
+import { AdminGuests } from "../pages/dashboard/adminDashboard/AdminGuests.jsx";
+import { AdminWedding } from "../pages/dashboard/adminDashboard/AdminWeddings.jsx";
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
+
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const navigate = useNavigate();
@@ -71,9 +76,13 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isAdmin ? <DashboardLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="rooms" element={<AdminRooms />} />
+        <Route path="bookings" element={<AdminBookings />} />
         <Route path="pool" element={<AdminPool />} />
         <Route path="staff" element={<AdminStaff />} />
         <Route path="settings" element={<AdminSettings />} />
+        <Route path="guests" element={<AdminGuests />} /> 
+        <Route path="events" element={<AdminWedding />} /> 
       </Route>
 
       <Route

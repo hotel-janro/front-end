@@ -89,21 +89,56 @@ export const weddingBookings = [
   {
     id: "w-001",
     customerName: "Sophia Martinez",
+    customerEmail: "sophia.m@example.com",
     hallName: "Grand Lotus Hall",
     eventDate: "2026-03-20",
     eventTime: "6:00 PM",
     guestCount: 180,
+    packageType: "Premium",
     status: "Confirmed",
+    totalAmount: 5000,
+    advancePaid: 2000
   },
   {
     id: "w-002",
     customerName: "Daniel Brooks",
+    customerEmail: "daniel.b@example.com",
     hallName: "Skyline Ballroom",
     eventDate: "2026-03-24",
     eventTime: "1:00 PM",
     guestCount: 120,
+    packageType: "Standard",
     status: "Confirmed",
+    totalAmount: 3500,
+    advancePaid: 1500
   },
+];
+
+export const weddingHalls = [
+  {
+    id: "h-001",
+    name: "Grand Lotus Hall",
+    capacity: 300,
+    pricePerDay: 1500,
+    status: "Available",
+    features: ["AC", "Stage Lighting", "Sound System", "Catering Space"]
+  },
+  {
+    id: "h-002",
+    name: "Skyline Ballroom",
+    capacity: 200,
+    pricePerDay: 1000,
+    status: "Booked",
+    features: ["AC", "Rooftop View", "Sound System"]
+  },
+  {
+    id: "h-003",
+    name: "Rose Garden",
+    capacity: 500,
+    pricePerDay: 2000,
+    status: "Maintenance",
+    features: ["Outdoor", "Floral Decor", "Stage"]
+  }
 ];
 
 export const posOrders = [
