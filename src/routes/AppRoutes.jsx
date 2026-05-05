@@ -21,7 +21,7 @@ import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDas
 export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
-  const isReception = user?.role === "reception";
+  const isReception = user?.role === "reception" || user?.role === "receptionist";
   const isCashier = user?.role === "cashier";
   const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : isCashier ? "/cashier" : "/";
 

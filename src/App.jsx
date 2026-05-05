@@ -7,42 +7,8 @@ import { AppRoutes } from "./routes/AppRoutes.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-const getDashboardRole = (userData) => {
-    const email = userData?.email?.toLowerCase() || "";
-    const rawRole = userData?.role?.toLowerCase?.() || "";
-
-    if (rawRole === "admin" || rawRole === "manager") {
-        return "admin";
-    }
-
-    if (rawRole === "reception" || rawRole === "receptionist" || rawRole === "frontdesk") {
-        return "reception";
-    }
-
-    if (rawRole === "cashier" || rawRole === "pos") {
-        return "cashier";
-    }
-
-    if (email.includes("admin")) {
-        return "admin";
-    }
-
-    if (email.includes("reception") || email.includes("reciption") || email.includes("frontdesk")) {
-        return "reception";
-    }
-
-    if (email.includes("cashier") || email.includes("pos")) {
-        return "cashier";
-    }
-
-    return rawRole || "customer";
-};
-
 const normalizeUser = (userData) => {
-    return {
-        ...userData,
-        role: getDashboardRole(userData)
-    };
+    return userData;
 };
 
 const parseApiError = async (response, fallbackMessage) => {
