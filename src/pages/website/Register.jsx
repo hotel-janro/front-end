@@ -32,8 +32,10 @@ export function Register({ onRegister }) {
         password: form.password,
         confirmPassword: form.confirmPassword,
       });
+      setForm({ ...form, password: "", confirmPassword: "" });
     } catch (err) {
       setError(err.message || "Registration failed");
+      setForm({ ...form, password: "", confirmPassword: "" });
     }
   };
 
