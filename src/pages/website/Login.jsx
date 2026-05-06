@@ -43,9 +43,6 @@ export function Login({ onLogin }) {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg mb-4 text-sm">{error}</div>
         )}
-        <div className="mb-4 text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-          Role demo: use an email containing "admin", "reception", or "cashier".
-        </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="text-sm text-gray-600 mb-1 block">Email Address</label>
@@ -89,30 +86,6 @@ export function Login({ onLogin }) {
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
           </svg>
           <span className="text-sm text-gray-600">Sign in with Google</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onLogin({ email: "admin@hotelpro.com", name: "John Admin", role: "admin" })}
-          className="w-full mt-3 border border-blue-200 rounded-lg py-3 px-4 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all duration-300 cursor-pointer text-sm font-medium"
-        >
-          Continue as Admin Demo
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onLogin({ email: "reception@hotelpro.com", name: "Reception User", role: "reception" })}
-          className="w-full mt-3 border border-emerald-200 rounded-lg py-3 px-4 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all duration-300 cursor-pointer text-sm font-medium"
-        >
-          Continue as Reception Demo
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onLogin({ email: "cashier@hotelpro.com", name: "Cashier User", role: "cashier" })}
-          className="w-full mt-3 border border-amber-200 rounded-lg py-3 px-4 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all duration-300 cursor-pointer text-sm font-medium"
-        >
-          Continue as Cashier Demo
         </button>
 
         <p className="text-center text-sm text-gray-400 mt-6">

@@ -168,13 +168,12 @@ export function Events({ onBook }) {
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       {/* Hero Section */}
-      <div className="bg-[#0F172A] py-24 text-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
-        <p className="text-[#D4AF37] tracking-[0.4em] uppercase text-[10px] font-bold mb-4 animate-in fade-in slide-in-from-bottom duration-700">Premier Venues</p>
-        <h1 className="text-5xl md:text-6xl text-white font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>
+      <div className="bg-[#0F172A] py-20 text-center">
+        <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Premier Venues</p>
+        <h1 className="text-4xl md:text-5xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
           Weddings & Events
         </h1>
-        <p className="text-gray-400 mt-6 max-w-2xl mx-auto text-sm px-4">
+        <p className="text-gray-400 mt-4 max-w-xl mx-auto">
           Experience unparalleled luxury and dedicated service in our collection of exquisite venues, designed to host life's most precious moments.
         </p>
       </div>
