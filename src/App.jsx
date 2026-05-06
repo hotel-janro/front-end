@@ -200,13 +200,19 @@ function AppInner() {
         navigate("/");
     };
     const location = useLocation();
+    
+    // Check if current route is a management dashboard
+    const isDashboardRoute = location.pathname.startsWith("/admin") || 
+                             location.pathname.startsWith("/reception") || 
+                             location.pathname.startsWith("/cashier");
+
     return (
         <div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
-            <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>
+            {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>}
             <main className="flex-1">
                 <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
             </main>
-            <Footer />
+            {!isDashboardRoute && <Footer />}
         </div>
     );
 }

@@ -75,83 +75,77 @@ export function Navbar({ isLoggedIn, user, onLogout }) {
           {/* Auth/User Dropdown */}
           <div className="hidden lg:flex items-center gap-3">
             {isLoggedIn ? (
-              <div className="relative" ref={userMenuRef}>
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group"
-                >
-                  <div className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center text-[#0F172A] font-bold text-xs uppercase shadow-lg group-hover:scale-105 transition-transform">
-                    {user?.name?.[0] || "U"}
-                  </div>
-                  <div className="flex items-center gap-1 text-sm font-medium text-gray-200">
-                    <span className="max-w-[100px] truncate">{user?.name || "Guest"}</span>
-                    <Menu className={`w-4 h-4 transition-transform duration-300 ${showUserMenu ? "rotate-90 opacity-50" : ""}`} />
-                  </div>
-                </button>
-
-                {/* Dropdown Menu - Branded Dark Theme */}
-                {showUserMenu && (
-                  <div className="absolute right-0 mt-3 w-64 bg-[#0F172A] rounded-2xl shadow-2xl py-3 border border-white/10 overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right">
-                    <div className="px-5 py-4 border-b border-white/5 bg-white/5 mb-2">
-                      <p className="text-[10px] text-[#D4AF37] uppercase tracking-[0.2em] font-bold mb-1">Account Holder</p>
-                      <p className="text-sm font-semibold text-white truncate">{user?.name || user?.email}</p>
+              user?.role === "customer" ? (
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center text-[#0F172A] font-bold text-xs uppercase shadow-lg group-hover:scale-105 transition-transform">
+                      {user?.name?.[0] || "U"}
                     </div>
-                    
-                    {user?.role === "admin" && (
-                      <div className="border-b border-white/5 pb-2 mb-2">
-                        <div className="px-5 py-2 text-[9px] font-bold text-gray-500 uppercase tracking-widest">Management</div>
-                        <Link to="/admin" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-5 py-2.5 text-sm font-bold text-[#D4AF37] hover:bg-white/5 transition-colors">
-                          <LayoutDashboard className="w-4 h-4" /> Admin Dashboard
+                    <div className="flex items-center gap-1 text-sm font-medium text-gray-200">
+                      <span className="max-w-[100px] truncate">
+                        {user?.name || "Guest"}
+                      </span>
+                      <Menu className={`w-4 h-4 transition-transform duration-300 ${showUserMenu ? "rotate-90 opacity-50" : ""}`} />
+                    </div>
+                  </button>
+
+                  {/* Dropdown Menu - Branded Dark Theme */}
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-3 w-64 bg-[#0F172A] rounded-2xl shadow-2xl py-3 border border-white/10 overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right">
+                      <div className="px-5 py-4 border-b border-white/5 bg-white/5 mb-2">
+                        <p className="text-[10px] text-[#D4AF37] uppercase tracking-[0.2em] font-bold mb-1">
+                          Account Holder
+                        </p>
+                        <p className="text-sm font-semibold text-white truncate">
+                          {user?.name || user?.email}
+                        </p>
+                      </div>
+                      
+                      {/* Customer Management Links - Strictly for customers */}
+                      <div className="space-y-1">
+                        <div className="px-5 py-1 text-[9px] font-bold text-gray-500 uppercase tracking-widest">Personal</div>
+                        <Link
+                          to="/my-bookings/profile"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-[#D4AF37] hover:bg-white/5 transition-colors font-medium"
+                        >
+                          <User className="w-4 h-4" />
+                          My Profile
                         </Link>
-                        <Link to="/admin/pool" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-[#D4AF37] hover:bg-white/5 transition-colors">
-                          <Waves className="w-4 h-4" /> Pool Management
+                        <Link
+                          to="/my-bookings"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-[#D4AF37] hover:bg-white/5 transition-colors font-medium"
+                        >
+                          <Calendar className="w-4 h-4" />
+                          My Bookings
                         </Link>
-                        <Link to="/admin/staff" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-[#D4AF37] hover:bg-white/5 transition-colors">
-                          <Users className="w-4 h-4" /> Staff Management
+                        <Link
+                          to="/my-orders"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-[#D4AF37] hover:bg-white/5 transition-colors font-medium"
+                        >
+                          <ShoppingBag className="w-4 h-4" />
+                          My Orders
                         </Link>
                       </div>
-                    )}
-                    
-                    <div className="space-y-1">
-                      <div className="px-5 py-1 text-[9px] font-bold text-gray-500 uppercase tracking-widest">Personal</div>
-                      <Link
-                        to="/my-bookings/profile"
-                        onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-[#D4AF37] hover:bg-white/5 transition-colors font-medium"
-                      >
-                        <User className="w-4 h-4" />
-                        My Profile
-                      </Link>
-                      <Link
-                        to="/my-bookings"
-                        onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-[#D4AF37] hover:bg-white/5 transition-colors font-medium"
-                      >
-                        <Calendar className="w-4 h-4" />
-                        My Bookings
-                      </Link>
-                      <Link
-                        to="/my-orders"
-                        onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-[#D4AF37] hover:bg-white/5 transition-colors font-medium"
-                      >
-                        <ShoppingBag className="w-4 h-4" />
-                        My Orders
-                      </Link>
+                      
+                      <div className="border-t border-white/5 mt-3 pt-2">
+                        <button
+                          onClick={handleLogoutClick}
+                          className="flex items-center gap-3 w-full px-5 py-3 text-sm text-red-400 font-bold hover:bg-red-400/10 transition-colors cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Sign Out
+                        </button>
+                      </div>
                     </div>
-                    
-                    <div className="border-t border-white/5 mt-3 pt-2">
-                      <button
-                        onClick={handleLogoutClick}
-                        className="flex items-center gap-3 w-full px-5 py-3 text-sm text-red-400 font-bold hover:bg-red-400/10 transition-colors cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Sign Out
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : null /* Do not render dropdown for non-customer dashboards */
             ) : (
               <div className="flex items-center gap-2">
                 <Link
@@ -197,23 +191,25 @@ export function Navbar({ isLoggedIn, user, onLogout }) {
 
           <div className="border-t border-white/5 mt-2 pt-4 px-6">
             {isLoggedIn ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 pb-2">
-                  <div className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-[#0F172A] font-bold">
-                    {user?.name?.[0] || "U"}
+              user?.role === "customer" ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 pb-2">
+                    <div className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-[#0F172A] font-bold">
+                      {user?.name?.[0] || "U"}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">{user?.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{user?.name}</p>
-                    <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    <Link to="/my-bookings/profile" onClick={() => setIsOpen(false)} className="text-sm text-gray-300 hover:text-[#D4AF37] flex items-center gap-2"><User className="w-4 h-4"/> My Profile</Link>
+                    <Link to="/my-bookings" onClick={() => setIsOpen(false)} className="text-sm text-gray-300 hover:text-[#D4AF37] flex items-center gap-2"><Calendar className="w-4 h-4"/> My Bookings</Link>
+                    <Link to="/my-orders" onClick={() => setIsOpen(false)} className="text-sm text-gray-300 hover:text-[#D4AF37] flex items-center gap-2"><ShoppingBag className="w-4 h-4"/> My Orders</Link>
+                    <button onClick={handleLogoutClick} className="text-sm text-red-400 text-left flex items-center gap-2 pt-2"><LogOut className="w-4 h-4"/> Logout</button>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 gap-2">
-                  <Link to="/my-bookings/profile" onClick={() => setIsOpen(false)} className="text-sm text-gray-300 hover:text-[#D4AF37] flex items-center gap-2"><User className="w-4 h-4"/> My Profile</Link>
-                  <Link to="/my-bookings" onClick={() => setIsOpen(false)} className="text-sm text-gray-300 hover:text-[#D4AF37] flex items-center gap-2"><Calendar className="w-4 h-4"/> My Bookings</Link>
-                  <Link to="/my-orders" onClick={() => setIsOpen(false)} className="text-sm text-gray-300 hover:text-[#D4AF37] flex items-center gap-2"><ShoppingBag className="w-4 h-4"/> My Orders</Link>
-                  <button onClick={handleLogoutClick} className="text-sm text-red-400 text-left flex items-center gap-2 pt-2"><LogOut className="w-4 h-4"/> Logout</button>
-                </div>
-              </div>
+              ) : null
             ) : (
               <div className="flex flex-col gap-3">
                 <Link to="/login" onClick={() => setIsOpen(false)} className="block w-full py-3 text-center text-gray-300 bg-white/5 rounded-lg">Login</Link>
