@@ -19,8 +19,12 @@ export function Login({ onLogin }) {
     try {
       setError("");
       await onLogin({ email, password });
+      // Clear password on success (though usually redirected)
+      setPassword("");
     } catch (err) {
       setError(err.message || "Invalid email or password");
+      // Clear password on failure as requested
+      setPassword("");
     }
   };
 

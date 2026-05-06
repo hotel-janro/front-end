@@ -199,18 +199,15 @@ function AppInner() {
         navigate("/");
     };
     const location = useLocation();
-        const isDashboardRoute =
-            location.pathname.startsWith("/admin") ||
-            location.pathname.startsWith("/reception") ||
-            location.pathname.startsWith("/cashier");
-
-    return (<div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
-            {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>}
-      <main className="flex-1">
-        <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
-      </main>
-            {!isDashboardRoute && <Footer />}
-    </div>);
+    return (
+        <div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+            <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>
+            <main className="flex-1">
+                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
+            </main>
+            <Footer />
+        </div>
+    );
 }
 export default function App() {
     return (<BrowserRouter>
