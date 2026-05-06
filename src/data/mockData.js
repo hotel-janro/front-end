@@ -76,3 +76,14 @@ export const rooms = [
   { id: 'r-105', number: '105', status: 'Occupied' },
   { id: 'r-106', number: '106', status: 'Available' },
 ];
+
+export const menuItems = [
+  { id: 'm-001', name: 'Grilled Salmon', category: 'Main Course', price: 24.99, prepTime: 25, available: true, description: 'Fresh salmon with roasted asparagus' },
+  { id: 'm-002', name: 'Caesar Salad', category: 'Appetizer', price: 12.50, prepTime: 10, available: true, description: 'Classic caesar with garlic croutons' },
+  { id: 'm-003', name: 'Chocolate Lava Cake', category: 'Dessert', price: 8.99, prepTime: 15, available: false, description: 'Warm chocolate cake with vanilla ice cream' },
+];
+
+export const foodOrders = [
+  { id: '1001', guestName: 'John Smith', roomNumber: '201', items: [{name: 'Grilled Salmon', quantity: 2}], orderTime: '2026-03-18T18:30:00Z', status: 'Preparing', totalAmount: 49.98 },
+  { id: '1002', guestName: 'Alice Brown', roomNumber: '305', items: [{name: 'Caesar Salad', quantity: 1}], orderTime: '2026-03-18T18:45:00Z', status: 'Pending', totalAmount: 12.50 },
+];

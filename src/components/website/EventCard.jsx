@@ -3,8 +3,10 @@ import React from "react";
 import { Users, Calendar, MapPin } from "lucide-react";
 import { Button } from "../common/Button.jsx";
 import { ImageWithFallback } from "../common/ImageWithFallback.jsx";
+import { useSettings } from "../../context/SettingsContext";
 
 export function EventCard({ hall, onBook, selectedDate, onDateChange }) {
+  const { settings } = useSettings();
   const hasSelectedDate = Boolean(selectedDate);
   const isHallAvailable = hall.isAvailable !== false;
   const canBook = hasSelectedDate && isHallAvailable;
@@ -38,7 +40,7 @@ export function EventCard({ hall, onBook, selectedDate, onDateChange }) {
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm text-gray-600">Starting from</span>
             <span className="text-[#1E3A8A]" style={{ fontFamily: "DM Serif Display, serif" }}>
-              ${hall.price.toLocaleString()}
+              {settings.currency.symbol} {hall.price.toLocaleString()}
             </span>
           </div>
 

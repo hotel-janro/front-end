@@ -219,3 +219,160 @@
 .admin-staff-action-link + .admin-staff-action-link {
   margin-left: 0.75rem;
 }
+
+.admin-staff-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.admin-staff-modal-card {
+  width: min(100%, 780px);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 20px 35px rgba(15, 23, 42, 0.2);
+  padding: 1.25rem;
+}
+
+.admin-staff-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-staff-modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-staff-modal-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.admin-staff-close-button {
+  border: 0;
+  background: #f3f4f6;
+  color: #374151;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.admin-staff-close-button:hover {
+  background: #e5e7eb;
+}
+
+.admin-staff-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-staff-form-error {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.admin-staff-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+}
+
+.admin-staff-form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.admin-staff-form-input {
+  min-height: 2.625rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.625rem;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+}
+
+.admin-staff-form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.admin-staff-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.admin-staff-secondary-button,
+.admin-staff-primary-button {
+  border: 0;
+  border-radius: 0.625rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-staff-secondary-button {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.admin-staff-secondary-button:hover {
+  background: #d1d5db;
+}
+
+.admin-staff-primary-button {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.admin-staff-primary-button:hover {
+  background: #1d4ed8;
+}
+
+@media (max-width: 768px) {
+  .admin-staff-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-staff-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .admin-staff-secondary-button,
+  .admin-staff-primary-button {
+    width: 100%;
+  }
+}

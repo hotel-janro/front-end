@@ -20,16 +20,10 @@ import {
 	Landmark,
 } from "lucide-react";
 import { posOrders } from "../../../data/newMockData.js";
+import { useSettings } from "../../../context/SettingsContext.jsx";
 import "./CashierDashbord.css";
 
 const TAB_ITEMS = ["POS Dashboard", "Orders", "Payments", "Receipts"];
-
-function formatMoney(value) {
-	return `$${value.toLocaleString(undefined, {
-		minimumFractionDigits: 2,
-		maximumFractionDigits: 2,
-	})}`;
-}
 
 function formatTime(value) {
 	return new Date(value).toLocaleTimeString([], {
@@ -72,7 +66,15 @@ function getPaymentLabel(method) {
 }
 
 export function CashierDashboard() {
+	const { settings } = useSettings();
 	const [now, setNow] = useState(new Date());
+
+	function formatMoney(value) {
+		return `${settings.currency.symbol}${value.toLocaleString(undefined, {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		})}`;
+	}
 
 	useEffect(() => {
 		const timer = setInterval(() => setNow(new Date()), 1000);

@@ -4,6 +4,7 @@ import { BrowserRouter, useNavigate, useLocation } from "react-router";
 import { Navbar } from "./components/common/Navbar.jsx";
 import { Footer } from "./components/common/Footer.jsx";
 import { AppRoutes } from "./routes/AppRoutes.jsx";
+import { SettingsProvider } from "./context/SettingsContext.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -130,9 +131,9 @@ function AppInner() {
 
         const result = await parseApiError(response, "Login failed");
 
-        const { token, refreshToken, ...userData } = result.data;
+        const { token, refreshToken, ...apiUserData } = result.data;
 
-        const nextUser = normalizeUser(userData);
+        const nextUser = normalizeUser(apiUserData);
 
         localStorage.setItem("janro_token", token);
         localStorage.setItem("janro_refresh_token", refreshToken);
@@ -210,8 +211,10 @@ function AppInner() {
     );
 }
 export default function App() {
-    return (<BrowserRouter>
-      <ScrollToTop />
-      <AppInner />
-    </BrowserRouter>);
+    return (<SettingsProvider>
+        <BrowserRouter>
+          <ScrollToTop />
+          <AppInner />
+        </BrowserRouter>
+      </SettingsProvider>);
 }

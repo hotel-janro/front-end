@@ -23,6 +23,16 @@
   height: 1.25rem;
 }
 
+.admin-pool__inline-alert {
+  margin: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #fecaca;
+  border-radius: 0.75rem;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
 .admin-pool__stat-card,
 .admin-pool__panel {
   background: #ffffff;
@@ -318,6 +328,111 @@
 
 .admin-pool__slot-button:disabled {
   background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.admin-pool__modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.admin-pool__modal-card {
+  width: min(100%, 38rem);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.2);
+}
+
+.admin-pool__modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-pool__modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.admin-pool__modal-close {
+  border: 0;
+  border-radius: 0.5rem;
+  background: #f3f4f6;
+  color: #1f2937;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.admin-pool__modal-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.admin-pool__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.admin-pool__form-error {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.65rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.84rem;
+}
+
+.admin-pool__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding-top: 0.4rem;
+}
+
+.admin-pool__secondary-btn,
+.admin-pool__primary-btn {
+  border: 0;
+  border-radius: 0.65rem;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-pool__secondary-btn {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.admin-pool__primary-btn {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.admin-pool__primary-btn:disabled {
+  background: #93c5fd;
   cursor: not-allowed;
 }
 
