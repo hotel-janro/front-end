@@ -1,9 +1,201 @@
-import React, { useState } from 'react';
-import { Save, Building2, Bell, Lock, Palette, Globe, Mail, CreditCard } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, Building2, Bell, Lock, Globe, Mail, CreditCard, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useSettings } from '../../../context/SettingsContext';
 import './AdminSettings.css';
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+const CURRENCIES = [
+  { code: 'LKR', symbol: 'Rs.', label: 'Sri Lankan Rupee (LKR)' },
+  { code: 'USD', symbol: '$', label: 'US Dollar (USD)' },
+  { code: 'EUR', symbol: '€', label: 'Euro (EUR)' },
+  { code: 'GBP', symbol: '£', label: 'British Pound (GBP)' },
+];
+
+const LANGUAGES = ['English', 'Sinhala', 'Tamil', 'French', 'German'];
+const TIMEZONES = ['UTC+05:30 (Colombo)', 'UTC+00:00 (GMT)', 'UTC-05:00 (EST)', 'UTC+01:00 (CET)'];
+const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
 
 export function AdminSettings() {
   const [activeTab, setActiveTab] = useState('general');
+  const { settings, fetchSettings } = useSettings();
+  
+  // General Tab State
+  const [formData, setFormData] = useState({
+    email: '',
+    address: '',
+    phone: '',
+    website: ''
+  });
+
+  // Localization Tab State
+  const [locData, setLocData] = useState({
+    currency: { code: 'LKR', symbol: 'Rs.' },
+    language: 'English',
+    timezone: 'UTC+05:30',
+    dateFormat: 'DD/MM/YYYY'
+  });
+
+  // Security Tab State
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  useEffect(() => {
+    if (settings) {
+      setFormData({
+        email: settings.email || '',
+        address: settings.address || '',
+        phone: settings.phone || '',
+        website: settings.website || ''
+      });
+      setLocData({
+        currency: settings.currency || { code: 'LKR', symbol: 'Rs.' },
+        language: settings.language || 'English',
+        timezone: settings.timezone || 'UTC+05:30',
+        dateFormat: settings.dateFormat || 'DD/MM/YYYY'
+      });
+    }
+  }, [settings]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleLocChange = (e) => {
+    const { name, value } = e.target;
+    if (name === 'currencyCode') {
+      const selected = CURRENCIES.find(c => c.code === value);
+      setLocData(prev => ({ ...prev, currency: { code: selected.code, symbol: selected.symbol } }));
+    } else {
+      setLocData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const handleGeneralSave = async () => {
+    setIsSaving(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const token = localStorage.getItem('janro_token');
+      const response = await fetch(`${API_BASE}/api/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Settings updated successfully!' });
+        fetchSettings(); // Refresh global settings
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Failed to update settings' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An error occurred while saving settings' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLocalizationSave = async () => {
+    setIsSaving(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const token = localStorage.getItem('janro_token');
+      const response = await fetch(`${API_BASE}/api/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(locData)
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Localization settings updated successfully!' });
+        fetchSettings(); // Refresh global settings
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Failed to update localization' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An error occurred while saving localization' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSecuritySave = async () => {
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setMessage({ type: 'error', text: 'Please fill in all password fields' });
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setMessage({ type: 'error', text: 'New passwords do not match' });
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const token = localStorage.getItem('janro_token');
+      const response = await fetch(`${API_BASE}/api/auth/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(passwordData)
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Password changed successfully!' });
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Failed to change password' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An error occurred while changing password' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const onSave = () => {
+    if (activeTab === 'general') {
+      handleGeneralSave();
+    } else if (activeTab === 'security') {
+      handleSecuritySave();
+    } else if (activeTab === 'localization') {
+      handleLocalizationSave();
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -11,6 +203,12 @@ export function AdminSettings() {
         <h1 className="text-3xl font-semibold text-gray-900">Settings</h1>
         <p className="text-gray-500 mt-1">Manage your hotel system configuration and preferences</p>
       </div>
+
+      {message.text && (
+        <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          {message.text}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="flex flex-col md:flex-row">
@@ -20,7 +218,6 @@ export function AdminSettings() {
                 { id: 'general', label: 'General', icon: Building2 },
                 { id: 'notifications', label: 'Notifications', icon: Bell },
                 { id: 'security', label: 'Security', icon: Lock },
-                { id: 'appearance', label: 'Appearance', icon: Palette },
                 { id: 'localization', label: 'Localization', icon: Globe },
                 { id: 'email', label: 'Email Settings', icon: Mail },
                 { id: 'payment', label: 'Payment Gateway', icon: CreditCard },
@@ -29,7 +226,10 @@ export function AdminSettings() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setMessage({ type: '', text: '' });
+                    }}
                     className={`admin-settings-tab ${
                       activeTab === tab.id ? 'admin-settings-tab--active' : 'admin-settings-tab--inactive'
                     }`}
@@ -49,25 +249,50 @@ export function AdminSettings() {
                 <div className="space-y-4">
                   <div>
                     <label className="admin-settings-label">Hotel Name</label>
-                    <input type="text" defaultValue="Grand Luxury Hotel" className="admin-settings-control" />
+                    <input type="text" value="HOTEL JANRO" disabled className="admin-settings-control bg-gray-50 cursor-not-allowed" />
+                    <p className="text-xs text-gray-400 mt-1">Hotel name is locked and cannot be changed.</p>
                   </div>
                   <div>
                     <label className="admin-settings-label">Address</label>
-                    <textarea rows={3} defaultValue="123 Main Street, Downtown, City, State 12345" className="admin-settings-control" />
+                    <textarea 
+                      rows={3} 
+                      name="address"
+                      value={formData.address}
+                      onChange={handleChange}
+                      className="admin-settings-control" 
+                    />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="admin-settings-label">Phone Number</label>
-                      <input type="tel" defaultValue="+1 (555) 123-4567" className="admin-settings-control" />
+                      <input 
+                        type="tel" 
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        className="admin-settings-control" 
+                      />
                     </div>
                     <div>
                       <label className="admin-settings-label">Email</label>
-                      <input type="email" defaultValue="info@grandhotel.com" className="admin-settings-control" />
+                      <input 
+                        type="email" 
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="admin-settings-control" 
+                      />
                     </div>
                   </div>
                   <div>
                     <label className="admin-settings-label">Website</label>
-                    <input type="url" defaultValue="https://www.grandhotel.com" className="admin-settings-control" />
+                    <input 
+                      type="url" 
+                      name="website"
+                      value={formData.website}
+                      onChange={handleChange}
+                      className="admin-settings-control" 
+                    />
                   </div>
                 </div>
               </div>
@@ -104,15 +329,63 @@ export function AdminSettings() {
                 <div className="space-y-4">
                   <div>
                     <label className="admin-settings-label">Current Password</label>
-                    <input type="password" placeholder="Enter current password" className="admin-settings-control" />
+                    <div className="relative">
+                      <input 
+                        type={showPasswords.current ? "text" : "password"} 
+                        name="currentPassword"
+                        value={passwordData.currentPassword}
+                        onChange={handlePasswordChange}
+                        placeholder="Enter current password" 
+                        className="admin-settings-control pr-10" 
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => togglePasswordVisibility('current')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="admin-settings-label">New Password</label>
-                    <input type="password" placeholder="Enter new password" className="admin-settings-control" />
+                    <div className="relative">
+                      <input 
+                        type={showPasswords.new ? "text" : "password"} 
+                        name="newPassword"
+                        value={passwordData.newPassword}
+                        onChange={handlePasswordChange}
+                        placeholder="Enter new password" 
+                        className="admin-settings-control pr-10" 
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => togglePasswordVisibility('new')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="admin-settings-label">Confirm New Password</label>
-                    <input type="password" placeholder="Confirm new password" className="admin-settings-control" />
+                    <div className="relative">
+                      <input 
+                        type={showPasswords.confirm ? "text" : "password"} 
+                        name="confirmPassword"
+                        value={passwordData.confirmPassword}
+                        onChange={handlePasswordChange}
+                        placeholder="Confirm new password" 
+                        className="admin-settings-control pr-10" 
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => togglePasswordVisibility('confirm')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="pt-4 border-t border-gray-200">
                     <div className="flex items-center justify-between">
@@ -127,133 +400,65 @@ export function AdminSettings() {
               </div>
             )}
 
-            {activeTab === 'appearance' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Appearance Settings</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="admin-settings-label">Theme</label>
-                    <select className="admin-settings-control">
-                      <option>Light</option><option>Dark</option><option>Auto</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="admin-settings-label">Primary Color</label>
-                    <div className="flex gap-3">
-                      <button className="admin-settings-color-chip admin-settings-color-chip--blue"></button>
-                      <button className="admin-settings-color-chip admin-settings-color-chip--active admin-settings-color-chip--purple"></button>
-                      <button className="admin-settings-color-chip admin-settings-color-chip--active admin-settings-color-chip--green"></button>
-                      <button className="admin-settings-color-chip admin-settings-color-chip--active admin-settings-color-chip--orange"></button>
-                      <button className="admin-settings-color-chip admin-settings-color-chip--active admin-settings-color-chip--pink"></button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="admin-settings-label">Sidebar Position</label>
-                    <select className="admin-settings-control">
-                      <option>Left</option><option>Right</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {activeTab === 'localization' && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Localization Settings</h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="admin-settings-label">Language</label>
-                    <select className="admin-settings-control">
-                      <option>English (US)</option><option>Spanish</option><option>French</option><option>German</option><option>Chinese</option>
-                    </select>
+                    <label className="admin-settings-label">System Language</label>
+                    <input type="text" value="English" disabled className="admin-settings-control bg-gray-50 cursor-not-allowed" />
+                    <p className="text-xs text-gray-400 mt-1">System language is locked and cannot be changed.</p>
                   </div>
                   <div>
                     <label className="admin-settings-label">Timezone</label>
-                    <select className="admin-settings-control">
-                      <option>UTC-08:00 (Pacific Time)</option><option>UTC-05:00 (Eastern Time)</option><option>UTC+00:00 (GMT)</option><option>UTC+01:00 (Central European Time)</option><option>UTC+08:00 (China Standard Time)</option>
+                    <select 
+                      name="timezone"
+                      value={locData.timezone}
+                      onChange={handleLocChange}
+                      className="admin-settings-control"
+                    >
+                      {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className="admin-settings-label">Currency</label>
-                    <select className="admin-settings-control">
-                      <option>USD ($)</option><option>EUR (&euro;)</option><option>GBP (&pound;)</option><option>JPY (&yen;)</option><option>CNY (&yen;)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="admin-settings-label">Date Format</label>
-                    <select className="admin-settings-control">
-                      <option>MM/DD/YYYY</option><option>DD/MM/YYYY</option><option>YYYY-MM-DD</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'email' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Email Configuration</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="admin-settings-label">SMTP Server</label>
-                    <input type="text" placeholder="smtp.example.com" className="admin-settings-control" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="admin-settings-label">Port</label>
-                      <input type="number" placeholder="587" className="admin-settings-control" />
+                      <label className="admin-settings-label">System Currency</label>
+                      <select 
+                        name="currencyCode"
+                        value={locData.currency.code}
+                        onChange={handleLocChange}
+                        className="admin-settings-control"
+                      >
+                        {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+                      </select>
                     </div>
                     <div>
-                      <label className="admin-settings-label">Encryption</label>
-                      <select className="admin-settings-control">
-                        <option>TLS</option><option>SSL</option><option>None</option>
+                      <label className="admin-settings-label">Date Format</label>
+                      <select 
+                        name="dateFormat"
+                        value={locData.dateFormat}
+                        onChange={handleLocChange}
+                        className="admin-settings-control"
+                      >
+                        {DATE_FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
                       </select>
                     </div>
                   </div>
-                  <div>
-                    <label className="admin-settings-label">Username</label>
-                    <input type="email" placeholder="your-email@example.com" className="admin-settings-control" />
-                  </div>
-                  <div>
-                    <label className="admin-settings-label">Password</label>
-                    <input type="password" placeholder="••••••••" className="admin-settings-control" />
-                  </div>
                 </div>
               </div>
             )}
 
-            {activeTab === 'payment' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Gateway Settings</h2>
-                <div className="space-y-6">
-                  <div className="admin-settings-gateway-card">
-                    <div className="admin-settings-gateway-header">
-                      <h3 className="font-medium text-gray-900">Stripe</h3>
-                      <label className="admin-settings-switch">
-                        <input type="checkbox" className="admin-settings-switch__input" defaultChecked />
-                        <div className="admin-settings-switch__track"></div>
-                      </label>
-                    </div>
-                    <input type="text" placeholder="Publishable Key" className="admin-settings-control mb-2" />
-                    <input type="password" placeholder="Secret Key" className="admin-settings-control" />
-                  </div>
-                  <div className="admin-settings-gateway-card">
-                    <div className="admin-settings-gateway-header">
-                      <h3 className="font-medium text-gray-900">PayPal</h3>
-                      <label className="admin-settings-switch">
-                        <input type="checkbox" className="admin-settings-switch__input" />
-                        <div className="admin-settings-switch__track"></div>
-                      </label>
-                    </div>
-                    <input type="text" placeholder="Client ID" className="admin-settings-control mb-2" />
-                    <input type="password" placeholder="Secret" className="admin-settings-control" />
-                  </div>
-                </div>
-              </div>
-            )}
+            {activeTab === 'email' && <div className="p-4 text-gray-500 italic">Email configuration content (static)</div>}
+            {activeTab === 'payment' && <div className="p-4 text-gray-500 italic">Payment gateway settings content (static)</div>}
 
             <div className="flex justify-end pt-6 border-t border-gray-200 mt-6">
-              <button className="admin-settings-primary-btn">
-                <Save className="w-5 h-5" />Save Changes
+              <button 
+                onClick={onSave}
+                disabled={isSaving || (activeTab !== 'general' && activeTab !== 'security' && activeTab !== 'localization')}
+                className={`admin-settings-primary-btn ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+              >
+                {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>

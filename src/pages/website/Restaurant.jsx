@@ -5,8 +5,10 @@ import { Button } from "../../components/common/Button.jsx";
 import { ShoppingCart, X, Truck, Building2, Loader2 } from "lucide-react";
 import { apiFetch } from "../../api.js";
 import { toast } from "sonner";
+import { useSettings } from "../../context/SettingsContext.jsx";
 
 export function Restaurant({ onOrder }) {
+  const { settings } = useSettings();
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
@@ -146,10 +148,10 @@ export function Restaurant({ onOrder }) {
                   <div key={item._id} className="flex items-center justify-between bg-[#F8FAFC] rounded-lg p-3">
                     <div>
                       <p className="text-sm font-medium text-[#0F172A]">{item.name}</p>
-                      <p className="text-xs text-gray-400">Qty: {item.quantity} x ${item.price.toFixed(2)}</p>
+                      <p className="text-xs text-gray-400">Qty: {item.quantity} x {settings.currency.symbol}{item.price.toFixed(2)}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm text-[#1E3A8A] font-medium">${(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="text-sm text-[#1E3A8A] font-medium">{settings.currency.symbol}{(item.price * item.quantity).toFixed(2)}</span>
                       <button onClick={() => removeFromCart(item._id)} className="text-red-400 hover:text-red-600 cursor-pointer">
                         <X className="w-4 h-4" />
                       </button>
@@ -185,7 +187,7 @@ export function Restaurant({ onOrder }) {
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-gray-600">Total (Excl. Tax)</span>
                     <span className="text-2xl text-[#0F172A]" style={{ fontFamily: "DM Serif Display, serif" }}>
-                      ${total.toFixed(2)}
+                      {settings.currency.symbol}{total.toFixed(2)}
                     </span>
                   </div>
                   <Button
