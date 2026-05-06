@@ -9,22 +9,36 @@ import { About } from "../pages/website/About.jsx";
 import { Contact } from "../pages/website/Contact.jsx";
 import { Login } from "../pages/website/Login.jsx";
 import { Register } from "../pages/website/Register.jsx";
+import { Profile } from "../pages/dashboard/customerDashboard/Profile.jsx";
+import { MyBookings } from "../pages/dashboard/customerDashboard/MyBookings.jsx";
+import { MyOrders } from "../pages/dashboard/customerDashboard/MyOrders.jsx";
 import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
 import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
+import { AdminRestaurant } from "../pages/dashboard/adminDashboard/AdminResturant.jsx";
+import { AdminPOS } from "../pages/dashboard/adminDashboard/AdminPos.jsx";
+import { AdminReports } from "../pages/dashboard/adminDashboard/AdminReports.jsx";
+import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayemnts.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
 import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.jsx";
-import RestaurantDashboard from "../pages/dashboard/restaurantDashboard/RestaurantDashboard.jsx";
+import { AdminRooms } from "../pages/dashboard/adminDashboard/AdminRooms.jsx";
+import { AdminBookings } from "../pages/dashboard/adminDashboard/AdminBooking.jsx";
+import { AdminGuests } from "../pages/dashboard/adminDashboard/AdminGuests.jsx";
+import { AdminWedding } from "../pages/dashboard/adminDashboard/AdminWeddings.jsx";
 import InventoryDashboard from "../pages/dashboard/inventoryDashboard/InventoryDashboard.jsx";
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
+import { Cart } from "../pages/website/Cart.jsx";
+import { Checkout } from "../pages/website/Checkout.jsx";
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
-  const isReception = user?.role === "reception";
+  const isReception = user?.role === "reception" || user?.role === "receptionist";
   const isCashier = user?.role === "cashier";
+  const isCustomer = user?.role === "customer";
+
   const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : isCashier ? "/cashier" : "/";
 
   const protectedBook = (data) => {
@@ -61,6 +75,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       <Route path="/restaurant" element={<Restaurant onOrder={protectedOrder} />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
+      <Route path="/cart" element={<Cart />} />
+      <Route path="/checkout" element={<Checkout />} />
+
       <Route
         path="/login"
         element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Login onLogin={onLogin} />}
@@ -69,30 +86,41 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         path="/register"
         element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Register onRegister={onRegister} />}
       />
+
+      {/* Customer Management Routes (Website Style) */}
+      <Route path="/my-bookings" element={isLoggedIn ? <MyBookings /> : <Navigate to="/login" replace />} />
+      <Route path="/my-bookings/profile" element={isLoggedIn ? <Profile user={user} /> : <Navigate to="/login" replace />} />
+      <Route path="/my-orders" element={isLoggedIn ? <MyOrders /> : <Navigate to="/login" replace />} />
+
       {/* Admin Dashboard Routes */}
       <Route
         path="/admin"
         element={isLoggedIn && isAdmin ? <DashboardLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="rooms" element={<AdminRooms />} />
+        <Route path="bookings" element={<AdminBookings />} />
         <Route path="pool" element={<AdminPool />} />
         <Route path="staff" element={<AdminStaff />} />
         <Route path="settings" element={<AdminSettings />} />
-        <Route path="restaurant" element={<RestaurantDashboard />} />
-        <Route path="orders" element={<RestaurantDashboard />} />
+        <Route path="guests" element={<AdminGuests />} />
+        <Route path="events" element={<AdminWedding />} />
+        <Route path="restaurant" element={<AdminRestaurant />} />
+        <Route path="orders" element={<AdminPOS />} />
+        <Route path="reports" element={<AdminReports />} />
+        <Route path="payments" element={<AdminPayments />} />
         <Route path="inventory" element={<InventoryDashboard />} />
       </Route>
 
+      {/* Reception & Cashier */}
       <Route
         path="/reception"
         element={isLoggedIn && isReception ? <ReceptionDashboard /> : <Navigate to="/login" replace />}
       />
-
       <Route
         path="/reception/pool"
         element={isLoggedIn && isReception ? <ReceptionPool /> : <Navigate to="/login" replace />}
       />
-
       <Route
         path="/cashier"
         element={isLoggedIn && isCashier ? <CashierDashboard /> : <Navigate to="/login" replace />}

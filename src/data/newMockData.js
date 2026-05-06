@@ -58,7 +58,7 @@ export const poolSlots = [
     endTime: "11:00",
     capacity: 20,
     bookedCount: 12,
-    pricePerPerson: 25,
+    pricePerPerson: 500,
     status: "Available",
   },
   {
@@ -69,7 +69,7 @@ export const poolSlots = [
     endTime: "15:00",
     capacity: 20,
     bookedCount: 20,
-    pricePerPerson: 20,
+    pricePerPerson: 500,
     status: "Full",
   },
   {
@@ -80,7 +80,7 @@ export const poolSlots = [
     endTime: "17:00",
     capacity: 20,
     bookedCount: 6,
-    pricePerPerson: 15,
+    pricePerPerson: 500,
     status: "Available",
   },
 ];
@@ -89,21 +89,56 @@ export const weddingBookings = [
   {
     id: "w-001",
     customerName: "Sophia Martinez",
+    customerEmail: "sophia.m@example.com",
     hallName: "Grand Lotus Hall",
     eventDate: "2026-03-20",
     eventTime: "6:00 PM",
     guestCount: 180,
+    packageType: "Premium",
     status: "Confirmed",
+    totalAmount: 5000,
+    advancePaid: 2000
   },
   {
     id: "w-002",
     customerName: "Daniel Brooks",
+    customerEmail: "daniel.b@example.com",
     hallName: "Skyline Ballroom",
     eventDate: "2026-03-24",
     eventTime: "1:00 PM",
     guestCount: 120,
+    packageType: "Standard",
     status: "Confirmed",
+    totalAmount: 3500,
+    advancePaid: 1500
   },
+];
+
+export const weddingHalls = [
+  {
+    id: "h-001",
+    name: "Grand Lotus Hall",
+    capacity: 300,
+    pricePerDay: 1500,
+    status: "Available",
+    features: ["AC", "Stage Lighting", "Sound System", "Catering Space"]
+  },
+  {
+    id: "h-002",
+    name: "Skyline Ballroom",
+    capacity: 200,
+    pricePerDay: 1000,
+    status: "Booked",
+    features: ["AC", "Rooftop View", "Sound System"]
+  },
+  {
+    id: "h-003",
+    name: "Rose Garden",
+    capacity: 500,
+    pricePerDay: 2000,
+    status: "Maintenance",
+    features: ["Outdoor", "Floral Decor", "Stage"]
+  }
 ];
 
 export const posOrders = [
@@ -220,4 +255,40 @@ export const staffMembers = [
     joinDate: "2024-07-03",
     status: "Active",
   },
+];
+
+export const payments = [
+  {
+    id: "pay-001",
+    transactionId: "TXN-2026-001",
+    customerName: "Alice Brown",
+    type: "Room Booking",
+    paymentMethod: "Credit Card",
+    amount: 1500,
+    date: "2026-03-20T10:30:00Z",
+    status: "Completed",
+    referenceNumber: "REF-123456"
+  },
+  {
+    id: "pay-002",
+    transactionId: "TXN-2026-002",
+    customerName: "Charlie Davis",
+    type: "Restaurant",
+    paymentMethod: "Cash",
+    amount: 85,
+    date: "2026-03-20T12:45:00Z",
+    status: "Completed",
+    referenceNumber: ""
+  },
+  {
+    id: "pay-003",
+    transactionId: "TXN-2026-003",
+    customerName: "Emma Stone",
+    type: "Wedding",
+    paymentMethod: "Online Transfer",
+    amount: 5000,
+    date: "2026-03-21T09:15:00Z",
+    status: "Pending",
+    referenceNumber: "TRF-987654"
+  }
 ];

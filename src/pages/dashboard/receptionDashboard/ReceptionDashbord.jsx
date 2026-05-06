@@ -25,9 +25,11 @@ import {
 import { dashboardStats } from '../../../data/mockData.js';
 import { bookings } from '../../../data/mockData.js';
 import { rooms } from '../../../data/mockData.js';
+import { useSettings } from '../../../context/SettingsContext.jsx';
 import { poolBookings, weddingBookings } from '../../../data/newMockData.js';
 
 export function ReceptionDashboard() {
+  const { settings } = useSettings();
   const [now, setNow] = useState(new Date());
   const [activeTab, setActiveTab] = useState('Dashboard');
   const navigate = useNavigate();
@@ -366,7 +368,7 @@ export function ReceptionDashboard() {
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-xs text-gray-500">Room {booking.roomNumber}</span>
                         <span className="text-xs text-gray-400">|</span>
-                        <span className="text-xs text-gray-500">${booking.totalAmount}</span>
+                        <span className="text-xs text-gray-500">{settings.currency.symbol}{booking.totalAmount}</span>
                         <span className="text-xs text-gray-400">|</span>
                         <span className="text-xs text-gray-500">
                           Out: {new Date(booking.checkOut).toLocaleDateString()}

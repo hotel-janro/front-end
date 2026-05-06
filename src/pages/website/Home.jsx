@@ -7,6 +7,7 @@ import {
   Bed, Car, UtensilsCrossed, Waves, Star,
   ArrowRight, Quote,
 } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext.jsx";
 
 const DeliveryBikeIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -26,12 +27,6 @@ const ROOM_IMG3 = "https://images.unsplash.com/photo-1642976975710-1d8890dbf5ab?
 const EVENT_IMG = "https://images.unsplash.com/photo-1759519238029-689e99c6d19e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBiYWxscm9vbSUyMHdlZGRpbmclMjB2ZW51ZXxlbnwxfHx8fDE3NzI0ODIyNzV8MA&ixlib=rb-4.1.0&q=80&w=1080";
 const FOOD_IMG = "https://images.unsplash.com/photo-1543353071-873f17a7a088?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmaW5lJTIwZGluaW5nJTIwcmVzdGF1cmFudCUyMHBsYXRlZCUyMGZvb2R8ZW58MXx8fHwxNzcyNDgyMjY4fDA&ixlib=rb-4.1.0&q=80&w=1080";
 
-const featuredRooms = [
-  { name: "Royal Suite", price: "$350", image: ROOM_IMG },
-  { name: "Deluxe Ocean View", price: "$250", image: ROOM_IMG2 },
-  { name: "Penthouse", price: "$500", image: ROOM_IMG3 },
-];
-
 const facilities = [
   { icon: Bed, label: "Rooms" },
   { icon: Waves, label: "Swimming Pool" },
@@ -47,6 +42,14 @@ const testimonials = [
 ];
 
 export function Home() {
+  const { settings } = useSettings();
+  
+  const featuredRooms = [
+    { name: "Royal Suite", price: 350, image: ROOM_IMG },
+    { name: "Deluxe Ocean View", price: 250, image: ROOM_IMG2 },
+    { name: "Penthouse", price: 500, image: ROOM_IMG3 },
+  ];
+
   return (
     <div>
       {/* Hero Section */}
@@ -109,7 +112,7 @@ export function Home() {
               <div key={room.name} className="bg-white rounded-2xl shadow-lg overflow-hidden group hover:shadow-2xl transition-all duration-500 border border-gray-100">
                 <div className="relative h-56 overflow-hidden">
                   <ImageWithFallback src={room.image} alt={room.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">{room.price}/night</div>
+                  <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">{settings.currency.symbol}{room.price}/night</div>
                 </div>
                 <div className="p-6">
                   <h3 className="text-[#0F172A] mb-2" style={{ fontFamily: "DM Serif Display, serif" }}>{room.name}</h3>

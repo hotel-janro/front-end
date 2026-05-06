@@ -3,9 +3,11 @@ import React, { useState } from "react";
 import { Plus, Minus, ShoppingCart } from "lucide-react";
 import { Button } from "../common/Button.jsx";
 import { ImageWithFallback } from "../common/ImageWithFallback.jsx";
+import { useSettings } from "../../context/SettingsContext";
 
 export function FoodCard({ item, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
+  const { settings } = useSettings();
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500 group border border-gray-100">
@@ -16,7 +18,7 @@ export function FoodCard({ item, onAddToCart }) {
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
         <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">
-          ${item.price.toFixed(2)}
+          {settings.currency.symbol} {item.price.toFixed(2)}
         </div>
       </div>
       <div className="p-5">

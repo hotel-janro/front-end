@@ -9,7 +9,11 @@ const WhatsAppIcon = () => (
   </svg>
 );
 
+import { useSettings } from "../../context/SettingsContext";
+
 export function Footer() {
+  const { settings } = useSettings();
+
   return (
     <footer className="bg-[#0F172A] text-gray-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -66,15 +70,15 @@ export function Footer() {
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-[#D4AF37] mt-0.5 shrink-0" />
-                <span className="text-sm text-gray-400">123 Luxury Avenue, Paradise City, PC 10001</span>
+                <span className="text-sm text-gray-400">{settings.address}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-[#D4AF37] shrink-0" />
-                <span className="text-sm text-gray-400">+1 (555) 123-4567</span>
+                <span className="text-sm text-gray-400">{settings.phone}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="w-4 h-4 text-[#D4AF37] shrink-0" />
-                <span className="text-sm text-gray-400">info@hoteljanro.com</span>
+                <span className="text-sm text-gray-400">{settings.email}</span>
               </div>
             </div>
           </div>
