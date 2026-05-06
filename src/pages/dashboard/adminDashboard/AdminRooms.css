@@ -1,0 +1,377 @@
+/* AdminRooms.css */
+
+.admin-rooms__action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.admin-rooms__action-button:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
+}
+
+.admin-rooms__stat-card,
+.admin-rooms__panel {
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.admin-rooms__stat-card {
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-rooms__stat-icon-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+}
+
+.admin-rooms__stat-icon-wrap--blue {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.admin-rooms__stat-icon-wrap--green {
+  background: #f0fdf4;
+  color: #22c55e;
+}
+
+.admin-rooms__stat-icon-wrap--amber {
+  background: #fffbeb;
+  color: #f59e0b;
+}
+
+.admin-rooms__stat-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.admin-rooms__tab-container {
+  display: flex;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.admin-rooms__tab {
+  padding: 1rem 1.5rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-rooms__tab:hover {
+  color: #1e293b;
+}
+
+.admin-rooms__tab--active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.admin-rooms__table-container {
+  overflow-x: auto;
+}
+
+.admin-rooms__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-rooms__table th {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-rooms__table td {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.admin-rooms__room-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-rooms__room-name {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.admin-rooms__room-type {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.admin-rooms__status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.admin-rooms__status-badge--available {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.admin-rooms__status-badge--occupied {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.admin-rooms__status-badge--reserved {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.admin-rooms__status-badge--maintenance {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.admin-rooms__action-btn {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 0.5rem;
+}
+
+.admin-rooms__action-btn:hover {
+  background: #f8fafc;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+.admin-rooms__action-btn--delete:hover {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.admin-rooms__expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: white;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-rooms__expand-btn:hover {
+  background: #f8fafc;
+  color: #2563eb;
+  border-color: #2563eb;
+}
+
+.admin-rooms__expand-btn--active {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #2563eb;
+}
+
+.admin-rooms__row--expanded {
+  background: #f8fafc;
+}
+
+.admin-rooms__sub-row td {
+  padding: 0.75rem 1.5rem !important;
+  background: #fdfdfe;
+  border-bottom: 1px solid #f8fafc !important;
+}
+
+.admin-rooms__sub-row--added td {
+  background: #f0f7ff;
+}
+
+.admin-rooms__sub-row--booked td {
+  background: #fef2f2;
+}
+
+.admin-rooms__action-btn--disabled {
+  cursor: not-allowed;
+  background-color: #f1f5f9 !important;
+  color: #64748b !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Modal Styles */
+.admin-rooms__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.admin-rooms__modal {
+  background: white;
+  border-radius: 1.25rem;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.admin-rooms__modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-rooms__modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.admin-rooms__modal-close {
+  background: transparent;
+  border: 0;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+.admin-rooms__modal-body {
+  padding: 1.5rem;
+}
+
+.admin-rooms__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+
+.admin-rooms__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-rooms__form-group--full {
+  grid-column: span 2;
+}
+
+.admin-rooms__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.admin-rooms__input,
+.admin-rooms__select,
+.admin-rooms__textarea {
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.admin-rooms__input:focus,
+.admin-rooms__select:focus,
+.admin-rooms__textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.admin-rooms__modal-footer {
+  padding: 1.5rem;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.admin-rooms__btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-rooms__btn--secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.admin-rooms__btn--secondary:hover {
+  background: #e2e8f0;
+}
+
+.admin-rooms__btn--primary {
+  background: #2563eb;
+  color: white;
+  border: 0;
+}
+
+.admin-rooms__btn--primary:hover {
+  background: #1d4ed8;
+}
+
+@media (max-width: 640px) {
+  .admin-rooms__form-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-rooms__form-group--full {
+    grid-column: span 1;
+  }
+}

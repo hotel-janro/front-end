@@ -1,5 +1,6 @@
 // AppRoutes.jsx - Application Routes (Pure JavaScript)
 import React from "react";
+import { apiFetch } from "../api";
 import { Routes, Route, Navigate, useNavigate } from "react-router";
 import { Home } from "../pages/website/Home.jsx";
 import { Rooms } from "../pages/website/Rooms.jsx";
@@ -11,6 +12,7 @@ import { Login } from "../pages/website/Login.jsx";
 import { Register } from "../pages/website/Register.jsx";
 import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
 import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
+import { AdminRooms } from "../pages/dashboard/adminDashboard/AdminRooms.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
 import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.jsx";
@@ -25,20 +27,44 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const isCashier = user?.role === "cashier";
   const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : isCashier ? "/cashier" : "/";
 
-  const protectedBook = (data) => {
+  const protectedBook = async (data) => {
     if (!isLoggedIn) {
       navigate("/login");
       return;
     }
     if (data?.room) {
-      const decorationText = data.decorationItems?.length
-        ? `\nHoneymoon decorations: ${data.decorationItems.join(", ")}`
-        : "";
+      try {
+        const response = await apiFetch("/bookings", {
+          method: "POST",
+          body: JSON.stringify({
+            roomId: data.room._id,
+            checkInDate: data.checkInDate,
+            checkOutDate: data.checkOutDate,
+            guests: data.guests,
+            fullName: data.fullName || user?.name,
+            email: data.email || user?.email,
+            phone: data.phone || user?.phone || "N/A",
+            specialRequests: data.specialRequests || "",
+            decorationItems: data.decorationItems || []
+          })
+        });
 
-      alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}.\n\nRoom: ${data.room.name}\nGuests: ${data.guests}${decorationText}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
+        if (response.success) {
+          const decorationText = data.decorationItems?.length
+            ? `\nHoneymoon decorations: ${data.decorationItems.join(", ")}`
+            : "";
+
+          alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}.\n\nRoom: ${data.room.name}\nGuests: ${data.guests}${decorationText}`);
+          
+          // Refresh the page to update room counts
+          window.location.reload();
+        }
+      } catch (error) {
+        alert(`Booking failed: ${error.message}`);
+      }
       return;
     }
-    alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}. Your booking details have been saved.\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
+    alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}. Your booking details have been saved.`);
   };
 
   const protectedOrder = (data) => {
@@ -71,6 +97,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isAdmin ? <DashboardLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="rooms" element={<AdminRooms />} />
         <Route path="pool" element={<AdminPool />} />
         <Route path="staff" element={<AdminStaff />} />
         <Route path="settings" element={<AdminSettings />} />

@@ -3,8 +3,7 @@
 const BASE_URL = "http://localhost:5000/api";
 
 export const apiFetch = async (endpoint, options = {}) => {
-  const user = JSON.parse(localStorage.getItem("janro_user") || "{}");
-  const token = user.token; // Assuming token is stored in the user object
+  const token = localStorage.getItem("janro_token");
 
   const headers = {
     "Content-Type": "application/json",
