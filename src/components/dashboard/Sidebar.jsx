@@ -1,4 +1,5 @@
 // Sidebar.jsx - Admin Dashboard Sidebar Navigation
+import { Link } from "react-router-dom";
 import React from "react";
 import { NavLink, useNavigate } from "react-router";
 import {
@@ -15,6 +16,7 @@ import {
   Settings,
   LogOut,
   Crown,
+  Boxes,
 } from "lucide-react";
 
 const adminItems = [
@@ -26,6 +28,7 @@ const adminItems = [
   { label: "Restaurant", icon: UtensilsCrossed, path: "/admin/restaurant" },
   { label: "Pool", icon: Waves, path: "/admin/pool" },
   { label: "Orders & POS", icon: ShoppingCart, path: "/admin/orders" },
+  { label: "Inventory", icon: Boxes, path: "/admin/inventory" },
   { label: "Users & Staff", icon: Users, path: "/admin/staff" },
   { label: "Reports", icon: BarChart3, path: "/admin/reports" },
   { label: "Payments", icon: CreditCard, path: "/admin/payments" },

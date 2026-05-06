@@ -25,6 +25,7 @@ import { AdminRooms } from "../pages/dashboard/adminDashboard/AdminRooms.jsx";
 import { AdminBookings } from "../pages/dashboard/adminDashboard/AdminBooking.jsx";
 import { AdminGuests } from "../pages/dashboard/adminDashboard/AdminGuests.jsx";
 import { AdminWedding } from "../pages/dashboard/adminDashboard/AdminWeddings.jsx";
+import InventoryDashboard from "../pages/dashboard/inventoryDashboard/InventoryDashboard.jsx";
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
@@ -61,7 +62,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       navigate("/login");
       return;
     }
-    alert(`Order placed successfully!\n\nThank you, ${user?.name || "Guest"}.\nTotal: $${data.total.toFixed(2)}\nDelivery: ${data.delivery === "room" ? "Room Delivery" : "Pickup"}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
+    const total = Number(data?.total || 0);
+    const delivery = data?.delivery || data?.orderType || "pickup";
+    alert(`Order placed successfully!\n\nThank you, ${user?.name || "Guest"}.\nTotal: $${total.toFixed(2)}\nDelivery: ${delivery === "room" || delivery === "Room" ? "Room Delivery" : "Pickup"}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
   };
 
   return (
@@ -106,6 +109,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="orders" element={<AdminPOS />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="payments" element={<AdminPayments />} />
+        <Route path="inventory" element={<InventoryDashboard />} />
       </Route>
 
       {/* Reception & Cashier */}
