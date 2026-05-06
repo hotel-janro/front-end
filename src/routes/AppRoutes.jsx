@@ -14,6 +14,8 @@ import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
 import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.jsx";
+import RestaurantDashboard from "../pages/dashboard/restaurantDashboard/RestaurantDashboard.jsx";
+import InventoryDashboard from "../pages/dashboard/inventoryDashboard/InventoryDashboard.jsx";
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
@@ -46,7 +48,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       navigate("/login");
       return;
     }
-    alert(`Order placed successfully!\n\nThank you, ${user?.name || "Guest"}.\nTotal: $${data.total.toFixed(2)}\nDelivery: ${data.delivery === "room" ? "Room Delivery" : "Pickup"}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
+    const total = Number(data?.total || 0);
+    const delivery = data?.delivery || data?.orderType || "pickup";
+    alert(`Order placed successfully!\n\nThank you, ${user?.name || "Guest"}.\nTotal: $${total.toFixed(2)}\nDelivery: ${delivery === "room" || delivery === "Room" ? "Room Delivery" : "Pickup"}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
   };
 
   return (
@@ -74,6 +78,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="pool" element={<AdminPool />} />
         <Route path="staff" element={<AdminStaff />} />
         <Route path="settings" element={<AdminSettings />} />
+        <Route path="restaurant" element={<RestaurantDashboard />} />
+        <Route path="orders" element={<RestaurantDashboard />} />
+        <Route path="inventory" element={<InventoryDashboard />} />
       </Route>
 
       <Route
