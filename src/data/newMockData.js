@@ -1,0 +1,294 @@
+// newMockData.js - Enhanced dashboard mock data
+
+export const enhancedDashboardStats = {
+  totalBookings: 156,
+  pendingBookings: 12,
+  cancelledBookings: 4,
+  totalGuests: 230,
+  newGuestsThisMonth: 45,
+  averageStay: 3.2,
+  revenueGrowth: 12.5,
+  occupancyGrowth: 5.2,
+  bookingGrowth: 8.3,
+  monthlyRevenueGrowth: 8.1,
+};
+
+export const poolBookings = [
+  {
+    id: "001",
+    guestName: "John Smith",
+    guestEmail: "john.smith@email.com",
+    roomNumber: "102",
+    date: "2026-02-26",
+    timeSlot: "Morning (09:00 - 11:00)",
+    numberOfGuests: 2,
+    status: "Checked-In",
+    totalAmount: 50,
+  },
+  {
+    id: "002",
+    guestName: "Emma Johnson",
+    guestEmail: "emma.j@email.com",
+    roomNumber: "104",
+    date: "2026-02-26",
+    timeSlot: "Afternoon (13:00 - 15:00)",
+    numberOfGuests: 3,
+    status: "Confirmed",
+    totalAmount: 60,
+  },
+  {
+    id: "003",
+    guestName: "Michael Chen",
+    guestEmail: "michael.chen@email.com",
+    roomNumber: "",
+    date: "2026-02-26",
+    timeSlot: "Evening (15:00 - 17:00)",
+    numberOfGuests: 4,
+    status: "Confirmed",
+    totalAmount: 45,
+  },
+];
+
+export const poolSlots = [
+  {
+    id: "s-001",
+    date: "2026-02-26",
+    timeSlot: "Morning Slot",
+    startTime: "09:00",
+    endTime: "11:00",
+    capacity: 20,
+    bookedCount: 12,
+    pricePerPerson: 500,
+    status: "Available",
+  },
+  {
+    id: "s-002",
+    date: "2026-02-26",
+    timeSlot: "Afternoon Slot",
+    startTime: "13:00",
+    endTime: "15:00",
+    capacity: 20,
+    bookedCount: 20,
+    pricePerPerson: 500,
+    status: "Full",
+  },
+  {
+    id: "s-003",
+    date: "2026-02-26",
+    timeSlot: "Evening Slot",
+    startTime: "15:00",
+    endTime: "17:00",
+    capacity: 20,
+    bookedCount: 6,
+    pricePerPerson: 500,
+    status: "Available",
+  },
+];
+
+export const weddingBookings = [
+  {
+    id: "w-001",
+    customerName: "Sophia Martinez",
+    customerEmail: "sophia.m@example.com",
+    hallName: "Grand Lotus Hall",
+    eventDate: "2026-03-20",
+    eventTime: "6:00 PM",
+    guestCount: 180,
+    packageType: "Premium",
+    status: "Confirmed",
+    totalAmount: 5000,
+    advancePaid: 2000
+  },
+  {
+    id: "w-002",
+    customerName: "Daniel Brooks",
+    customerEmail: "daniel.b@example.com",
+    hallName: "Skyline Ballroom",
+    eventDate: "2026-03-24",
+    eventTime: "1:00 PM",
+    guestCount: 120,
+    packageType: "Standard",
+    status: "Confirmed",
+    totalAmount: 3500,
+    advancePaid: 1500
+  },
+];
+
+export const weddingHalls = [
+  {
+    id: "h-001",
+    name: "Grand Lotus Hall",
+    capacity: 300,
+    pricePerDay: 1500,
+    status: "Available",
+    features: ["AC", "Stage Lighting", "Sound System", "Catering Space"]
+  },
+  {
+    id: "h-002",
+    name: "Skyline Ballroom",
+    capacity: 200,
+    pricePerDay: 1000,
+    status: "Booked",
+    features: ["AC", "Rooftop View", "Sound System"]
+  },
+  {
+    id: "h-003",
+    name: "Rose Garden",
+    capacity: 500,
+    pricePerDay: 2000,
+    status: "Maintenance",
+    features: ["Outdoor", "Floral Decor", "Stage"]
+  }
+];
+
+export const posOrders = [
+  {
+    id: "pos-001",
+    orderNumber: "ORD-1001",
+    customerName: "Daniel Brooks",
+    type: "Dine-In",
+    paymentMethod: "Card",
+    status: "Completed",
+    tax: 4.2,
+    totalAmount: 46.2,
+    createdAt: "2026-03-18T09:15:00",
+  },
+  {
+    id: "pos-002",
+    orderNumber: "ORD-1002",
+    customerName: "Sophia Martinez",
+    type: "Takeaway",
+    paymentMethod: "Cash",
+    status: "Completed",
+    tax: 2.1,
+    totalAmount: 23.1,
+    createdAt: "2026-03-18T10:05:00",
+  },
+  {
+    id: "pos-003",
+    orderNumber: "ORD-1003",
+    customerName: "Emma Johnson",
+    type: "Room Service",
+    paymentMethod: "Online",
+    status: "Pending",
+    tax: 3.8,
+    totalAmount: 41.8,
+    createdAt: "2026-03-18T11:20:00",
+  },
+  {
+    id: "pos-004",
+    orderNumber: "ORD-1004",
+    customerName: "Michael Chen",
+    type: "Dine-In",
+    paymentMethod: "Card",
+    status: "Cancelled",
+    tax: 1.6,
+    totalAmount: 17.6,
+    createdAt: "2026-03-18T12:10:00",
+  },
+  {
+    id: "pos-005",
+    orderNumber: "ORD-1005",
+    customerName: "Ava Williams",
+    type: "Takeaway",
+    paymentMethod: "Cash",
+    status: "Completed",
+    tax: 5.4,
+    totalAmount: 59.4,
+    createdAt: "2026-03-18T13:45:00",
+  },
+  {
+    id: "pos-006",
+    orderNumber: "ORD-1006",
+    customerName: "Noah Patel",
+    type: "Room Service",
+    paymentMethod: "Online",
+    status: "Pending",
+    tax: 2.9,
+    totalAmount: 31.9,
+    createdAt: "2026-03-18T15:05:00",
+  },
+];
+
+export const staffMembers = [
+  {
+    id: "001",
+    name: "John Silva",
+    email: "john.silva@hoteljanro.com",
+    phone: "+94 77 111 2233",
+    role: "Manager",
+    department: "Operations",
+    salary: 180000,
+    joinDate: "2024-02-14",
+    status: "Active",
+  },
+  {
+    id: "002",
+    name: "Nadeesha Perera",
+    email: "nadeesha.perera@hoteljanro.com",
+    phone: "+94 71 333 5566",
+    role: "Receptionist",
+    department: "Front Office",
+    salary: 90000,
+    joinDate: "2025-01-08",
+    status: "Active",
+  },
+  {
+    id: "003",
+    name: "Kasun Fernando",
+    email: "kasun.fernando@hoteljanro.com",
+    phone: "+94 76 555 7788",
+    role: "Chef",
+    department: "Kitchen",
+    salary: 140000,
+    joinDate: "2023-11-20",
+    status: "On Leave",
+  },
+  {
+    id: "004",
+    name: "Amani De Costa",
+    email: "amani.decosta@hoteljanro.com",
+    phone: "+94 75 888 0099",
+    role: "Housekeeping",
+    department: "Housekeeping",
+    salary: 75000,
+    joinDate: "2024-07-03",
+    status: "Active",
+  },
+];
+
+export const payments = [
+  {
+    id: "pay-001",
+    transactionId: "TXN-2026-001",
+    customerName: "Alice Brown",
+    type: "Room Booking",
+    paymentMethod: "Credit Card",
+    amount: 1500,
+    date: "2026-03-20T10:30:00Z",
+    status: "Completed",
+    referenceNumber: "REF-123456"
+  },
+  {
+    id: "pay-002",
+    transactionId: "TXN-2026-002",
+    customerName: "Charlie Davis",
+    type: "Restaurant",
+    paymentMethod: "Cash",
+    amount: 85,
+    date: "2026-03-20T12:45:00Z",
+    status: "Completed",
+    referenceNumber: ""
+  },
+  {
+    id: "pay-003",
+    transactionId: "TXN-2026-003",
+    customerName: "Emma Stone",
+    type: "Wedding",
+    paymentMethod: "Online Transfer",
+    amount: 5000,
+    date: "2026-03-21T09:15:00Z",
+    status: "Pending",
+    referenceNumber: "TRF-987654"
+  }
+];

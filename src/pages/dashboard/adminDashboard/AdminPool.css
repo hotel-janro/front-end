@@ -1,0 +1,447 @@
+.admin-pool__action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.admin-pool__action-button:hover {
+  background: #1d4ed8;
+}
+
+.admin-pool__action-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.admin-pool__inline-alert {
+  margin: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #fecaca;
+  border-radius: 0.75rem;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.admin-pool__stat-card,
+.admin-pool__panel {
+  background: #ffffff;
+  border: 1px solid #f3f4f6;
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.admin-pool__panel {
+  overflow: hidden;
+}
+
+.admin-pool__stat-card {
+  padding: 1.5rem;
+}
+
+.admin-pool__stat-content,
+.admin-pool__slot-meta-item,
+.admin-pool__slot-capacity {
+  display: flex;
+  align-items: center;
+}
+
+.admin-pool__stat-content {
+  gap: 0.75rem;
+}
+
+.admin-pool__stat-icon-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.75rem;
+}
+
+.admin-pool__stat-icon-wrap--blue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.admin-pool__stat-icon-wrap--cyan {
+  background: #ecfeff;
+  color: #0891b2;
+}
+
+.admin-pool__stat-icon-wrap--green {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.admin-pool__stat-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.admin-pool__tab {
+  padding: 0.75rem 1.5rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #6b7280;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.admin-pool__tab:hover {
+  color: #374151;
+}
+
+.admin-pool__tab--active {
+  border-bottom-color: #2563eb;
+  color: #2563eb;
+}
+
+.admin-pool__search-wrap {
+  position: relative;
+}
+
+.admin-pool__search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #9ca3af;
+  transform: translateY(-50%);
+}
+
+.admin-pool__input,
+.admin-pool__select {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  font: inherit;
+  color: #111827;
+  background: #ffffff;
+}
+
+.admin-pool__input {
+  padding: 0.625rem 1rem 0.625rem 2.75rem;
+}
+
+.admin-pool__select {
+  padding: 0.625rem 1rem;
+}
+
+.admin-pool__input:focus,
+.admin-pool__select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.admin-pool__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-pool__table-head {
+  background: #f9fafb;
+}
+
+.admin-pool__table-header {
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.admin-pool__table-body {
+  border-top: 1px solid #f3f4f6;
+}
+
+.admin-pool__table-row {
+  transition: background-color 0.2s ease;
+}
+
+.admin-pool__table-row + .admin-pool__table-row {
+  border-top: 1px solid #f3f4f6;
+}
+
+.admin-pool__table-row:hover {
+  background: #f9fafb;
+}
+
+.admin-pool__table-cell {
+  padding: 1rem 1.5rem;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: #111827;
+}
+
+.admin-pool__booking-code,
+.admin-pool__guest-name,
+.admin-pool__amount {
+  font-weight: 600;
+  color: #111827;
+}
+
+.admin-pool__guest-email,
+.admin-pool__slot-remaining {
+  color: #6b7280;
+}
+
+.admin-pool__guest-email {
+  margin-top: 0.125rem;
+  font-size: 0.875rem;
+}
+
+.admin-pool__status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.admin-pool__status-badge--confirmed,
+.admin-pool__status-badge--available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.admin-pool__status-badge--checked-in {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.admin-pool__status-badge--completed,
+.admin-pool__status-badge--closed {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.admin-pool__status-badge--cancelled,
+.admin-pool__status-badge--full {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.admin-pool__slot-card {
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  background: #f9fafb;
+  transition: box-shadow 0.2s ease;
+}
+
+.admin-pool__slot-card:hover {
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+}
+
+.admin-pool__slot-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-pool__slot-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-pool__slot-meta-item,
+.admin-pool__slot-capacity {
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.admin-pool__slot-meta-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.admin-pool__slot-progress {
+  margin-top: 1rem;
+}
+
+.admin-pool__progress-track {
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: #e5e7eb;
+}
+
+.admin-pool__progress-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.admin-pool__progress-fill--high {
+  background: #ef4444;
+}
+
+.admin-pool__progress-fill--medium {
+  background: #eab308;
+}
+
+.admin-pool__progress-fill--low {
+  background: #22c55e;
+}
+
+.admin-pool__slot-remaining {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+}
+
+.admin-pool__slot-button {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.625rem 1rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.admin-pool__slot-button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.admin-pool__slot-button:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.admin-pool__modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.admin-pool__modal-card {
+  width: min(100%, 38rem);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.2);
+}
+
+.admin-pool__modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-pool__modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.admin-pool__modal-close {
+  border: 0;
+  border-radius: 0.5rem;
+  background: #f3f4f6;
+  color: #1f2937;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.admin-pool__modal-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.admin-pool__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.admin-pool__form-error {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.65rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.84rem;
+}
+
+.admin-pool__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding-top: 0.4rem;
+}
+
+.admin-pool__secondary-btn,
+.admin-pool__primary-btn {
+  border: 0;
+  border-radius: 0.65rem;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-pool__secondary-btn {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.admin-pool__primary-btn {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.admin-pool__primary-btn:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+
+@media (min-width: 1024px) {
+  .admin-pool__select {
+    max-width: 13rem;
+  }
+}

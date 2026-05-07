@@ -1,0 +1,221 @@
+// AdminDashboard.jsx - Admin Dashboard Page
+import React from "react";
+import {
+  Bed,
+  Calendar,
+  DollarSign,
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
+import { useSettings } from "../../../context/SettingsContext.jsx";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { dashboardStats, revenueData, occupancyData } from "../../../data/mockData.js";
+import { enhancedDashboardStats } from "../../../data/newMockData.js";
+
+export function AdminDashboard() {
+  const { settings } = useSettings();
+  const occupancyRate = Math.round(
+    (dashboardStats.occupiedRooms / dashboardStats.totalRooms) * 100
+  );
+
+  const stats = [
+    {
+      title: "Total Revenue",
+      value: `${settings.currency.symbol}${dashboardStats.totalRevenue.toLocaleString()}`,
+      change: "+12.5%",
+      trend: "up",
+      icon: DollarSign,
+      color: "bg-[#D4AF37]/20 text-[#9A7812]",
+    },
+    {
+      title: "Occupancy Rate",
+      value: `${occupancyRate}%`,
+      change: "+5.2%",
+      trend: "up",
+      icon: Bed,
+      color: "bg-[#0F172A]/10 text-[#0F172A]",
+    },
+    {
+      title: "Total Bookings",
+      value: enhancedDashboardStats.totalBookings,
+      change: "+8.3%",
+      trend: "up",
+      icon: Calendar,
+      color: "bg-[#1E3A8A]/15 text-[#1E3A8A]",
+    },
+    {
+      title: "Monthly Revenue",
+      value: `${settings.currency.symbol}${dashboardStats.monthlyRevenue.toLocaleString()}`,
+      change: "+8.1%",
+      trend: "up",
+      icon: TrendingUp,
+      color: "bg-[#F8FAFC] text-[#0F172A]",
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8">
+        <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+        <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+          Admin Dashboard
+        </h1>
+        <p className="text-slate-300 mt-2">
+          Welcome back! Here&apos;s your hotel overview
+        </p>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <div
+              key={index}
+              className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">{stat.title}</p>
+                  <h3 className="text-2xl font-semibold text-[#0F172A] mt-2">
+                    {stat.value}
+                  </h3>
+                  <div className="flex items-center gap-1 mt-2">
+                    {stat.trend === "up" ? (
+                      <ArrowUpRight className="w-4 h-4 text-[#9A7812]" />
+                    ) : (
+                      <ArrowDownRight className="w-4 h-4 text-red-600" />
+                    )}
+                    <span
+                      className={`text-sm ${
+                        stat.trend === "up"
+                          ? "text-[#9A7812]"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {stat.change}
+                    </span>
+                    <span className="text-sm text-slate-500">vs last month</span>
+                  </div>
+                </div>
+                <div className={`p-3 rounded-lg ${stat.color}`}>
+                  <Icon className="w-6 h-6" />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Revenue Chart */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10">
+          <h3 className="text-lg text-[#0F172A] mb-4" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Revenue Overview
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={revenueData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis dataKey="month" stroke="#9ca3af" />
+              <YAxis stroke="#9ca3af" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #D4AF37",
+                  borderRadius: "8px",
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="#D4AF37"
+                strokeWidth={2}
+                dot={{ fill: "#D4AF37", r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Occupancy Chart */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10">
+          <h3 className="text-lg text-[#0F172A] mb-4" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Weekly Occupancy
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={occupancyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis dataKey="day" stroke="#9ca3af" />
+              <YAxis stroke="#9ca3af" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #D4AF37",
+                  borderRadius: "8px",
+                }}
+              />
+              <Bar dataKey="occupancy" fill="#0F172A" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-[#D4AF37]/20 rounded-lg">
+              <ArrowUpRight className="w-6 h-6 text-[#9A7812]" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Today&apos;s Check-ins</p>
+              <h3 className="text-2xl font-semibold text-[#0F172A]">
+                {dashboardStats.todayCheckIns}
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-[#0F172A]/10 rounded-lg">
+              <ArrowDownRight className="w-6 h-6 text-[#0F172A]" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Today&apos;s Check-outs</p>
+              <h3 className="text-2xl font-semibold text-[#0F172A]">
+                {dashboardStats.todayCheckOuts}
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#0F172A]/10">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-[#1E3A8A]/15 rounded-lg">
+              <Bed className="w-6 h-6 text-[#1E3A8A]" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Available Rooms</p>
+              <h3 className="text-2xl font-semibold text-[#0F172A]">
+                {dashboardStats.availableRooms}
+              </h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
