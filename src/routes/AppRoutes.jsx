@@ -63,7 +63,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
             email: data.email || user?.email,
             phone: data.phone || user?.phone || "N/A",
             specialRequests: data.specialRequests || "",
-            decorationItems: data.decorationItems || []
+            decorationItems: data.decorationItems || [],
+            checkInType: data.checkInType || 'Day',
+            checkOutType: data.checkOutType || 'Night'
           })
         });
 
