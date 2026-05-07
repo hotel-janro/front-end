@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Waves, Clock, Users, DollarSign, Plus, Search, Edit2, Trash2 } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
-import { poolSlots, poolBookings as mockPoolBookings } from '../../../data/newMockData.js';
+import { poolBookings as mockPoolBookings } from '../../../data/newMockData.js';
 import './AdminPool.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const basePoolSlots = [
+  { timeSlot: 'Morning Slot', startTime: '09:00', endTime: '12:00', capacity: 20, pricePerPerson: 500 },
+  { timeSlot: 'Afternoon Slot', startTime: '13:00', endTime: '16:00', capacity: 20, pricePerPerson: 500 },
+  { timeSlot: 'Evening Slot', startTime: '16:00', endTime: '19:00', capacity: 20, pricePerPerson: 500 },
+];
 
 const defaultForm = {
   guestName: '',
@@ -12,6 +18,8 @@ const defaultForm = {
   roomNumber: '',
   date: '',
   timeSlot: 'Morning Slot',
+  checkInTime: '10:00',
+  checkOutTime: '12:00',
   numberOfGuests: '1',
   pricePerPerson: '500',
   status: 'Confirmed'
@@ -29,6 +37,8 @@ const normalizeBooking = (booking, index = 0) => {
     roomNumber: booking?.roomNumber || '',
     date: booking?.date || new Date().toISOString(),
     timeSlot: booking?.timeSlot || '',
+    checkInTime: booking?.checkInTime || '10:00',
+    checkOutTime: booking?.checkOutTime || '12:00',
     numberOfGuests: Number(booking?.numberOfGuests || 0),
     status: booking?.status || 'Confirmed',
     totalAmount: Number(booking?.totalAmount || 0),
@@ -42,6 +52,30 @@ const getTimeSlotKey = (timeSlot) =>
     .replace(/\s*\(.*\)$/, '')
     .toLowerCase()
     .trim();
+
+const calculatePricePerPerson = (checkInTime, checkOutTime) => {
+  try {
+    const [inHour, inMin] = checkInTime.split(':').map(Number);
+    const [outHour, outMin] = checkOutTime.split(':').map(Number);
+    
+    const inTotalMinutes = inHour * 60 + inMin;
+    const outTotalMinutes = outHour * 60 + outMin;
+    
+    let durationMinutes = outTotalMinutes - inTotalMinutes;
+    if (durationMinutes <= 0) durationMinutes += 24 * 60; // Next day
+    
+    const durationHours = durationMinutes / 60;
+    
+    // Rs. 500 for first 2 hours, Rs. 200 for each additional hour
+    if (durationHours <= 2) {
+      return 500;
+    }
+    const additionalHours = Math.ceil(durationHours - 2);
+    return 500 + (additionalHours * 200);
+  } catch (e) {
+    return 500; // Default fallback
+  }
+};
 
 export function AdminPool() {
   const { settings } = useSettings();
@@ -88,7 +122,59 @@ export function AdminPool() {
     return matchesSearch && matchesStatus;
   });
 
-  const filteredSlots = poolSlots.filter((slot) =>
+  const dynamicPoolSlots = useMemo(() => {
+    const today = new Date().toISOString();
+    const slotMap = new Map();
+
+    basePoolSlots.forEach((slot) => {
+      slotMap.set(slot.timeSlot, {
+        ...slot,
+        date: today,
+        bookedCount: 0,
+        bookings: [],
+        status: 'Available'
+      });
+    });
+
+    bookings.forEach((booking) => {
+      if (booking.status === 'Cancelled' || !booking.timeSlot) {
+        return;
+      }
+
+      const lowerTimeSlot = booking.timeSlot.toLowerCase();
+      let matchedSlotKey = null;
+      if (lowerTimeSlot.includes('morning')) matchedSlotKey = 'Morning Slot';
+      else if (lowerTimeSlot.includes('afternoon')) matchedSlotKey = 'Afternoon Slot';
+      else if (lowerTimeSlot.includes('evening')) matchedSlotKey = 'Evening Slot';
+
+      if (matchedSlotKey) {
+        const existing = slotMap.get(matchedSlotKey);
+        existing.bookedCount += Number(booking.numberOfGuests) || 0;
+        existing.bookings.push(booking);
+        
+        if (existing.bookings.length === 1) {
+          existing.date = booking.date;
+        }
+
+        existing.status = existing.bookedCount >= existing.capacity ? 'Full' : 'Available';
+      }
+    });
+
+    return Array.from(slotMap.values()).map((slot, index) => ({
+      id: `s-${index + 1}`,
+      date: slot.date,
+      timeSlot: slot.timeSlot,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      capacity: slot.capacity,
+      bookedCount: slot.bookedCount,
+      pricePerPerson: slot.pricePerPerson,
+      status: slot.status,
+      bookings: slot.bookings
+    }));
+  }, [bookings]);
+
+  const filteredSlots = dynamicPoolSlots.filter((slot) =>
     slot.timeSlot.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -133,7 +219,7 @@ export function AdminPool() {
   const timeSlotOptions = useMemo(() => {
     const slots = new Map();
 
-    poolSlots.forEach((slot) => {
+    basePoolSlots.forEach((slot) => {
       const optionLabel = slot.timeSlot;
       const optionKey = getTimeSlotKey(optionLabel);
       if (!slots.has(optionKey)) {
@@ -154,6 +240,23 @@ export function AdminPool() {
     return Array.from(slots.values());
   }, [bookings]);
 
+  const minDate = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().split('T')[0];
+  }, []);
+
+  const computedTotalAmount = useMemo(() => {
+    const guests = Number.parseInt(formData.numberOfGuests, 10);
+    const pricePerPerson = calculatePricePerPerson(formData.checkInTime, formData.checkOutTime);
+
+    if (!Number.isFinite(guests) || guests < 1 || !Number.isFinite(pricePerPerson) || pricePerPerson < 0) {
+      return 0;
+    }
+
+    return Number((guests * pricePerPerson).toFixed(2));
+  }, [formData.numberOfGuests, formData.checkInTime, formData.checkOutTime]);
+
   const handleOpenBookingModal = () => {
     setSubmitError('');
     setFormData(defaultForm);
@@ -163,6 +266,73 @@ export function AdminPool() {
 
   const handleFormChange = (event) => {
     const { name, value } = event.target;
+
+    if (name === 'numberOfGuests') {
+      const numericValue = Number.parseInt(value, 10);
+      setFormData((previous) => ({
+        ...previous,
+        [name]: Number.isFinite(numericValue) && numericValue >= 1 ? String(numericValue) : value
+      }));
+      return;
+    }
+
+    if (name === 'date') {
+      // Validate that date is not in the past
+      try {
+        const selectedDate = new Date(value);
+        selectedDate.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Only accept dates today or in the future
+        if (selectedDate >= today) {
+          setFormData((previous) => ({ ...previous, [name]: value }));
+        }
+      } catch (e) {
+        // Invalid date format, ignore
+      }
+      return;
+    }
+
+    if (name === 'checkInTime' || name === 'checkOutTime') {
+      // Clamp times to allowed window (08:00 - 19:00) and auto-adjust checkout if needed
+      const [h, m] = value.split(':').map(Number);
+      if (!Number.isFinite(h) || !Number.isFinite(m)) return;
+      const minutes = h * 60 + m;
+      const minMinutes = 8 * 60; // 08:00
+      const maxMinutes = 19 * 60; // 19:00
+
+      let clamped = minutes;
+      if (clamped < minMinutes) clamped = minMinutes;
+      if (clamped > maxMinutes) clamped = maxMinutes;
+
+      const toHHMM = (mins) => {
+        const hh = String(Math.floor(mins / 60)).padStart(2, '0');
+        const mm = String(mins % 60).padStart(2, '0');
+        return `${hh}:${mm}`;
+      };
+
+      const newForm = { ...formData, [name]: toHHMM(clamped) };
+
+      // If both times present, ensure checkOut > checkIn; if not, set checkOut = min(checkIn + 60, max)
+      const start = newForm.checkInTime;
+      const end = newForm.checkOutTime;
+      if (start && end) {
+        const [sh, sm] = start.split(':').map(Number);
+        const [eh, em] = end.split(':').map(Number);
+        const startMin = sh * 60 + sm;
+        const endMin = eh * 60 + em;
+        if (endMin <= startMin) {
+          const adjustedEnd = Math.min(startMin + 60, maxMinutes);
+          newForm.checkOutTime = toHHMM(adjustedEnd);
+        }
+      }
+
+      setSubmitError('');
+      setFormData(newForm);
+      return;
+    }
+
     setFormData((previous) => ({ ...previous, [name]: value }));
   };
 
@@ -170,6 +340,23 @@ export function AdminPool() {
     event.preventDefault();
     setSubmitError('');
     setIsSubmitting(true);
+
+    // Prevent submitting a past date
+    try {
+      const sel = new Date(formData.date);
+      sel.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (isNaN(sel.getTime()) || sel < today) {
+        setSubmitError('Booking date cannot be in the past.');
+        setIsSubmitting(false);
+        return;
+      }
+    } catch (e) {
+      setSubmitError('Invalid booking date.');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const isEditing = !!editingBooking;
@@ -186,7 +373,9 @@ export function AdminPool() {
         body: JSON.stringify({
           ...formData,
           numberOfGuests: Number(formData.numberOfGuests),
-          pricePerPerson: Number(formData.pricePerPerson)
+          pricePerPerson: Number(formData.pricePerPerson),
+          checkInTime: formData.checkInTime,
+          checkOutTime: formData.checkOutTime
         })
       });
 
@@ -221,6 +410,8 @@ export function AdminPool() {
       roomNumber: booking.roomNumber,
       date: booking.date ? booking.date.split('T')[0] : '',
       timeSlot: booking.timeSlot,
+      checkInTime: booking.checkInTime || '10:00',
+      checkOutTime: booking.checkOutTime || '12:00',
       numberOfGuests: booking.numberOfGuests.toString(),
       pricePerPerson: booking.pricePerPerson.toString(),
       status: booking.status
@@ -259,6 +450,8 @@ export function AdminPool() {
       roomNumber: '',
       date: slot.date ? slot.date.split('T')[0] : '',
       timeSlot: slot.timeSlot,
+      checkInTime: '10:00',
+      checkOutTime: '12:00',
       numberOfGuests: '1',
       pricePerPerson: slot.pricePerPerson.toString(),
       status: 'Confirmed'
@@ -426,8 +619,8 @@ export function AdminPool() {
               </label>
 
               <label className="admin-pool__field">
-                Guest Email
-                <input className="admin-pool__input" type="email" name="guestEmail" value={formData.guestEmail} onChange={handleFormChange} required />
+                Guest Email (Optional)
+                <input className="admin-pool__input" type="email" name="guestEmail" value={formData.guestEmail} onChange={handleFormChange} />
               </label>
 
               <label className="admin-pool__field">
@@ -437,7 +630,7 @@ export function AdminPool() {
 
               <label className="admin-pool__field">
                 Date
-                <input className="admin-pool__input" type="date" name="date" value={formData.date} onChange={handleFormChange} required />
+                <input className="admin-pool__input" type="date" name="date" value={formData.date} onChange={handleFormChange} required min={minDate} />
               </label>
 
               <label className="admin-pool__field">
@@ -450,13 +643,38 @@ export function AdminPool() {
               </label>
 
               <label className="admin-pool__field">
+                Check-In Time
+                <input className="admin-pool__input" type="time" name="checkInTime" value={formData.checkInTime} onChange={handleFormChange} required min="08:00" max="19:00" />
+              </label>
+
+              <label className="admin-pool__field">
+                Check-Out Time
+                <input className="admin-pool__input" type="time" name="checkOutTime" value={formData.checkOutTime} onChange={handleFormChange} required min="08:00" max="19:00" />
+              </label>
+
+              <label className="admin-pool__field">
                 Number Of Guests
                 <input className="admin-pool__input" type="number" min="1" name="numberOfGuests" value={formData.numberOfGuests} onChange={handleFormChange} required />
               </label>
 
               <label className="admin-pool__field">
                 Price Per Person
-                <input className="admin-pool__input" type="number" min="0" step="0.01" name="pricePerPerson" value={formData.pricePerPerson} onChange={handleFormChange} required />
+                <input
+                  className="admin-pool__input"
+                  value={`Rs. ${calculatePricePerPerson(formData.checkInTime, formData.checkOutTime)}`}
+                  readOnly
+                  aria-readonly="true"
+                />
+              </label>
+
+              <label className="admin-pool__field">
+                Total Amount
+                <input
+                  className="admin-pool__input"
+                  value={`${settings.currency.symbol}${computedTotalAmount.toFixed(2)}`}
+                  readOnly
+                  aria-readonly="true"
+                />
               </label>
 
               <label className="admin-pool__field">
