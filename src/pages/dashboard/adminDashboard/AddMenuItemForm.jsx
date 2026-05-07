@@ -1,335 +1,277 @@
-import React, { useEffect, useState } from 'react';
-import { apiFetch, API_HOST } from '../../../api.js';
-
-const emptyForm = {
-  name: '',
-  category: '',
-  price: '',
-  description: '',
-  isAvailable: true,
-  inventoryItem: '',
-};
+import React, { useState, useEffect } from 'react';
+import { 
+  Camera, 
+  ChevronRight, 
+  DollarSign, 
+  Clock, 
+  Tag, 
+  Info,
+  CheckCircle2,
+  X,
+  Loader2
+} from 'lucide-react';
+import { apiFetch, API_HOST, getImageUrl } from '../../../api.js';
 
 export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
-  const [formData, setFormData] = useState(emptyForm);
-  const [inventoryList, setInventoryList] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [selectedSample, setSelectedSample] = useState('');
-  const [error, setError] = useState('');
-
-  const sampleImages = [
-    '/images/nasi.svg',
-    '/images/beverage.svg',
-    '/images/dessert.svg',
-  ];
-
-  useEffect(() => {
-    fetchInventory();
-  }, []);
-
-  const fetchInventory = async () => {
-    try {
-      const data = await apiFetch('/inventory');
-      setInventoryList(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to load inventory', err);
-    }
-  };
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    category: 'Main Course',
+    isAvailable: true,
+    prepTime: '15',
+    inventoryItem: ''
+  });
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    loadInventory();
     if (initialItem) {
       setFormData({
         name: initialItem.name || '',
-        category: initialItem.category || '',
-        price: initialItem.price?.toString?.() || '',
         description: initialItem.description || '',
-        isAvailable: initialItem.isAvailable ?? true,
-        inventoryItem: initialItem.inventoryItem || '',
-        prepTime: initialItem.prepTime?.toString?.() || '15',
+        price: initialItem.price || '',
+        category: initialItem.category || 'Main Course',
+        isAvailable: initialItem.isAvailable !== undefined ? initialItem.isAvailable : true,
+        prepTime: initialItem.prepTime || '15',
+        inventoryItem: initialItem.inventoryItem?._id || initialItem.inventoryItem || ''
       });
       if (initialItem.image) {
-        const imageUrl = initialItem.image.includes('uploads') 
-          ? `${API_HOST}/${initialItem.image.replace(/\\/g, '/')}` 
-          : initialItem.image;
-        setPreviewUrl(imageUrl);
-        setSelectedSample(initialItem.image);
+        setImagePreview(getImageUrl(initialItem.image));
       }
-    } else {
-      setFormData(emptyForm);
-      setPreviewUrl('');
-      setSelectedFile(null);
-      setSelectedSample('');
     }
   }, [initialItem]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value,
-    });
+  const loadInventory = async () => {
+    try {
+      const data = await apiFetch('/inventory');
+      setInventoryItems(Array.isArray(data) ? data : []);
+    } catch (e) { console.error(e); }
   };
 
-  const handleFileChange = (e) => {
-    setError('');
-    const file = e.target.files && e.target.files[0];
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
     if (file) {
-      setSelectedFile(file);
-      setSelectedSample('');
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
     }
-  };
-
-  const handleSelectSample = (src) => {
-    setError('');
-    setSelectedSample(src);
-    setSelectedFile(null);
-    setPreviewUrl(src);
-  };
-
-  const handleRemoveImage = () => {
-    setSelectedFile(null);
-    setSelectedSample('');
-    setPreviewUrl('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
-    // Require image for new items
-    if (!initialItem && !selectedFile && !selectedSample) {
-      setError('Please add or select an image for the menu item.');
-      return;
-    }
+    setLoading(true);
 
     try {
-      setSaving(true);
+      const data = new FormData();
+      Object.keys(formData).forEach(key => data.append(key, formData[key]));
+      if (imageFile) data.append('image', imageFile);
 
-      const commonPayload = {
-        name: formData.name,
-        category: formData.category,
-        price: String(Number(formData.price)),
-        description: formData.description || '',
-        isAvailable: String(formData.isAvailable),
-        inventoryItem: formData.inventoryItem || '',
-        prepTime: String(formData.prepTime || '15'),
-      };
-
+      const url = initialItem ? `/menu/${initialItem._id}` : '/menu';
       const method = initialItem ? 'PUT' : 'POST';
-      const endpoint = initialItem ? `/menu/${initialItem._id}` : '/menu';
 
-      // If a file is selected, send multipart/form-data
-      if (selectedFile) {
-        const fd = new FormData();
-        Object.entries(commonPayload).forEach(([key, val]) => fd.append(key, val));
-        fd.append('image', selectedFile);
-        await apiFetch(endpoint, { method, body: fd });
-      } else {
-        // No file - send JSON
-        const payload = {
-          ...formData,
-          price: Number(formData.price),
-        };
-        if (selectedSample) payload.image = selectedSample;
-        
-        await apiFetch(endpoint, {
-          method,
-          body: JSON.stringify(payload),
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
+      // Note: apiFetch needs to handle FormData or we use raw fetch
+      const response = await fetch(`${API_HOST}/api${url}`, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('janro_token')}`
+        },
+        body: data
+      });
 
-      alert(initialItem ? 'Menu item updated successfully.' : 'Menu item added successfully.');
-      setFormData(emptyForm);
-      setSelectedFile(null);
-      setPreviewUrl('');
-      setSelectedSample('');
-      if (onSaved) onSaved();
+      if (!response.ok) throw new Error('Failed to save menu item');
+      
+      onSaved();
     } catch (error) {
-      console.error('Error connecting to backend:', error);
-      setError(error.message || 'Could not save the menu item.');
+      alert(error.message);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow max-h-[85vh] overflow-y-auto">
-      <h3 className="text-xl font-bold mb-4 text-slate-900">
-        {initialItem ? 'Edit Menu Item' : 'Add New Menu Item'}
-      </h3>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium text-slate-600">Item Name</label>
-            <input 
-              type="text" 
-              name="name" 
-              value={formData.name} 
-              onChange={handleChange} 
-              required
-              className="w-full border border-slate-200 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
-              placeholder="e.g., Sprite"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-slate-600">Category</label>
-            <select 
-              name="category" 
-              value={formData.category} 
-              onChange={handleChange} 
-              required
-              className="w-full mt-1 p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
-            >
-              <option value="">Select Category</option>
-              <option value="Main Course">Main Course</option>
-              <option value="Appetizers">Appetizers</option>
-              <option value="Desserts">Desserts</option>
-              <option value="Beverages">Beverages</option>
-              <option value="Breakfast">Breakfast</option>
-              <option value="Snacks">Snacks</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium text-slate-600">Price (Rs)</label>
-            <input 
-              type="number" 
-              name="price" 
-              value={formData.price} 
-              onChange={handleChange} 
-              required 
-              min="1"
-              className="w-full border border-slate-200 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
-              placeholder="200"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium text-slate-600">Link to Inventory Stock</label>
-            <select 
-              name="inventoryItem" 
-              value={formData.inventoryItem} 
-              onChange={handleChange}
-              className="w-full mt-1 p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
-            >
-              <option value="">Not linked (Infinite stock)</option>
-              {inventoryList.map(inv => (
-                <option key={inv._id} value={inv._id}>
-                  {inv.itemName} ({inv.quantity} {inv.unit} available)
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-600">Prep Time (min)</label>
-            <input 
-              type="number" 
-              name="prepTime" 
-              value={formData.prepTime || '15'} 
-              onChange={handleChange} 
-              required 
-              min="1"
-              className="w-full border border-slate-200 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
-              placeholder="15"
-            />
-          </div>
-        </div>
-        <p className="text-[10px] text-slate-400 mt-[-8px]">If linked, stock will auto-deduct upon order.</p>
-
-        <div>
-          <label className="text-sm font-medium text-slate-600">Description</label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows="2"
-            className="w-full border border-slate-200 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
-            placeholder="Optional item description"
-          />
-        </div>
-
-        <label className="flex items-center gap-3 text-sm text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
-          <input
-            type="checkbox"
-            name="isAvailable"
-            checked={formData.isAvailable}
-            onChange={handleChange}
-            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
-          Available for ordering
-        </label>
-
-        <div className="border-t border-slate-100 pt-4">
-          <label className="text-sm font-medium text-slate-600 block mb-2">Image Setup</label>
-          <div className="flex flex-wrap gap-4 items-start">
-            <div className="flex-1 min-w-[200px]">
+    <div className="grid lg:grid-cols-[1fr_400px] gap-10">
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Name */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Dish Identity</label>
+            <div className="relative">
+              <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
               <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleFileChange}
-                className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                value={formData.name}
+                onChange={e => setFormData({...formData, name: e.target.value})}
+                placeholder="e.g. Signature Lobster Thermidor"
+                className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-700 font-medium"
+                required
               />
             </div>
-            <div className="flex gap-2">
-              {sampleImages.map((s) => (
-                <button
-                  type="button"
-                  key={s}
-                  onClick={() => handleSelectSample(s)}
-                  className={`border-2 rounded-lg p-0.5 transition-all ${selectedSample === s ? 'border-blue-500 shadow-md' : 'border-slate-100'}`}
-                >
-                  <img src={s} alt="sample" className="w-12 h-12 object-cover rounded" />
-                </button>
-              ))}
+          </div>
+
+          {/* Category */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Cuisine Group</label>
+            <select 
+              value={formData.category}
+              onChange={e => setFormData({...formData, category: e.target.value})}
+              className="w-full bg-white border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-700 font-bold appearance-none cursor-pointer"
+            >
+              <option value="Appetizers">Appetizers</option>
+              <option value="Main Course">Main Course</option>
+              <option value="Desserts">Desserts</option>
+              <option value="Beverages">Beverages</option>
+              <option value="Specialty">Chef's Specialty</option>
+            </select>
+          </div>
+
+          {/* Price */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Investment Value</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs</span>
+              <input 
+                type="number"
+                value={formData.price}
+                onChange={e => setFormData({...formData, price: e.target.value})}
+                placeholder="0.00"
+                className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-900 font-black"
+                required
+              />
             </div>
           </div>
 
-          {previewUrl && (
-            <div className="mt-4 flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-              <img src={previewUrl} alt="preview" className="w-20 h-16 object-cover rounded-lg shadow-sm" />
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-slate-900">Image Preview</p>
-                <button type="button" onClick={handleRemoveImage} className="text-xs text-rose-600 hover:text-rose-700 font-medium mt-0.5 transition-colors">Remove Image</button>
-              </div>
+          {/* Prep Time */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Crafting Duration</label>
+            <div className="relative">
+              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+              <input 
+                type="number"
+                value={formData.prepTime}
+                onChange={e => setFormData({...formData, prepTime: e.target.value})}
+                placeholder="Minutes"
+                className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-700 font-medium"
+              />
             </div>
-          )}
+          </div>
         </div>
 
-        {error && (
-          <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg text-rose-600 text-sm">
-            {error}
-          </div>
-        )}
+        {/* Description */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">The Culinary Story</label>
+          <textarea 
+            rows="4"
+            value={formData.description}
+            onChange={e => setFormData({...formData, description: e.target.value})}
+            placeholder="Describe the textures, aromas, and heritage of this dish..."
+            className="w-full bg-white border border-slate-200 rounded-[2rem] px-6 py-5 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-600 leading-relaxed resize-none"
+          />
+        </div>
 
-        <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-          <button
-            type="submit"
-            className="flex-1 bg-[#0F172A] text-white p-3 rounded-xl font-semibold hover:bg-slate-800 disabled:opacity-50 transition-all shadow-lg shadow-slate-200"
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : initialItem ? 'Update Menu Item' : 'Create Menu Item'}
-          </button>
-          {initialItem && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 bg-slate-100 text-slate-600 p-3 rounded-xl font-semibold hover:bg-slate-200 transition-all"
+        {/* Inventory Link */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Inventory Synchronization</label>
+          <div className="flex items-center gap-4">
+            <select 
+              value={formData.inventoryItem}
+              onChange={e => setFormData({...formData, inventoryItem: e.target.value})}
+              className="flex-1 bg-white border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:border-[#D4AF37] text-sm font-bold text-slate-700 appearance-none cursor-pointer"
             >
-              Cancel
-            </button>
-          )}
+              <option value="">No tracking (Stand-alone dish)</option>
+              {inventoryItems.map(item => (
+                <option key={item._id} value={item._id}>Sync with {item.itemName} ({item.quantity} {item.unit} in stock)</option>
+              ))}
+            </select>
+            <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl">
+              <Info className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+
+        {/* Form Actions */}
+        <div className="flex items-center gap-4 pt-4">
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="flex-1 bg-[#0F172A] text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.3em] hover:bg-slate-800 shadow-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5 text-[#D4AF37]" />}
+            {initialItem ? 'Confirm Masterpiece Update' : 'Unveil New Culinary Creation'}
+          </button>
+          <button 
+            type="button" 
+            onClick={onCancel}
+            className="px-8 py-5 text-slate-400 font-bold hover:text-rose-500 transition-colors uppercase text-xs tracking-widest"
+          >
+            Cancel
+          </button>
         </div>
       </form>
+
+      {/* Luxury Preview Card */}
+      <div className="space-y-6">
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 text-center block">Presentation Preview</label>
+        <div className="bg-white rounded-[3rem] p-4 shadow-2xl border border-slate-100 sticky top-10 overflow-hidden group">
+          <div className="relative h-[300px] rounded-[2.5rem] overflow-hidden bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group-hover:border-[#D4AF37]/50 transition-colors">
+            {imagePreview ? (
+              <>
+                <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <label className="cursor-pointer bg-white text-slate-900 px-6 py-3 rounded-full font-bold text-sm shadow-xl flex items-center gap-2">
+                    <Camera className="w-4 h-4" /> Change Image
+                    <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                  </label>
+                </div>
+              </>
+            ) : (
+              <label className="flex flex-col items-center gap-4 cursor-pointer">
+                <div className="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-300">
+                  <UploadCloud className="w-8 h-8" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-slate-900">Upload Visual Masterpiece</p>
+                  <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tighter">JPG, PNG or WEBP up to 5MB</p>
+                </div>
+                <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+              </label>
+            )}
+          </div>
+
+          <div className="p-6 space-y-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h4 className="text-xl font-normal text-slate-900 line-clamp-1" style={{ fontFamily: "DM Serif Display, serif" }}>{formData.name || 'Untitled Masterpiece'}</h4>
+                <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">{formData.category}</p>
+              </div>
+              <p className="text-xl font-black text-slate-900">Rs {Number(formData.price || 0).toLocaleString()}</p>
+            </div>
+            
+            <div className="flex items-center gap-4 py-3 border-y border-slate-50">
+               <div className="flex items-center gap-1.5 text-slate-400">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-bold uppercase">{formData.prepTime} Min</span>
+               </div>
+               <div className="w-1 h-1 rounded-full bg-slate-200" />
+               <div className={`px-2 py-1 rounded text-[9px] font-black uppercase ${formData.isAvailable ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                  {formData.isAvailable ? 'Live in Menu' : 'Hidden'}
+               </div>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked={formData.isAvailable} onChange={e => setFormData({...formData, isAvailable: e.target.checked})} className="sr-only peer" />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
+                <span className="ms-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Visibility</span>
+              </label>
+              <div className="flex -space-x-2">
+                {[1,2,3].map(i => <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[8px] font-bold">⭐</div>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

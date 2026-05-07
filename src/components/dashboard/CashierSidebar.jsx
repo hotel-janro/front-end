@@ -54,7 +54,7 @@ export function CashierSidebar({ user, onLogout }) {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40"
+                    ? "bg-[#D4AF37]/20 text-[#F5E7B2] border border-[#D4AF37]/40"
                     : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`
               }
@@ -69,7 +69,7 @@ export function CashierSidebar({ user, onLogout }) {
       {/* User Profile */}
       <div className="p-4 border-t border-[#1E293B] bg-[#0B1324]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#D4AF37]/80 rounded-full flex items-center justify-center text-sm font-bold text-slate-900">
+          <div className="w-10 h-10 bg-[#D4AF37] rounded-full flex items-center justify-center text-sm font-bold text-[#0F172A]">
             {user?.name
               ? user.name
                   .split(" ")
@@ -82,7 +82,7 @@ export function CashierSidebar({ user, onLogout }) {
             <p className="text-sm font-semibold text-white truncate">
               {user?.name || "Lisa Cashier"}
             </p>
-            <p className="text-xs text-[#D4AF37]/70 truncate">POS Cashier</p>
+            <p className="text-xs text-slate-400 truncate">POS Cashier</p>
           </div>
           <button
             onClick={handleLogout}

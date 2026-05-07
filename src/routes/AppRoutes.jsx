@@ -28,6 +28,7 @@ import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.j
 import { AdminBookings } from "../pages/dashboard/adminDashboard/AdminBooking.jsx";
 import { AdminGuests } from "../pages/dashboard/adminDashboard/AdminGuests.jsx";
 import { AdminWedding } from "../pages/dashboard/adminDashboard/AdminWeddings.jsx";
+import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory.jsx";
 
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
@@ -107,7 +108,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       <Route path="/" element={<Home />} />
       <Route path="/rooms" element={<Rooms onBook={protectedBook} isLoggedIn={isLoggedIn} />} />
       <Route path="/events" element={<Events onBook={protectedBook} isLoggedIn={isLoggedIn} user={user} />} />
-      <Route path="/restaurant" element={<Restaurant onOrder={protectedOrder} />} />
+      <Route path="/restaurant" element={<Restaurant onOrder={protectedOrder} user={user} />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/cart" element={<Cart />} />
@@ -144,7 +145,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="guests" element={<AdminGuests />} />
         <Route path="events" element={<AdminWedding />} />
         <Route path="restaurant" element={<AdminRestaurant />} />
-        <Route path="orders" element={<AdminPOS />} />
+        <Route path="inventory" element={<AdminInventory />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="payments" element={<AdminPayments />} />
       </Route>
@@ -166,6 +167,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="orders" element={<CashierOrders />} />
         <Route path="payments" element={<CashierPayments />} />
         <Route path="receipts" element={<CashierReceipts />} />
+        <Route path="*" element={<CashierDashboard />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

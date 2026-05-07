@@ -65,3 +65,12 @@ export const apiFetch = async (endpoint, options = {}) => {
 
   return data;
 };
+
+export const getImageUrl = (imagePath) => {
+  if (!imagePath) return '';
+  if (imagePath.startsWith('http')) return imagePath;
+  
+  // Clean up any double slashes and ensure proper API_HOST prefix
+  const cleanPath = imagePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  return `${API_HOST}/${cleanPath}`;
+};

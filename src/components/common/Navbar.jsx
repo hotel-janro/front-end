@@ -145,7 +145,15 @@ export function Navbar({ isLoggedIn, user, onLogout, authChecked = true }) {
                     </div>
                   )}
                 </div>
-              ) : null /* Do not render dropdown for non-customer dashboards */
+              ) : (
+                <Link
+                  to={user?.role === "admin" ? "/admin" : (user?.role === "reception" || user?.role === "receptionist") ? "/reception" : "/cashier"}
+                  className="flex items-center gap-2 px-5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-semibold transition-all border border-white/10"
+                >
+                  <LayoutDashboard className="w-4 h-4 text-[#D4AF37]" />
+                  Go to Dashboard
+                </Link>
+              )
             ) : authChecked ? (
               <div className="flex items-center gap-2">
                 <Link
@@ -161,22 +169,7 @@ export function Navbar({ isLoggedIn, user, onLogout, authChecked = true }) {
                   Register
                 </Link>
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/login"
-                  className="px-4 py-2 text-sm text-gray-300 hover:text-white transition-colors"
-                >
-                  Login
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-5 py-2 bg-[#D4AF37] text-[#0F172A] rounded-lg text-sm font-semibold hover:bg-[#B8962D] transition-all shadow-lg hover:shadow-[#D4AF37]/20"
-                >
-                  Register
-                </Link>
-              </div>
-            )}
+            ) : null}
           </div>
 
           {/* Mobile Toggle */}
@@ -217,25 +210,36 @@ export function Navbar({ isLoggedIn, user, onLogout, authChecked = true }) {
                       <p className="text-xs text-gray-400 truncate">{user?.email}</p>
                     </div>
                   </div>
+
                   <div className="grid grid-cols-1 gap-2">
+                    <Link
+                      to={user?.role === "admin" ? "/admin" : (user?.role === "reception" || user?.role === "receptionist") ? "/reception" : "/cashier"}
+                      onClick={() => setIsOpen(false)}
+                      className="text-sm text-[#D4AF37] font-bold flex items-center gap-2 py-2"
+                    >
+                      <LayoutDashboard className="w-4 h-4"/> Go to Dashboard
+                    </Link>
                     <Link to="/my-bookings/profile" onClick={() => setIsOpen(false)} className="text-sm text-gray-300 hover:text-[#D4AF37] flex items-center gap-2"><User className="w-4 h-4"/> My Profile</Link>
                     <Link to="/my-bookings" onClick={() => setIsOpen(false)} className="text-sm text-gray-300 hover:text-[#D4AF37] flex items-center gap-2"><Calendar className="w-4 h-4"/> My Bookings</Link>
                     <Link to="/my-orders" onClick={() => setIsOpen(false)} className="text-sm text-gray-300 hover:text-[#D4AF37] flex items-center gap-2"><ShoppingBag className="w-4 h-4"/> My Orders</Link>
                     <button onClick={handleLogoutClick} className="text-sm text-red-400 text-left flex items-center gap-2 pt-2"><LogOut className="w-4 h-4"/> Logout</button>
                   </div>
                 </div>
-              ) : null
+              ) : (
+                <Link
+                  to={user?.role === "admin" ? "/admin" : (user?.role === "reception" || user?.role === "receptionist") ? "/reception" : "/cashier"}
+                  onClick={() => setIsOpen(false)}
+                  className="block w-full py-3 px-4 text-center bg-white/10 text-white rounded-lg font-bold border border-white/10"
+                >
+                  Go to Dashboard
+                </Link>
+              )
             ) : authChecked ? (
               <div className="flex flex-col gap-3">
                 <Link to="/login" onClick={() => setIsOpen(false)} className="block w-full py-3 text-center text-gray-300 bg-white/5 rounded-lg">Login</Link>
                 <Link to="/register" onClick={() => setIsOpen(false)} className="block w-full py-3 text-center bg-[#D4AF37] text-[#0F172A] rounded-lg font-bold">Register</Link>
               </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <Link to="/login" onClick={() => setIsOpen(false)} className="block w-full py-3 text-center text-gray-300 bg-white/5 rounded-lg">Login</Link>
-                <Link to="/register" onClick={() => setIsOpen(false)} className="block w-full py-3 text-center bg-[#D4AF37] text-[#0F172A] rounded-lg font-bold">Register</Link>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}
