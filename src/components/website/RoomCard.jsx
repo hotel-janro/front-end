@@ -110,7 +110,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
         <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">
-          {settings.currency.symbol} {formattedPrice}/night
+          {settings.currency.symbol} {formattedPrice}
         </div>
         <div className="absolute top-4 left-4 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-[#0F172A] shadow-sm">
           {room.availableRooms ?? 0} {Number(room.availableRooms) === 1 ? "room" : "rooms"} available

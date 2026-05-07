@@ -135,6 +135,7 @@ export function AdminRooms() {
         description: room.description,
         price: room.price,
         availableRooms: room.availableRooms,
+        totalRooms: room.totalRooms,
         defaultGuests: room.defaultGuests,
         amenities: room.amenities.join(', '),
         isActive: room.isActive
@@ -635,12 +636,13 @@ export function AdminRooms() {
                       <label className="admin-rooms__label">Total Units in Stock</label>
                       <input 
                         type="number" 
-                        className="admin-rooms__input border-blue-300 bg-blue-50" 
+                        className="admin-rooms__input border-slate-200 bg-slate-50 cursor-not-allowed" 
                         required 
-                        value={formData.availableRooms}
-                        onChange={(e) => setFormData({...formData, availableRooms: e.target.value})}
+                        disabled
+                        value={formData.totalRooms}
+                        onChange={(e) => setFormData({...formData, totalRooms: e.target.value})}
                       />
-                      <p className="text-xs text-slate-500 mt-1">You are manually adjusting the total count for this room type.</p>
+                      <p className="text-xs text-slate-400 mt-1 italic">Note: Use the "+" and trash icons in the table to manage room instances.</p>
                     </div>
                   )}
 
@@ -676,7 +678,7 @@ export function AdminRooms() {
                     ></textarea>
                   </div>
                   <div className="admin-rooms__form-group admin-rooms__form-group--full">
-                    <label className="admin-rooms__label">Amenities (comma separated)</label>
+                    <label className="admin-rooms__label">Amenities</label>
                     <input 
                       type="text" 
                       className="admin-rooms__input" 
