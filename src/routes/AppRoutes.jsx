@@ -24,7 +24,9 @@ import { AdminGuests } from "../pages/dashboard/adminDashboard/AdminGuests.jsx";
 import { AdminWedding } from "../pages/dashboard/adminDashboard/AdminWeddings.jsx";
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
+import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
+import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
@@ -95,18 +97,18 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
 
       <Route
         path="/reception"
-        element={isLoggedIn && isReception ? <ReceptionDashboard /> : <Navigate to="/login" replace />}
-      />
-
-      <Route
-        path="/reception/pool"
-        element={isLoggedIn && isReception ? <ReceptionPool /> : <Navigate to="/login" replace />}
-      />
+        element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
+      >
+        <Route index element={<ReceptionDashboard />} />
+        <Route path="pool" element={<ReceptionPool />} />
+      </Route>
 
       <Route
         path="/cashier"
-        element={isLoggedIn && isCashier ? <CashierDashboard /> : <Navigate to="/login" replace />}
-      />
+        element={isLoggedIn && isCashier ? <CashierLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
+      >
+        <Route index element={<CashierDashboard />} />
+      </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

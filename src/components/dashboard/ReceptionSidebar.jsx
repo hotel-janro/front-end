@@ -1,38 +1,27 @@
-// Sidebar.jsx - Admin Dashboard Sidebar Navigation
+// ReceptionSidebar.jsx - Reception Dashboard Sidebar Navigation
 import React from "react";
 import { NavLink, useNavigate } from "react-router";
 import {
-  LayoutDashboard,
-  Bed,
+  Grid3X3,
   Calendar,
-  Users,
+  Bed,
   Heart,
   Waves,
-  ShoppingCart,
-  UtensilsCrossed,
-  BarChart3,
-  CreditCard,
-  Settings,
+  Users2,
   LogOut,
   Crown,
 } from "lucide-react";
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/admin" },
-  { label: "Rooms", icon: Bed, path: "/admin/rooms" },
-  { label: "Bookings", icon: Calendar, path: "/admin/bookings" },
-  { label: "Guests", icon: Users, path: "/admin/guests" },
-  { label: "Wedding & Events", icon: Heart, path: "/admin/events" },
-  { label: "Restaurant", icon: UtensilsCrossed, path: "/admin/restaurant" },
-  { label: "Pool", icon: Waves, path: "/admin/pool" },
-  { label: "Orders & POS", icon: ShoppingCart, path: "/admin/orders" },
-  { label: "Users & Staff", icon: Users, path: "/admin/staff" },
-  { label: "Reports", icon: BarChart3, path: "/admin/reports" },
-  { label: "Payments", icon: CreditCard, path: "/admin/payments" },
-  { label: "Settings", icon: Settings, path: "/admin/settings" },
+  { label: "Dashboard", icon: Grid3X3, path: "/reception" },
+  { label: "Bookings", icon: Calendar, path: "/reception/bookings" },
+  { label: "Rooms", icon: Bed, path: "/reception/rooms" },
+  { label: "Wedding Events", icon: Heart, path: "/reception/wedding" },
+  { label: "Pool Access", icon: Waves, path: "/reception/pool" },
+  { label: "Customers", icon: Users2, path: "/reception/customers" },
 ];
 
-export function Sidebar({ user, onLogout }) {
+export function ReceptionSidebar({ user, onLogout }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -52,7 +41,7 @@ export function Sidebar({ user, onLogout }) {
             <h1 className="text-[1.8rem] leading-none tracking-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
               HOTEL JANRO
             </h1>
-            <p className="text-xs text-[#D4AF37] tracking-[0.16em] uppercase mt-1">Admin Dashboard</p>
+            <p className="text-xs text-[#D4AF37] tracking-[0.16em] uppercase mt-1">Reception Panel</p>
           </div>
         </div>
       </div>
@@ -65,7 +54,7 @@ export function Sidebar({ user, onLogout }) {
             <NavLink
               key={item.path}
               to={item.path}
-              end={item.path === "/admin"}
+              end={item.path === "/reception"}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
@@ -91,13 +80,13 @@ export function Sidebar({ user, onLogout }) {
                   .map((n) => n[0])
                   .join("")
                   .toUpperCase()
-              : "JA"}
+              : "SD"}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white truncate">
-              {user?.name || "John Admin"}
+              {user?.name || "Sarah Desk"}
             </p>
-            <p className="text-xs text-slate-400 truncate">Hotel Manager</p>
+            <p className="text-xs text-slate-400 truncate">Front Desk Agent</p>
           </div>
           <button
             onClick={handleLogout}

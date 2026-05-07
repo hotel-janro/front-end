@@ -1,16 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import {
   ArrowDownRight,
   ArrowUpRight,
-  Bell,
   Bed,
   Calendar,
   CheckCircle,
   Clock,
-  Crown,
   DollarSign,
-  Grid3X3,
   Heart,
   LogIn,
   LogOut,
@@ -30,46 +26,6 @@ import { poolBookings, weddingBookings } from '../../../data/newMockData.js';
 
 export function ReceptionDashboard() {
   const { settings } = useSettings();
-  const [now, setNow] = useState(new Date());
-  const [activeTab, setActiveTab] = useState('Dashboard');
-  const navigate = useNavigate();
-
-  const handleTabClick = (tabLabel) => {
-    setActiveTab(tabLabel);
-    if (tabLabel === 'Pool Access') {
-      navigate('/reception/pool');
-    }
-  };
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const panelDate = now.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-
-  const panelTime = now.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-
-  const receptionTabs = [
-    { label: 'Dashboard', icon: Grid3X3 },
-    { label: 'Bookings', icon: Calendar },
-    { label: 'Rooms', icon: Bed },
-    { label: 'Wedding Events', icon: Heart },
-    { label: 'Pool Access', icon: Waves },
-    { label: 'Customers', icon: Users2 },
-  ];
 
   const todayCheckIns = bookings.filter((b) => b.status === 'Confirmed');
   const todayCheckOuts = bookings.filter((b) => b.status === 'Checked-In');
@@ -117,72 +73,6 @@ export function ReceptionDashboard() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl overflow-hidden border border-indigo-200 shadow-sm">
-        <div className="bg-gradient-to-r from-indigo-700 via-violet-600 to-purple-600 text-white px-4 sm:px-6 py-3 sm:py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
-                <Crown className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-2xl leading-none font-bold tracking-tight">HotelPro</h2>
-                <p className="text-white/80 text-sm mt-1">Reception Panel</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-              <div className="rounded-xl bg-white/10 border border-white/20 px-4 py-2 text-sm font-medium">
-                {panelDate} | {panelTime}
-              </div>
-              <button
-                type="button"
-                className="relative w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors"
-                aria-label="Notifications"
-              >
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-[11px] leading-5 font-bold text-white text-center">
-                  3
-                </span>
-              </button>
-              <div className="rounded-2xl bg-white/10 border border-white/20 px-3 py-2 flex items-center gap-2">
-                <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">SD</div>
-                <div className="leading-tight">
-                  <p className="text-sm font-semibold">Sarah Desk</p>
-                  <p className="text-xs text-white/75">Front Desk Agent</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-r from-indigo-700 via-violet-600 to-purple-600 px-2 sm:px-4 pb-3">
-          <div className="overflow-x-auto">
-            <div className="min-w-max flex items-center gap-2">
-              {receptionTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.label;
-
-                return (
-                  <button
-                    key={tab.label}
-                    type="button"
-                    onClick={() => handleTabClick(tab.label)}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                      isActive
-                        ? 'bg-white text-indigo-700'
-                        : 'text-white/85 hover:text-white hover:bg-white/15'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-indigo-600 to-violet-500 rounded-2xl p-6 text-white relative overflow-hidden">
         <div className="absolute right-0 top-0 w-64 h-full opacity-10">
