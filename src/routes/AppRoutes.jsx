@@ -34,7 +34,9 @@ import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPo
 import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
-
+import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
+import { ResetPassword } from "../pages/website/ResetPassword.jsx";
+import { VerifyOTP } from "../pages/website/VerifyOTP.jsx";
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const navigate = useNavigate();
@@ -99,12 +101,15 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/rooms" element={<Rooms onBook={protectedBook} isLoggedIn={isLoggedIn} />} />
-      <Route path="/events" element={<Events onBook={protectedBook} />} />
+      <Route path="/events" element={<Events onBook={protectedBook} isLoggedIn={isLoggedIn} user={user} />} />
       <Route path="/restaurant" element={<Restaurant onOrder={protectedOrder} />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/checkout" element={<Checkout />} />
+      <Route path="/verify-email" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <VerifyOTP onLogin={onLogin} />} />
+      <Route path="/forgot-password" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ForgotPassword />} />
+      <Route path="/reset-password/:token" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ResetPassword />} />
 
       <Route
         path="/login"
