@@ -60,6 +60,11 @@ export function Login({ onLogin }) {
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+            <div className="flex justify-end mt-2">
+              <Link to="/forgot-password" className="text-xs text-[#1E3A8A] hover:text-[#D4AF37] transition-colors">
+                Forgot Password?
+              </Link>
+            </div>
           </div>
           <Button type="submit" variant="secondary" className="w-full !py-3">
             Sign In

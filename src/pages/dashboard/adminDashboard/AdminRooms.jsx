@@ -1,4 +1,4 @@
-﻿/* AdminRooms.jsx */
+/* AdminRooms.jsx */
 import React, { useState, useEffect } from 'react';
 import { 
   Bed, 
@@ -45,6 +45,7 @@ const ROOM_TYPES = {
   }
 };
 
+// Fixed base inventory — matches the seeded database exactly
 const BASE_COUNTS = {
   'Standard Room': 6,
   'Family Suite': 2,
@@ -172,11 +173,13 @@ export function AdminRooms() {
       if (existingRoom && !editingRoom) {
         // INCREMENT MODE: Type exists, just add 1 to the count
         const updatedCount = (existingRoom.availableRooms || 0) + 1;
+        const updatedTotal = (existingRoom.totalRooms || 0) + 1;
         await apiFetch(`/rooms/${existingRoom._id}`, {
           method: 'PUT',
           body: JSON.stringify({ 
             ...existingRoom, 
             availableRooms: updatedCount,
+            totalRooms: updatedTotal,
             amenities: existingRoom.amenities 
           })
         });
@@ -186,6 +189,7 @@ export function AdminRooms() {
           ...formData,
           price: Number(formData.price),
           availableRooms: Number(formData.availableRooms),
+          totalRooms: Number(formData.availableRooms) + getBookedCount(formData.name), // Sync total rooms
           defaultGuests: Number(formData.defaultGuests),
           amenities: formData.amenities.split(',').map(item => item.trim()).filter(item => item !== '')
         };
@@ -199,6 +203,7 @@ export function AdminRooms() {
           ...formData,
           price: Number(formData.price),
           availableRooms: 1,
+          totalRooms: 1,
           defaultGuests: Number(formData.defaultGuests),
           amenities: formData.amenities.split(',').map(item => item.trim()).filter(item => item !== '')
         };
@@ -230,18 +235,22 @@ export function AdminRooms() {
     if (!room || room.isPlaceholder || room.availableRooms <= 0) return;
     
     try {
-      const updatedCount = room.availableRooms - 1;
-      if (updatedCount === 0) {
-        await apiFetch(`/rooms/${room._id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ ...room, availableRooms: 0 })
-        });
-      } else {
-        await apiFetch(`/rooms/${room._id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ ...room, availableRooms: updatedCount })
-        });
-      }
+      // Fetch the live DB document first to get accurate totalRooms
+      const liveRes = await apiFetch(`/rooms/admin/list`);
+      const liveRooms = liveRes.data || [];
+      const liveRoom = liveRooms.find(r => r._id === room._id);
+      
+      const currentAvailable = liveRoom ? liveRoom.availableRooms : room.availableRooms;
+      const currentTotal = liveRoom ? (liveRoom.totalRooms ?? currentAvailable) : (room.totalRooms ?? room.availableRooms);
+      
+      // Send only clean database fields — never spread aggregated UI objects
+      await apiFetch(`/rooms/${room._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ 
+          availableRooms: Math.max(0, currentAvailable - 1),
+          totalRooms: Math.max(0, currentTotal - 1)
+        })
+      });
       fetchData();
     } catch (error) {
       alert('Error removing room: ' + error.message);
@@ -258,17 +267,21 @@ export function AdminRooms() {
 
   // ENSURE ALL TYPES ARE SHOWN IN THE TABLE
   const aggregatedRooms = Object.keys(ROOM_TYPES).map(typeName => {
-    // Case-insensitive search to be more robust
-    const backendRoomsOfType = rooms.filter(r => r.name?.toLowerCase() === typeName.toLowerCase());
+    // Only aggregate ACTIVE rooms from the database
+    const backendRoomsOfType = rooms.filter(r => 
+      r.isActive && r.name?.toLowerCase() === typeName.toLowerCase()
+    );
     const typeDetails = ROOM_TYPES[typeName];
     const bookedCount = getBookedCount(typeName);
     
     if (backendRoomsOfType.length > 0) {
       const dbAvailable = backendRoomsOfType.reduce((sum, r) => sum + (r.availableRooms || 0), 0);
+      const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms || 1), 0); // Default to 1 if missing
       const firstRoom = backendRoomsOfType[0];
       return {
         ...firstRoom,
         availableRooms: dbAvailable,
+        totalRooms: dbTotal,
         bookedCount,
         isPlaceholder: false
       };
@@ -280,6 +293,7 @@ export function AdminRooms() {
       price: typeDetails.price,
       description: typeDetails.description,
       availableRooms: 0,
+      totalRooms: 0,
       bookedCount,
       defaultGuests: typeDetails.defaultGuests,
       isActive: true,
@@ -321,37 +335,38 @@ export function AdminRooms() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="admin-rooms__stat-card">
-          <div className="admin-rooms__stat-icon-wrap admin-rooms__stat-icon-wrap--blue">
-            <Bed className="admin-rooms__stat-icon" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Total Types</p>
-            <h3 className="text-2xl font-bold text-slate-900">{aggregatedRooms.length}</h3>
-          </div>
-        </div>
-        <div className="admin-rooms__stat-card">
-          <div className="admin-rooms__stat-icon-wrap admin-rooms__stat-icon-wrap--green">
-            <CheckCircle className="admin-rooms__stat-icon" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Available Units</p>
-            <h3 className="text-2xl font-bold text-slate-900">
-              {Object.values(BASE_COUNTS).reduce((a, b) => a + b, 0) + rooms.reduce((acc, room) => acc + (room.availableRooms || 0), 0)}
-            </h3>
-          </div>
-        </div>
-        <div className="admin-rooms__stat-card">
-          <div className="admin-rooms__stat-icon-wrap admin-rooms__stat-icon-wrap--amber">
-            <Calendar className="admin-rooms__stat-icon" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-500">Active Bookings</p>
-            <h3 className="text-2xl font-bold text-slate-900">
-              {bookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in').length}
-            </h3>
-          </div>
-        </div>
+        {aggregatedRooms.map((room) => {
+          const baseCount = BASE_COUNTS[room.name] || 0;
+          const addedCount = room.availableRooms || 0;
+          const bookedCount = room.bookedCount || 0;
+          const totalInStock = addedCount + bookedCount;
+          const freeCount = addedCount;
+          
+          let iconColorClass = "admin-rooms__stat-icon-wrap--blue";
+          if (room.name.includes("Family")) iconColorClass = "admin-rooms__stat-icon-wrap--green";
+          if (room.name.includes("Honeymoon")) iconColorClass = "admin-rooms__stat-icon-wrap--amber";
+
+          return (
+            <div key={room.name} className="admin-rooms__stat-card">
+              <div className={`admin-rooms__stat-icon-wrap ${iconColorClass}`}>
+                <Bed className="admin-rooms__stat-icon" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-slate-900 truncate">{room.name}</p>
+                <div className="flex items-end justify-between mt-1">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Total</p>
+                    <h3 className="text-xl font-bold text-slate-900">{totalInStock}</h3>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-wider text-green-500 font-bold">Available</p>
+                    <h3 className="text-xl font-bold text-green-600">{freeCount}</h3>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Main Panel */}
@@ -405,8 +420,8 @@ export function AdminRooms() {
                   const baseCount = BASE_COUNTS[room.name] || 0;
                   const addedCount = room.availableRooms || 0;
                   const bookedCount = room.bookedCount || 0;
-                  const totalInStock = baseCount + addedCount + bookedCount;
-                  const freeCount = baseCount + addedCount;
+                  const totalInStock = addedCount + bookedCount;
+                  const freeCount = addedCount;
                   const isExpanded = expandedTypes.has(room.name);
 
                   return (
@@ -546,7 +561,23 @@ export function AdminRooms() {
                         <span className="text-xs text-slate-500">{booking.email}</span>
                       </div>
                     </td>
-                    <td>{booking.room?.name || 'N/A'}</td>
+                    <td>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{booking.room?.name || 'N/A'}</span>
+                        {booking.decorationItems && booking.decorationItems.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {booking.decorationItems.map((item, idx) => (
+                              <span 
+                                key={idx} 
+                                className="text-[9px] px-1.5 py-0.5 bg-pink-50 text-pink-600 border border-pink-100 rounded-md font-bold uppercase tracking-wider"
+                              >
+                                {item}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td>
                       <div className="flex flex-col text-xs">
                         <span className="font-medium text-blue-600">IN: {new Date(booking.checkInDate).toLocaleDateString()}</span>

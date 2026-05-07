@@ -1,6 +1,7 @@
 // Events.jsx - Wedding & Events Page (Pure JavaScript)
 import React, { useEffect, useMemo, useState } from "react";
 import { EventCard } from "../../components/website/EventCard.jsx";
+import { CustomCalendar } from "../../components/common/CustomCalendar.jsx";
 import { Calendar, Hotel, Heart, MapPin, Users, Sparkles, X, CheckCircle, Info, ChevronRight } from "lucide-react";
 
 const HALLS = [
@@ -69,23 +70,59 @@ const AREAS = [
   },
 ];
 
-export function Events({ onBook }) {
+export function Events({ onBook, isLoggedIn, user }) {
   const [activeTab, setActiveTab] = useState("halls");
   const [selectedDate, setSelectedDate] = useState("");
+  const [monthlyBookedDates, setMonthlyBookedDates] = useState([]);
   const [availabilityMap, setAvailabilityMap] = useState({});
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState("");
-  
   // Booking Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [bookingStatus, setBookingStatus] = useState("idle"); // idle, loading, success
-  const [bookingForm, setBookingForm] = useState({
+  // Wedding Form State
+  const [weddingForm, setWeddingForm] = useState({
+    startTime: "10:00",
+    endTime: "16:00",
     guests: "",
-    eventType: "Wedding",
-    notes: "",
-    contactPhone: ""
+    package: "Gold",
+    mealPreference: "Non-Veg",
+    services: [],
+    notes: ""
   });
+
+  // Event Form State
+  const [eventForm, setEventForm] = useState({
+    type: "Corporate",
+    duration: "4 Hours",
+    guests: "",
+    catering: "Buffet",
+    equipment: [],
+    services: [],
+    notes: ""
+  });
+
+  const toggleService = (formType, service) => {
+    if (formType === 'wedding') {
+      const services = weddingForm.services.includes(service)
+        ? weddingForm.services.filter(s => s !== service)
+        : [...weddingForm.services, service];
+      setWeddingForm({ ...weddingForm, services });
+    } else {
+      const services = eventForm.services.includes(service)
+        ? eventForm.services.filter(s => s !== service)
+        : [...eventForm.services, service];
+      setEventForm({ ...eventForm, services });
+    }
+  };
+
+  const toggleEquipment = (item) => {
+    const equipment = eventForm.equipment.includes(item)
+      ? eventForm.equipment.filter(e => e !== item)
+      : [...eventForm.equipment, item];
+    setEventForm({ ...eventForm, equipment });
+  };
 
   const handleOpenBooking = (venue) => {
     setSelectedVenue(venue);
@@ -95,7 +132,13 @@ export function Events({ onBook }) {
 
   const handleConfirmBooking = (e) => {
     e.preventDefault();
+    if (!isLoggedIn) {
+      onBook(); // This triggers redirect in AppRoutes
+      return;
+    }
     setBookingStatus("loading");
+    
+    const formData = selectedVenue.type === 'hall' ? weddingForm : eventForm;
     
     // Simulate API call
     setTimeout(() => {
@@ -104,13 +147,35 @@ export function Events({ onBook }) {
         onBook({
           hall: selectedVenue,
           eventDate: selectedDate,
-          ...bookingForm
+          fullName: user?.name,
+          email: user?.email,
+          phone: user?.phone,
+          ...formData
         });
       }
     }, 2000);
   };
-
   const currentData = activeTab === "halls" ? HALLS : AREAS;
+
+  const handleMonthChange = async (year, month) => {
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      // Fetch booked dates for the selected month
+      const response = await fetch(`${apiBaseUrl}/api/wedding/halls/booked-dates?year=${year}&month=${month}`);
+      const result = await response.json();
+      if (result.success) {
+        setMonthlyBookedDates(result.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch monthly booked dates", err);
+    }
+  };
+
+  useEffect(() => {
+    // Initial fetch for current month
+    const now = new Date();
+    handleMonthChange(now.getFullYear(), now.getMonth() + 1);
+  }, []);
 
   useEffect(() => {
     // Reset availability when there is no selected date.
@@ -181,6 +246,7 @@ export function Events({ onBook }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
         {/* Tab Switcher - Matching Uploaded Image Style */}
         <div className="flex justify-center mb-12">
+
           <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-2xl shadow-[#0F172A]/10 border border-gray-100 flex items-center gap-1">
             <button
               onClick={() => setActiveTab("halls")}
@@ -207,43 +273,54 @@ export function Events({ onBook }) {
           </div>
         </div>
 
-        {/* Availability Checker */}
-        <div className="bg-white rounded-[2rem] p-8 mb-16 shadow-xl shadow-[#0F172A]/5 border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-8 animate-in fade-in slide-in-from-bottom duration-1000">
-          <div className="space-y-1">
-            <h3 className="text-xl font-bold text-[#0F172A]">Check Venue Availability</h3>
-            <p className="text-xs text-gray-500">Plan your perfect date by verifying our schedule in real-time.</p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-            <div className="relative w-full sm:w-80">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-100 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
-              />
+
+        {/* Availability Calendar Checker */}
+        <div className="bg-white rounded-[2rem] p-8 mb-16 shadow-xl shadow-[#0F172A]/5 border border-gray-100 flex flex-col lg:flex-row lg:items-start justify-between gap-12 animate-in fade-in slide-in-from-bottom duration-1000">
+          <div className="space-y-4 max-w-md">
+            <div>
+              <h3 className="text-2xl font-bold text-[#0F172A]" style={{ fontFamily: "DM Serif Display, serif" }}>Select Your Date</h3>
+              <p className="text-sm text-gray-500 mt-2">Plan your perfect event by verifying our schedule. Use the calendar to find an available date.</p>
             </div>
             
             {selectedDate && (
-              <div className="flex items-center gap-3">
-                {isLoadingAvailability ? (
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest bg-[#D4AF37]/5 px-4 py-2 rounded-lg border border-[#D4AF37]/20">
-                    <div className="w-3 h-3 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
-                    Searching...
+              <div className="bg-[#0F172A] rounded-xl p-5 border border-gray-100 mt-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                   <Calendar className="w-24 h-24 text-[#D4AF37] transform rotate-12" />
+                </div>
+                <div className="relative z-10">
+                  <p className="text-[#D4AF37] text-[10px] uppercase tracking-widest font-bold mb-1">Selected Date</p>
+                  <p className="text-xl text-white font-medium">
+                    {new Date(selectedDate).toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                  <div className="mt-4 flex items-center gap-3">
+                    {isLoadingAvailability ? (
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">
+                        <div className="w-3 h-3 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+                        Checking Venues...
+                      </div>
+                    ) : availabilityError ? (
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-red-400 uppercase tracking-widest">
+                        Error Loading
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
+                        <Sparkles className="w-3 h-3" />
+                        Viewing Available Venues
+                      </div>
+                    )}
                   </div>
-                ) : availabilityError ? (
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-red-500 uppercase tracking-widest bg-red-50 px-4 py-2 rounded-lg border border-red-100">
-                    Error Loading
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100">
-                    <Sparkles className="w-3 h-3" />
-                    Live Schedule
-                  </div>
-                )}
+                </div>
               </div>
             )}
+          </div>
+          
+          <div className="w-full lg:w-auto flex-shrink-0">
+             <CustomCalendar 
+               selectedDate={selectedDate} 
+               onDateSelect={setSelectedDate} 
+               bookedDates={monthlyBookedDates}
+               onMonthChange={handleMonthChange}
+             />
           </div>
         </div>
 
@@ -308,80 +385,273 @@ export function Events({ onBook }) {
                     </div>
                   </div>
                   
-                  <form onSubmit={handleConfirmBooking} className="p-8 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 ml-1">
-                          <Users className="w-3.5 h-3.5 text-[#D4AF37]" /> Estimated Guests
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          placeholder="e.g. 150"
-                          value={bookingForm.guests}
-                          onChange={(e) => setBookingForm({...bookingForm, guests: e.target.value})}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 ml-1">
-                          <Info className="w-3.5 h-3.5 text-[#D4AF37]" /> Event Type
-                        </label>
-                        <select
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
-                          value={bookingForm.eventType}
-                          onChange={(e) => setBookingForm({...bookingForm, eventType: e.target.value})}
-                        >
-                          <option>Wedding</option>
-                          <option>Engagement</option>
-                          <option>Corporate Gala</option>
-                          <option>Private Party</option>
-                          <option>Other</option>
-                        </select>
+                  <form onSubmit={handleConfirmBooking} className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    {/* User Information (Auto-filled) */}
+                    <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100 space-y-4 mb-6">
+                      <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-[0.2em]">Guest Information</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-1 ml-1">Full Name</p>
+                          <div className="px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-sm text-gray-600 font-medium">
+                            {user?.name || "Guest User"}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-1 ml-1">Email Address</p>
+                          <div className="px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-sm text-gray-600 font-medium truncate">
+                            {user?.email || "N/A"}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-1 ml-1">Phone Number</p>
+                          <div className="px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-sm text-gray-600 font-medium">
+                            {user?.phone || "N/A"}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    
+
+                    {selectedVenue?.type === 'hall' ? (
+                      /* Wedding Hall Booking Form */
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Guest Count</label>
+                            <input
+                              type="number"
+                              required
+                              placeholder="e.g. 150"
+                              value={weddingForm.guests}
+                              onChange={(e) => setWeddingForm({...weddingForm, guests: e.target.value})}
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Wedding Package</label>
+                            <select
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                              value={weddingForm.package}
+                              onChange={(e) => setWeddingForm({...weddingForm, package: e.target.value})}
+                            >
+                              <option>Silver Package</option>
+                              <option>Gold Package</option>
+                              <option>Platinum Package</option>
+                              <option>Royal Suite Package</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Start Time</label>
+                            <input
+                              type="time"
+                              required
+                              value={weddingForm.startTime}
+                              onChange={(e) => setWeddingForm({...weddingForm, startTime: e.target.value})}
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">End Time</label>
+                            <input
+                              type="time"
+                              required
+                              value={weddingForm.endTime}
+                              onChange={(e) => setWeddingForm({...weddingForm, endTime: e.target.value})}
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Meal Preference</label>
+                          <div className="flex gap-4">
+                            {["Veg", "Non-Veg", "Jain", "Mixed"].map(meal => (
+                              <button
+                                key={meal}
+                                type="button"
+                                onClick={() => setWeddingForm({...weddingForm, mealPreference: meal})}
+                                className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all border ${
+                                  weddingForm.mealPreference === meal
+                                    ? "bg-[#0F172A] text-[#D4AF37] border-[#0F172A]"
+                                    : "bg-gray-50 text-gray-400 border-gray-100 hover:border-[#D4AF37]/30"
+                                }`}
+                              >
+                                {meal}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Additional Services</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {["Photography", "Full Decor", "Live Music", "DJ & Sound", "Flower Walls", "Valet Parking"].map(service => (
+                              <button
+                                key={service}
+                                type="button"
+                                onClick={() => toggleService('wedding', service)}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                                  weddingForm.services.includes(service)
+                                    ? "bg-white border-[#D4AF37] text-[#D4AF37] shadow-lg shadow-[#D4AF37]/5"
+                                    : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
+                                }`}
+                              >
+                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                                  weddingForm.services.includes(service) ? "bg-[#D4AF37] border-[#D4AF37]" : "border-gray-200"
+                                }`}>
+                                  {weddingForm.services.includes(service) && <CheckCircle className="w-3 h-3 text-white" />}
+                                </div>
+                                {service}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Event Hall Booking Form */
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Event Type</label>
+                            <select
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                              value={eventForm.type}
+                              onChange={(e) => setEventForm({...eventForm, type: e.target.value})}
+                            >
+                              <option>Corporate Conference</option>
+                              <option>Product Launch</option>
+                              <option>Birthday Celebration</option>
+                              <option>Private Dinner</option>
+                              <option>Networking Mixer</option>
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Time Duration</label>
+                            <select
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                              value={eventForm.duration}
+                              onChange={(e) => setEventForm({...eventForm, duration: e.target.value})}
+                            >
+                              <option>4 Hours</option>
+                              <option>8 Hours</option>
+                              <option>Full Day (12h)</option>
+                              <option>Multi-day</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Guest Count</label>
+                            <input
+                              type="number"
+                              required
+                              placeholder="e.g. 50"
+                              value={eventForm.guests}
+                              onChange={(e) => setEventForm({...eventForm, guests: e.target.value})}
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Catering Plan</label>
+                            <select
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                              value={eventForm.catering}
+                              onChange={(e) => setEventForm({...eventForm, catering: e.target.value})}
+                            >
+                              <option>No Catering</option>
+                              <option>Coffee & Snacks</option>
+                              <option>Executive Buffet</option>
+                              <option>Standard Buffet</option>
+                              <option>High Tea</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Technical Equipment</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {["HD Projector", "Wireless Mics", "Sound System", "Stage Setup", "Video Recording", "High Speed Wifi"].map(item => (
+                              <button
+                                key={item}
+                                type="button"
+                                onClick={() => toggleEquipment(item)}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                                  eventForm.equipment.includes(item)
+                                    ? "bg-white border-[#D4AF37] text-[#D4AF37] shadow-lg shadow-[#D4AF37]/5"
+                                    : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
+                                }`}
+                              >
+                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                                  eventForm.equipment.includes(item) ? "bg-[#D4AF37] border-[#D4AF37]" : "border-gray-200"
+                                }`}>
+                                  {eventForm.equipment.includes(item) && <CheckCircle className="w-3 h-3 text-white" />}
+                                </div>
+                                {item}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 ml-1">
-                        Contact Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="+1 (555) 000-0000"
-                        value={bookingForm.contactPhone}
-                        onChange={(e) => setBookingForm({...bookingForm, contactPhone: e.target.value})}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Special Requirements</label>
+                      <textarea
+                        rows="3"
+                        placeholder="Any additional needs or instructions..."
+                        value={selectedVenue?.type === 'hall' ? weddingForm.notes : eventForm.notes}
+                        onChange={(e) => selectedVenue?.type === 'hall' ? setWeddingForm({...weddingForm, notes: e.target.value}) : setEventForm({...eventForm, notes: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all resize-none"
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 ml-1">
-                        Special Requirements
-                      </label>
-                      <textarea
-                        rows="3"
-                        placeholder="Catering needs, decor preferences, etc."
-                        value={bookingForm.notes}
-                        onChange={(e) => setBookingForm({...bookingForm, notes: e.target.value})}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all resize-none"
-                      />
+                    {/* Booking Summary */}
+                    <div className="bg-[#0F172A] p-6 rounded-2xl border border-[#D4AF37]/20 mt-8">
+                       <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-[0.3em] mb-4">Reservation Summary</p>
+                       <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                             <span className="text-gray-400">Selected Venue</span>
+                             <span className="text-white font-medium">{selectedVenue?.name}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                             <span className="text-gray-400">Guest Count</span>
+                             <span className="text-white font-medium">
+                                {(selectedVenue?.type === 'hall' ? weddingForm.guests : eventForm.guests) || 0} People
+                             </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                             <span className="text-gray-400">Booking Type</span>
+                             <span className="text-[#D4AF37] font-bold uppercase tracking-widest text-[9px]">
+                                {selectedVenue?.type === 'hall' ? 'Wedding Reservation' : 'Event Booking'}
+                             </span>
+                          </div>
+                       </div>
+                       <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center">
+                          <span className="text-sm font-bold text-white">Estimated Quote</span>
+                          <span className="text-xl font-bold text-[#D4AF37]">
+                             ${(selectedVenue?.price || 0).toLocaleString()}
+                             <span className="text-[10px] text-gray-400 ml-1">/ session</span>
+                          </span>
+                       </div>
                     </div>
 
                     <div className="pt-4">
                       <button
                         type="submit"
                         disabled={bookingStatus === "loading" || !selectedDate}
-                        className="w-full bg-[#0F172A] text-[#D4AF37] py-4 rounded-2xl font-bold hover:bg-[#1E293B] transition-all shadow-xl shadow-[#0F172A]/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group"
+                        className="w-full bg-[#D4AF37] text-[#0F172A] py-5 rounded-2xl font-bold hover:bg-[#B8962D] transition-all shadow-xl shadow-[#D4AF37]/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group"
                       >
                         {bookingStatus === "loading" ? (
                           <>
-                            <div className="w-5 h-5 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+                            <div className="w-5 h-5 border-2 border-[#0F172A] border-t-transparent rounded-full animate-spin" />
                             Processing Reservation...
                           </>
                         ) : (
                           <>
-                            Confirm Venue Booking
+                            Confirm Booking Details
                             <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </>
                         )}
@@ -392,27 +662,13 @@ export function Events({ onBook }) {
                         </p>
                       )}
                     </div>
-                  </form>
-                </>
+                  </form>                </>
               )}
             </div>
           </div>
         )}
 
-        {/* Assistance Section */}
-        <div className="bg-[#0F172A] rounded-[3rem] p-12 text-center relative overflow-hidden group">
-          <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
-          <div className="relative z-10">
-            <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-[9px] font-bold mb-4">Dedicated Support</p>
-            <h3 className="text-3xl font-bold text-white mb-4" style={{ fontFamily: "DM Serif Display, serif" }}>Need Help Planning Your Event?</h3>
-            <p className="text-gray-400 mb-10 max-w-md mx-auto text-sm">
-              Our expert event planners are here to assist you with every detail, from site tours to custom arrangements.
-            </p>
-            <button className="bg-[#D4AF37] text-[#0F172A] px-10 py-4 rounded-2xl font-bold hover:bg-[#B8962D] transition-all shadow-xl shadow-[#D4AF37]/10 cursor-pointer">
-              Contact Event Concierge
-            </button>
-          </div>
-        </div>
+
       </div>
     </div>
   );
