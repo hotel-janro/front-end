@@ -21,7 +21,9 @@ const parseApiError = async (response, fallbackMessage) => {
     }
 
     if (!response.ok || !data.success) {
-        throw new Error(data.message || fallbackMessage);
+        const error = new Error(data.message || fallbackMessage);
+        error.data = data;
+        throw error;
     }
 
     return data;
@@ -68,28 +70,36 @@ function AppInner() {
             body: JSON.stringify({ email: email.trim(), password })
         });
 
-        const result = await parseApiError(response, "Login failed");
+        try {
+            const result = await parseApiError(response, "Login failed");
 
-        const { token, refreshToken, ...apiUserData } = result.data;
+            const { token, refreshToken, ...apiUserData } = result.data;
 
-        const nextUser = normalizeUser(apiUserData);
+            const nextUser = normalizeUser(apiUserData);
 
-        localStorage.setItem("janro_token", token);
-        localStorage.setItem("janro_refresh_token", refreshToken);
+            localStorage.setItem("janro_token", token);
+            localStorage.setItem("janro_refresh_token", refreshToken);
 
-        localStorage.setItem("janro_user", JSON.stringify(nextUser));
+            localStorage.setItem("janro_user", JSON.stringify(nextUser));
 
-        setUser(nextUser);
-        setIsLoggedIn(true);
-        navigate(
-            nextUser.role === "admin"
-                ? "/admin"
-                : nextUser.role === "reception"
-                ? "/reception"
-                : nextUser.role === "cashier"
-                ? "/cashier"
-                : "/"
-        );
+            setUser(nextUser);
+            setIsLoggedIn(true);
+            navigate(
+                nextUser.role === "admin"
+                    ? "/admin"
+                    : nextUser.role === "reception"
+                    ? "/reception"
+                    : nextUser.role === "cashier"
+                    ? "/cashier"
+                    : "/"
+            );
+        } catch (error) {
+            if (error.data?.requireVerification) {
+                navigate("/verify-email", { state: { email: credentials.email.trim() } });
+                return;
+            }
+            throw error;
+        }
     };
 
     const handleRegister = async ({ name, email, password, confirmPassword, phone }) => {
@@ -107,27 +117,19 @@ function AppInner() {
             })
         });
 
-        const result = await parseApiError(response, "Registration failed");
-        const { token, refreshToken, ...userData } = result.data;
-
-        const nextUser = normalizeUser(userData);
-
-        localStorage.setItem("janro_token", token);
-        localStorage.setItem("janro_refresh_token", refreshToken);
-
-        localStorage.setItem("janro_user", JSON.stringify(nextUser));
-
-        setUser(nextUser);
-        setIsLoggedIn(true);
-        navigate(
-            nextUser.role === "admin"
-                ? "/admin"
-                : nextUser.role === "reception"
-                ? "/reception"
-                : nextUser.role === "cashier"
-                ? "/cashier"
-                : "/"
-        );
+        try {
+            const result = await parseApiError(response, "Registration failed");
+            if (result.requireVerification) {
+                navigate("/verify-email", { state: { email: email.trim() } });
+                return;
+            }
+        } catch (error) {
+            if (error.data?.requireVerification) {
+                navigate("/verify-email", { state: { email: email.trim() } });
+                return;
+            }
+            throw error;
+        }
     };
 
     const handleLogout = () => {
