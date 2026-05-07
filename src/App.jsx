@@ -38,6 +38,7 @@ function AppInner() {
     const navigate = useNavigate();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState(null);
+    const [authChecked, setAuthChecked] = useState(false);
 
     useEffect(() => {
         const savedUser = localStorage.getItem("janro_user");
@@ -95,6 +96,8 @@ function AppInner() {
             } catch (error) {
                 console.error("Auth error:", error);
                 handleLogout(); // Clear everything if both tokens fail
+            } finally {
+                setAuthChecked(true);
             }
         };
 
@@ -208,7 +211,7 @@ function AppInner() {
 
     return (
         <div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
-            {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>}
+            {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout} authChecked={authChecked}/>}
             <main className="flex-1">
                 <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
             </main>
