@@ -2,16 +2,16 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/common/Button.jsx";
-import { Crown, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { Crown, Mail, Lock, User, Eye, EyeOff, Phone } from "lucide-react";
 
 export function Register({ onRegister }) {
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirmPassword: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.email || !form.password || !form.confirmPassword) {
+    if (!form.name || !form.email || !form.phone || !form.password || !form.confirmPassword) {
       setError("Please fill in all fields.");
       return;
     }
@@ -29,6 +29,7 @@ export function Register({ onRegister }) {
       await onRegister({
         name: form.name,
         email: form.email,
+        phone: form.phone,
         password: form.password,
         confirmPassword: form.confirmPassword,
       });
@@ -69,6 +70,13 @@ export function Register({ onRegister }) {
             <div className="relative">
               <Mail className="w-5 h-5 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2" />
               <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="you@example.com" className="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-3 bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] transition-colors" />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm text-gray-600 mb-1 block">Phone Number</label>
+            <div className="relative">
+              <Phone className="w-5 h-5 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="07x xxxxxxx" className="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-3 bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] transition-colors" />
             </div>
           </div>
           <div>
