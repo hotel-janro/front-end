@@ -1,6 +1,6 @@
 // CashierSidebar.jsx - Cashier Dashboard Sidebar Navigation
 import React from "react";
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Building2,
   LayoutGrid,

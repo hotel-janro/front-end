@@ -1,6 +1,6 @@
 // ReceptionSidebar.jsx - Reception Dashboard Sidebar Navigation
 import React from "react";
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Grid3X3,
   Calendar,

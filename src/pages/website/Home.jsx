@@ -1,6 +1,6 @@
 // Home.jsx - Home Page (Pure JavaScript)
 import React from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { Button } from "../../components/common/Button.jsx";
 import { ImageWithFallback } from "../../components/common/ImageWithFallback.jsx";
 import {

@@ -1,7 +1,7 @@
 // AppRoutes.jsx - Application Routes (Pure JavaScript)
 import React from "react";
 import { apiFetch } from "../api";
-import { Routes, Route, Navigate, useNavigate } from "react-router";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Home } from "../pages/website/Home.jsx";
 import { Rooms } from "../pages/website/Rooms.jsx";
 import { Events } from "../pages/website/Events.jsx";
@@ -10,6 +10,8 @@ import { About } from "../pages/website/About.jsx";
 import { Contact } from "../pages/website/Contact.jsx";
 import { Login } from "../pages/website/Login.jsx";
 import { Register } from "../pages/website/Register.jsx";
+import { Cart } from "../pages/website/Cart.jsx";
+import { Checkout } from "../pages/website/Checkout.jsx";
 import { Profile } from "../pages/dashboard/customerDashboard/Profile.jsx";
 import { MyBookings } from "../pages/dashboard/customerDashboard/MyBookings.jsx";
 import { MyOrders } from "../pages/dashboard/customerDashboard/MyOrders.jsx";

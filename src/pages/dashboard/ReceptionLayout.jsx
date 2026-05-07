@@ -1,6 +1,6 @@
 // ReceptionLayout.jsx - Layout wrapper for all reception pages
 import React from "react";
-import { Outlet } from "react-router";
+import { Outlet } from "react-router-dom";
 import { ReceptionSidebar } from "../../components/dashboard/ReceptionSidebar.jsx";
 
 export function ReceptionLayout({ user, onLogout }) {

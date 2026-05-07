@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Crown, User, LogOut, Calendar, ShoppingBag, ChevronDown, LayoutDashboard, Waves, Users, Settings } from "lucide-react";
 
 export function Navbar({ isLoggedIn, user, onLogout, authChecked = true }) {

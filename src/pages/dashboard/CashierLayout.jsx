@@ -1,6 +1,6 @@
 // CashierLayout.jsx - Layout wrapper for all cashier pages
 import React from "react";
-import { Outlet } from "react-router";
+import { Outlet } from "react-router-dom";
 import { CashierSidebar } from "../../components/dashboard/CashierSidebar.jsx";
 
 export function CashierLayout({ user, onLogout }) {

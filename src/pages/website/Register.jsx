@@ -1,6 +1,6 @@
 // Register Page
 import React, { useState } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { Button } from "../../components/common/Button.jsx";
 import { Crown, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 
