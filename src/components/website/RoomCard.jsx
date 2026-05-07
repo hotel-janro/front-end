@@ -62,6 +62,19 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
   const grandTotal = (Number(room.price || 0) * slots) + decorationTotal;
 
   const handleSubmitBooking = () => {
+    if (!checkIn) {
+      alert("Please select a check-in date.");
+      return;
+    }
+    if (!checkOut) {
+      alert("Please select a check-out date.");
+      return;
+    }
+    if (!phone || phone.trim() === "") {
+      alert("Please enter your phone number to proceed with the booking.");
+      return;
+    }
+
     onBook({
       room,
       roomId: room._id || room.id,
@@ -156,7 +169,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
               </div>
 
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Phone</label>
+                <label className="text-xs text-gray-500 block mb-1">Phone <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={phone}
@@ -168,7 +181,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
 
               <div>
                 <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                  <Calendar className="w-3 h-3" /> Check-in Date
+                  <Calendar className="w-3 h-3" /> Check-in Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -188,7 +201,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
 
               <div>
                 <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                  <Calendar className="w-3 h-3" /> Check-out Date
+                  <Calendar className="w-3 h-3" /> Check-out Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"

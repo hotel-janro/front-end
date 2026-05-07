@@ -38,7 +38,7 @@ const ROOM_TYPES = {
     amenities: "Two bedrooms, Play area, Kid-friendly amenities, Connecting rooms, WiFi, AC"
   },
   'Honeymoon Suite': {
-    price: 15000,
+    price: 7500,
     description: "A romantic escape with private pool, candlelit dining setup, rose petal turndown, and couples spa treatment.",
     defaultGuests: 2,
     amenities: "Private pool, Candlelit dining, Rose petal turndown, Couples spa, WiFi, AC"
@@ -255,6 +255,19 @@ export function AdminRooms() {
       fetchData();
     } catch (error) {
       alert('Error removing room: ' + error.message);
+    }
+  };
+
+  const handleDeleteBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) return;
+    
+    try {
+      await apiFetch(`/bookings/${bookingId}`, {
+        method: 'DELETE'
+      });
+      fetchData(); // Refresh bookings list
+    } catch (error) {
+      alert('Error deleting booking: ' + error.message);
     }
   };
 
@@ -551,6 +564,7 @@ export function AdminRooms() {
                   <th>Guests</th>
                   <th>Status</th>
                   <th>Total Amount</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -588,11 +602,20 @@ export function AdminRooms() {
                     <td>{booking.guests}</td>
                     <td>{getStatusBadge(booking.status)}</td>
                     <td><span className="font-bold text-slate-900">Rs. {booking.totalPrice.toLocaleString()}</span></td>
+                    <td className="text-right">
+                      <button 
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        title="Delete Booking"
+                        onClick={() => handleDeleteBooking(booking._id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filteredBookings.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="p-8 text-center text-slate-500">No bookings found.</td>
+                    <td colSpan="7" className="p-8 text-center text-slate-500">No bookings found.</td>
                   </tr>
                 )}
               </tbody>

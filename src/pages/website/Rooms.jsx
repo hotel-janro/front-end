@@ -16,15 +16,15 @@ const ORIGINAL_DESIGN = [
     _id: "family",
     name: "Family Suite",
     price: 10000,
-    description: "Designed for families, featuring two bedrooms, a play area, kid-friendly amenities, and connecting rooms. ",
+    description: " Designed for families, featuring Twin & Double Beds, a play area, kid-friendly amenities and Balcony,perfect for a relaxing stay ",
     availableRooms: 2,
     image: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
   },
   {
     _id: "honeymoon",
     name: "Honeymoon Suite",
-    price: 15000,
-    description: "A romantic escape with private pool, candlelit dining setup, rose petal turndown, and couples spa treatment.",
+    price: 7500,
+    description: "Experience luxury and romance in our Honeymoon Suite, specially Designed for couples to enjoy a comfortable and memorable stay with elegant interiors and relaxing facilities. ",
     availableRooms: 2,
     image: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
   },
@@ -54,6 +54,7 @@ export function Rooms({ onBook, isLoggedIn = false }) {
             return {
               ...designRoom,
               _id: firstBackendRoom?._id || designRoom._id,
+              price: firstBackendRoom?.price || designRoom.price,
               availableRooms: firstBackendRoom ? backendAvailable : designRoom.availableRooms
             };
           });
