@@ -30,14 +30,14 @@ export function CashierSidebar({ user, onLogout }) {
       {/* Logo */}
       <div className="p-6 border-b border-[#1E293B]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-teal-500/15 border border-teal-500/30 rounded-lg flex items-center justify-center">
-            <Building2 className="w-6 h-6 text-teal-500" />
+          <div className="w-10 h-10 bg-[#D4AF37]/15 border border-[#D4AF37]/30 rounded-lg flex items-center justify-center">
+            <Building2 className="w-6 h-6 text-[#D4AF37]" />
           </div>
           <div>
             <h1 className="text-[1.8rem] leading-none tracking-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
                HOTEL JANRO
             </h1>
-            <p className="text-xs text-teal-400 tracking-[0.16em] uppercase mt-1">Cashier Panel</p>
+            <p className="text-xs text-[#D4AF37] tracking-[0.16em] uppercase mt-1">Cashier Panel</p>
           </div>
         </div>
       </div>
@@ -54,7 +54,7 @@ export function CashierSidebar({ user, onLogout }) {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-teal-500/20 text-teal-200 border border-teal-500/40"
+                    ? "bg-[#D4AF37]/20 text-[#F5E7B2] border border-[#D4AF37]/40"
                     : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`
               }
@@ -69,7 +69,7 @@ export function CashierSidebar({ user, onLogout }) {
       {/* User Profile */}
       <div className="p-4 border-t border-[#1E293B] bg-[#0B1324]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-cyan-400/80 rounded-full flex items-center justify-center text-sm font-bold text-teal-900">
+          <div className="w-10 h-10 bg-[#D4AF37] rounded-full flex items-center justify-center text-sm font-bold text-[#0F172A]">
             {user?.name
               ? user.name
                   .split(" ")
@@ -82,7 +82,7 @@ export function CashierSidebar({ user, onLogout }) {
             <p className="text-sm font-semibold text-white truncate">
               {user?.name || "Lisa Cashier"}
             </p>
-            <p className="text-xs text-teal-100/70 truncate">POS Cashier</p>
+            <p className="text-xs text-slate-400 truncate">POS Cashier</p>
           </div>
           <button
             onClick={handleLogout}

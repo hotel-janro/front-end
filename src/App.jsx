@@ -49,13 +49,13 @@ function AppInner() {
             localStorage.setItem("janro_user", JSON.stringify(demoUser));
             localStorage.removeItem("janro_token");
             navigate(
-                demoUser.role === "admin"
-                    ? "/admin"
-                    : demoUser.role === "reception"
-                    ? "/reception"
-                    : demoUser.role === "cashier"
-                    ? "/cashier"
-                    : "/"
+                    demoUser.role === "admin"
+                        ? "/admin"
+                        : (demoUser.role === "reception" || demoUser.role === "receptionist")
+                        ? "/reception"
+                        : demoUser.role === "cashier"
+                        ? "/cashier"
+                        : "/"
             );
             return;
         }
@@ -84,7 +84,7 @@ function AppInner() {
         navigate(
             nextUser.role === "admin"
                 ? "/admin"
-                : nextUser.role === "reception"
+                : (nextUser.role === "reception" || nextUser.role === "receptionist")
                 ? "/reception"
                 : nextUser.role === "cashier"
                 ? "/cashier"
@@ -122,7 +122,7 @@ function AppInner() {
         navigate(
             nextUser.role === "admin"
                 ? "/admin"
-                : nextUser.role === "reception"
+                : (nextUser.role === "reception" || nextUser.role === "receptionist")
                 ? "/reception"
                 : nextUser.role === "cashier"
                 ? "/cashier"
