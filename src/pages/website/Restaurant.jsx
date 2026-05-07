@@ -5,8 +5,10 @@ import { Button } from "../../components/common/Button.jsx";
 import { ShoppingCart, X, Truck, Building2, Loader2 } from "lucide-react";
 import { apiFetch } from "../../api.js";
 import { toast } from "sonner";
+import { useSettings } from "../../context/SettingsContext.jsx";
 
 export function Restaurant({ onOrder }) {
+  const { settings } = useSettings();
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
@@ -18,9 +20,10 @@ export function Restaurant({ onOrder }) {
     const fetchMenu = async () => {
       try {
         const data = await apiFetch("/menu?limit=50");
-        setMenuItems(data.items || []);
+        const items = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+        setMenuItems(items);
       } catch (err) {
-        toast.error("Failed to load menu items");
+        toast.error(err.message || "Failed to load menu items");
       } finally {
         setLoading(false);
       }
@@ -28,7 +31,7 @@ export function Restaurant({ onOrder }) {
     fetchMenu();
   }, []);
 
-  const categories = ["All", ...new Set(menuItems.map((item) => item.category))];
+  const categories = ["All", ...new Set(menuItems.map((item) => item.category).filter(Boolean))];
 
   const filteredItems = activeCategory === "All" 
     ? menuItems 
@@ -38,9 +41,9 @@ export function Restaurant({ onOrder }) {
     setCart((prev) => {
       const existing = prev.find((c) => c._id === item._id);
       if (existing) {
-        return prev.map((c) => c._id === item._id ? { ...c, quantity: c.quantity + item.quantity } : c);
+        return prev.map((c) => c._id === item._id ? { ...c, quantity: c.quantity + (item.quantity || 1) } : c);
       }
-      return [...prev, item];
+      return [...prev, { ...item, quantity: item.quantity || 1 }];
     });
     toast.success(`${item.name} added to cart`);
   };
@@ -109,11 +112,15 @@ export function Restaurant({ onOrder }) {
             <p className="text-gray-500">Loading delicious dishes...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-            {filteredItems.map((item) => (
-              <FoodCard key={item._id} item={item} onAddToCart={addToCart} />
-            ))}
-          </div>
+          filteredItems.length === 0 ? (
+            <div className="text-center py-16 text-gray-500">No menu items available right now.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+              {filteredItems.map((item) => (
+                <FoodCard key={item._id} item={item} onAddToCart={addToCart} />
+              ))}
+            </div>
+          )
         )}
 
         {cart.length > 0 && (
@@ -146,10 +153,10 @@ export function Restaurant({ onOrder }) {
                   <div key={item._id} className="flex items-center justify-between bg-[#F8FAFC] rounded-lg p-3">
                     <div>
                       <p className="text-sm font-medium text-[#0F172A]">{item.name}</p>
-                      <p className="text-xs text-gray-400">Qty: {item.quantity} x ${item.price.toFixed(2)}</p>
+                      <p className="text-xs text-gray-400">Qty: {item.quantity} x {settings.currency.symbol}{item.price.toFixed(2)}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm text-[#1E3A8A] font-medium">${(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="text-sm text-[#1E3A8A] font-medium">{settings.currency.symbol}{(item.price * item.quantity).toFixed(2)}</span>
                       <button onClick={() => removeFromCart(item._id)} className="text-red-400 hover:text-red-600 cursor-pointer">
                         <X className="w-4 h-4" />
                       </button>
@@ -185,7 +192,7 @@ export function Restaurant({ onOrder }) {
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-gray-600">Total (Excl. Tax)</span>
                     <span className="text-2xl text-[#0F172A]" style={{ fontFamily: "DM Serif Display, serif" }}>
-                      ${total.toFixed(2)}
+                      {settings.currency.symbol}{total.toFixed(2)}
                     </span>
                   </div>
                   <Button

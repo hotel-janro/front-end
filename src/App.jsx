@@ -4,45 +4,12 @@ import { BrowserRouter, useNavigate, useLocation } from "react-router";
 import { Navbar } from "./components/common/Navbar.jsx";
 import { Footer } from "./components/common/Footer.jsx";
 import { AppRoutes } from "./routes/AppRoutes.jsx";
+import { SettingsProvider } from "./context/SettingsContext.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-const getDashboardRole = (userData) => {
-    const email = userData?.email?.toLowerCase() || "";
-    const rawRole = userData?.role?.toLowerCase?.() || "";
-
-    if (rawRole === "admin" || rawRole === "manager") {
-        return "admin";
-    }
-
-    if (rawRole === "reception" || rawRole === "receptionist" || rawRole === "frontdesk") {
-        return "reception";
-    }
-
-    if (rawRole === "cashier" || rawRole === "pos") {
-        return "cashier";
-    }
-
-    if (email.includes("admin")) {
-        return "admin";
-    }
-
-    if (email.includes("reception") || email.includes("reciption") || email.includes("frontdesk")) {
-        return "reception";
-    }
-
-    if (email.includes("cashier") || email.includes("pos")) {
-        return "cashier";
-    }
-
-    return rawRole || "customer";
-};
-
 const normalizeUser = (userData) => {
-    return {
-        ...userData,
-        role: getDashboardRole(userData)
-    };
+    return userData;
 };
 
 const parseApiError = async (response, fallbackMessage) => {
@@ -164,9 +131,9 @@ function AppInner() {
 
         const result = await parseApiError(response, "Login failed");
 
-        const { token, refreshToken, ...userData } = result.data;
+        const { token, refreshToken, ...apiUserData } = result.data;
 
-        const nextUser = normalizeUser(userData);
+        const nextUser = normalizeUser(apiUserData);
 
         localStorage.setItem("janro_token", token);
         localStorage.setItem("janro_refresh_token", refreshToken);
@@ -233,22 +200,27 @@ function AppInner() {
         navigate("/");
     };
     const location = useLocation();
-        const isDashboardRoute =
-            location.pathname.startsWith("/admin") ||
-            location.pathname.startsWith("/reception") ||
-            location.pathname.startsWith("/cashier");
+    
+    // Check if current route is a management dashboard
+    const isDashboardRoute = location.pathname.startsWith("/admin") || 
+                             location.pathname.startsWith("/reception") || 
+                             location.pathname.startsWith("/cashier");
 
-    return (<div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+    return (
+        <div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
             {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>}
-      <main className="flex-1">
-        <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
-      </main>
+            <main className="flex-1">
+                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
+            </main>
             {!isDashboardRoute && <Footer />}
-    </div>);
+        </div>
+    );
 }
 export default function App() {
-    return (<BrowserRouter>
-      <ScrollToTop />
-      <AppInner />
-    </BrowserRouter>);
+    return (<SettingsProvider>
+        <BrowserRouter>
+          <ScrollToTop />
+          <AppInner />
+        </BrowserRouter>
+      </SettingsProvider>);
 }

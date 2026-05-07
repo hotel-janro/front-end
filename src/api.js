@@ -1,25 +1,66 @@
 // api.js - Simple API utility for back-end communication
 
-const BASE_URL = "http://localhost:5000/api";
+export const API_HOST = (import.meta.env.VITE_API_URL?.replace(/\/api$/, '') || "http://localhost:5000").replace(/\/$/, "");
+const BASE_URL = `${API_HOST}/api`;
 
 export const apiFetch = async (endpoint, options = {}) => {
   const token = localStorage.getItem("janro_token");
 
+  // If body is FormData, do not set Content-Type so the browser can add the multipart boundary
+  const isFormData = options.body instanceof FormData;
   const headers = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error("Unable to reach API server");
+  }
 
-  const data = await response.json();
+  // If 401 Unauthorized, try refreshing the token
+  if (response.status === 401) {
+    const refreshToken = localStorage.getItem("janro_refresh_token");
+    if (refreshToken) {
+      try {
+        const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        if (refreshRes.ok) {
+          const { token: newToken } = await refreshRes.json();
+          localStorage.setItem("janro_token", newToken);
+
+          // Retry the original request with the new token
+          headers.Authorization = `Bearer ${newToken}`;
+          response = await fetch(`${BASE_URL}${endpoint}`, {
+            ...options,
+            headers,
+          });
+        }
+      } catch (err) {
+        console.error("Token refresh failed:", err);
+      }
+    }
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+  const data = isJson ? await response.json() : await response.text();
 
   if (!response.ok) {
-    throw new Error(data.message || "Something went wrong");
+    const message = isJson && data?.message
+      ? data.message
+      : `Request failed (${response.status})`;
+    throw new Error(message);
   }
 
   return data;

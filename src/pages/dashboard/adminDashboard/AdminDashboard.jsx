@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
+import { useSettings } from "../../../context/SettingsContext.jsx";
 import {
   BarChart,
   Bar,
@@ -23,6 +24,7 @@ import { dashboardStats, revenueData, occupancyData } from "../../../data/mockDa
 import { enhancedDashboardStats } from "../../../data/newMockData.js";
 
 export function AdminDashboard() {
+  const { settings } = useSettings();
   const occupancyRate = Math.round(
     (dashboardStats.occupiedRooms / dashboardStats.totalRooms) * 100
   );
@@ -30,7 +32,7 @@ export function AdminDashboard() {
   const stats = [
     {
       title: "Total Revenue",
-      value: `$${dashboardStats.totalRevenue.toLocaleString()}`,
+      value: `${settings.currency.symbol}${dashboardStats.totalRevenue.toLocaleString()}`,
       change: "+12.5%",
       trend: "up",
       icon: DollarSign,
@@ -54,7 +56,7 @@ export function AdminDashboard() {
     },
     {
       title: "Monthly Revenue",
-      value: `$${dashboardStats.monthlyRevenue.toLocaleString()}`,
+      value: `${settings.currency.symbol}${dashboardStats.monthlyRevenue.toLocaleString()}`,
       change: "+8.1%",
       trend: "up",
       icon: TrendingUp,

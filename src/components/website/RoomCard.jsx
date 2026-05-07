@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { Users, Calendar } from "lucide-react";
 import { Button } from "../common/Button.jsx";
 import { ImageWithFallback } from "../common/ImageWithFallback.jsx";
+import { useSettings } from "../../context/SettingsContext";
 
 const HONEYMOON_DECORATION_ITEMS = [
   "Rose petals on bed",
@@ -28,6 +29,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
   const [selectedGuests, setSelectedGuests] = useState(1);
   const [selectedDecorations, setSelectedDecorations] = useState([]);
   const guests = isStandardRoom ? selectedGuests : room.defaultGuests ?? 1;
+  const { settings } = useSettings();
   const formattedPrice = Number(room.price || 0).toLocaleString("en-LK");
 
   const toggleDecoration = (item) => {
@@ -72,7 +74,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
         <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">
-          Rs. {formattedPrice}/night
+          {settings.currency.symbol} {formattedPrice}/night
         </div>
         <div className="absolute top-4 left-4 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-[#0F172A] shadow-sm">
           {room.availableRooms ?? 0} {Number(room.availableRooms) === 1 ? "room" : "rooms"} available
