@@ -33,6 +33,9 @@ import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/Recept
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
 import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
+import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
+import { CashierPayments } from "../pages/dashboard/cashierDashboard/CashierPayments.jsx";
+import { CashierReceipts } from "../pages/dashboard/cashierDashboard/CashierReceipts.jsx";
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 
 
@@ -153,6 +156,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isCashier ? <CashierLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<CashierDashboard />} />
+        <Route path="orders" element={<CashierOrders />} />
+        <Route path="payments" element={<CashierPayments />} />
+        <Route path="receipts" element={<CashierReceipts />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
