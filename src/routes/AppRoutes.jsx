@@ -18,7 +18,7 @@ import { MyOrders } from "../pages/dashboard/customerDashboard/MyOrders.jsx";
 import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
 import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
 import { AdminRooms } from "../pages/dashboard/adminDashboard/AdminRooms.jsx";
-import { AdminRestaurant } from "../pages/dashboard/adminDashboard/AdminResturant.jsx";
+import { AdminRestaurant } from "../pages/dashboard/adminDashboard/AdminRestaurant.jsx";
 import { AdminPOS } from "../pages/dashboard/adminDashboard/AdminPos.jsx";
 import { AdminReports } from "../pages/dashboard/adminDashboard/AdminReports.jsx";
 import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayemnts.jsx";
