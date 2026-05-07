@@ -34,8 +34,13 @@ import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/Recept
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
 import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
+import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
+import { CashierPayments } from "../pages/dashboard/cashierDashboard/CashierPayments.jsx";
+import { CashierReceipts } from "../pages/dashboard/cashierDashboard/CashierReceipts.jsx";
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
-
+import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
+import { ResetPassword } from "../pages/website/ResetPassword.jsx";
+import { VerifyOTP } from "../pages/website/VerifyOTP.jsx";
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const navigate = useNavigate();
@@ -64,7 +69,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
             email: data.email || user?.email,
             phone: data.phone || user?.phone || "N/A",
             specialRequests: data.specialRequests || "",
-            decorationItems: data.decorationItems || []
+            decorationItems: data.decorationItems || [],
+            checkInType: data.checkInType || 'Day',
+            checkOutType: data.checkOutType || 'Night'
           })
         });
 
@@ -100,12 +107,15 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/rooms" element={<Rooms onBook={protectedBook} isLoggedIn={isLoggedIn} />} />
-      <Route path="/events" element={<Events onBook={protectedBook} />} />
+      <Route path="/events" element={<Events onBook={protectedBook} isLoggedIn={isLoggedIn} user={user} />} />
       <Route path="/restaurant" element={<Restaurant onOrder={protectedOrder} user={user} />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/checkout" element={<Checkout />} />
+      <Route path="/verify-email" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <VerifyOTP onLogin={onLogin} />} />
+      <Route path="/forgot-password" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ForgotPassword />} />
+      <Route path="/reset-password/:token" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ResetPassword />} />
 
       <Route
         path="/login"
@@ -154,6 +164,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isCashier ? <CashierLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<CashierDashboard />} />
+        <Route path="orders" element={<CashierOrders />} />
+        <Route path="payments" element={<CashierPayments />} />
+        <Route path="receipts" element={<CashierReceipts />} />
         <Route path="*" element={<CashierDashboard />} />
       </Route>
 
