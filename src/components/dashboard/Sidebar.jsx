@@ -1,4 +1,5 @@
 // Sidebar.jsx - Admin Dashboard Sidebar Navigation
+import { Link } from "react-router-dom";
 import React from "react";
 import { NavLink, useNavigate } from "react-router";
 import {
@@ -15,9 +16,10 @@ import {
   Settings,
   LogOut,
   Crown,
+  Boxes,
 } from "lucide-react";
 
-const navItems = [
+const adminItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/admin" },
   { label: "Rooms", icon: Bed, path: "/admin/rooms" },
   { label: "Bookings", icon: Calendar, path: "/admin/bookings" },
@@ -32,8 +34,17 @@ const navItems = [
   { label: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
+const customerItems = [
+  { label: "My Bookings", icon: Calendar, path: "/my-bookings" },
+  { label: "My Profile", icon: Users, path: "/my-bookings/profile" },
+  { label: "Shopping Cart", icon: ShoppingCart, path: "/cart" },
+];
+
 export function Sidebar({ user, onLogout }) {
   const navigate = useNavigate();
+
+  const isCustomer = user?.role === "customer";
+  const items = isCustomer ? customerItems : adminItems;
 
   const handleLogout = () => {
     if (onLogout) onLogout();
@@ -52,20 +63,22 @@ export function Sidebar({ user, onLogout }) {
             <h1 className="text-[1.8rem] leading-none tracking-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
               HOTEL JANRO
             </h1>
-            <p className="text-xs text-[#D4AF37] tracking-[0.16em] uppercase mt-1">Admin Dashboard</p>
+            <p className="text-xs text-[#D4AF37] tracking-[0.16em] uppercase mt-1">
+              {isCustomer ? "Customer Portal" : "Admin Dashboard"}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           return (
             <NavLink
               key={item.path}
               to={item.path}
-              end={item.path === "/admin"}
+              end={item.path === "/admin" || item.path === "/my-bookings"}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
@@ -97,7 +110,9 @@ export function Sidebar({ user, onLogout }) {
             <p className="text-sm font-semibold text-white truncate">
               {user?.name || "John Admin"}
             </p>
-            <p className="text-xs text-slate-400 truncate">Hotel Manager</p>
+            <p className="text-xs text-slate-400 truncate capitalize">
+              {user?.role || "Hotel Manager"}
+            </p>
           </div>
           <button
             onClick={handleLogout}

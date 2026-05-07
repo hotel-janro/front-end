@@ -1,146 +1,220 @@
-import React, { useState } from 'react';
-import { ShoppingCart, Search, Filter, Clock, CheckCircle, XCircle, DollarSign, Plus, TrendingUp, CreditCard } from 'lucide-react';
-import { posOrders } from '../../../data/newMockData.js';
+import React, { useEffect, useMemo, useState } from 'react';
+import { apiFetch, API_HOST } from '../../../api.js';
+import { 
+  ShoppingCart, 
+  Search, 
+  Clock, 
+  DollarSign, 
+  TrendingUp, 
+  Plus,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  CreditCard
+} from 'lucide-react';
 
 export function AdminPOS() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('All');
-  const [filterStatus, setFilterStatus] = useState('All');
-
-  const filteredOrders = posOrders.filter((order) => {
-    const matchesSearch =
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'All' || order.type === filterType;
-    const matchesStatus = filterStatus === 'All' || order.status === filterStatus;
-    return matchesSearch && matchesType && matchesStatus;
+  const [menuItems, setMenuItems] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [orderTrends, setOrderTrends] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [posForm, setPosForm] = useState({
+    orderType: 'Dine-in',
+    tableNumber: '',
+    roomNumber: '',
+    deliveryAddress: '',
+    contactNumber: '',
+    discount: '0',
   });
+  const [cart, setCart] = useState([]);
+  const [selectedPosMenuItemId, setSelectedPosMenuItemId] = useState('');
+  const [selectedPosQuantity, setSelectedPosQuantity] = useState('1');
+  const [savingPosOrder, setSavingPosOrder] = useState(false);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Completed': return 'bg-green-100 text-green-800';
-      case 'Cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  useEffect(() => {
+    refreshData();
+  }, []);
+
+  const refreshData = async () => {
+    setLoading(true);
+    await Promise.allSettled([loadMenu(), loadOrders(), loadOrderTrends()]);
+    setLoading(false);
+  };
+
+  const loadMenu = async () => {
+    const data = await apiFetch('/menu?populate=inventoryItem');
+    setMenuItems(Array.isArray(data) ? data : []);
+  };
+
+  const loadOrders = async () => {
+    const data = await apiFetch('/orders');
+    setOrders(Array.isArray(data) ? data : []);
+  };
+
+  const loadOrderTrends = async () => {
+    try {
+      const data = await apiFetch('/orders/trends');
+      setOrderTrends(Array.isArray(data) ? data : []);
+    } catch {
+      setOrderTrends([]);
     }
   };
 
-  const getTypeColor = (type) => {
-    switch (type) {
-      case 'Restaurant': return 'bg-orange-100 text-orange-800';
-      case 'Pool': return 'bg-blue-100 text-blue-800';
-      case 'Wedding': return 'bg-pink-100 text-pink-800';
-      case 'Room Service': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const formatCurrency = (value) => `Rs ${Number(value || 0).toFixed(2)}`;
+
+  const subtotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  }, [cart]);
+
+  const discountValue = Number(posForm.discount || 0);
+  const taxValue = subtotal * 0.1;
+  const grandTotal = Math.max(subtotal + taxValue - discountValue, 0);
+
+  const addPosItem = () => {
+    const menuItem = menuItems.find((item) => item._id === selectedPosMenuItemId);
+    const quantity = Number(selectedPosQuantity || 1);
+    if (!menuItem || quantity < 1) return;
+
+    if (menuItem.inventoryItem && menuItem.inventoryItem.quantity < quantity) {
+      if (!window.confirm(`Low stock: Only ${menuItem.inventoryItem.quantity} left. Continue?`)) return;
+    }
+
+    setCart((prev) => {
+      const existing = prev.find((i) => i.menuItemId === menuItem._id);
+      if (existing) {
+        return prev.map((i) => i.menuItemId === menuItem._id ? { ...i, quantity: i.quantity + quantity } : i);
+      }
+      return [...prev, { menuItemId: menuItem._id, name: menuItem.name, price: menuItem.price, quantity }];
+    });
+    setSelectedPosMenuItemId('');
+    setSelectedPosQuantity('1');
+  };
+
+  const handlePlaceOrder = async () => {
+    if (cart.length === 0) return;
+    const payload = {
+      orderType: posForm.orderType,
+      items: cart.map(i => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
+      discount: discountValue,
+      ...(posForm.orderType === 'Dine-in' && { tableNumber: posForm.tableNumber }),
+      ...(posForm.orderType === 'Room' && { roomNumber: posForm.roomNumber }),
+      ...(posForm.orderType === 'Delivery' && { deliveryAddress: posForm.deliveryAddress, contactNumber: posForm.contactNumber }),
+    };
+
+    try {
+      setSavingPosOrder(true);
+      await apiFetch('/orders', { method: 'POST', body: JSON.stringify(payload) });
+      alert('Order placed successfully!');
+      setCart([]);
+      setPosForm({ ...posForm, discount: '0', tableNumber: '', roomNumber: '', deliveryAddress: '', contactNumber: '' });
+      await refreshData();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setSavingPosOrder(false);
     }
   };
 
-  const totalOrders = posOrders.length;
-  const totalSales = posOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-  const pendingOrders = posOrders.filter((o) => o.status === 'Pending').length;
-  const todaySales = posOrders
-    .filter((o) => new Date(o.createdAt).toDateString() === new Date().toDateString())
-    .reduce((sum, order) => sum + order.totalAmount, 0);
+  const updateOrderStatus = async (orderId, orderStatus) => {
+    await apiFetch(`/orders/${orderId}`, { method: 'PUT', body: JSON.stringify({ orderStatus }) });
+    await loadOrders();
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Orders & POS</h1>
-          <p className="text-gray-500 mt-1">Point of sale and order management system</p>
+      {/* Stats Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4">
+          <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600"><ShoppingCart className="w-6 h-6" /></div>
+          <div><p className="text-xs font-bold text-slate-400 uppercase">Total Orders</p><h3 className="text-2xl font-black">{orders.length}</h3></div>
         </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <Plus className="w-5 h-5" />New Order
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-50 rounded-lg"><ShoppingCart className="w-6 h-6 text-blue-600" /></div>
-            <div><p className="text-sm text-gray-600">Total Orders</p><h3 className="text-2xl font-semibold text-gray-900">{totalOrders}</h3></div>
-          </div>
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4">
+          <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600"><Clock className="w-6 h-6" /></div>
+          <div><p className="text-xs font-bold text-slate-400 uppercase">Active</p><h3 className="text-2xl font-black">{orders.filter(o => o.orderStatus === 'Pending' || o.orderStatus === 'Preparing').length}</h3></div>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-green-50 rounded-lg"><DollarSign className="w-6 h-6 text-green-600" /></div>
-            <div><p className="text-sm text-gray-600">Total Sales</p><h3 className="text-2xl font-semibold text-gray-900">${totalSales.toFixed(2)}</h3></div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-yellow-50 rounded-lg"><TrendingUp className="w-6 h-6 text-yellow-600" /></div>
-            <div><p className="text-sm text-gray-600">Pending Orders</p><h3 className="text-2xl font-semibold text-gray-900">{pendingOrders}</h3></div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-50 rounded-lg"><CreditCard className="w-6 h-6 text-purple-600" /></div>
-            <div><p className="text-sm text-gray-600">Today's Sales</p><h3 className="text-2xl font-semibold text-gray-900">${todaySales.toFixed(2)}</h3></div>
-          </div>
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4">
+          <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600"><DollarSign className="w-6 h-6" /></div>
+          <div><p className="text-xs font-bold text-slate-400 uppercase">Revenue</p><h3 className="text-2xl font-black">{formatCurrency(orders.reduce((s, o) => s + (o.totalAmount || 0), 0))}</h3></div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input type="text" placeholder="Search by order number or customer..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-            </div>
-            <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>All</option><option>Restaurant</option><option>Pool</option><option>Wedding</option><option>Room Service</option><option>Other</option>
-            </select>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>All</option><option>Pending</option><option>Completed</option><option>Cancelled</option>
+      <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+        {/* POS Panel */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+          <h3 className="text-xl font-bold">POS Bill Builder</h3>
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Order Type</label>
+            <select value={posForm.orderType} onChange={e => setPosForm({...posForm, orderType: e.target.value})} className="w-full rounded-lg border p-2">
+              <option value="Dine-in">Dine-in</option><option value="Room">Room</option><option value="Delivery">Delivery</option>
             </select>
           </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Number</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm font-medium text-gray-900">{order.orderNumber}</span></td>
-                  <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">{order.customerName}</div></td>
-                  <td className="px-6 py-4 whitespace-nowrap"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(order.type)}`}>{order.type}</span></td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">
-                      {order.items?.slice(0, 2).map((item, idx) => (<div key={idx}>{item.quantity}x {item.name}</div>))}
-                      {(order.items?.length || 0) > 2 && (<div className="text-xs text-gray-500">+{(order.items?.length || 0) - 2} more</div>)}
-                      {(!order.items || order.items.length === 0) && <div className="text-gray-400 italic text-xs">No items specified</div>}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.paymentMethod}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{new Date(order.createdAt).toLocaleDateString()}</div>
-                    <div className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleTimeString()}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>{order.status}</span></td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">${order.totalAmount.toFixed(2)}</div>
-                    <div className="text-xs text-gray-500">Tax: ${order.tax.toFixed(2)}</div>
-                  </td>
-                </tr>
+          
+          <div className="space-y-3 pt-4 border-t">
+            <label className="text-sm font-medium">Add Item</label>
+            <select value={selectedPosMenuItemId} onChange={e => setSelectedPosMenuItemId(e.target.value)} className="w-full rounded-lg border p-2">
+              <option value="">Select an item...</option>
+              {menuItems.map(item => (
+                <option key={item._id} value={item._id} disabled={!item.isAvailable}>
+                  {item.name} ({formatCurrency(item.price)}) {item.inventoryItem ? `- ${item.inventoryItem.quantity} left` : ''}
+                </option>
               ))}
-            </tbody>
-          </table>
-          {filteredOrders.length === 0 && (<div className="text-center py-12"><p className="text-gray-500">No orders found</p></div>)}
+            </select>
+            <div className="flex gap-2">
+              <input type="number" min="1" value={selectedPosQuantity} onChange={e => setSelectedPosQuantity(e.target.value)} className="w-20 rounded-lg border p-2" />
+              <button onClick={addPosItem} className="flex-1 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">Add to Cart</button>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t min-h-[200px]">
+            {cart.length === 0 ? <p className="text-center text-slate-400 py-10">Cart is empty</p> : (
+              <div className="space-y-3">
+                {cart.map(item => (
+                  <div key={item.menuItemId} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                    <div><p className="font-bold">{item.name}</p><p className="text-xs text-slate-500">{item.quantity} x {formatCurrency(item.price)}</p></div>
+                    <button onClick={() => setCart(c => c.filter(i => i.menuItemId !== item.menuItemId))} className="text-rose-500"><Trash2 className="w-4 h-4"/></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t space-y-2">
+            <div className="flex justify-between text-sm"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
+            <div className="flex justify-between text-sm"><span>Tax (10%)</span><span>{formatCurrency(taxValue)}</span></div>
+            <div className="flex justify-between font-black text-lg pt-2 border-t"><span>Total</span><span>{formatCurrency(grandTotal)}</span></div>
+            <button onClick={handlePlaceOrder} disabled={cart.length === 0 || savingPosOrder} className="w-full bg-[#0F172A] text-white py-3 rounded-xl font-bold mt-4 shadow-lg">
+              {savingPosOrder ? 'Processing...' : 'Complete Order'}
+            </button>
+          </div>
+        </div>
+
+        {/* Live Orders Panel */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+          <h3 className="text-xl font-bold mb-6">Live Orders</h3>
+          {loading ? <p>Loading...</p> : (
+            <div className="space-y-4">
+              {orders.map(order => (
+                <div key={order._id} className="p-4 rounded-2xl border border-slate-100 hover:border-blue-100 transition-colors bg-slate-50/30">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-bold text-slate-900">{order.orderType} Order <span className="text-xs font-normal text-slate-400 ml-2">#{order._id.slice(-5)}</span></p>
+                      <p className="text-xs text-slate-500">{new Date(order.createdAt).toLocaleString()}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {order.items.map((i,idx) => <span key={idx} className="bg-white px-2 py-1 rounded-md text-xs border border-slate-100">{i.quantity}x {i.name}</span>)}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-black text-slate-900">{formatCurrency(order.totalAmount)}</p>
+                      <select value={order.orderStatus} onChange={e => updateOrderStatus(order._id, e.target.value)} className="mt-2 rounded-lg border text-xs p-1">
+                        {['Pending', 'Preparing', 'Completed', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

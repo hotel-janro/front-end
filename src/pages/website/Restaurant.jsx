@@ -20,9 +20,10 @@ export function Restaurant({ onOrder }) {
     const fetchMenu = async () => {
       try {
         const data = await apiFetch("/menu?limit=50");
-        setMenuItems(data.items || []);
+        const items = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+        setMenuItems(items);
       } catch (err) {
-        toast.error("Failed to load menu items");
+        toast.error(err.message || "Failed to load menu items");
       } finally {
         setLoading(false);
       }
@@ -30,7 +31,7 @@ export function Restaurant({ onOrder }) {
     fetchMenu();
   }, []);
 
-  const categories = ["All", ...new Set(menuItems.map((item) => item.category))];
+  const categories = ["All", ...new Set(menuItems.map((item) => item.category).filter(Boolean))];
 
   const filteredItems = activeCategory === "All" 
     ? menuItems 
@@ -40,9 +41,9 @@ export function Restaurant({ onOrder }) {
     setCart((prev) => {
       const existing = prev.find((c) => c._id === item._id);
       if (existing) {
-        return prev.map((c) => c._id === item._id ? { ...c, quantity: c.quantity + item.quantity } : c);
+        return prev.map((c) => c._id === item._id ? { ...c, quantity: c.quantity + (item.quantity || 1) } : c);
       }
-      return [...prev, item];
+      return [...prev, { ...item, quantity: item.quantity || 1 }];
     });
     toast.success(`${item.name} added to cart`);
   };
@@ -111,11 +112,15 @@ export function Restaurant({ onOrder }) {
             <p className="text-gray-500">Loading delicious dishes...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-            {filteredItems.map((item) => (
-              <FoodCard key={item._id} item={item} onAddToCart={addToCart} />
-            ))}
-          </div>
+          filteredItems.length === 0 ? (
+            <div className="text-center py-16 text-gray-500">No menu items available right now.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+              {filteredItems.map((item) => (
+                <FoodCard key={item._id} item={item} onAddToCart={addToCart} />
+              ))}
+            </div>
+          )
         )}
 
         {cart.length > 0 && (

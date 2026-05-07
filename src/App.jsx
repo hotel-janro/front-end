@@ -8,42 +8,8 @@ import { SettingsProvider } from "./context/SettingsContext.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-const getDashboardRole = (userData) => {
-    const email = userData?.email?.toLowerCase() || "";
-    const rawRole = userData?.role?.toLowerCase?.() || "";
-
-    if (rawRole === "admin" || rawRole === "manager") {
-        return "admin";
-    }
-
-    if (rawRole === "reception" || rawRole === "receptionist" || rawRole === "frontdesk") {
-        return "reception";
-    }
-
-    if (rawRole === "cashier" || rawRole === "pos") {
-        return "cashier";
-    }
-
-    if (email.includes("admin")) {
-        return "admin";
-    }
-
-    if (email.includes("reception") || email.includes("reciption") || email.includes("frontdesk")) {
-        return "reception";
-    }
-
-    if (email.includes("cashier") || email.includes("pos")) {
-        return "cashier";
-    }
-
-    return rawRole || "customer";
-};
-
 const normalizeUser = (userData) => {
-    return {
-        ...userData,
-        role: getDashboardRole(userData)
-    };
+    return userData;
 };
 
 const parseApiError = async (response, fallbackMessage) => {
@@ -72,68 +38,7 @@ function AppInner() {
     const navigate = useNavigate();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState(null);
-
-    useEffect(() => {
-        const savedUser = localStorage.getItem("janro_user");
-        const savedToken = localStorage.getItem("janro_token");
-
-        const verifySavedSession = async () => {
-            if (!savedUser || !savedToken) {
-                return;
-            }
-
-            try {
-                // Try to get user profile with current access token
-                const response = await fetch(`${API_BASE}/api/auth/me`, {
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${savedToken}`
-                    }
-                });
-
-                if (response.status === 401) {
-                    // Access token might be expired (15 min), try to refresh it
-                    const savedRefreshToken = localStorage.getItem("janro_refresh_token");
-                    if (!savedRefreshToken) throw new Error("No refresh token");
-
-                    const refreshResponse = await fetch(`${API_BASE}/api/auth/refresh`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ refreshToken: savedRefreshToken })
-                    });
-
-                    const refreshData = await parseApiError(refreshResponse, "Refresh failed");
-                    const newToken = refreshData.token;
-
-                    // Save new access token
-                    localStorage.setItem("janro_token", newToken);
-                    
-                    // Retry getting user profile with NEW token
-                    const retryResponse = await fetch(`${API_BASE}/api/auth/me`, {
-                        headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${newToken}`
-                        }
-                    });
-                    const retryResult = await parseApiError(retryResponse, "Session retry failed");
-                    const nextUser = normalizeUser(retryResult.data);
-                    setUser(nextUser);
-                    setIsLoggedIn(true);
-                } else {
-                    const result = await parseApiError(response, "Session expired");
-                    const nextUser = normalizeUser(result.data);
-                    setUser(nextUser);
-                    setIsLoggedIn(true);
-                    localStorage.setItem("janro_user", JSON.stringify(nextUser));
-                }
-            } catch (error) {
-                console.error("Auth error:", error);
-                handleLogout(); // Clear everything if both tokens fail
-            }
-        };
-
-        verifySavedSession();
-    }, []);
+    const authChecked = true;
 
     const handleLogin = async (credentials) => {
         const { email, password } = credentials;
@@ -234,18 +139,21 @@ function AppInner() {
         navigate("/");
     };
     const location = useLocation();
-        const isDashboardRoute =
-            location.pathname.startsWith("/admin") ||
-            location.pathname.startsWith("/reception") ||
-            location.pathname.startsWith("/cashier");
+    
+    // Check if current route is a management dashboard
+    const isDashboardRoute = location.pathname.startsWith("/admin") || 
+                             location.pathname.startsWith("/reception") || 
+                             location.pathname.startsWith("/cashier");
 
-    return (<div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
-            {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout}/>}
-      <main className="flex-1">
-        <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
-      </main>
+    return (
+        <div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+            {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout} authChecked={authChecked}/>}
+            <main className="flex-1">
+                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
+            </main>
             {!isDashboardRoute && <Footer />}
-    </div>);
+        </div>
+    );
 }
 export default function App() {
     return (<SettingsProvider>
