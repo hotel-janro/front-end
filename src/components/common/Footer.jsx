@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { Crown, Phone, Mail, MapPin, Facebook, Instagram } from "lucide-react";
 
 const WhatsAppIcon = () => (

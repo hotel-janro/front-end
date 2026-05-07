@@ -1,6 +1,6 @@
 // DashboardLayout.jsx - Layout wrapper for all admin pages
 import React from "react";
-import { Outlet } from "react-router";
+import { Outlet } from "react-router-dom";
 import { Sidebar } from "../../components/dashboard/Sidebar.jsx";
 
 export function DashboardLayout({ user, onLogout }) {

@@ -1,6 +1,6 @@
 // RoomCard.jsx - Room Card Component (Pure JavaScript)
 import React, { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { Users, Calendar } from "lucide-react";
 import { Button } from "../common/Button.jsx";
 import { ImageWithFallback } from "../common/ImageWithFallback.jsx";

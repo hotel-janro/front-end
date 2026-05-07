@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { BrowserRouter, useNavigate, useLocation } from "react-router";
+import { BrowserRouter, useNavigate, useLocation } from "react-router-dom";
 import { Navbar } from "./components/common/Navbar.jsx";
 import { Footer } from "./components/common/Footer.jsx";
 import { AppRoutes } from "./routes/AppRoutes.jsx";
