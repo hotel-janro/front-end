@@ -40,19 +40,21 @@ export function Rooms({ onBook, isLoggedIn = false }) {
         if (response.success && response.data && response.data.length > 0) {
           // Update ONLY the counts in our original design
           const updatedRooms = ORIGINAL_DESIGN.map(designRoom => {
-            // Find all backend entries for this type
-            const backendRoomsOfType = response.data.filter(r => r.name === designRoom.name);
-            const backendTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.availableRooms || 0), 0);
-            
-            // Get the first available backend room ID to use for booking
+            // Find all backend entries matching this room type by name
+            const backendRoomsOfType = response.data.filter(r =>
+              r.name?.toLowerCase().trim() === designRoom.name?.toLowerCase().trim()
+            );
+
+            // Get the first backend room to use its real MongoDB _id
             const firstBackendRoom = backendRoomsOfType[0];
 
-            // Total = Original Design (6, 2, 2) + Admin Additions
+            // Use backend availability if available, otherwise fall back to design default
+            const backendAvailable = backendRoomsOfType.reduce((sum, r) => sum + (r.availableRooms || 0), 0);
+
             return {
               ...designRoom,
-              // Use backend ID if available, otherwise keep the design ID
               _id: firstBackendRoom?._id || designRoom._id,
-              availableRooms: designRoom.availableRooms + backendTotal
+              availableRooms: firstBackendRoom ? backendAvailable : designRoom.availableRooms
             };
           });
           setRooms(updatedRooms);

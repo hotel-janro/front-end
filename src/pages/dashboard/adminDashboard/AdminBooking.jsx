@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   User,
@@ -10,50 +10,83 @@ import {
   CheckCircle,
   XCircle,
   Download,
-  Plus
+  Plus,
+  Loader2
 } from 'lucide-react';
-import { bookings } from '../../../data/mockData.js';
+import { apiFetch } from '../../../api';
 
 export function AdminBookings() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const fetchBookings = async () => {
+    setLoading(true);
+    try {
+      const response = await apiFetch('/bookings');
+      setBookings(response.data || []);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch =
-      booking.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.guestEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.roomNumber.includes(searchTerm);
-    const matchesFilter = filterStatus === 'All' || booking.status === filterStatus;
+      (booking.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (booking.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (booking.room?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterStatus === 'All' || booking.status.toLowerCase() === filterStatus.toLowerCase();
     return matchesSearch && matchesFilter;
   });
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Confirmed':
-        return 'bg-blue-100 text-blue-800';
-      case 'Checked-In':
-        return 'bg-green-100 text-green-800';
-      case 'Checked-Out':
-        return 'bg-gray-100 text-gray-800';
-      case 'Cancelled':
-        return 'bg-red-100 text-red-800';
+    const s = status?.toLowerCase();
+    switch (s) {
+      case 'confirmed':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'checked-in':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'checked-out':
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'pending':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <p className="mt-4 text-gray-500 font-medium">Loading reservations...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Bookings</h1>
-          <p className="text-gray-500 mt-1">Manage reservations and check-ins</p>
+          <h1 className="text-3xl font-semibold text-gray-900">Reservations</h1>
+          <p className="text-gray-500 mt-1">Manage room bookings and check-in status</p>
         </div>
         <div className="flex gap-2">
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-            <Download className="w-5 h-5" />
-            Export
+          <button 
+            onClick={fetchBookings}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Refresh
           </button>
           <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
             <Plus className="w-5 h-5" />
@@ -70,7 +103,7 @@ export function AdminBookings() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by guest name, email, or room number..."
+                placeholder="Search by guest, email, or room type..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -84,27 +117,15 @@ export function AdminBookings() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option>All</option>
-              <option>Confirmed</option>
-              <option>Checked-In</option>
-              <option>Checked-Out</option>
-              <option>Cancelled</option>
+              <option value="All">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="checked-in">Checked-In</option>
+              <option value="checked-out">Checked-Out</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           </div>
         </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {['Confirmed', 'Checked-In', 'Checked-Out', 'Cancelled'].map((status) => {
-          const count = bookings.filter((b) => b.status === status).length;
-          return (
-            <div key={status} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-              <p className="text-sm text-gray-600">{status}</p>
-              <h3 className="text-2xl font-semibold text-gray-900 mt-1">{count}</h3>
-            </div>
-          );
-        })}
       </div>
 
       {/* Bookings Table */}
@@ -113,72 +134,66 @@ export function AdminBookings() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Booking ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Guest
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Room
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Check-in
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Check-out
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Guests
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guest</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room & Add-ons</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guests</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredBookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-medium text-gray-900">#{booking.id.padStart(5, '0')}</span>
-                  </td>
+                <tr key={booking._id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{booking.guestName}</div>
-                      <div className="text-sm text-gray-500">{booking.guestEmail}</div>
+                      <div className="text-sm font-bold text-gray-900">{booking.fullName}</div>
+                      <div className="text-xs text-gray-500">{booking.email}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{booking.room?.name || 'N/A'}</div>
+                      {booking.decorationItems && booking.decorationItems.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {booking.decorationItems.map((item, idx) => (
+                            <span 
+                              key={idx} 
+                              className="text-[9px] px-1.5 py-0.5 bg-pink-50 text-pink-600 border border-pink-100 rounded-md font-bold uppercase tracking-wider"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">Room {booking.roomNumber}</div>
-                      <div className="text-sm text-gray-500">{booking.roomType}</div>
+                    <div className="text-xs space-y-1">
+                      <div className="flex items-center gap-1 text-emerald-600 font-semibold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        IN: {new Date(booking.checkInDate).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center gap-1 text-rose-600 font-semibold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                        OUT: {new Date(booking.checkOutDate).toLocaleDateString()}
+                      </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(booking.checkIn).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(booking.checkOut).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
                     {booking.guests}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(booking.status)}`}>
+                    <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full border ${getStatusColor(booking.status)}`}>
                       {booking.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    ${booking.totalAmount}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                    Rs. {booking.totalPrice?.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button className="text-blue-600 hover:text-blue-800 font-medium">
+                    <button className="text-blue-600 hover:text-blue-800 font-semibold transition-colors">
                       View Details
                     </button>
                   </td>
@@ -190,8 +205,10 @@ export function AdminBookings() {
       </div>
 
       {filteredBookings.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
-          <p className="text-gray-500">No bookings found matching your criteria</p>
+        <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
+          <Bed className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900">No reservations found</h3>
+          <p className="text-gray-500">Try adjusting your search or filters</p>
         </div>
       )}
     </div>
