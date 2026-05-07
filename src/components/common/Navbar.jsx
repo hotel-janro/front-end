@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Menu, X, Crown, User, LogOut, Calendar, ShoppingBag, ChevronDown, LayoutDashboard, Waves, Users, Settings } from "lucide-react";
 
-export function Navbar({ isLoggedIn, user, onLogout }) {
+export function Navbar({ isLoggedIn, user, onLogout, authChecked = true }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef(null);
@@ -74,7 +74,7 @@ export function Navbar({ isLoggedIn, user, onLogout }) {
 
           {/* Auth/User Dropdown */}
           <div className="hidden lg:flex items-center gap-3">
-            {isLoggedIn ? (
+            {authChecked && isLoggedIn ? (
               user?.role === "customer" ? (
                 <div className="relative" ref={userMenuRef}>
                   <button
@@ -146,6 +146,21 @@ export function Navbar({ isLoggedIn, user, onLogout }) {
                   )}
                 </div>
               ) : null /* Do not render dropdown for non-customer dashboards */
+            ) : authChecked ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/login"
+                  className="px-4 py-2 text-sm text-gray-300 hover:text-white transition-colors"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-5 py-2 bg-[#D4AF37] text-[#0F172A] rounded-lg text-sm font-semibold hover:bg-[#B8962D] transition-all shadow-lg hover:shadow-[#D4AF37]/20"
+                >
+                  Register
+                </Link>
+              </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Link
@@ -190,7 +205,7 @@ export function Navbar({ isLoggedIn, user, onLogout }) {
           </div>
 
           <div className="border-t border-white/5 mt-2 pt-4 px-6">
-            {isLoggedIn ? (
+            {authChecked && isLoggedIn ? (
               user?.role === "customer" ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 pb-2">
@@ -210,6 +225,11 @@ export function Navbar({ isLoggedIn, user, onLogout }) {
                   </div>
                 </div>
               ) : null
+            ) : authChecked ? (
+              <div className="flex flex-col gap-3">
+                <Link to="/login" onClick={() => setIsOpen(false)} className="block w-full py-3 text-center text-gray-300 bg-white/5 rounded-lg">Login</Link>
+                <Link to="/register" onClick={() => setIsOpen(false)} className="block w-full py-3 text-center bg-[#D4AF37] text-[#0F172A] rounded-lg font-bold">Register</Link>
+              </div>
             ) : (
               <div className="flex flex-col gap-3">
                 <Link to="/login" onClick={() => setIsOpen(false)} className="block w-full py-3 text-center text-gray-300 bg-white/5 rounded-lg">Login</Link>
@@ -221,4 +241,4 @@ export function Navbar({ isLoggedIn, user, onLogout }) {
       )}
     </nav>
   );
-}
+}
