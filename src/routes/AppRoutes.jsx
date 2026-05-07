@@ -12,6 +12,7 @@ import { Login } from "../pages/website/Login.jsx";
 import { Register } from "../pages/website/Register.jsx";
 import { Cart } from "../pages/website/Cart.jsx";
 import { Checkout } from "../pages/website/Checkout.jsx";
+import { WeddingBooking } from "../pages/website/WeddingBooking.jsx";
 import { Profile } from "../pages/dashboard/customerDashboard/Profile.jsx";
 import { MyBookings } from "../pages/dashboard/customerDashboard/MyBookings.jsx";
 import { MyOrders } from "../pages/dashboard/customerDashboard/MyOrders.jsx";
@@ -113,6 +114,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       <Route path="/contact" element={<Contact />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/checkout" element={<Checkout />} />
+      <Route path="/wedding-booking" element={isLoggedIn ? <WeddingBooking user={user} /> : <Navigate to="/login" replace />} />
       <Route path="/verify-email" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <VerifyOTP onLogin={onLogin} />} />
       <Route path="/forgot-password" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ForgotPassword />} />
       <Route path="/reset-password/:token" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ResetPassword />} />
@@ -156,6 +158,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<ReceptionDashboard />} />
+        <Route path="events" element={<AdminWedding />} />
         <Route path="pool" element={<ReceptionPool />} />
       </Route>
 

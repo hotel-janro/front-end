@@ -78,20 +78,17 @@ export function Events() {
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       {/* Hero Section */}
-      <div className="bg-[#0F172A] py-24 text-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
-        <div className="relative z-10">
-          <p className="text-[#D4AF37] tracking-[0.4em] uppercase text-xs font-bold mb-4 animate-in fade-in slide-in-from-bottom duration-700">Premier Venues</p>
-          <h1 className="text-5xl md:text-6xl text-white mb-6" style={{ fontFamily: "DM Serif Display, serif" }}>
-            Exquisite Spaces for Life's Moments
-          </h1>
-          <p className="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed px-4">
-            Discover a collection of grand ballrooms and scenic outdoor areas designed to host your most prestigious celebrations with unparalleled luxury.
-          </p>
-        </div>
+      <div className="bg-[#0F172A] py-20 text-center">
+        <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Premier Venues</p>
+        <h1 className="text-4xl md:text-5xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+          Weddings & Events
+        </h1>
+        <p className="text-gray-400 mt-4 max-w-xl mx-auto px-4">
+          Discover a collection of grand ballrooms and scenic outdoor areas designed to host your most prestigious celebrations with unparalleled luxury.
+        </p>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Tab Switcher */}
         <div className="flex justify-center mb-16">
           <div className="bg-white/90 backdrop-blur-xl p-2 rounded-2xl shadow-2xl shadow-[#0F172A]/10 border border-white flex items-center gap-2">
@@ -166,10 +163,16 @@ export function Events() {
               <p className="text-gray-400 text-sm mb-8">Available 9:00 AM - 8:00 PM</p>
               <a 
                 href="tel:+94112345678" 
-                className="block w-full bg-[#D4AF37] text-[#0F172A] py-5 px-10 rounded-2xl font-bold text-lg hover:bg-[#B8962D] transition-all mb-4 shadow-xl shadow-[#D4AF37]/10"
+                className="block w-full bg-[#D4AF37] text-[#0F172A] py-5 px-10 rounded-2xl font-bold text-lg hover:bg-[#B8962D] transition-all mb-4 shadow-xl shadow-[#D4AF37]/10 text-center"
               >
                 +94 11 234 5678
               </a>
+              <button 
+                onClick={() => window.location.href = '/wedding-booking'}
+                className="w-full bg-[#D4AF37] text-[#0F172A] py-5 px-10 rounded-2xl font-bold text-lg hover:bg-[#B8962D] transition-all mb-4 shadow-xl shadow-[#D4AF37]/10 flex items-center justify-center gap-2"
+              >
+                Book Your Event Now <ChevronRight className="w-5 h-5" />
+              </button>
               <button 
                 onClick={() => window.location.href = '/contact'}
                 className="w-full bg-white/5 text-white py-5 px-10 rounded-2xl font-bold text-sm hover:bg-white/10 border border-white/10 transition-all flex items-center justify-center gap-2"
