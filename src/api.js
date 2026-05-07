@@ -68,9 +68,13 @@ export const apiFetch = async (endpoint, options = {}) => {
 
 export const getImageUrl = (imagePath) => {
   if (!imagePath) return '';
-  if (imagePath.startsWith('http')) return imagePath;
+  if (imagePath.startsWith('http') || imagePath.startsWith('blob:')) return imagePath;
   
   // Clean up any double slashes and ensure proper API_HOST prefix
   const cleanPath = imagePath.replace(/\\/g, '/').replace(/^\/+/, '');
-  return `${API_HOST}/${cleanPath}`;
+  
+  // Encode each segment of the path to handle spaces and special characters in filenames
+  const encodedPath = cleanPath.split('/').map(seg => encodeURIComponent(seg)).join('/');
+  
+  return `${API_HOST}/${encodedPath}`;
 };

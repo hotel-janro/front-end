@@ -120,41 +120,35 @@ export function Restaurant({ onOrder, user }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-[#D4AF37]/30">
-      {/* Immersive Luxury Header */}
-      <div className="relative h-[60vh] bg-[#0F172A] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 opacity-40">
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Hero Section - Perfectly Matched with Events Page */}
+      <div className="bg-[#0F172A] py-20 text-center relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
           <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="Luxury Dining" />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0F172A]/80 to-[#0F172A]" />
-        
-        <div className="relative z-10 text-center px-4 max-w-4xl animate-in fade-in zoom-in duration-1000">
-          <p className="text-[#D4AF37] tracking-[0.5em] uppercase text-xs font-black mb-6 flex items-center justify-center gap-4">
-            <span className="w-12 h-px bg-[#D4AF37]/30" />
-            Culinary Excellence at Hotel Janro
-            <span className="w-12 h-px bg-[#D4AF37]/30" />
-          </p>
-          <h1 className="text-6xl md:text-8xl text-white font-normal mb-8 leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
-            The <span className="italic text-[#D4AF37]">Grand</span> Menu
+        <div className="relative z-10">
+          <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-[10px] font-bold mb-3">Culinary Excellence</p>
+          <h1 className="text-4xl md:text-5xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            The Grand Menu
           </h1>
-          <p className="text-slate-300 text-lg md:text-xl font-light tracking-wide max-w-2xl mx-auto leading-relaxed opacity-80">
-            A symphony of flavors curated by world-renowned chefs, delivering an unparalleled gastronomic journey to your table.
+          <p className="text-gray-400 mt-4 max-w-xl mx-auto text-sm leading-relaxed">
+            Experience unparalleled luxury and dedicated service in our collection of exquisite dishes, designed to host life's most delicious moments.
           </p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 relative z-20 pb-32">
-        {/* Category Navigation - Luxury Tab Style */}
-        <div className="flex justify-center mb-16 overflow-x-auto no-scrollbar py-4">
-          <div className="inline-flex bg-white/80 backdrop-blur-xl p-2 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10 pb-32">
+        {/* Tab Switcher - Matching Events Page Style */}
+        <div className="flex justify-center mb-12">
+          <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-2xl shadow-[#0F172A]/10 border border-gray-100 flex items-center gap-1 overflow-x-auto no-scrollbar">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-10 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all duration-500 whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-2.5 px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer whitespace-nowrap ${
                   activeCategory === cat
-                    ? "bg-[#0F172A] text-white shadow-2xl scale-105"
-                    : "text-slate-400 hover:text-slate-900 hover:bg-slate-50"
+                    ? "bg-[#0F172A] text-[#D4AF37] shadow-lg shadow-[#0F172A]/20"
+                    : "text-gray-400 hover:text-[#0F172A] hover:bg-gray-50"
                 }`}
               >
                 {cat}
@@ -163,23 +157,20 @@ export function Restaurant({ onOrder, user }) {
           </div>
         </div>
 
-        {/* Menu Grid */}
+        {/* Menu Grid - Matched Gap and Layout */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-40">
-            <div className="relative w-20 h-20">
-              <div className="absolute inset-0 border-4 border-slate-100 rounded-full" />
-              <div className="absolute inset-0 border-4 border-t-[#D4AF37] rounded-full animate-spin" />
-            </div>
-            <p className="text-slate-400 mt-8 font-black uppercase tracking-widest text-[10px]">Curating your experience...</p>
+            <div className="w-16 h-16 border-4 border-slate-100 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Curating your experience...</p>
           </div>
         ) : (
           filteredItems.length === 0 ? (
-            <div className="text-center py-32 bg-white rounded-[3rem] border border-slate-100 shadow-sm">
+            <div className="text-center py-32 bg-white rounded-[2rem] border border-gray-100 shadow-sm">
               <UtensilsCrossed className="w-16 h-16 text-slate-100 mx-auto mb-6" />
-              <h3 className="text-2xl text-slate-400 font-light italic">No culinary treasures found in this category.</h3>
+              <h3 className="text-2xl text-gray-300 font-light italic">No culinary treasures found in this category.</h3>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredItems.map((item) => (
                 <FoodCard key={item._id} item={item} onAddToCart={addToCart} />
               ))}
@@ -229,12 +220,12 @@ export function Restaurant({ onOrder, user }) {
                   </div>
                 ) : (
                   cart.map((item) => (
-                    <div key={item._id} className="group flex items-center gap-6 p-4 rounded-3xl hover:bg-slate-50 transition-all">
-                      <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
-                        <img 
-                          src={getImageUrl(item.image)} 
+                    <div key={item._id} className="group flex items-center gap-6 p-5 rounded-[2rem] hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all border border-transparent hover:border-slate-50">
+                      <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-lg flex-shrink-0 border border-slate-100">
+                        <ImageWithFallback 
+                          src={item.image} 
+                          alt={item.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                          alt={item.name} 
                         />
                       </div>
                       <div className="flex-1">
@@ -316,10 +307,10 @@ export function Restaurant({ onOrder, user }) {
 
                 {/* Total & Action */}
                 <div className="pt-8 border-t border-slate-200">
-                  <div className="flex justify-between items-end mb-8">
+                  <div className="flex justify-between items-end mb-8 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                     <div>
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Grand Total</p>
-                      <p className="text-4xl text-slate-900 font-normal mt-1" style={{ fontFamily: "DM Serif Display, serif" }}>
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Grand Total</p>
+                      <p className="text-5xl text-slate-900 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>
                         {settings.currency.symbol}{grandTotal.toLocaleString()}
                       </p>
                     </div>

@@ -8,9 +8,11 @@ import {
   Info,
   CheckCircle2,
   X,
+  UploadCloud,
   Loader2
 } from 'lucide-react';
 import { apiFetch, API_HOST, getImageUrl } from '../../../api.js';
+import { ImageWithFallback } from '../../../components/common/ImageWithFallback.jsx';
 
 export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
   const [formData, setFormData] = useState({
@@ -42,6 +44,18 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
       if (initialItem.image) {
         setImagePreview(getImageUrl(initialItem.image));
       }
+    } else {
+      setFormData({
+        name: '',
+        description: '',
+        price: '',
+        category: 'Main Course',
+        isAvailable: true,
+        prepTime: '15',
+        inventoryItem: ''
+      });
+      setImagePreview(null);
+      setImageFile(null);
     }
   }, [initialItem]);
 
@@ -72,20 +86,19 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
       const url = initialItem ? `/menu/${initialItem._id}` : '/menu';
       const method = initialItem ? 'PUT' : 'POST';
 
-      // Note: apiFetch needs to handle FormData or we use raw fetch
-      const response = await fetch(`${API_HOST}/api${url}`, {
+      if (imageFile && imageFile.size > 5 * 1024 * 1024) {
+        throw new Error('Image size too large. Max 5MB allowed.');
+      }
+
+      await apiFetch(url, {
         method,
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('janro_token')}`
-        },
         body: data
       });
 
-      if (!response.ok) throw new Error('Failed to save menu item');
-      
+      alert('Successfully saved culinary masterpiece!');
       onSaved();
     } catch (error) {
-      alert(error.message);
+      alert('Error: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -217,7 +230,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
           <div className="relative h-[300px] rounded-[2.5rem] overflow-hidden bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group-hover:border-[#D4AF37]/50 transition-colors">
             {imagePreview ? (
               <>
-                <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                <ImageWithFallback src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <label className="cursor-pointer bg-white text-slate-900 px-6 py-3 rounded-full font-bold text-sm shadow-xl flex items-center gap-2">
                     <Camera className="w-4 h-4" /> Change Image
