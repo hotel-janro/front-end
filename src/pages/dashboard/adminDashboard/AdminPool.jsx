@@ -11,7 +11,7 @@ const defaultForm = {
   guestEmail: '',
   roomNumber: '',
   date: '',
-  timeSlot: 'Morning (09:00 - 11:00)',
+  timeSlot: 'Morning Slot',
   numberOfGuests: '1',
   pricePerPerson: '500',
   status: 'Confirmed'
@@ -35,6 +35,13 @@ const normalizeBooking = (booking, index = 0) => {
     pricePerPerson: Number(booking?.pricePerPerson || 0)
   };
 };
+
+const getTimeSlotKey = (timeSlot) =>
+  timeSlot
+    .replace(/\s+Slot/i, '')
+    .replace(/\s*\(.*\)$/, '')
+    .toLowerCase()
+    .trim();
 
 export function AdminPool() {
   const { settings } = useSettings();
@@ -124,15 +131,27 @@ export function AdminPool() {
   const totalRevenue = bookings.reduce((sum, booking) => sum + booking.totalAmount, 0);
 
   const timeSlotOptions = useMemo(() => {
-    const slots = new Set(poolSlots.map((slot) => `${slot.timeSlot} (${slot.startTime} - ${slot.endTime})`));
+    const slots = new Map();
 
-    bookings.forEach((booking) => {
-      if (booking.timeSlot) {
-        slots.add(booking.timeSlot);
+    poolSlots.forEach((slot) => {
+      const optionLabel = slot.timeSlot;
+      const optionKey = getTimeSlotKey(optionLabel);
+      if (!slots.has(optionKey)) {
+        slots.set(optionKey, optionLabel);
       }
     });
 
-    return Array.from(slots);
+    bookings.forEach((booking) => {
+      if (booking.timeSlot) {
+        const optionLabel = booking.timeSlot;
+        const optionKey = getTimeSlotKey(optionLabel);
+        if (!slots.has(optionKey)) {
+          slots.set(optionKey, optionLabel);
+        }
+      }
+    });
+
+    return Array.from(slots.values());
   }, [bookings]);
 
   const handleOpenBookingModal = () => {
@@ -232,6 +251,23 @@ export function AdminPool() {
     }
   };
 
+  const handleBookSlot = (slot) => {
+    setSubmitError('');
+    setFormData({
+      guestName: '',
+      guestEmail: '',
+      roomNumber: '',
+      date: slot.date ? slot.date.split('T')[0] : '',
+      timeSlot: slot.timeSlot,
+      numberOfGuests: '1',
+      pricePerPerson: slot.pricePerPerson.toString(),
+      status: 'Confirmed'
+    });
+    setEditingBooking(null);
+    setActiveTab('bookings');
+    setIsModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -239,10 +275,12 @@ export function AdminPool() {
           <h1 className="text-3xl font-semibold text-gray-900">Pool Management</h1>
           <p className="mt-1 text-gray-500">Manage pool access, time slots, and bookings</p>
         </div>
-        <button className="admin-pool__action-button self-start" onClick={activeTab === 'bookings' ? handleOpenBookingModal : undefined}>
-          <Plus className="admin-pool__action-icon" />
-          {activeTab === 'bookings' ? 'New Booking' : 'Add Time Slot'}
-        </button>
+          {activeTab === 'bookings' && (
+            <button className="admin-pool__action-button self-start" onClick={handleOpenBookingModal}>
+              <Plus className="admin-pool__action-icon" />
+              New Booking
+            </button>
+          )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -360,7 +398,7 @@ export function AdminPool() {
                     </div>
                     <p className="admin-pool__slot-remaining">{slot.capacity - slot.bookedCount} spots remaining</p>
                   </div>
-                  <button className="admin-pool__slot-button" disabled={slot.status === 'Full' || slot.status === 'Closed'}>
+                  <button className="admin-pool__slot-button" onClick={() => handleBookSlot(slot)} disabled={slot.status === 'Full' || slot.status === 'Closed'}>
                     {slot.status === 'Full' ? 'Fully Booked' : slot.status === 'Closed' ? 'Closed' : 'Book Slot'}
                   </button>
                 </div>

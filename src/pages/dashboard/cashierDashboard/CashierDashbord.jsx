@@ -1,14 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
 	Building2,
-	Bell,
-	LayoutGrid,
 	ShoppingCart,
 	CreditCard,
 	Receipt,
 	Clock3,
 	CalendarDays,
-	ChevronDown,
 	ArrowUpRight,
 	DollarSign,
 	TrendingUp,
@@ -22,8 +19,6 @@ import {
 import { posOrders } from "../../../data/newMockData.js";
 import { useSettings } from "../../../context/SettingsContext.jsx";
 import "./CashierDashbord.css";
-
-const TAB_ITEMS = ["POS Dashboard", "Orders", "Payments", "Receipts"];
 
 function formatTime(value) {
 	return new Date(value).toLocaleTimeString([], {
@@ -147,78 +142,8 @@ export function CashierDashboard() {
 	];
 
 	return (
-		<div className="min-h-screen bg-[#F2F4F7]">
-			<header className="bg-gradient-to-r from-teal-700 to-emerald-500 text-white shadow-sm">
-				<div className="px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-					<div className="flex items-center gap-3">
-						<div className="h-12 w-12 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center">
-							<Building2 className="h-6 w-6" />
-						</div>
-						<div>
-							<h1 className="text-2xl leading-none font-semibold tracking-tight">HotelPro</h1>
-							<p className="text-emerald-100 text-sm">Cashier / POS</p>
-						</div>
-					</div>
-
-					<div className="px-6 py-3 rounded-2xl bg-white/12 border border-white/10 text-sm font-medium flex items-center gap-4">
-						<span className="inline-flex items-center gap-2 text-emerald-100">
-							<CalendarDays className="h-5 w-5" />
-							{formatDate(now)}
-						</span>
-						<span className="text-white/50">|</span>
-						<span className="font-semibold">{now.toLocaleTimeString()}</span>
-					</div>
-
-					<div className="flex items-center gap-4">
-						<button
-							type="button"
-							className="relative h-12 w-12 rounded-xl bg-white/15 border border-white/20 hover:bg-white/20 transition-colors"
-						>
-							<Bell className="h-5 w-5 mx-auto" />
-							<span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-red-500 text-[11px] font-semibold leading-5 text-white">
-								2
-							</span>
-						</button>
-						<div className="pl-2 pr-3 py-2 rounded-2xl bg-white/15 border border-white/20 flex items-center gap-3">
-							<div className="h-10 w-10 rounded-full bg-cyan-400/80 text-teal-900 font-semibold flex items-center justify-center">
-								LC
-							</div>
-							<div className="leading-tight">
-								<p className="font-semibold">Lisa Cashier</p>
-								<p className="text-xs text-emerald-100">POS Cashier</p>
-							</div>
-							<ChevronDown className="h-4 w-4 text-emerald-100" />
-						</div>
-					</div>
-				</div>
-
-				<div className="px-6 bg-black/10 border-t border-white/10">
-					<nav className="flex flex-wrap gap-2 py-3">
-						{TAB_ITEMS.map((tab, index) => {
-							const active = index === 0;
-							return (
-								<button
-									key={tab}
-									type="button"
-									className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-										active
-											? "bg-white text-teal-700"
-											: "text-white/90 hover:bg-white/15"
-									}`}
-								>
-									{index === 0 ? <LayoutGrid className="h-4 w-4" /> : null}
-									{index === 1 ? <ShoppingCart className="h-4 w-4" /> : null}
-									{index === 2 ? <CreditCard className="h-4 w-4" /> : null}
-									{index === 3 ? <Receipt className="h-4 w-4" /> : null}
-									{tab}
-								</button>
-							);
-						})}
-					</nav>
-				</div>
-			</header>
-
-			<main className="p-4 md:p-6 space-y-6">
+		<div className="space-y-6">
+			<main className="space-y-6">
 				<section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-600 to-emerald-500 text-white p-6 md:p-8">
 					<div className="absolute right-8 top-2 h-36 w-36 rounded-full bg-white/10" />
 					<div className="absolute right-24 top-0 h-20 w-20 rounded-full bg-white/10" />
