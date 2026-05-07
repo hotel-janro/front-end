@@ -13,6 +13,7 @@ import {
   Star,
   Zap
 } from 'lucide-react';
+import { ImageWithFallback } from '../../../components/common/ImageWithFallback.jsx';
 import AddMenuItemForm from './AddMenuItemForm';
 import { AdminPOS } from './AdminPos';
 
@@ -37,6 +38,7 @@ export function AdminRestaurant() {
     setMenuLoading(true);
     try {
       const data = await apiFetch('/menu?populate=inventoryItem');
+      console.log('DEBUG: Menu Data:', data);
       setMenuItems(Array.isArray(data) ? data : []);
     } finally {
       setMenuLoading(false);
@@ -51,13 +53,17 @@ export function AdminRestaurant() {
 
   const handleMenuDelete = async (id) => {
     if (!window.confirm('Delete this menu item?')) return;
-    await apiFetch(`/menu/${id}`, { method: 'DELETE' });
-    await loadMenu();
+    try {
+      await apiFetch(`/menu/${id}`, { method: 'DELETE' });
+      await loadMenu();
+    } catch (error) {
+      alert('Error deleting item: ' + error.message);
+    }
   };
 
   const visibleMenuItems = useMemo(() => {
     return menuItems.filter((item) => {
-      const matchesSearch = !menuSearch || item.name?.toLowerCase().includes(menuSearch.toLowerCase());
+      const matchesSearch = !menuSearch || (item.name || '').toLowerCase().includes(menuSearch.toLowerCase());
       const matchesCategory = menuCategory === 'All' || item.category === menuCategory;
       return matchesSearch && matchesCategory;
     });
@@ -184,17 +190,11 @@ export function AdminRestaurant() {
                     {/* Image Area */}
                     <div className="relative h-64 overflow-hidden bg-slate-100">
                       <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-500 z-10" />
-                      {item.image ? (
-                        <img 
-                          src={getImageUrl(item.image)} 
-                          alt={item.name} 
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-200">
-                          <UtensilsCrossed className="w-20 h-20 opacity-20" />
-                        </div>
-                      )}
+                      <ImageWithFallback 
+                        src={item.image} 
+                        alt={item.name} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
+                      />
                       
                       {/* Floating Badges */}
                       <div className="absolute top-6 left-6 z-20">
