@@ -359,8 +359,8 @@ export function ReceptionWedding() {
                 <DetailItem label="Guest Count" value={selectedEvent.guestCount} />
                 <DetailItem label="Package" value={selectedEvent.packageType} />
                 <DetailItem label="Status" value={selectedEvent.status} />
-                <DetailItem label="Total Amount" value={`$${selectedEvent.totalAmount.toLocaleString()}`} />
-                <DetailItem label="Advance Paid" value={`$${selectedEvent.advancePaid.toLocaleString()}`} />
+                <DetailItem label="Total Amount" value={`Rs ${selectedEvent.totalAmount.toLocaleString()}`} />
+                <DetailItem label="Advance Paid" value={`Rs ${selectedEvent.advancePaid.toLocaleString()}`} />
               </div>
               {selectedEvent.specialRequests && (
                 <div>

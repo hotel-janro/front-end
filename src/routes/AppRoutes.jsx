@@ -102,9 +102,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       navigate("/login");
       return;
     }
-    const total = Number(data?.total || 0);
-    const delivery = data?.delivery || data?.orderType || "pickup";
-    alert(`Order placed successfully!\n\nThank you, ${user?.name || "Guest"}.\nTotal: $${total.toFixed(2)}\nDelivery: ${delivery === "room" || delivery === "Room" ? "Room Delivery" : "Pickup"}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
+    const total = Number(data?.totalAmount || data?.total || 0);
+    const orderType = data?.orderType || "Dine-in";
+    alert(`Order placed successfully!\n\nThank you, ${user?.name || "Guest"}.\nTotal: Rs ${total.toLocaleString()}\nType: ${orderType}\n\nOur kitchen has received your order and is preparing it now.`);
   };
 
   return (

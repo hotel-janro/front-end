@@ -81,7 +81,7 @@ export function Cart() {
                 <div className="flex-1 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                   <div>
                     <h3 className="text-lg font-bold text-[#0F172A]">{item.name}</h3>
-                    <p className="text-[#D4AF37] font-semibold mt-1">${item.price.toFixed(2)}</p>
+                    <p className="text-[#D4AF37] font-semibold mt-1">Rs {item.price.toFixed(2)}</p>
                   </div>
 
                   <div className="flex items-center gap-6">
@@ -102,7 +102,7 @@ export function Cart() {
                     </div>
 
                     <div className="text-right min-w-[80px]">
-                      <p className="font-bold text-[#1E3A8A]">${(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="font-bold text-[#1E3A8A]">Rs {(item.price * item.quantity).toFixed(2)}</p>
                     </div>
 
                     <button 
@@ -125,15 +125,15 @@ export function Cart() {
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>Rs {subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Taxes (10%)</span>
-                  <span>${tax.toFixed(2)}</span>
+                  <span>Rs {tax.toFixed(2)}</span>
                 </div>
                 <div className="pt-4 border-t border-gray-100 flex justify-between">
                   <span className="text-lg font-bold text-gray-900">Total</span>
-                  <span className="text-2xl font-bold text-[#1E3A8A]">${total.toFixed(2)}</span>
+                  <span className="text-2xl font-bold text-[#1E3A8A]">Rs {total.toFixed(2)}</span>
                 </div>
               </div>
 
