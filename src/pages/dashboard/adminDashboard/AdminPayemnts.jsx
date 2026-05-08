@@ -73,7 +73,7 @@ export function AdminPayments() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-green-50 rounded-lg"><DollarSign className="w-6 h-6 text-green-600" /></div>
-            <div><p className="text-sm text-gray-600">Total Revenue</p><h3 className="text-2xl font-semibold text-gray-900">${totalRevenue.toLocaleString()}</h3></div>
+            <div><p className="text-sm text-gray-600">Total Revenue</p><h3 className="text-2xl font-semibold text-gray-900">Rs {totalRevenue.toLocaleString()}</h3></div>
           </div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -132,7 +132,7 @@ export function AdminPayments() {
                   <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">{payment.customerName}</div></td>
                   <td className="px-6 py-4 whitespace-nowrap"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(payment.type)}`}>{payment.type}</span></td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.paymentMethod}</td>
-                  <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-semibold text-gray-900">${payment.amount.toLocaleString()}</div></td>
+                  <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-semibold text-gray-900">Rs {payment.amount.toLocaleString()}</div></td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{new Date(payment.date).toLocaleDateString()}</div>
                     <div className="text-xs text-gray-500">{new Date(payment.date).toLocaleTimeString()}</div>

@@ -52,6 +52,8 @@ function CashierOrders() {
 
   useEffect(() => {
     loadOrders();
+    const interval = setInterval(loadOrders, 30000); // Auto refresh every 30s
+    return () => clearInterval(interval);
   }, []);
 
   const loadOrders = async () => {
@@ -143,6 +145,8 @@ function CashierPayments() {
 
   useEffect(() => {
     loadOrders();
+    const interval = setInterval(loadOrders, 30000); // Auto refresh every 30s
+    return () => clearInterval(interval);
   }, []);
 
   const loadOrders = async () => {
@@ -237,6 +241,8 @@ function CashierReceipts() {
 
   useEffect(() => {
     loadOrders();
+    const interval = setInterval(loadOrders, 30000); // Auto refresh every 30s
+    return () => clearInterval(interval);
   }, []);
 
   const loadOrders = async () => {
