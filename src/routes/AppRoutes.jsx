@@ -32,6 +32,9 @@ import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory
 
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
+import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
+import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionRooms.jsx";
+import { ReceptionWedding } from "../pages/dashboard/receptionDashboard/ReceptionWedding.jsx";
 import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
 import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
@@ -156,6 +159,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<ReceptionDashboard />} />
+        <Route path="rooms" element={<ReceptionRooms />} />
+        <Route path="wedding" element={<ReceptionWedding />} />
+        <Route path="bookings" element={<ReceptionBookings />} />
         <Route path="pool" element={<ReceptionPool />} />
       </Route>
 

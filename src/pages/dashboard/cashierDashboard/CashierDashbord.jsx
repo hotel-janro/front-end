@@ -20,6 +20,31 @@ function formatCurrency(value) {
   return `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 }
 
+function RealTimeClock({ className = "" }) {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDate = (date) => date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const formatTime = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+  return (
+    <div className={`flex items-center gap-2 px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md shadow-lg shadow-black/5 ${className}`}>
+      <div className="p-1.5 bg-white/20 rounded-lg">
+        <Clock className="w-4 h-4 text-white" />
+      </div>
+      <div className="flex items-center gap-2 text-white">
+        <span className="font-medium tracking-wide text-xs sm:text-sm">{formatDate(currentTime)}</span>
+        <span className="text-white/40 text-xs sm:text-sm">|</span>
+        <span className="font-bold tracking-wider text-xs sm:text-sm">{formatTime(currentTime)}</span>
+      </div>
+    </div>
+  );
+}
+
 // ---------------- Orders Tab ---------------- //
 function CashierOrders() {
   const [orders, setOrders] = useState([]);
@@ -46,16 +71,19 @@ function CashierOrders() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-white border border-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-[80px] -mr-32 -mt-32" />
-        <div className="relative z-10 flex justify-between items-center">
+        <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div>
             <h2 className="text-3xl md:text-5xl font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
               Order <span className="text-blue-400">Management</span>
             </h2>
             <p className="text-slate-400 mt-2">Monitor all active and past kitchen sync orders</p>
           </div>
-          <div className="bg-white/10 p-4 rounded-2xl text-center border border-white/10">
-            <p className="text-xs text-blue-300 font-bold uppercase tracking-widest">Active Tickets</p>
-            <p className="text-3xl font-black">{activeOrders}</p>
+          <div className="flex flex-col sm:flex-row md:items-center gap-4 self-start md:self-auto">
+            <RealTimeClock />
+            <div className="bg-white/10 p-4 rounded-2xl text-center border border-white/10 shrink-0 w-full sm:w-auto">
+              <p className="text-xs text-blue-300 font-bold uppercase tracking-widest">Active Tickets</p>
+              <p className="text-3xl font-black">{activeOrders}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -134,16 +162,19 @@ function CashierPayments() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-white border border-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-[80px] -mr-32 -mt-32" />
-        <div className="relative z-10 flex justify-between items-center">
+        <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div>
             <h2 className="text-3xl md:text-5xl font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
               Payment <span className="text-emerald-400">Gateway</span>
             </h2>
             <p className="text-slate-400 mt-2">Track financial transactions and pending settlements</p>
           </div>
-          <div className="bg-white/10 p-4 rounded-2xl text-center border border-white/10">
-            <p className="text-xs text-emerald-300 font-bold uppercase tracking-widest">Total Collected</p>
-            <p className="text-3xl font-black text-emerald-400">{formatCurrency(paidTotal)}</p>
+          <div className="flex flex-col sm:flex-row md:items-center gap-4 self-start md:self-auto">
+            <RealTimeClock />
+            <div className="bg-white/10 p-4 rounded-2xl text-center border border-white/10 shrink-0 w-full sm:w-auto">
+              <p className="text-xs text-emerald-300 font-bold uppercase tracking-widest">Total Collected</p>
+              <p className="text-3xl font-black text-emerald-400">{formatCurrency(paidTotal)}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -336,13 +367,14 @@ function CashierReceipts() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-white border border-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-[80px] -mr-32 -mt-32" />
-        <div className="relative z-10 flex justify-between items-center">
+        <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div>
             <h2 className="text-3xl md:text-5xl font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
               Digital <span className="text-[#D4AF37]">Receipts</span>
             </h2>
             <p className="text-slate-400 mt-2">Access and print official bills for completed payments</p>
           </div>
+          <RealTimeClock className="self-start md:self-auto" />
         </div>
       </div>
 
