@@ -7,19 +7,22 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export function AdminReports() {
   const { settings } = useSettings();
-  const [reportType, setReportType] = useState('Revenue');
+  const [reportType, setReportType] = useState('All Reports');
   const [dateRange, setDateRange] = useState('This Month');
+  const [serviceType, setServiceType] = useState('All Services');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const fetchReports = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE}/api/reports`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        const token = localStorage.getItem('janro_token') || localStorage.getItem('token');
+        const res = await fetch(`${API_BASE}/api/reports?dateRange=${encodeURIComponent(dateRange)}`, {
+          headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
         });
         
         if (!res.ok) {
@@ -36,7 +39,32 @@ export function AdminReports() {
     };
 
     fetchReports();
-  }, []);
+  }, [dateRange]);
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const token = localStorage.getItem('janro_token') || localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/reports/export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        alert(data.message || 'Report exported successfully!');
+      } else {
+        throw new Error(data.message || 'Failed to export report');
+      }
+    } catch (err) {
+      alert(err.message || 'Error exporting report');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -66,6 +94,11 @@ export function AdminReports() {
     metrics
   } = reportData;
 
+  const filteredServiceData = serviceData.filter(s => serviceType === 'All Services' || s.name === serviceType);
+  const showRevenue = reportType === 'All Reports' || reportType === 'Revenue';
+  const showBookings = reportType === 'All Reports' || reportType === 'Bookings';
+  const showServices = reportType === 'All Reports' || reportType === 'Services' || reportType === 'Revenue';
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -79,9 +112,13 @@ export function AdminReports() {
             View comprehensive business reports and insights
           </p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap">
-          <Download className="w-5 h-5" />
-          Export Report
+        <button 
+          onClick={handleExport}
+          disabled={isExporting}
+          className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          {isExporting ? <Loader className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+          {isExporting ? 'Exporting...' : 'Export Report'}
         </button>
       </div>
 
@@ -117,18 +154,18 @@ export function AdminReports() {
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
             <select value={reportType} onChange={(e) => setReportType(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Revenue</option><option>Bookings</option><option>Services</option><option>Inventory</option><option>Staff Performance</option>
+              <option>All Reports</option><option>Revenue</option><option>Bookings</option><option>Services</option>
             </select>
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
             <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Today</option><option>This Week</option><option>This Month</option><option>Last Month</option><option>This Quarter</option><option>This Year</option><option>Custom Range</option>
+              <option>Today</option><option>This Week</option><option>This Month</option><option>Last Month</option><option>This Quarter</option><option>This Year</option><option>All Time</option>
             </select>
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Service Type</label>
-            <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select value={serviceType} onChange={(e) => setServiceType(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option>All Services</option><option>Rooms</option><option>Restaurant</option><option>Wedding</option><option>Pool</option>
             </select>
           </div>
@@ -136,6 +173,7 @@ export function AdminReports() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {showRevenue && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900">Monthly Revenue (Last 6 Months)</h2>
@@ -151,7 +189,9 @@ export function AdminReports() {
             </LineChart>
           </ResponsiveContainer>
         </div>
+        )}
 
+        {showServices && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900">Revenue by Service</h2>
@@ -159,14 +199,16 @@ export function AdminReports() {
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
-              <Pie data={serviceData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
-                {serviceData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
+              <Pie data={filteredServiceData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
+                {filteredServiceData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
               </Pie>
               <Tooltip formatter={(value) => [`${settings.currency.symbol}${value}`, "Revenue"]} />
             </PieChart>
           </ResponsiveContainer>
         </div>
+        )}
 
+        {showBookings && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900">Booking Trends (Last 6 Months)</h2>
@@ -182,7 +224,9 @@ export function AdminReports() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+        )}
 
+        {(showRevenue || showBookings) && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900 mb-6">Performance Metrics</h2>
           <div className="space-y-4">
@@ -199,8 +243,10 @@ export function AdminReports() {
             ))}
           </div>
         </div>
+        )}
       </div>
 
+      {showServices && (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900">Revenue Summary by Service</h2>
@@ -215,7 +261,9 @@ export function AdminReports() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {serviceData.map((service) => (
+              {filteredServiceData.map((service) => {
+                const filteredTotal = filteredServiceData.reduce((sum, item) => sum + item.value, 0);
+                return (
                 <tr key={service.name} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -224,13 +272,14 @@ export function AdminReports() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{settings.currency.symbol}{service.value.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{totalRevenue > 0 ? ((service.value / totalRevenue) * 100).toFixed(1) : 0}%</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{filteredTotal > 0 ? ((service.value / filteredTotal) * 100).toFixed(1) : 0}%</td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 }
