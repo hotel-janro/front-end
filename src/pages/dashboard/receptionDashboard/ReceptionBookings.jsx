@@ -57,13 +57,18 @@ export function ReceptionBookings() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bookings Management</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Check-in, check-out, and manage guest reservations</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Bookings Management
+          </h1>
+          <p className="text-slate-300 mt-2">
+            Check-in, check-out, and manage guest reservations
+          </p>
         </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm rounded-xl hover:bg-indigo-700 transition-colors font-medium shadow-sm">
-          <Plus className="w-4 h-4" />
+        <button className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap">
+          <Plus className="w-5 h-5" />
           Walk-in Booking
         </button>
       </div>

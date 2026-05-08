@@ -29,6 +29,14 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -51,6 +59,24 @@ export function AdminDashboard() {
 
     fetchDashboard();
   }, []);
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatTime = (date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
 
   if (loading) {
     return (
@@ -122,14 +148,28 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8">
-        <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
-        <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-          Admin Dashboard
-        </h1>
-        <p className="text-slate-300 mt-2">
-          Welcome back! Here&apos;s your hotel overview
-        </p>
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Admin Dashboard
+          </h1>
+          <p className="text-slate-300 mt-2">
+            Welcome back! Here&apos;s your hotel overview
+          </p>
+        </div>
+        
+        {/* Real-time Clock Widget */}
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md shadow-lg shadow-black/10 self-start md:self-center shrink-0">
+          <div className="p-1.5 bg-[#D4AF37]/20 rounded-lg">
+            <Calendar className="w-4 h-4 text-[#D4AF37]" />
+          </div>
+          <div className="flex items-center gap-2 text-white">
+            <span className="font-medium tracking-wide text-xs sm:text-sm">{formatDate(currentTime)}</span>
+            <span className="text-white/20 text-xs sm:text-sm">|</span>
+            <span className="font-bold tracking-wider text-xs sm:text-sm text-[#D4AF37]">{formatTime(currentTime)}</span>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}

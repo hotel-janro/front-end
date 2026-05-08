@@ -110,6 +110,33 @@ export function ReceptionDashboard() {
     fetchDashboardData();
   }, []);
 
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatTime = (date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Morning';
@@ -159,39 +186,44 @@ export function ReceptionDashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-indigo-600 to-violet-500 rounded-2xl p-6 text-white relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-64 h-full opacity-10">
-          <svg viewBox="0 0 200 200" className="w-full h-full">
-            <circle cx="100" cy="100" r="80" fill="currentColor" />
-            <circle cx="160" cy="50" r="40" fill="currentColor" />
-          </svg>
-        </div>
-        <div className="relative z-10">
-          <h1 className="text-2xl font-bold">Good {getGreeting()}! Welcome to Reception</h1>
-          <p className="text-indigo-100 mt-1">
-            Here's your daily overview for{' '}
-            {new Date().toLocaleDateString('en-US', {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </p>
-          <div className="flex flex-wrap gap-3 mt-4">
-            <Link
-              to="/reception/bookings"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg text-sm font-medium transition-colors"
-            >
-              <Calendar className="w-4 h-4" />
-              Manage Bookings
-            </Link>
-            <Link
-              to="/reception/rooms"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg text-sm font-medium transition-colors"
-            >
-              <Bed className="w-4 h-4" />
-              Room Status
-            </Link>
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+            <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+              Good {getGreeting()}! Welcome to Reception
+            </h1>
+            <p className="text-slate-300 mt-2">
+              Here's your daily overview
+            </p>
+            <div className="flex flex-wrap gap-3 mt-4">
+              <Link
+                to="/reception/bookings"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 backdrop-blur-sm rounded-xl text-sm font-medium transition-colors text-white"
+              >
+                <Calendar className="w-4 h-4 text-[#D4AF37]" />
+                Manage Bookings
+              </Link>
+              <Link
+                to="/reception/rooms"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 backdrop-blur-sm rounded-xl text-sm font-medium transition-colors text-white"
+              >
+                <Bed className="w-4 h-4 text-[#D4AF37]" />
+                Room Status
+              </Link>
+            </div>
+          </div>
+          
+          {/* Real-time Clock Widget */}
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md shadow-lg shadow-black/10 self-start md:self-center shrink-0">
+            <div className="p-1.5 bg-[#D4AF37]/20 rounded-lg">
+              <Clock className="w-4 h-4 text-[#D4AF37]" />
+            </div>
+            <div className="flex items-center gap-2 text-white">
+              <span className="font-medium tracking-wide text-xs sm:text-sm">{formatDate(currentTime)}</span>
+              <span className="text-white/20 text-xs sm:text-sm">|</span>
+              <span className="font-bold tracking-wider text-xs sm:text-sm text-[#D4AF37]">{formatTime(currentTime)}</span>
+            </div>
           </div>
         </div>
       </div>

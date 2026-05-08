@@ -456,17 +456,26 @@ export function ReceptionPool() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Header */}
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Pool Management</h1>
-          <p className="mt-1 text-gray-500">Manage pool access, time slots, and bookings</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Pool Management
+          </h1>
+          <p className="text-slate-300 mt-2">
+            Manage pool access, time slots, and bookings
+          </p>
         </div>
-          {activeTab === 'bookings' && (
-            <button className="admin-pool__action-button self-start" onClick={handleOpenBookingModal}>
-              <Plus className="admin-pool__action-icon" />
-              New Booking
-            </button>
-          )}
+        {activeTab === 'bookings' && (
+          <button 
+            className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap"
+            onClick={handleOpenBookingModal}
+          >
+            <Plus className="w-5 h-5" />
+            New Booking
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
