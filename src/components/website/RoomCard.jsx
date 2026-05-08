@@ -20,6 +20,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
@@ -71,7 +72,12 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
       return;
     }
     if (!phone || phone.trim() === "") {
-      alert("Please enter your phone number to proceed with the booking.");
+      setPhoneError("Please enter your phone number.");
+      return;
+    }
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(phone.trim())) {
+      setPhoneError("this is invalid");
       return;
     }
 
@@ -173,10 +179,14 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
                 <input
                   type="text"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (phoneError) setPhoneError("");
+                  }}
                   placeholder="0771234567"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] ${phoneError ? 'border-red-500' : 'border-gray-200'}`}
                 />
+                {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
               </div>
 
               <div>
@@ -322,6 +332,15 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
                 />
               </div>
+
+              {room.amenities && room.amenities.length > 0 && (
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Included Amenities</label>
+                  <p className="text-xs text-[#0F172A] bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                    {Array.isArray(room.amenities) ? room.amenities.join(', ') : room.amenities}
+                  </p>
+                </div>
+              )}
 
               {isHoneymoonSuite && isLoggedIn && (
                 <div>

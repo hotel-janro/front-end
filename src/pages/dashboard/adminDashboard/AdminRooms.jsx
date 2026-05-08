@@ -235,6 +235,10 @@ export function AdminRooms() {
   const handleRemoveOneRoom = async (room) => {
     if (!room || room.isPlaceholder || room.availableRooms <= 0) return;
     
+    if (!window.confirm("Are you sure you want to delete this specific room? This action cannot be undone.")) {
+      return;
+    }
+
     try {
       // Fetch the live DB document first to get accurate totalRooms
       const liveRes = await apiFetch(`/rooms/admin/list`);
@@ -496,8 +500,8 @@ export function AdminRooms() {
                             const roomNumber = i + 1;
                             const isBooked = i < bookedCount;
                             const isBase = roomNumber <= baseCount;
-                            // Added rooms that are not booked can be deleted
-                            const canDelete = !isBase && !isBooked;
+                            // Any room that is not booked can be deleted
+                            const canDelete = !isBooked;
 
                             return (
                               <tr 
@@ -533,7 +537,7 @@ export function AdminRooms() {
                                   ) : (
                                     <button 
                                       className="admin-rooms__action-btn admin-rooms__action-btn--disabled" 
-                                      title={isBooked ? "Room is currently booked" : "Base room cannot be deleted"}
+                                      title={isBooked ? "Occupied rooms cannot be deleted" : "Delete this room"}
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
