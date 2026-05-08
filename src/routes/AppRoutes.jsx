@@ -40,6 +40,7 @@ import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDas
 import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
 import { CashierPayments } from "../pages/dashboard/cashierDashboard/CashierPayments.jsx";
 import { CashierReceipts } from "../pages/dashboard/cashierDashboard/CashierReceipts.jsx";
+import { CashierProfile } from "../pages/dashboard/cashierDashboard/CashierProfile.jsx";
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
@@ -173,6 +174,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="orders" element={<CashierOrders />} />
         <Route path="payments" element={<CashierPayments />} />
         <Route path="receipts" element={<CashierReceipts />} />
+        <Route path="profile" element={<CashierProfile />} />
         <Route path="*" element={<CashierDashboard />} />
       </Route>
 
