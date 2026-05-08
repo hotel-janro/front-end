@@ -73,31 +73,33 @@ export function AdminStaff() {
 
   const filteredStaff = staffList.filter((staff) => {
     const matchesSearch =
-      staff.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      staff.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === 'All' || staff.role === filterRole;
-    const matchesStatus = filterStatus === 'All' || staff.status === filterStatus;
+      (staff.name && staff.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (staff.email && staff.email.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesRole = filterRole === 'All' || (staff.role && staff.role.toLowerCase() === filterRole.toLowerCase());
+    const matchesStatus = filterStatus === 'All' || (staff.status && staff.status.toLowerCase() === filterStatus.toLowerCase());
     return matchesSearch && matchesRole && matchesStatus;
   });
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800';
-      case 'Inactive': return 'bg-red-100 text-red-800';
-      case 'On Leave': return 'bg-yellow-100 text-yellow-800';
+    if (!status) return 'bg-gray-100 text-gray-800';
+    switch (status.toLowerCase()) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'inactive': return 'bg-red-100 text-red-800';
+      case 'on leave': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getRoleBadgeColor = (role) => {
-    switch (role) {
-      case 'Manager': return 'bg-purple-100 text-purple-800';
-      case 'Receptionist': return 'bg-blue-100 text-blue-800';
-      case 'Chef': return 'bg-orange-100 text-orange-800';
-      case 'Waiter': return 'bg-cyan-100 text-cyan-800';
-      case 'Housekeeping': return 'bg-pink-100 text-pink-800';
-      case 'Security': return 'bg-red-100 text-red-800';
-      case 'Maintenance': return 'bg-yellow-100 text-yellow-800';
+    if (!role) return 'bg-gray-100 text-gray-800';
+    switch (role.toLowerCase()) {
+      case 'manager': return 'bg-purple-100 text-purple-800';
+      case 'receptionist': return 'bg-blue-100 text-blue-800';
+      case 'chef': return 'bg-orange-100 text-orange-800';
+      case 'waiter': return 'bg-cyan-100 text-cyan-800';
+      case 'housekeeping': return 'bg-pink-100 text-pink-800';
+      case 'security': return 'bg-red-100 text-red-800';
+      case 'maintenance': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -336,13 +338,23 @@ export function AdminStaff() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header */}
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Users & Staff Management</h1>
-          <p className="mt-1 text-gray-500">Manage staff members, roles, and access permissions</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Users & Staff Management
+          </h1>
+          <p className="text-slate-300 mt-2">
+            Manage staff members, roles, and access permissions
+          </p>
         </div>
-        <button className="admin-staff-action-button" onClick={handleOpenModal}>
-          <UserPlus className="w-5 h-5" />Add Staff Member
+        <button 
+          className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap"
+          onClick={handleOpenModal}
+        >
+          <UserPlus className="w-5 h-5" />
+          Add Staff Member
         </button>
       </div>
 
@@ -413,11 +425,11 @@ export function AdminStaff() {
                     </div>
                   </td>
                   <td className="admin-staff-table-cell"><div><div className="admin-staff-contact-email text-gray-900">{staff.email}</div><div className="admin-staff-contact-phone">{staff.phone}</div></div></td>
-                  <td className="admin-staff-table-cell"><span className={`admin-staff-role-badge ${getRoleBadgeColor(staff.role)}`}>{staff.role}</span></td>
+                  <td className="admin-staff-table-cell"><span className={`admin-staff-role-badge ${getRoleBadgeColor(staff.role)}`}>{staff.role ? staff.role.charAt(0).toUpperCase() + staff.role.slice(1).toLowerCase() : ''}</span></td>
                   <td className="admin-staff-table-cell">{staff.department}</td>
                   <td className="admin-staff-table-cell"><span className="admin-staff-salary">{settings.currency.symbol}{staff.salary.toLocaleString()}</span></td>
                   <td className="admin-staff-table-cell">{new Date(staff.joinDate).toLocaleDateString()}</td>
-                  <td className="admin-staff-table-cell"><span className={`admin-staff-status-badge ${getStatusColor(staff.status)}`}>{staff.status}</span></td>
+                  <td className="admin-staff-table-cell"><span className={`admin-staff-status-badge ${getStatusColor(staff.status)}`}>{staff.status ? staff.status.charAt(0).toUpperCase() + staff.status.slice(1).toLowerCase() : ''}</span></td>
                   <td className="admin-staff-table-cell">
                     <button className="admin-staff-action-link admin-staff-action-link--edit" onClick={() => openEditModal(staff)}>Edit</button>
                     <button className="admin-staff-action-link admin-staff-action-link--toggle" onClick={() => handleToggleStatus(staff)}>{staff.status === 'Active' ? 'Disable' : 'Enable'}</button>

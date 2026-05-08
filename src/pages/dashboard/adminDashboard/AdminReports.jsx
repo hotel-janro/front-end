@@ -1,39 +1,124 @@
-import React, { useState } from 'react';
-import { FileText, Download, Calendar, TrendingUp, DollarSign, BarChart3 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, Download, Calendar, TrendingUp, DollarSign, BarChart3, Loader } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { revenueData } from '../../../data/mockData.js';
+import { useSettings } from '../../../context/SettingsContext.jsx';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export function AdminReports() {
-  const [reportType, setReportType] = useState('Revenue');
+  const { settings } = useSettings();
+  const [reportType, setReportType] = useState('All Reports');
   const [dateRange, setDateRange] = useState('This Month');
+  const [serviceType, setServiceType] = useState('All Services');
 
-  const serviceData = [
-    { name: 'Rooms', value: 45230, color: '#3B82F6' },
-    { name: 'Restaurant', value: 28450, color: '#F59E0B' },
-    { name: 'Wedding', value: 35000, color: '#EC4899' },
-    { name: 'Pool', value: 8500, color: '#10B981' },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reportData, setReportData] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const bookingData = [
-    { month: 'Jan', bookings: 45 },
-    { month: 'Feb', bookings: 52 },
-    { month: 'Mar', bookings: 61 },
-    { month: 'Apr', bookings: 58 },
-    { month: 'May', bookings: 67 },
-    { month: 'Jun', bookings: 73 },
-  ];
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('janro_token') || localStorage.getItem('token');
+        const res = await fetch(`${API_BASE}/api/reports?dateRange=${encodeURIComponent(dateRange)}`, {
+          headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        });
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch report data');
+        }
+        
+        const json = await res.json();
+        setReportData(json.data);
+      } catch (err) {
+        setError(err.message || "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const totalRevenue = serviceData.reduce((sum, item) => sum + item.value, 0);
+    fetchReports();
+  }, [dateRange]);
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const token = localStorage.getItem('janro_token') || localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/reports/export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        alert(data.message || 'Report exported successfully!');
+      } else {
+        throw new Error(data.message || 'Failed to export report');
+      }
+    } catch (err) {
+      alert(err.message || 'Error exporting report');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-red-500 font-medium">{error}</p>
+      </div>
+    );
+  }
+
+  if (!reportData) return null;
+
+  const {
+    serviceData,
+    bookingData,
+    revenueData,
+    totalRevenue,
+    totalBookings,
+    avgDailyRevenue,
+    metrics
+  } = reportData;
+
+  const filteredServiceData = serviceData.filter(s => serviceType === 'All Services' || s.name === serviceType);
+  const showRevenue = reportType === 'All Reports' || reportType === 'Revenue';
+  const showBookings = reportType === 'All Reports' || reportType === 'Bookings';
+  const showServices = reportType === 'All Reports' || reportType === 'Services' || reportType === 'Revenue';
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header */}
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Reports & Analytics</h1>
-          <p className="text-gray-500 mt-1">View comprehensive business reports and insights</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Reports & Analytics
+          </h1>
+          <p className="text-slate-300 mt-2">
+            View comprehensive business reports and insights
+          </p>
         </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <Download className="w-5 h-5" />Export Report
+        <button 
+          onClick={handleExport}
+          disabled={isExporting}
+          className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          {isExporting ? <Loader className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+          {isExporting ? 'Exporting...' : 'Export Report'}
         </button>
       </div>
 
@@ -41,7 +126,7 @@ export function AdminReports() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-blue-50 rounded-lg"><DollarSign className="w-6 h-6 text-blue-600" /></div>
-            <div><p className="text-sm text-gray-600">Total Revenue</p><h3 className="text-2xl font-semibold text-gray-900">${totalRevenue.toLocaleString()}</h3></div>
+            <div><p className="text-sm text-gray-600">Total Revenue</p><h3 className="text-2xl font-semibold text-gray-900">{settings.currency.symbol}{totalRevenue.toLocaleString()}</h3></div>
           </div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -53,13 +138,13 @@ export function AdminReports() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-purple-50 rounded-lg"><BarChart3 className="w-6 h-6 text-purple-600" /></div>
-            <div><p className="text-sm text-gray-600">Total Bookings</p><h3 className="text-2xl font-semibold text-gray-900">356</h3></div>
+            <div><p className="text-sm text-gray-600">Total Bookings</p><h3 className="text-2xl font-semibold text-gray-900">{totalBookings}</h3></div>
           </div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-orange-50 rounded-lg"><FileText className="w-6 h-6 text-orange-600" /></div>
-            <div><p className="text-sm text-gray-600">Avg. Daily Revenue</p><h3 className="text-2xl font-semibold text-gray-900">$2,580</h3></div>
+            <div><p className="text-sm text-gray-600">Avg. Daily Revenue</p><h3 className="text-2xl font-semibold text-gray-900">{settings.currency.symbol}{avgDailyRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}</h3></div>
           </div>
         </div>
       </div>
@@ -69,18 +154,18 @@ export function AdminReports() {
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
             <select value={reportType} onChange={(e) => setReportType(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Revenue</option><option>Bookings</option><option>Services</option><option>Inventory</option><option>Staff Performance</option>
+              <option>All Reports</option><option>Revenue</option><option>Bookings</option><option>Services</option>
             </select>
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
             <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Today</option><option>This Week</option><option>This Month</option><option>Last Month</option><option>This Quarter</option><option>This Year</option><option>Custom Range</option>
+              <option>Today</option><option>This Week</option><option>This Month</option><option>Last Month</option><option>This Quarter</option><option>This Year</option><option>All Time</option>
             </select>
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Service Type</label>
-            <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select value={serviceType} onChange={(e) => setServiceType(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option>All Services</option><option>Rooms</option><option>Restaurant</option><option>Wedding</option><option>Pool</option>
             </select>
           </div>
@@ -88,9 +173,10 @@ export function AdminReports() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {showRevenue && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">Monthly Revenue</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Monthly Revenue (Last 6 Months)</h2>
             <Calendar className="w-5 h-5 text-gray-400" />
           </div>
           <ResponsiveContainer width="100%" height={300}>
@@ -98,12 +184,14 @@ export function AdminReports() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" stroke="#888" />
               <YAxis stroke="#888" />
-              <Tooltip />
+              <Tooltip formatter={(value) => [`${settings.currency.symbol}${value}`, "Revenue"]} />
               <Line type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </div>
+        )}
 
+        {showServices && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900">Revenue by Service</h2>
@@ -111,17 +199,19 @@ export function AdminReports() {
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
-              <Pie data={serviceData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
-                {serviceData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
+              <Pie data={filteredServiceData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
+                {filteredServiceData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
               </Pie>
-              <Tooltip />
+              <Tooltip formatter={(value) => [`${settings.currency.symbol}${value}`, "Revenue"]} />
             </PieChart>
           </ResponsiveContainer>
         </div>
+        )}
 
+        {showBookings && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">Booking Trends</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Booking Trends (Last 6 Months)</h2>
             <TrendingUp className="w-5 h-5 text-gray-400" />
           </div>
           <ResponsiveContainer width="100%" height={300}>
@@ -134,17 +224,13 @@ export function AdminReports() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+        )}
 
+        {(showRevenue || showBookings) && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900 mb-6">Performance Metrics</h2>
           <div className="space-y-4">
-            {[
-              { label: 'Occupancy Rate', value: '75%', width: '75%', color: 'bg-blue-600' },
-              { label: 'Restaurant Capacity', value: '68%', width: '68%', color: 'bg-orange-600' },
-              { label: 'Pool Utilization', value: '85%', width: '85%', color: 'bg-cyan-600' },
-              { label: 'Event Bookings', value: '92%', width: '92%', color: 'bg-pink-600' },
-              { label: 'Customer Satisfaction', value: '4.8/5.0', width: '96%', color: 'bg-green-600' },
-            ].map((metric) => (
+            {metrics.map((metric) => (
               <div key={metric.label}>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-600">{metric.label}</span>
@@ -157,8 +243,10 @@ export function AdminReports() {
             ))}
           </div>
         </div>
+        )}
       </div>
 
+      {showServices && (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900">Revenue Summary by Service</h2>
@@ -168,14 +256,14 @@ export function AdminReports() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transactions</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Growth</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {serviceData.map((service) => (
+              {filteredServiceData.map((service) => {
+                const filteredTotal = filteredServiceData.reduce((sum, item) => sum + item.value, 0);
+                return (
                 <tr key={service.name} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -183,16 +271,15 @@ export function AdminReports() {
                       <span className="text-sm font-medium text-gray-900">{service.name}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{Math.floor(service.value / 150)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">${service.value.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm text-green-600 font-medium">+8.2%</span></td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{((service.value / totalRevenue) * 100).toFixed(1)}%</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{settings.currency.symbol}{service.value.toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{filteredTotal > 0 ? ((service.value / filteredTotal) * 100).toFixed(1) : 0}%</td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 }

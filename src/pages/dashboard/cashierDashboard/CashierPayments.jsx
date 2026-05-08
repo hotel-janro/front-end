@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CreditCard,
   Banknote,
@@ -13,33 +13,51 @@ import {
   Filter,
   TrendingUp,
 } from 'lucide-react';
-import { posOrders } from '../../../data/newMockData.js';
-
-// Derive payment records from posOrders
-const paymentRecords = posOrders
-  .filter((o) => o.status === 'Completed' || o.status === 'Pending')
-  .map((order, idx) => ({
-    id: `PAY-${String(idx + 1).padStart(3, '0')}`,
-    orderId: order.orderNumber,
-    customerName: order.customerName,
-    amount: order.totalAmount,
-    tax: order.tax,
-    method: order.paymentMethod,
-    status: order.status === 'Completed' ? 'Settled' : 'Pending',
-    date: order.createdAt,
-    type: order.type,
-  }));
+import { apiFetch } from '../../../api.js';
 
 export function CashierPayments() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMethod, setFilterMethod] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadOrders();
+    const interval = setInterval(loadOrders, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadOrders = async () => {
+    try {
+      const data = await apiFetch('/orders');
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load payments:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+  const paymentRecords = orders.map((order) => ({
+    id: `PAY-${order._id.slice(-6).toUpperCase()}`,
+    orderId: `#${order._id.slice(-8).toUpperCase()}`,
+    customerName: order.customerName || 'Guest',
+    amount: order.totalAmount,
+    tax: order.serviceCharge || 0,
+    method: order.paymentMethod || 'Cash',
+    status: order.paymentStatus === 'Paid' ? 'Settled' : 'Pending',
+    date: order.createdAt,
+    type: order.orderType,
+  }));
 
   const filtered = paymentRecords.filter((p) => {
     const matchSearch =
-      p.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.id.toLowerCase().includes(searchTerm.toLowerCase());
+      (p.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.orderId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.id || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchMethod = filterMethod === 'All' || p.method === filterMethod;
     const matchStatus = filterStatus === 'All' || p.status === filterStatus;
     return matchSearch && matchMethod && matchStatus;
@@ -83,27 +101,27 @@ export function CashierPayments() {
   const stats = [
     {
       label: 'Total Settled',
-      value: `$${totalSettled.toFixed(2)}`,
+      value: formatCurrency(totalSettled),
       icon: CheckCircle,
       color: 'bg-emerald-50 text-emerald-600 border-emerald-200',
       iconBg: 'bg-emerald-100',
     },
     {
       label: 'Pending Amount',
-      value: `$${totalPending.toFixed(2)}`,
+      value: formatCurrency(totalPending),
       icon: Clock,
       color: 'bg-amber-50 text-amber-600 border-amber-200',
       iconBg: 'bg-amber-100',
     },
     {
-      label: 'Tax Collected',
-      value: `$${totalTax.toFixed(2)}`,
+      label: 'Service Charges',
+      value: formatCurrency(totalTax),
       icon: TrendingUp,
       color: 'bg-violet-50 text-violet-600 border-violet-200',
       iconBg: 'bg-violet-100',
     },
     {
-      label: 'Total Transactions',
+      label: 'Transactions',
       value: paymentRecords.length,
       icon: CreditCard,
       color: 'bg-blue-50 text-blue-600 border-blue-200',
@@ -114,9 +132,18 @@ export function CashierPayments() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-        <p className="text-gray-500 mt-1">Track and manage all payment transactions</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
+          <p className="text-gray-500 mt-1">Track and manage all payment transactions from real orders</p>
+        </div>
+        <button 
+          onClick={loadOrders}
+          className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
+        >
+          <Clock className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Sync Payments
+        </button>
       </div>
 
       {/* Stats */}
@@ -131,7 +158,7 @@ export function CashierPayments() {
                 </div>
                 <div>
                   <p className="text-xs font-medium opacity-80">{stat.label}</p>
-                  <h3 className="text-2xl font-bold">{stat.value}</h3>
+                  <h3 className="text-xl font-bold">{stat.value}</h3>
                 </div>
               </div>
             </div>
@@ -196,62 +223,69 @@ export function CashierPayments() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment ID</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map((payment) => {
-                const MIcon = getMethodIcon(payment.method);
-                return (
-                  <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <span className="text-sm font-semibold text-gray-900">{payment.id}</span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="text-sm text-gray-700">{payment.orderId}</span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="text-sm text-gray-900 font-medium">{payment.customerName}</span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getMethodColor(payment.method)}`}>
-                        <MIcon className="w-3 h-3" />
-                        {payment.method}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div>
-                        <p className="text-sm text-gray-900">{new Date(payment.date).toLocaleDateString()}</p>
-                        <p className="text-xs text-gray-500">{new Date(payment.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        payment.status === 'Settled' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {payment.status === 'Settled' ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                        {payment.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <p className="text-sm font-bold text-gray-900">${payment.amount.toFixed(2)}</p>
-                      <p className="text-[10px] text-gray-500">Tax: ${payment.tax.toFixed(2)}</p>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
+          {loading && orders.length === 0 ? (
+             <div className="py-20 text-center">
+                <div className="w-10 h-10 border-4 border-teal-100 border-t-teal-600 rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-400">Loading payment history...</p>
+             </div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment ID</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map((payment) => {
+                  const MIcon = getMethodIcon(payment.method);
+                  return (
+                    <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm font-semibold text-gray-900">{payment.id}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm text-gray-700">{payment.orderId}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm text-gray-900 font-medium">{payment.customerName}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getMethodColor(payment.method)}`}>
+                          <MIcon className="w-3 h-3" />
+                          {payment.method}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div>
+                          <p className="text-sm text-gray-900">{new Date(payment.date).toLocaleDateString()}</p>
+                          <p className="text-xs text-gray-500">{new Date(payment.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                          payment.status === 'Settled' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {payment.status === 'Settled' ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                          {payment.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <p className="text-sm font-bold text-gray-900">{formatCurrency(payment.amount)}</p>
+                        <p className="text-[10px] text-gray-500">Charge: {formatCurrency(payment.tax)}</p>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {!loading && filtered.length === 0 && (
             <div className="text-center py-12">
               <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 font-medium">No payments found</p>

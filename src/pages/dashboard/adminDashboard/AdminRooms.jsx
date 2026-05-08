@@ -38,7 +38,7 @@ const ROOM_TYPES = {
     amenities: "Two bedrooms, Play area, Kid-friendly amenities, Connecting rooms, WiFi, AC"
   },
   'Honeymoon Suite': {
-    price: 15000,
+    price: 7500,
     description: "A romantic escape with private pool, candlelit dining setup, rose petal turndown, and couples spa treatment.",
     defaultGuests: 2,
     amenities: "Private pool, Candlelit dining, Rose petal turndown, Couples spa, WiFi, AC"
@@ -135,6 +135,7 @@ export function AdminRooms() {
         description: room.description,
         price: room.price,
         availableRooms: room.availableRooms,
+        totalRooms: room.totalRooms,
         defaultGuests: room.defaultGuests,
         amenities: room.amenities.join(', '),
         isActive: room.isActive
@@ -234,6 +235,10 @@ export function AdminRooms() {
   const handleRemoveOneRoom = async (room) => {
     if (!room || room.isPlaceholder || room.availableRooms <= 0) return;
     
+    if (!window.confirm("Are you sure you want to delete this specific room? This action cannot be undone.")) {
+      return;
+    }
+
     try {
       // Fetch the live DB document first to get accurate totalRooms
       const liveRes = await apiFetch(`/rooms/admin/list`);
@@ -254,6 +259,19 @@ export function AdminRooms() {
       fetchData();
     } catch (error) {
       alert('Error removing room: ' + error.message);
+    }
+  };
+
+  const handleDeleteBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) return;
+    
+    try {
+      await apiFetch(`/bookings/${bookingId}`, {
+        method: 'DELETE'
+      });
+      fetchData(); // Refresh bookings list
+    } catch (error) {
+      alert('Error deleting booking: ' + error.message);
     }
   };
 
@@ -482,8 +500,8 @@ export function AdminRooms() {
                             const roomNumber = i + 1;
                             const isBooked = i < bookedCount;
                             const isBase = roomNumber <= baseCount;
-                            // Added rooms that are not booked can be deleted
-                            const canDelete = !isBase && !isBooked;
+                            // Any room that is not booked can be deleted
+                            const canDelete = !isBooked;
 
                             return (
                               <tr 
@@ -519,7 +537,7 @@ export function AdminRooms() {
                                   ) : (
                                     <button 
                                       className="admin-rooms__action-btn admin-rooms__action-btn--disabled" 
-                                      title={isBooked ? "Room is currently booked" : "Base room cannot be deleted"}
+                                      title={isBooked ? "Occupied rooms cannot be deleted" : "Delete this room"}
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -550,6 +568,7 @@ export function AdminRooms() {
                   <th>Guests</th>
                   <th>Status</th>
                   <th>Total Amount</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -587,11 +606,20 @@ export function AdminRooms() {
                     <td>{booking.guests}</td>
                     <td>{getStatusBadge(booking.status)}</td>
                     <td><span className="font-bold text-slate-900">Rs. {booking.totalPrice.toLocaleString()}</span></td>
+                    <td className="text-right">
+                      <button 
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        title="Delete Booking"
+                        onClick={() => handleDeleteBooking(booking._id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filteredBookings.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="p-8 text-center text-slate-500">No bookings found.</td>
+                    <td colSpan="7" className="p-8 text-center text-slate-500">No bookings found.</td>
                   </tr>
                 )}
               </tbody>
@@ -635,12 +663,13 @@ export function AdminRooms() {
                       <label className="admin-rooms__label">Total Units in Stock</label>
                       <input 
                         type="number" 
-                        className="admin-rooms__input border-blue-300 bg-blue-50" 
+                        className="admin-rooms__input border-slate-200 bg-slate-50 cursor-not-allowed" 
                         required 
-                        value={formData.availableRooms}
-                        onChange={(e) => setFormData({...formData, availableRooms: e.target.value})}
+                        disabled
+                        value={formData.totalRooms}
+                        onChange={(e) => setFormData({...formData, totalRooms: e.target.value})}
                       />
-                      <p className="text-xs text-slate-500 mt-1">You are manually adjusting the total count for this room type.</p>
+                      <p className="text-xs text-slate-400 mt-1 italic">Note: Use the "+" and trash icons in the table to manage room instances.</p>
                     </div>
                   )}
 
@@ -676,7 +705,7 @@ export function AdminRooms() {
                     ></textarea>
                   </div>
                   <div className="admin-rooms__form-group admin-rooms__form-group--full">
-                    <label className="admin-rooms__label">Amenities (comma separated)</label>
+                    <label className="admin-rooms__label">Amenities</label>
                     <input 
                       type="text" 
                       className="admin-rooms__input" 
