@@ -197,46 +197,36 @@ export function AdminInventory() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Header Banner - Ultra Luxury */}
-      <div className="rounded-[3rem] bg-[#0F172A] p-12 shadow-2xl relative overflow-hidden border border-white/5">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-[100px] -mr-32 -mt-32" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -ml-24 -mb-24" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/20 text-[#D4AF37] text-[9px] font-black uppercase tracking-[0.3em] mb-6">
-              <TrendingUp className="w-3 h-3" /> Supply Excellence
-            </div>
-            <h2 className="text-4xl md:text-6xl text-white font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
-              Inventory <span className="text-[#D4AF37]">Intelligence</span>
-            </h2>
-            <p className="text-slate-400 mt-6 max-w-xl text-lg font-light leading-relaxed">
-              Precision tracking for your luxury establishment. Monitor, allocate, and analyze stock usage with real-time accuracy.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-4">
-             <div className="flex p-1.5 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl">
-              <button
-                onClick={() => setActiveTab('stock')}
-                className={`flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold transition-all duration-500 ${
-                  activeTab === 'stock' ? 'bg-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/20' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Boxes className="w-4 h-4" />
-                Supplies
-              </button>
-              <button
-                onClick={() => setActiveTab('tracking')}
-                className={`flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold transition-all duration-500 ${
-                  activeTab === 'tracking' ? 'bg-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/20' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <History className="w-4 h-4" />
-                Allocation
-              </button>
-            </div>
-          </div>
+      {/* Header */}
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Inventory Management
+          </h1>
+          <p className="text-slate-300 mt-2">
+            Monitor, allocate, and analyze stock usage with real-time accuracy
+          </p>
+        </div>
+        <div className="flex p-1 bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl self-start lg:self-center">
+          <button
+            onClick={() => setActiveTab('stock')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 ${
+              activeTab === 'stock' ? 'bg-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/20' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Boxes className="w-4 h-4" />
+            Supplies
+          </button>
+          <button
+            onClick={() => setActiveTab('tracking')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 ${
+              activeTab === 'tracking' ? 'bg-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/20' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <History className="w-4 h-4" />
+            Allocation
+          </button>
         </div>
       </div>
 
