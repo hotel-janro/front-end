@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Heart,
   Calendar,
@@ -81,40 +82,84 @@ export function ReceptionWedding() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Wedding & Events</h1>
-        <p className="text-sm text-gray-500 mt-0.5">View upcoming events and wedding schedules</p>
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+            <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
+              Wedding & Events
+            </h1>
+            <p className="text-slate-300 mt-2 max-w-2xl">
+              View upcoming weddings, event schedules, and venue activity with a richer reception-style header.
+            </p>
+            <div className="flex flex-wrap gap-3 mt-5">
+              <Link
+                to="/reception/bookings"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
+              >
+                <Calendar className="w-4 h-4 text-[#D4AF37]" />
+                Booking Overview
+              </Link>
+              <Link
+                to="/reception/rooms"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
+              >
+                <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                Room Availability
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Events</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{totalEvents}</p>
+            </div>
+            <div className="rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-[#F5E7B2]">Confirmed</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{confirmedEvents}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Value</p>
+              <p className="mt-2 text-2xl font-semibold text-white">${totalRevenue.toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Collected</p>
+              <p className="mt-2 text-2xl font-semibold text-white">${totalCollected.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-200 rounded-xl p-4">
+        <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-white/10 rounded-xl p-4 shadow-sm">
           <div className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-pink-500" />
-            <span className="text-xs font-medium text-pink-600">Total Events</span>
+            <Heart className="w-5 h-5 text-[#D4AF37]" />
+            <span className="text-xs font-medium text-[#F5E7B2]">Total Events</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mt-2">{totalEvents}</p>
+          <p className="text-2xl font-bold text-white mt-2">{totalEvents}</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-xl p-4">
+        <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-white/10 rounded-xl p-4 shadow-sm">
           <div className="flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-emerald-500" />
-            <span className="text-xs font-medium text-emerald-600">Confirmed</span>
+            <CheckCircle className="w-5 h-5 text-[#D4AF37]" />
+            <span className="text-xs font-medium text-[#F5E7B2]">Confirmed</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mt-2">{confirmedEvents}</p>
+          <p className="text-2xl font-bold text-white mt-2">{confirmedEvents}</p>
         </div>
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+        <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-white/10 rounded-xl p-4 shadow-sm">
           <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-blue-500" />
-            <span className="text-xs font-medium text-blue-600">Total Value</span>
+            <DollarSign className="w-5 h-5 text-[#D4AF37]" />
+            <span className="text-xs font-medium text-[#F5E7B2]">Total Value</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mt-2">${totalRevenue.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-white mt-2">${totalRevenue.toLocaleString()}</p>
         </div>
-        <div className="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-200 rounded-xl p-4">
+        <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-white/10 rounded-xl p-4 shadow-sm">
           <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-violet-500" />
-            <span className="text-xs font-medium text-violet-600">Collected</span>
+            <DollarSign className="w-5 h-5 text-[#D4AF37]" />
+            <span className="text-xs font-medium text-[#F5E7B2]">Collected</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mt-2">${totalCollected.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-white mt-2">${totalCollected.toLocaleString()}</p>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Bed, 
   Plus, 
@@ -10,6 +11,7 @@ import {
   XCircle, 
   Info,
   Calendar,
+  Heart,
   Users,
   DollarSign,
   X,
@@ -139,6 +141,9 @@ export function ReceptionRooms() {
     return nameMatch || roomMatch;
   });
 
+  const totalUnits = Object.values(BASE_COUNTS).reduce((a, b) => a + b, 0) + rooms.reduce((acc, room) => acc + (room.availableRooms || 0), 0);
+  const activeBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in').length;
+
   const getStatusBadge = (status) => {
     if (!status) return <span className="admin-rooms__status-badge admin-rooms__status-badge--maintenance">Unknown</span>;
     const s = status.toLowerCase();
@@ -151,16 +156,58 @@ export function ReceptionRooms() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Room Status & Bookings</h1>
-          <p className="text-slate-500">View live hotel stock and manage guest bookings.</p>
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+            <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
+              Room Status & Bookings
+            </h1>
+            <p className="text-slate-300 mt-2 max-w-2xl">
+              View live hotel stock, track active reservations, and manage guest bookings from one clean dashboard.
+            </p>
+            <div className="flex flex-wrap gap-3 mt-5">
+              <Link
+                to="/reception/bookings"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
+              >
+                <Calendar className="w-4 h-4 text-[#D4AF37]" />
+                View Bookings
+              </Link>
+              <Link
+                to="/reception/wedding"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
+              >
+                <Heart className="w-4 h-4 text-[#D4AF37]" />
+                Wedding Events
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Total Types</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{aggregatedRooms.length}</p>
+            </div>
+            <div className="rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-[#F5E7B2]">Active Bookings</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{activeBookings}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Total Units</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{totalUnits}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Room Types</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{Object.keys(ROOM_TYPES).length}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="admin-rooms__stat-card">
+        <div className="admin-rooms__stat-card border-[#D4AF37]/20 bg-white">
           <div className="admin-rooms__stat-icon-wrap admin-rooms__stat-icon-wrap--blue">
             <Bed className="admin-rooms__stat-icon" />
           </div>
@@ -169,25 +216,25 @@ export function ReceptionRooms() {
             <h3 className="text-2xl font-bold text-slate-900">{aggregatedRooms.length}</h3>
           </div>
         </div>
-        <div className="admin-rooms__stat-card">
+        <div className="admin-rooms__stat-card border-[#D4AF37]/20 bg-white">
           <div className="admin-rooms__stat-icon-wrap admin-rooms__stat-icon-wrap--green">
             <CheckCircle className="admin-rooms__stat-icon" />
           </div>
           <div>
             <p className="text-sm font-medium text-slate-500">Total Units</p>
             <h3 className="text-2xl font-bold text-slate-900">
-              {Object.values(BASE_COUNTS).reduce((a, b) => a + b, 0) + rooms.reduce((acc, room) => acc + (room.availableRooms || 0), 0)}
+              {totalUnits}
             </h3>
           </div>
         </div>
-        <div className="admin-rooms__stat-card">
+        <div className="admin-rooms__stat-card border-[#D4AF37]/20 bg-white">
           <div className="admin-rooms__stat-icon-wrap admin-rooms__stat-icon-wrap--amber">
             <Calendar className="admin-rooms__stat-icon" />
           </div>
           <div>
             <p className="text-sm font-medium text-slate-500">Active Bookings</p>
             <h3 className="text-2xl font-bold text-slate-900">
-              {bookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in').length}
+              {activeBookings}
             </h3>
           </div>
         </div>
