@@ -8,6 +8,7 @@ import {
   CreditCard,
   Receipt,
   LogOut,
+  User,
 } from "lucide-react";
 
 const navItems = [
@@ -15,6 +16,7 @@ const navItems = [
   { label: "Orders", icon: ShoppingCart, path: "/cashier/orders" },
   { label: "Payments", icon: CreditCard, path: "/cashier/payments" },
   { label: "Receipts", icon: Receipt, path: "/cashier/receipts" },
+  { label: "Profile", icon: User, path: "/cashier/profile" },
 ];
 
 export function CashierSidebar({ user, onLogout }) {
