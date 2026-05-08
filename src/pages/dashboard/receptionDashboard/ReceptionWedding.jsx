@@ -1,421 +1,901 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  Heart,
-  Calendar,
-  Users,
-  DollarSign,
-  MapPin,
-  Clock,
-  Phone,
-  Mail,
-  Search,
-  CheckCircle,
-  AlertCircle,
-  Eye,
-  X,
-  Music,
-  Camera,
-  ChefHat,
-  Sparkles,
-} from 'lucide-react';
-import { weddingHalls, weddingBookings } from '../../../data/newMockData.js';
+import React, { useState, useEffect } from 'react';
+import { Heart, Calendar, Users, DollarSign, Plus, Search, X } from 'lucide-react';
+import { apiFetch } from '../../../api';
 
 export function ReceptionWedding() {
+  const [activeTab, setActiveTab] = useState('bookings');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  
+  const [bookings, setBookings] = useState([]);
+  const [halls, setHalls] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredBookings = weddingBookings.filter((booking) => {
-    const matchesSearch =
-      (booking.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (booking.hallName || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'All' || booking.status === filterStatus;
+  // Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    customerName: '',
+    customerPhone: '',
+    customerEmail: '',
+    eventDate: '',
+    startTime: '',
+    endTime: '',
+    eventType: 'Wedding',
+    guestCount: '',
+    hallId: '',
+    cateringPackage: 'Silver',
+    selectedMeals: [],
+    optionalServices: [],
+    specialRequests: '',
+    advancePaid: '',
+    bookingCategory: 'Wedding',
+    venuePreference: 'Indoor',
+    timeSlot: 'Day'
+  });
+
+  // Payment Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+
+  // Edit Guest Count State
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [editingBooking, setEditingBooking] = useState(null);
+  const [newGuestCount, setNewGuestCount] = useState('');
+
+  const packagePrices = { Silver: 2500, Gold: 4000, Platinum: 6500 };
+  const mealPrices = {
+    'Breakfast': 800,
+    'Lunch': 1500,
+    'Tea Time': 600,
+    'Dinner': 1800
+  };
+  const weddingServicePrices = {
+    'Decorations': 45000,
+    'DJ/Music': 35000,
+    'Photography': 55000,
+    'Videography': 40000,
+    'Wedding Cake': 25000,
+    'Lighting System': 30000,
+    'Flower Arrangements': 20000
+  };
+  const eventServicePrices = {
+    'Decorations': 15000,
+    'DJ/Music': 10000,
+    'Photography': 15000,
+    'Videography': 12000,
+    'Wedding Cake': 8000,
+    'Lighting System': 8000,
+    'Flower Arrangements': 5000
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [bookingsRes, hallsRes] = await Promise.all([
+        apiFetch('/wedding/bookings'),
+        apiFetch('/wedding/halls')
+      ]);
+      if (bookingsRes.success) setBookings(bookingsRes.data);
+      if (hallsRes.success) setHalls(hallsRes.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      alert("Failed to load wedding data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const res = await apiFetch(`/wedding/bookings/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ bookingStatus: newStatus })
+      });
+      if (res.success) {
+        fetchData(); // Refresh
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleAddPayment = async (booking) => {
+    setSelectedBooking(booking);
+    setPaymentAmount('');
+    setShowPaymentModal(true);
+  };
+
+  const submitPayment = async (e) => {
+    e.preventDefault();
+    if (!paymentAmount || isNaN(paymentAmount) || Number(paymentAmount) <= 0) {
+      alert("Please enter a valid payment amount");
+      return;
+    }
+
+    const balance = selectedBooking.totalAmount - (selectedBooking.advancePaid || 0);
+    if (Number(paymentAmount) > balance) {
+      if (!window.confirm(`Amount Rs.${paymentAmount} exceeds the balance Rs.${balance}. Continue anyway?`)) return;
+    }
+
+    try {
+      const res = await apiFetch(`/wedding/bookings/${selectedBooking._id}/payment`, {
+        method: 'PUT',
+        body: JSON.stringify({ paymentAmount: Number(paymentAmount) })
+      });
+      if (res.success) {
+        alert("Payment added successfully!");
+        setShowPaymentModal(false);
+        fetchData();
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleHallStatusChange = async (id, newStatus) => {
+    try {
+      const res = await apiFetch(`/wedding/halls/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.success) {
+        fetchData();
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleServiceToggle = (serviceName) => {
+    setFormData(prev => {
+      const services = prev.optionalServices.includes(serviceName)
+        ? prev.optionalServices.filter(s => s !== serviceName)
+        : [...prev.optionalServices, serviceName];
+      return { ...prev, optionalServices: services };
+    });
+  };
+
+  const calculateTotal = () => {
+    let total = 0;
+    const selectedHall = halls.find(h => h._id === formData.hallId);
+    if (selectedHall) total += selectedHall.price;
+
+    if (formData.guestCount) {
+      if (formData.bookingCategory === 'Wedding') {
+        if (formData.cateringPackage) {
+          total += packagePrices[formData.cateringPackage] * Number(formData.guestCount);
+        }
+      } else {
+        formData.selectedMeals?.forEach(meal => {
+          total += (mealPrices[meal] || 0) * Number(formData.guestCount);
+        });
+      }
+    }
+
+    const servicePrices = formData.bookingCategory === 'Wedding' ? weddingServicePrices : eventServicePrices;
+    formData.optionalServices.forEach(s => {
+      total += servicePrices[s] || 0;
+    });
+
+    // --- Extra Hour Calculation ---
+    if (formData.startTime && formData.endTime) {
+      const calculateDuration = (start, end) => {
+        const [sH, sM] = start.split(':').map(Number);
+        const [eH, eM] = end.split(':').map(Number);
+        let diff = (eH + eM/60) - (sH + sM/60);
+        if (diff < 0) diff += 24; 
+        return diff;
+      };
+
+      const duration = calculateDuration(formData.startTime, formData.endTime);
+      const standardHours = formData.bookingCategory === 'Wedding' ? (formData.timeSlot === 'Day' ? 7 : 6) : 6;
+      const extraHourPrice = formData.bookingCategory === 'Wedding' ? 10000 : 5000;
+
+      if (duration > standardHours) {
+        const extraHours = Math.ceil(duration - standardHours);
+        total += extraHours * extraHourPrice;
+      }
+    }
+    // -------------------------
+
+    return total;
+  };
+
+  const handleSubmitBooking = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await apiFetch('/wedding/bookings', {
+        method: 'POST',
+        body: JSON.stringify(formData)
+      });
+      if (res.success) {
+        alert("Booking created successfully!");
+        setShowModal(false);
+        setFormData({
+          customerName: '', customerPhone: '', customerEmail: '',
+          eventDate: '', startTime: '09:00', endTime: '16:00', eventType: 'Wedding',
+          guestCount: '', hallId: '', cateringPackage: 'Silver',
+          selectedMeals: [], optionalServices: [], specialRequests: '', 
+          advancePaid: '', bookingCategory: 'Wedding', venuePreference: 'Indoor', timeSlot: 'Day'
+        });
+        fetchData();
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleUpdateGuestCount = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await apiFetch(`/wedding/bookings/${editingBooking._id}/guest-count`, {
+        method: 'PUT',
+        body: JSON.stringify({ guestCount: Number(newGuestCount) })
+      });
+      if (res.success) {
+        alert("Guest count updated successfully!");
+        setShowGuestModal(false);
+        fetchData();
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const filteredBookings = bookings.filter((booking) => {
+    const matchesSearch = booking.customerName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'All' || booking.bookingStatus === filterStatus.toLowerCase();
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusConfig = (status) => {
-    switch (status) {
-      case 'Confirmed':
-        return { bg: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-500' };
-      case 'Pending':
-        return { bg: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500' };
-      case 'Completed':
-        return { bg: 'bg-blue-100 text-blue-800', dot: 'bg-blue-500' };
-      case 'Cancelled':
-        return { bg: 'bg-red-100 text-red-800', dot: 'bg-red-500' };
-      default:
-        return { bg: 'bg-gray-100 text-gray-800', dot: 'bg-gray-500' };
+  const filteredHalls = halls.filter((hall) =>
+    hall.hallName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'confirmed': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'completed': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
+      case 'rejected': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getServiceIcon = (service) => {
-    switch (service.toLowerCase()) {
-      case 'catering':
-        return ChefHat;
-      case 'photography':
-      case 'videography':
-        return Camera;
-      case 'dj':
-      case 'live band':
-        return Music;
-      case 'decoration':
-        return Sparkles;
-      default:
-        return CheckCircle;
+  const getHallStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'available': return 'bg-emerald-100 text-emerald-800';
+      case 'occupied': return 'bg-blue-100 text-blue-800';
+      case 'maintenance': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getDaysUntil = (date) => {
-    const diff = Math.ceil((new Date(date) - new Date()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return 'Past';
-    if (diff === 0) return 'Today!';
-    if (diff === 1) return 'Tomorrow';
-    return `${diff} days`;
-  };
-
-  const totalEvents = weddingBookings.length;
-  const confirmedEvents = weddingBookings.filter((b) => b.status === 'Confirmed').length;
-  const totalRevenue = weddingBookings.reduce((sum, b) => sum + b.totalAmount, 0);
-  const totalCollected = weddingBookings.reduce((sum, b) => sum + b.advancePaid, 0);
+  const totalBookings = bookings.length;
+  const confirmedBookings = bookings.filter((b) => b.bookingStatus === 'confirmed').length;
+  const totalRevenue = bookings.reduce((sum, booking) => sum + (booking.totalAmount || 0), 0);
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
-            <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
-              Wedding & Events
-            </h1>
-            <p className="text-slate-300 mt-2 max-w-2xl">
-              View upcoming weddings, event schedules, and venue activity with a richer reception-style header.
-            </p>
-            <div className="flex flex-wrap gap-3 mt-5">
-              <Link
-                to="/reception/bookings"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
-              >
-                <Calendar className="w-4 h-4 text-[#D4AF37]" />
-                Booking Overview
-              </Link>
-              <Link
-                to="/reception/rooms"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
-              >
-                <Sparkles className="w-4 h-4 text-[#D4AF37]" />
-                Room Availability
-              </Link>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-slate-900" style={{ fontFamily: "DM Serif Display, serif" }}>Wedding & Event Bookings</h1>
+          <p className="text-slate-500 mt-1">Manage luxury venues and hall bookings (Front Desk)</p>
+        </div>
+        <button 
+          onClick={() => {
+            setFormData({
+              customerName: '', customerPhone: '', customerEmail: '',
+              eventDate: '', startTime: '09:00', endTime: '16:00', eventType: 'Wedding',
+              guestCount: '', hallId: '', cateringPackage: 'Silver',
+              selectedMeals: [], optionalServices: [], specialRequests: '', 
+              advancePaid: '', bookingCategory: 'Wedding', venuePreference: 'Indoor', timeSlot: 'Day'
+            });
+            setShowModal(true);
+          }}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0F172A] text-white rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20"
+        >
+          <Plus className="w-5 h-5 text-[#D4AF37]" />
+          New Booking
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-4 bg-[#0F172A] rounded-2xl"><Heart className="w-6 h-6 text-[#D4AF37]" /></div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Bookings</p>
+              <h3 className="text-3xl font-bold text-slate-900 mt-1">{totalBookings}</h3>
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
-            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Events</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{totalEvents}</p>
+        </div>
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-4 bg-[#0F172A] rounded-2xl"><Calendar className="w-6 h-6 text-[#D4AF37]" /></div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Confirmed Events</p>
+              <h3 className="text-3xl font-bold text-slate-900 mt-1">{confirmedBookings}</h3>
             </div>
-            <div className="rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-4 py-3 backdrop-blur-sm">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-[#F5E7B2]">Confirmed</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{confirmedEvents}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Value</p>
-              <p className="mt-2 text-2xl font-semibold text-white">${totalRevenue.toLocaleString()}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Collected</p>
-              <p className="mt-2 text-2xl font-semibold text-white">${totalCollected.toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="p-4 bg-[#0F172A] rounded-2xl"><DollarSign className="w-6 h-6 text-[#D4AF37]" /></div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Revenue</p>
+              <h3 className="text-3xl font-bold text-slate-900 mt-1">Rs. {totalRevenue.toLocaleString()}</h3>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-white/10 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-[#D4AF37]" />
-            <span className="text-xs font-medium text-[#F5E7B2]">Total Events</span>
-          </div>
-          <p className="text-2xl font-bold text-white mt-2">{totalEvents}</p>
-        </div>
-        <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-white/10 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-[#D4AF37]" />
-            <span className="text-xs font-medium text-[#F5E7B2]">Confirmed</span>
-          </div>
-          <p className="text-2xl font-bold text-white mt-2">{confirmedEvents}</p>
-        </div>
-        <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-white/10 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-[#D4AF37]" />
-            <span className="text-xs font-medium text-[#F5E7B2]">Total Value</span>
-          </div>
-          <p className="text-2xl font-bold text-white mt-2">${totalRevenue.toLocaleString()}</p>
-        </div>
-        <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-white/10 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-[#D4AF37]" />
-            <span className="text-xs font-medium text-[#F5E7B2]">Collected</span>
-          </div>
-          <p className="text-2xl font-bold text-white mt-2">${totalCollected.toLocaleString()}</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search events or halls..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-          />
-        </div>
-        <div className="flex gap-2">
-          {['All', 'Confirmed', 'Pending'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 text-sm font-medium rounded-xl transition-all ${
-                filterStatus === status
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300'
-              }`}
+      <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+        <div className="border-b border-slate-100 bg-slate-50/50">
+          <div className="flex px-4 pt-4">
+            <button 
+              onClick={() => setActiveTab('bookings')} 
+              className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${activeTab === 'bookings' ? 'text-[#D4AF37] border-[#D4AF37] bg-white' : 'text-slate-500 border-transparent hover:text-slate-700'}`}
             >
-              {status}
+              Event Bookings
             </button>
-          ))}
+            <button 
+              onClick={() => setActiveTab('halls')} 
+              className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${activeTab === 'halls' ? 'text-[#D4AF37] border-[#D4AF37] bg-white' : 'text-slate-500 border-transparent hover:text-slate-700'}`}
+            >
+              Venue & Hall Management
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Halls Overview */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Venue Status</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {weddingHalls.map((hall) => (
-            <div key={hall.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{hall.name}</h3>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" /> {hall.capacity} guests
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <DollarSign className="w-3 h-3" /> ${hall.pricePerDay.toLocaleString()}/day
-                    </span>
-                  </div>
-                </div>
-                <span
-                  className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${
-                    hall.status === 'Available'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-amber-100 text-amber-800'
-                  }`}
-                >
-                  {hall.status}
-                </span>
+        <div className="p-6 border-b border-slate-100">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder={activeTab === 'bookings' ? 'Search bookings by customer name...' : 'Search halls...'} 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:bg-white transition-all text-sm" 
+                />
               </div>
             </div>
-          ))}
+            {activeTab === 'bookings' && (
+              <select 
+                value={filterStatus} 
+                onChange={(e) => setFilterStatus(e.target.value)} 
+                className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:bg-white text-sm min-w-[150px]"
+              >
+                <option value="All">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            )}
+          </div>
         </div>
+
+        {activeTab === 'bookings' ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Customer</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Event Info</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Hall & Guests</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Amount</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {isLoading ? (
+                  <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-400">Loading bookings...</td></tr>
+                ) : filteredBookings.length === 0 ? (
+                  <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-400">No bookings found</td></tr>
+                ) : (
+                  filteredBookings.map((booking) => (
+                    <tr key={booking._id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-semibold text-slate-900">{booking.customerName}</div>
+                        <div className="text-xs text-slate-500">{booking.customerPhone}</div>
+                        {booking.customerEmail && <div className="text-xs text-slate-500">{booking.customerEmail}</div>}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-[#0F172A]">{booking.eventType}</div>
+                        <div className="text-xs text-slate-500">{new Date(booking.eventDate).toLocaleDateString()}</div>
+                        <div className="text-xs text-slate-500">{booking.startTime} - {booking.endTime}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-slate-900">{booking.hallId?.hallName || 'Unknown Hall'}</div>
+                        <div className="text-xs text-slate-500">{booking.guestCount} Guests</div>
+                        <div className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider">{booking.cateringPackage} Pkg</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-bold text-slate-900">Rs. {booking.totalAmount?.toLocaleString()}</div>
+                        <div className="text-[10px] font-semibold text-emerald-600 mt-1">Paid: Rs. {booking.advancePaid?.toLocaleString()}</div>
+                        <div className="text-[10px] font-semibold text-red-500">Bal: Rs. {(booking.totalAmount - (booking.advancePaid || 0)).toLocaleString()}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-flex px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-full border w-fit ${getStatusColor(booking.bookingStatus)}`}>
+                            {booking.bookingStatus}
+                          </span>
+                          <span className={`inline-flex px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-full border w-fit ${
+                            booking.paymentStatus === 'Fully Paid' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                            booking.paymentStatus === 'Partially Paid' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                            'bg-yellow-100 text-yellow-800 border-yellow-200'
+                          }`}>
+                            {booking.paymentStatus || 'Pending'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          {booking.bookingStatus === 'pending' && (
+                            <>
+                              <button onClick={() => handleStatusChange(booking._id, 'confirmed')} className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-200 transition-colors font-semibold">Confirm</button>
+                              <button onClick={() => handleStatusChange(booking._id, 'rejected')} className="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors font-semibold">Reject</button>
+                            </>
+                          )}
+                          {booking.bookingStatus === 'confirmed' && (
+                            <>
+                              <button onClick={() => {
+                                setEditingBooking(booking);
+                                setNewGuestCount(booking.guestCount);
+                                setShowGuestModal(true);
+                              }} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors font-semibold">Edit Guests</button>
+                              {booking.paymentStatus !== 'Fully Paid' && (
+                                <button onClick={() => handleAddPayment(booking)} className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors font-semibold">Pay</button>
+                              )}
+                              <button onClick={() => handleStatusChange(booking._id, 'cancelled')} className="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors font-semibold">Cancel</button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-6">
+            {isLoading ? (
+               <div className="text-center py-12 text-slate-400">Loading halls...</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredHalls.map((hall) => (
+                  <div key={hall._id} className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <div className="h-40 bg-[#0F172A] relative flex items-center justify-center">
+                      <div className="absolute right-0 top-0 h-full w-1/2 bg-[#D4AF37]/10 rounded-l-full blur-2xl" />
+                      <Heart className="w-12 h-12 text-[#D4AF37] relative z-10 opacity-50" />
+                    </div>
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-semibold text-slate-900 text-xl" style={{ fontFamily: "DM Serif Display, serif" }}>{hall.hallName}</h3>
+                        <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${getHallStatusColor(hall.status)}`}>{hall.status}</span>
+                      </div>
+                      <div className="mb-4">
+                        <span className="text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-500 px-2 py-1 rounded-md">{hall.type || 'Hall'}</span>
+                      </div>
+                      <div className="space-y-3 mb-4">
+                        <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 p-2.5 rounded-xl"><Users className="w-4 h-4 text-[#D4AF37]" />Capacity: {hall.capacity} guests</div>
+                        <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 p-2.5 rounded-xl"><DollarSign className="w-4 h-4 text-[#D4AF37]" />Rs. {hall.price?.toLocaleString()} base price</div>
+                      </div>
+                      <select 
+                        value={hall.status}
+                        onChange={(e) => handleHallStatusChange(hall._id, e.target.value)}
+                        className={`w-full px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider outline-none border-2 transition-all cursor-pointer ${
+                          hall.status === 'available' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                          hall.status === 'maintenance' ? 'bg-red-50 border-red-200 text-red-700' :
+                          hall.status === 'occupied' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                          'bg-slate-50 border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <option value="available">Available</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="unavailable">Unavailable</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {filteredHalls.length === 0 && !isLoading && (<div className="text-center py-12"><p className="text-slate-500">No halls found</p></div>)}
+          </div>
+        )}
       </div>
 
-      {/* Event Cards */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Schedule</h2>
-        <div className="space-y-3">
-          {filteredBookings.map((event) => {
-            const config = getStatusConfig(event.status);
-            const daysUntil = getDaysUntil(event.eventDate);
+      {/* NEW BOOKING MODAL */}
+      {showModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl my-4 border border-white/20 flex flex-col max-h-[95vh]">
+            <div className="bg-[#0F172A] text-white p-6 rounded-t-[2rem] flex justify-between items-center relative overflow-hidden">
+              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/20 rounded-l-full blur-3xl" />
+              <div className="relative z-10">
+                <h2 className="text-2xl" style={{ fontFamily: "DM Serif Display, serif" }}>Create New Booking</h2>
+                <p className="text-[#D4AF37] text-xs uppercase tracking-widest mt-1">Event Management</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmitBooking} className="p-8 overflow-y-auto">
+              {/* Category & Location Selectors - Professional Segmented Style */}
+              <div className="flex flex-col sm:flex-row gap-6 mb-10 p-5 bg-slate-50 rounded-3xl border border-slate-100">
+                <div className="flex-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Booking Category</label>
+                  <div className="flex p-1.5 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                    {['Wedding', 'Event'].map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setFormData({...formData, bookingCategory: cat, eventType: cat === 'Wedding' ? 'Wedding' : 'Birthday Party', venuePreference: 'Indoor', hallId: ''})}
+                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-300 ${formData.bookingCategory === cat ? 'bg-[#0F172A] text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            return (
-              <div
-                key={event.id}
-                className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
-              >
-                <div className="flex items-stretch">
-                  {/* Left Color Bar */}
-                  <div className={`w-1.5 ${config.dot} flex-shrink-0`} />
+                <div className={`flex-1 transition-all duration-500 ${formData.bookingCategory === 'Event' ? 'opacity-100 translate-y-0' : 'opacity-50 pointer-events-none'}`}>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">
+                    {formData.bookingCategory === 'Wedding' ? 'Venue Location (Fixed)' : 'Venue Location'}
+                  </label>
+                  <div className="flex p-1.5 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                    {['Indoor', 'Outdoor'].map(loc => (
+                      <button
+                        key={loc}
+                        type="button"
+                        disabled={formData.bookingCategory === 'Wedding' && loc === 'Outdoor'}
+                        onClick={() => setFormData({...formData, venuePreference: loc, hallId: ''})}
+                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-300 ${formData.venuePreference === loc ? 'bg-[#D4AF37] text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'} ${formData.bookingCategory === 'Wedding' && loc === 'Outdoor' ? 'hidden' : ''}`}
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                  <div className="flex-1 p-4 sm:p-5">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-gray-900">{event.customerName}</h3>
-                          <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${config.bg}`}>
-                            {event.status}
-                          </span>
+                {formData.bookingCategory === 'Wedding' && (
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Time Slot</label>
+                    <div className="flex p-1.5 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                      {['Day', 'Night'].map((slot) => (
+                        <button 
+                          key={slot} 
+                          type="button" 
+                          onClick={() => {
+                            const defaults = slot === 'Day' ? { start: '09:00', end: '16:00' } : { start: '18:00', end: '00:00' };
+                            setFormData({...formData, timeSlot: slot, startTime: defaults.start, endTime: defaults.end});
+                          }} 
+                          className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-300 ${formData.timeSlot === slot ? 'bg-[#0F172A] text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
+                        >
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                {/* Column 1 */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Customer Details</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Customer Name *</label>
+                        <input required type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Phone *</label>
+                          <input required type="text" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {event.hallName}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(event.eventDate).toLocaleDateString('en-US', {
-                              weekday: 'short',
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {event.eventTime}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Users className="w-3 h-3" /> {event.guestCount} guests
-                          </span>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+                          <input type="email" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
                         </div>
+                      </div>
+                    </div>
+                  </div>
 
-                        {/* Services */}
-                        <div className="flex flex-wrap gap-1.5 mt-3">
-                          {(event.services || []).map((service) => {
-                            const ServiceIcon = getServiceIcon(service);
-                            return (
-                              <span
-                                key={service}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-medium rounded-full"
-                              >
-                                <ServiceIcon className="w-2.5 h-2.5" />
-                                {service}
-                              </span>
-                            );
-                          })}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Event Details</h3>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        {formData.bookingCategory === 'Event' && (
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">Event Type *</label>
+                            <select required value={formData.eventType} onChange={e => setFormData({...formData, eventType: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none">
+                              <option>Birthday Party</option>
+                              <option>Anniversary</option>
+                              <option>Corporate Meeting</option>
+                              <option>Other</option>
+                            </select>
+                          </div>
+                        )}
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Event Date *</label>
+                          <input required type="date" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Start Time *</label>
+                          <input required type="time" value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">End Time *</label>
+                          <input required type="time" value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">{formData.venuePreference === 'Indoor' ? 'Hall' : 'Outdoor Area'} *</label>
+                          <select required value={formData.hallId} onChange={e => setFormData({...formData, hallId: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none">
+                            <option value="">Select {formData.venuePreference === 'Indoor' ? 'Hall' : 'Area'}</option>
+                            {halls
+                              .filter(h => h.type === (formData.venuePreference === 'Indoor' ? 'Hall' : 'Event Area'))
+                              .map(h => (
+                                <option key={h._id} value={h._id}>{h.hallName} (Max: {h.capacity})</option>
+                              ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Guest Count *</label>
+                          <input required type="number" min="1" value={formData.guestCount} onChange={e => setFormData({...formData, guestCount: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Column 2 */}
+                <div className="flex flex-col h-full space-y-6">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Packages & Services</h3>
+                    <div className="space-y-4">
+                      <div>
+                        {formData.bookingCategory === 'Wedding' ? (
+                          <>
+                            <label className="block text-xs font-semibold text-slate-600 mb-2">Catering Package *</label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {['Silver', 'Gold', 'Platinum'].map(pkg => (
+                                <div 
+                                  key={pkg}
+                                  onClick={() => setFormData({...formData, cateringPackage: pkg})}
+                                  className={`p-3 rounded-xl border text-center cursor-pointer transition-all ${formData.cateringPackage === pkg ? 'bg-[#0F172A] border-[#0F172A] text-white shadow-lg' : 'bg-white border-slate-200 text-slate-600 hover:border-[#D4AF37]'}`}
+                                >
+                                  <div className="font-bold text-sm">{pkg}</div>
+                                  <div className={`text-[10px] ${formData.cateringPackage === pkg ? 'text-[#D4AF37]' : 'text-slate-400'}`}>Rs. {packagePrices[pkg]} / pax</div>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <label className="block text-xs font-semibold text-slate-600 mb-2">Meal Options (Per Person)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {Object.keys(mealPrices).map(meal => (
+                                <label key={meal} className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-100 bg-white cursor-pointer hover:border-[#D4AF37] transition-all">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={formData.selectedMeals.includes(meal)}
+                                    onChange={() => {
+                                      const newMeals = formData.selectedMeals.includes(meal)
+                                        ? formData.selectedMeals.filter(m => m !== meal)
+                                        : [...formData.selectedMeals, meal];
+                                      setFormData({...formData, selectedMeals: newMeals});
+                                    }}
+                                    className="rounded text-[#0F172A] focus:ring-[#D4AF37]"
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-700">{meal}</span>
+                                    <span className="text-[10px] text-slate-400">Rs. {mealPrices[meal]} / pax</span>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-2">Optional Add-ons</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {Object.keys(formData.bookingCategory === 'Wedding' ? weddingServicePrices : eventServicePrices).map((service) => (
+                            <label key={service} className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${formData.optionalServices.includes(service) ? 'border-[#0F172A] bg-slate-50' : 'border-slate-100 hover:border-slate-200'}`}>
+                              <div className="flex items-center gap-3">
+                                <input type="checkbox" checked={formData.optionalServices.includes(service)} onChange={() => handleServiceToggle(service)} className="w-5 h-5 rounded accent-[#0F172A]" />
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900">{service}</p>
+                                  <p className="text-xs text-[#D4AF37] font-bold">Rs. {(formData.bookingCategory === 'Wedding' ? weddingServicePrices[service] : eventServicePrices[service]).toLocaleString()}</p>
+                                </div>
+                              </div>
+                            </label>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Right Section */}
-                      <div className="flex sm:flex-col items-center sm:items-end gap-3">
-                        <div className="text-right">
-                          <p className="text-xs text-gray-500">Countdown</p>
-                          <p className={`text-sm font-bold ${daysUntil === 'Today!' ? 'text-red-600' : 'text-indigo-600'}`}>
-                            {daysUntil}
-                          </p>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Menu Changes / Special Requests</label>
+                        <textarea value={formData.specialRequests} onChange={e => setFormData({...formData, specialRequests: e.target.value})} rows="2" placeholder="e.g. No beef, Extra spicy, Vattalappam for dessert..." className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none resize-none"></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 relative overflow-hidden mt-auto">
+                    <div className="absolute top-0 right-0 p-4">
+                      <DollarSign className="w-12 h-12 text-[#D4AF37] opacity-20" />
+                    </div>
+                    <div className="mb-4 pb-4 border-b border-slate-200">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Estimated Total</p>
+                      <h3 className="text-4xl font-semibold text-slate-900" style={{ fontFamily: "DM Serif Display, serif" }}>
+                        Rs. {calculateTotal().toLocaleString()}
+                      </h3>
+                      <p className="text-[10px] text-slate-500 mt-1">Min. 20% advance required: Rs. {(calculateTotal() * 0.2).toLocaleString()}</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Advance Payment *</label>
+                        <input 
+                          required 
+                          type="number" 
+                          min={calculateTotal() * 0.2}
+                          value={formData.advancePaid} 
+                          onChange={e => setFormData({...formData, advancePaid: e.target.value})} 
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" 
+                          placeholder="Rs."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Balance Amount</label>
+                        <div className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-900 font-bold">
+                          Rs. {Math.max(0, calculateTotal() - (Number(formData.advancePaid) || 0)).toLocaleString()}
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs text-gray-500">Total / Paid</p>
-                          <p className="text-sm font-bold text-gray-900">
-                            ${(event.totalAmount || 0).toLocaleString()}
-                          </p>
-                          <p className="text-[10px] text-emerald-600 font-medium">
-                            Paid: ${(event.advancePaid || 0).toLocaleString()}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => setSelectedEvent(event)}
-                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {filteredBookings.length === 0 && (
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <Heart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">No events found</p>
+              <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-slate-100">
+                <button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors text-sm">Cancel</button>
+                <button type="submit" className="px-8 py-3 bg-[#D4AF37] text-[#0F172A] rounded-xl font-bold hover:bg-[#B8962D] transition-colors shadow-lg shadow-[#D4AF37]/20 text-sm">Create Booking</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-      {/* Detail Modal */}
-      {selectedEvent && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl">
-              <h3 className="text-lg font-semibold text-gray-900">Event Details</h3>
-              <button onClick={() => setSelectedEvent(null)} className="p-1.5 hover:bg-gray-100 rounded-lg">
-                <X className="w-5 h-5 text-gray-400" />
+      {/* PAYMENT MODAL */}
+      {showPaymentModal && selectedBooking && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md border border-white/20 overflow-hidden">
+            <div className="bg-[#0F172A] text-white p-6 flex justify-between items-center relative overflow-hidden">
+              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/20 rounded-l-full blur-2xl" />
+              <div className="relative z-10">
+                <h2 className="text-xl font-semibold" style={{ fontFamily: "DM Serif Display, serif" }}>Add Payment</h2>
+                <p className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mt-1">Transaction Entry</p>
+              </div>
+              <button onClick={() => setShowPaymentModal(false)} className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <h4 className="font-semibold text-gray-900 text-lg">{selectedEvent.customerName}</h4>
-                <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <Mail className="w-3.5 h-3.5" /> {selectedEvent.customerEmail}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5" /> {selectedEvent.customerPhone}
-                  </span>
+
+            <div className="p-8">
+              <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="flex justify-between mb-2">
+                  <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Customer</span>
+                  <span className="text-sm font-semibold text-slate-900">{selectedBooking.customerName}</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Amount</span>
+                  <span className="text-sm font-bold text-slate-900">Rs. {selectedBooking.totalAmount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Paid So Far</span>
+                  <span className="text-sm font-bold text-emerald-600">Rs. {(selectedBooking.advancePaid || 0).toLocaleString()}</span>
+                </div>
+                <div className="pt-2 mt-2 border-t border-slate-200 flex justify-between">
+                  <span className="text-xs text-slate-700 font-bold uppercase tracking-wider">Balance Due</span>
+                  <span className="text-lg font-black text-red-600">Rs. {(selectedBooking.totalAmount - (selectedBooking.advancePaid || 0)).toLocaleString()}</span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <DetailItem label="Venue" value={selectedEvent.hallName} />
-                <DetailItem label="Event Date" value={new Date(selectedEvent.eventDate).toLocaleDateString()} />
-                <DetailItem label="Time" value={selectedEvent.eventTime} />
-                <DetailItem label="Guest Count" value={selectedEvent.guestCount} />
-                <DetailItem label="Package" value={selectedEvent.packageType} />
-                <DetailItem label="Status" value={selectedEvent.status} />
-                <DetailItem label="Total Amount" value={`Rs ${selectedEvent.totalAmount.toLocaleString()}`} />
-                <DetailItem label="Advance Paid" value={`Rs ${selectedEvent.advancePaid.toLocaleString()}`} />
-              </div>
-              {selectedEvent.specialRequests && (
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Special Requests</p>
-                  <p className="text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3">
-                    {selectedEvent.specialRequests}
-                  </p>
+
+              <form onSubmit={submitPayment}>
+                <div className="mb-6">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">New Payment Amount (Rs.)</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input 
+                      autoFocus
+                      required 
+                      type="number" 
+                      value={paymentAmount} 
+                      onChange={e => setPaymentAmount(e.target.value)} 
+                      placeholder="Enter amount..."
+                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] focus:bg-white outline-none transition-all text-lg font-bold"
+                    />
+                  </div>
                 </div>
-              )}
-              <div>
-                <p className="text-xs font-medium text-gray-500 mb-2">Services Included</p>
-                <div className="flex flex-wrap gap-2">
-                  {(selectedEvent.services || []).map((service) => {
-                    const ServiceIcon = getServiceIcon(service);
-                    return (
-                      <span
-                        key={service}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-lg"
-                      >
-                        <ServiceIcon className="w-3.5 h-3.5" />
-                        {service}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Balance Due</span>
-                  <span className="font-bold text-red-600">
-                    ${(selectedEvent.totalAmount - selectedEvent.advancePaid).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
-              >
-                Close
-              </button>
+
+                <button 
+                  type="submit"
+                  className="w-full py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-[0.98]"
+                >
+                  Confirm Payment
+                </button>
+              </form>
             </div>
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
-function DetailItem({ label, value }) {
-  return (
-    <div>
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-sm font-medium text-gray-900 mt-0.5">{value}</p>
+      {/* GUEST COUNT MODAL */}
+      {showGuestModal && editingBooking && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md border border-white/20 overflow-hidden">
+            <div className="bg-[#0F172A] text-white p-6 flex justify-between items-center relative overflow-hidden">
+              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/20 rounded-l-full blur-2xl" />
+              <div className="relative z-10">
+                <h2 className="text-xl font-semibold" style={{ fontFamily: "DM Serif Display, serif" }}>Update Guest Count</h2>
+                <p className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mt-1">Guest Finalization</p>
+              </div>
+              <button onClick={() => setShowGuestModal(false)} className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateGuestCount} className="p-8">
+              <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <p className="text-xs text-slate-500 font-medium mb-1">Current Count: <span className="font-bold text-slate-900">{editingBooking.guestCount} Guests</span></p>
+                <p className="text-[10px] text-slate-400">Updating this will automatically recalculate the total amount based on the selected package/meals.</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">New Guest Count *</label>
+                <div className="relative">
+                  <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input 
+                    autoFocus
+                    required 
+                    type="number" 
+                    min="1"
+                    value={newGuestCount} 
+                    onChange={e => setNewGuestCount(e.target.value)} 
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] focus:bg-white outline-none transition-all text-lg font-bold"
+                  />
+                </div>
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-[0.98]"
+              >
+                Update & Recalculate
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,15 +1,15 @@
 // MyOrders.jsx - Premium Customer Orders & Billing Dashboard
 import React, { useState, useEffect } from "react";
-import { 
-  ShoppingBag, 
-  ChevronRight, 
-  Package, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
-  Loader2, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  ShoppingBag,
+  ChevronRight,
+  Package,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  DollarSign,
+  TrendingUp,
   History,
   ArrowUpRight,
   Wallet,
@@ -127,14 +127,16 @@ export function MyOrders() {
   return (
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-[#D4AF37]/30 pb-20">
       {/* Immersive Luxury Header */}
-      <div className="relative h-[50vh] bg-[#0F172A] flex flex-col items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 opacity-30">
+      <div className="relative h-[50vh] bg-[#0F172A] flex flex-col items-center justify-center overflow-hidden border-b border-white/5">
+        <div className="absolute inset-0 opacity-20">
           <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="Luxury Dining" />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0F172A]/80 to-[#0F172A]" />
-        
+        <div className="absolute inset-0 bg-[#0F172A]/80" />
+        <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/10 rounded-full blur-[100px] -mr-20 -mt-20" />
+        <div className="absolute left-0 bottom-0 h-1/2 w-1/2 bg-[#D4AF37]/5 rounded-full blur-[120px] -ml-20 -mb-20" />
+
         <div className="relative z-10 text-center px-4 max-w-4xl animate-in fade-in zoom-in duration-1000 mt-10">
-          <p className="text-[#D4AF37] tracking-[0.5em] uppercase text-[10px] font-black mb-6 flex items-center justify-center gap-4">
+          <p className="text-[#D4AF37] tracking-[0.4em] uppercase text-[10px] font-black mb-6 opacity-80 flex items-center justify-center gap-4">
             <span className="w-8 h-px bg-[#D4AF37]/30" />
             Elite Guest Dashboard
             <span className="w-8 h-px bg-[#D4AF37]/30" />
@@ -142,14 +144,14 @@ export function MyOrders() {
           <h1 className="text-5xl md:text-7xl text-white font-normal mb-6 leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
             Your <span className="italic text-[#D4AF37]">Culinary</span> History
           </h1>
-          <p className="text-slate-300 text-sm md:text-base font-light tracking-wide max-w-2xl mx-auto leading-relaxed opacity-90">
-            Track your exquisite selections, manage your payments, and view your receipts in real-time.
+          <p className="text-slate-400 text-sm md:text-base font-light tracking-wide max-w-2xl mx-auto leading-relaxed">
+            Track your exquisite selections, manage your payments, and view your receipts with unparalleled elegance.
           </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-20">
-        
+
         {/* Luxury Tab Navigation */}
         <div className="flex justify-center mb-12 overflow-x-auto no-scrollbar py-2">
           <div className="inline-flex bg-white/90 backdrop-blur-xl p-2 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.08)] border border-white">
@@ -164,11 +166,10 @@ export function MyOrders() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-8 py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all duration-500 whitespace-nowrap cursor-pointer ${
-                    active
+                  className={`flex items-center gap-2 px-8 py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all duration-500 whitespace-nowrap cursor-pointer ${active
                       ? "bg-[#0F172A] text-[#D4AF37] shadow-2xl scale-105"
                       : "text-slate-400 hover:text-slate-900 hover:bg-slate-50"
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
@@ -183,18 +184,14 @@ export function MyOrders() {
           {stats.map((stat) => {
             const Icon = stat.Icon;
             return (
-              <article key={stat.label} className={`rounded-[2rem] border border-slate-100 p-6 transition-all hover:-translate-y-2 hover:shadow-xl duration-500 ${stat.card}`}>
-                <div className="flex items-center gap-4">
-                  <div className={`h-14 w-14 rounded-[1.2rem] flex items-center justify-center shadow-sm ${stat.icon}`}>
+              <article key={stat.label} className="rounded-[2.5rem] bg-white border border-slate-100 p-8 transition-all hover:-translate-y-2 hover:shadow-2xl duration-500 shadow-xl shadow-slate-200/20">
+                <div className="flex flex-col items-start gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-[#0F172A] text-[#D4AF37] flex items-center justify-center shadow-lg">
                     <Icon className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className={`text-[10px] font-black uppercase tracking-[0.2em] opacity-60 ${stat.text}`}>{stat.label}</p>
-                    <h3 className={`text-2xl font-bold mt-1 ${stat.text}`}>{stat.value}</h3>
-                    <p className={`text-[9px] font-black uppercase tracking-widest mt-1 flex items-center gap-1 ${stat.text}`}>
-                      <ArrowUpRight className="h-3 w-3" />
-                      {stat.note}
-                    </p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{stat.label}</p>
+                    <h3 className="text-2xl font-bold mt-1 text-[#0F172A]">{stat.value}</h3>
                   </div>
                 </div>
               </article>
@@ -204,7 +201,7 @@ export function MyOrders() {
 
         {/* Main Content Area based on Tabs */}
         <section className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          
+
           <article className="xl:col-span-2 space-y-8">
             {/* ORDERS TAB */}
             {activeTab === "orders" && (
@@ -241,7 +238,7 @@ export function MyOrders() {
                                 {order.paymentStatus}
                               </span>
                             </div>
-                            
+
                             {/* Order Items Detailed View */}
                             <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 mt-4 group-hover:bg-white transition-colors">
                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-200 pb-2">Order Items</p>
@@ -358,33 +355,33 @@ export function MyOrders() {
           {/* Right Sidebar Widget */}
           <div className="space-y-8">
             <article className="rounded-[2.5rem] bg-[#0F172A] p-10 text-white relative overflow-hidden group shadow-2xl">
-               <div className="absolute top-0 right-0 w-40 h-40 bg-[#D4AF37]/20 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-[#D4AF37]/40 transition-all duration-700" />
-               <h4 className="text-2xl font-normal text-[#D4AF37] mb-3" style={{ fontFamily: "DM Serif Display, serif" }}>Premium Rewards</h4>
-               <p className="text-sm text-slate-300 font-light leading-relaxed mb-8 opacity-90">
-                 Earn points on every exquisite dish. Unlock exclusive dining experiences and complimentary upgrades.
-               </p>
-               <div className="flex items-end justify-between border-t border-white/10 pt-6">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Available Points</p>
-                    <p className="text-3xl font-bold text-white">1,250 <span className="text-sm text-[#D4AF37] font-medium tracking-normal">pts</span></p>
-                  </div>
-                  <button className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all cursor-pointer backdrop-blur-sm border border-white/10 group-hover:border-[#D4AF37]/50">
-                    <ArrowUpRight className="h-5 w-5" />
-                  </button>
-               </div>
+              <div className="absolute top-0 right-0 w-40 h-40 bg-[#D4AF37]/20 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-[#D4AF37]/40 transition-all duration-700" />
+              <h4 className="text-2xl font-normal text-[#D4AF37] mb-3" style={{ fontFamily: "DM Serif Display, serif" }}>Premium Rewards</h4>
+              <p className="text-sm text-slate-300 font-light leading-relaxed mb-8 opacity-90">
+                Earn points on every exquisite dish. Unlock exclusive dining experiences and complimentary upgrades.
+              </p>
+              <div className="flex items-end justify-between border-t border-white/10 pt-6">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Available Points</p>
+                  <p className="text-3xl font-bold text-white">1,250 <span className="text-sm text-[#D4AF37] font-medium tracking-normal">pts</span></p>
+                </div>
+                <button className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all cursor-pointer backdrop-blur-sm border border-white/10 group-hover:border-[#D4AF37]/50">
+                  <ArrowUpRight className="h-5 w-5" />
+                </button>
+              </div>
             </article>
 
             <article className="rounded-[2.5rem] bg-white border border-slate-100 p-10 text-center shadow-xl shadow-slate-200/40">
-               <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <AlertCircle className="h-8 w-8 text-amber-500" />
-               </div>
-               <h3 className="text-xl text-slate-900 font-normal mb-3" style={{ fontFamily: "DM Serif Display, serif" }}>Need Assistance?</h3>
-               <p className="text-slate-500 text-sm font-light leading-relaxed mb-6">
-                 Our dedicated guest services team is available 24/7 to ensure your experience is flawless.
-               </p>
-               <button className="text-[#0F172A] font-black uppercase tracking-[0.2em] text-[10px] hover:text-[#D4AF37] transition-colors border-b-2 border-transparent hover:border-[#D4AF37] pb-1">
-                 Contact Concierge
-               </button>
+              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="h-8 w-8 text-amber-500" />
+              </div>
+              <h3 className="text-xl text-slate-900 font-normal mb-3" style={{ fontFamily: "DM Serif Display, serif" }}>Need Assistance?</h3>
+              <p className="text-slate-500 text-sm font-light leading-relaxed mb-6">
+                Our dedicated guest services team is available 24/7 to ensure your experience is flawless.
+              </p>
+              <button className="text-[#0F172A] font-black uppercase tracking-[0.2em] text-[10px] hover:text-[#D4AF37] transition-colors border-b-2 border-transparent hover:border-[#D4AF37] pb-1">
+                Contact Concierge
+              </button>
             </article>
           </div>
 

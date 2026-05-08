@@ -120,30 +120,32 @@ export function MyBookings() {
     <div className="space-y-6 bg-[#F8FAFC] min-h-screen p-6 md:p-8">
       <main className="max-w-7xl mx-auto space-y-8 mt-10">
         {/* Hero Section */}
-        <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-teal-900 to-emerald-900 text-white p-8 md:p-12 shadow-2xl">
-          <div className="absolute right-0 top-0 h-full w-1/3 bg-white/5 skew-x-12 transform translate-x-20" />
+        <section className="relative overflow-hidden rounded-[2.5rem] bg-[#0F172A] text-white p-8 md:p-12 shadow-2xl border border-white/5">
+          <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/10 rounded-full blur-[100px] -mr-20 -mt-20" />
+          <div className="absolute left-0 bottom-0 h-1/2 w-1/2 bg-[#D4AF37]/5 rounded-full blur-[120px] -ml-20 -mb-20" />
+          
           <div className="relative z-10">
-            <p className="text-[#D4AF37] font-black uppercase tracking-[0.3em] text-[10px] mb-4">Supreme Reservations</p>
+            <p className="text-[#D4AF37] font-black uppercase tracking-[0.4em] text-[10px] mb-4 opacity-80">Supreme Reservations</p>
             <h2 className="text-4xl md:text-5xl font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
               Your <span className="italic text-[#D4AF37]">Exquisite</span> Stays
             </h2>
-            <p className="mt-4 text-emerald-100/60 text-sm max-w-xl font-medium leading-relaxed">
+            <p className="mt-4 text-slate-400 text-sm max-w-xl font-medium leading-relaxed">
               Manage your future escapes and grand events with ease. 
-              We are preparing for your arrival.
+              We are preparing for your arrival with unparalleled luxury.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <button
                 onClick={() => setActiveTab("rooms")}
-                className={`customer-hero-btn ${activeTab === 'rooms' ? 'bg-[#D4AF37] text-[#0F172A]' : ''}`}
+                className={`px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 ${activeTab === 'rooms' ? 'bg-[#D4AF37] text-[#0F172A] shadow-xl shadow-[#D4AF37]/20 scale-105' : 'bg-white/5 text-white hover:bg-white/10'}`}
               >
-                <Bed className="h-5 w-5" />
+                <Bed className="h-4 w-4" />
                 Hotel Stays
               </button>
               <button
                 onClick={() => setActiveTab("weddings")}
-                className={`customer-hero-btn ${activeTab === 'weddings' ? 'bg-[#D4AF37] text-[#0F172A]' : ''}`}
+                className={`px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 ${activeTab === 'weddings' ? 'bg-[#D4AF37] text-[#0F172A] shadow-xl shadow-[#D4AF37]/20 scale-105' : 'bg-white/5 text-white hover:bg-white/10'}`}
               >
-                <Heart className="h-5 w-5" />
+                <Heart className="h-4 w-4" />
                 Wedding Events
               </button>
             </div>
@@ -155,18 +157,14 @@ export function MyBookings() {
           {stats.map((stat) => {
             const Icon = stat.Icon;
             return (
-              <article key={stat.label} className={`rounded-[2rem] border p-6 transition-all hover:scale-105 duration-500 ${stat.card}`}>
-                <div className="flex items-center gap-4">
-                  <div className={`h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm ${stat.icon}`}>
-                    <Icon className="h-7 w-7" />
+              <article key={stat.label} className="rounded-[2.5rem] bg-white border border-slate-100 p-8 shadow-xl shadow-slate-200/20 transition-all hover:-translate-y-2 duration-500">
+                <div className="flex flex-col items-start gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-[#0F172A] text-[#D4AF37] flex items-center justify-center shadow-lg">
+                    <Icon className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className={`text-xs font-black uppercase tracking-widest opacity-60 ${stat.text}`}>{stat.label}</p>
-                    <h3 className={`text-2xl font-bold mt-1 ${stat.text}`}>{stat.value}</h3>
-                    <p className={`text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-1 ${stat.text}`}>
-                      <ArrowUpRight className="h-3 w-3" />
-                      {stat.note}
-                    </p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{stat.label}</p>
+                    <h3 className="text-2xl font-bold mt-1 text-slate-900">{stat.value}</h3>
                   </div>
                 </div>
               </article>
