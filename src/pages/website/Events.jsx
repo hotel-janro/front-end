@@ -163,16 +163,10 @@ export function Events() {
               <p className="text-gray-400 text-sm mb-8">Available 9:00 AM - 8:00 PM</p>
               <a 
                 href="tel:+94112345678" 
-                className="block w-full bg-[#D4AF37] text-[#0F172A] py-5 px-10 rounded-2xl font-bold text-lg hover:bg-[#B8962D] transition-all mb-4 shadow-xl shadow-[#D4AF37]/10 text-center"
+                className="block w-full bg-[#D4AF37] text-[#0F172A] py-5 px-10 rounded-2xl font-bold text-lg hover:bg-[#B8962D] transition-all mb-4 shadow-xl shadow-[#D4AF37]/10"
               >
                 +94 11 234 5678
               </a>
-              <button 
-                onClick={() => window.location.href = '/wedding-booking'}
-                className="w-full bg-[#D4AF37] text-[#0F172A] py-5 px-10 rounded-2xl font-bold text-lg hover:bg-[#B8962D] transition-all mb-4 shadow-xl shadow-[#D4AF37]/10 flex items-center justify-center gap-2"
-              >
-                Book Your Event Now <ChevronRight className="w-5 h-5" />
-              </button>
               <button 
                 onClick={() => window.location.href = '/contact'}
                 className="w-full bg-white/5 text-white py-5 px-10 rounded-2xl font-bold text-sm hover:bg-white/10 border border-white/10 transition-all flex items-center justify-center gap-2"
