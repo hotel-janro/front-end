@@ -40,7 +40,19 @@ function AppInner() {
     const navigate = useNavigate();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState(null);
-    const authChecked = true;
+    const [authChecked, setAuthChecked] = useState(false);
+
+    // Restore session on mount
+    useEffect(() => {
+        const storedUser = localStorage.getItem("janro_user");
+        const token = localStorage.getItem("janro_token");
+
+        if (storedUser && token) {
+            setUser(JSON.parse(storedUser));
+            setIsLoggedIn(true);
+        }
+        setAuthChecked(true);
+    }, []);
 
     const handleLogin = async (credentials) => {
         const { email, password } = credentials;

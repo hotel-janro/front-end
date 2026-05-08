@@ -8,9 +8,11 @@ import {
   Info,
   CheckCircle2,
   X,
+  UploadCloud,
   Loader2
 } from 'lucide-react';
 import { apiFetch, API_HOST, getImageUrl } from '../../../api.js';
+import { ImageWithFallback } from '../../../components/common/ImageWithFallback.jsx';
 
 export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
   const [formData, setFormData] = useState({
@@ -20,15 +22,17 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     category: 'Main Course',
     isAvailable: true,
     prepTime: '15',
-    inventoryItem: ''
+    hasPortions: false,
+    portions: [
+      { portionType: 'Full', price: '' },
+      { portionType: 'Half', price: '' }
+    ]
   });
-  const [inventoryItems, setInventoryItems] = useState([]);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadInventory();
     if (initialItem) {
       setFormData({
         name: initialItem.name || '',
@@ -37,20 +41,33 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
         category: initialItem.category || 'Main Course',
         isAvailable: initialItem.isAvailable !== undefined ? initialItem.isAvailable : true,
         prepTime: initialItem.prepTime || '15',
-        inventoryItem: initialItem.inventoryItem?._id || initialItem.inventoryItem || ''
+        hasPortions: initialItem.hasPortions || false,
+        portions: initialItem.hasPortions ? initialItem.portions : [
+          { portionType: 'Full', price: '' },
+          { portionType: 'Half', price: '' }
+        ]
       });
       if (initialItem.image) {
         setImagePreview(getImageUrl(initialItem.image));
       }
+    } else {
+      setFormData({
+        name: '',
+        description: '',
+        price: '',
+        category: 'Main Course',
+        isAvailable: true,
+        prepTime: '15',
+        hasPortions: false,
+        portions: [
+          { portionType: 'Full', price: '' },
+          { portionType: 'Half', price: '' }
+        ]
+      });
+      setImagePreview(null);
+      setImageFile(null);
     }
   }, [initialItem]);
-
-  const loadInventory = async () => {
-    try {
-      const data = await apiFetch('/inventory');
-      setInventoryItems(Array.isArray(data) ? data : []);
-    } catch (e) { console.error(e); }
-  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -65,30 +82,53 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     setLoading(true);
 
     try {
+      // Form Validation
+      if (!formData.name.trim()) {
+        throw new Error('Please provide a name for this dish');
+      }
+      if (Number(formData.price) <= 0) {
+        throw new Error('Price must be a positive investment value');
+      }
+      if (!formData.category) {
+        throw new Error('Please select a cuisine category');
+      }
+
       const data = new FormData();
-      Object.keys(formData).forEach(key => data.append(key, formData[key]));
+      Object.keys(formData).forEach(key => {
+        if (key === 'portions') {
+          data.append(key, JSON.stringify(formData[key]));
+        } else {
+          data.append(key, formData[key]);
+        }
+      });
       if (imageFile) data.append('image', imageFile);
 
       const url = initialItem ? `/menu/${initialItem._id}` : '/menu';
       const method = initialItem ? 'PUT' : 'POST';
 
-      // Note: apiFetch needs to handle FormData or we use raw fetch
-      const response = await fetch(`${API_HOST}/api${url}`, {
+      if (imageFile && imageFile.size > 5 * 1024 * 1024) {
+        throw new Error('Image size too large. Max 5MB allowed.');
+      }
+
+      await apiFetch(url, {
         method,
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('janro_token')}`
-        },
         body: data
       });
 
-      if (!response.ok) throw new Error('Failed to save menu item');
-      
+      alert('Successfully saved culinary masterpiece!');
       onSaved();
     } catch (error) {
-      alert(error.message);
+      alert('Error: ' + error.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const updatePortionPrice = (type, price) => {
+    setFormData(prev => ({
+      ...prev,
+      portions: prev.portions.map(p => p.portionType === type ? { ...p, price } : p)
+    }));
   };
 
   return (
@@ -118,28 +158,84 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
               onChange={e => setFormData({...formData, category: e.target.value})}
               className="w-full bg-white border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-700 font-bold appearance-none cursor-pointer"
             >
-              <option value="Appetizers">Appetizers</option>
               <option value="Main Course">Main Course</option>
+              <option value="Bites">Bites</option>
               <option value="Desserts">Desserts</option>
               <option value="Beverages">Beverages</option>
-              <option value="Specialty">Chef's Specialty</option>
             </select>
           </div>
 
-          {/* Price */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Investment Value</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs</span>
-              <input 
-                type="number"
-                value={formData.price}
-                onChange={e => setFormData({...formData, price: e.target.value})}
-                placeholder="0.00"
-                className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-900 font-black"
-                required
-              />
+          {/* Price / Portions */}
+          <div className="md:col-span-2 p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#D4AF37] shadow-sm">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Portion Pricing</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Define cost structure</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={formData.hasPortions} 
+                  onChange={e => setFormData({...formData, hasPortions: e.target.checked})} 
+                  className="sr-only peer" 
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
+                <span className="ms-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Enable Full/Half</span>
+              </label>
             </div>
+
+            {formData.hasPortions ? (
+              <div className="grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest ml-1 italic">Full Portion Price</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs</span>
+                    <input 
+                      type="number"
+                      value={formData.portions.find(p => p.portionType === 'Full')?.price || ''}
+                      onChange={e => updatePortionPrice('Full', e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] transition-all text-slate-900 font-black"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-1 italic">Half Portion Price</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs</span>
+                    <input 
+                      type="number"
+                      value={formData.portions.find(p => p.portionType === 'Half')?.price || ''}
+                      onChange={e => updatePortionPrice('Half', e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] transition-all text-slate-900 font-black"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Standard Investment Value</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs</span>
+                  <input 
+                    type="number"
+                    value={formData.price}
+                    onChange={e => setFormData({...formData, price: e.target.value})}
+                    placeholder="0.00"
+                    className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] transition-all text-slate-900 font-black"
+                    required
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Prep Time */}
@@ -170,26 +266,6 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
           />
         </div>
 
-        {/* Inventory Link */}
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Inventory Synchronization</label>
-          <div className="flex items-center gap-4">
-            <select 
-              value={formData.inventoryItem}
-              onChange={e => setFormData({...formData, inventoryItem: e.target.value})}
-              className="flex-1 bg-white border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:border-[#D4AF37] text-sm font-bold text-slate-700 appearance-none cursor-pointer"
-            >
-              <option value="">No tracking (Stand-alone dish)</option>
-              {inventoryItems.map(item => (
-                <option key={item._id} value={item._id}>Sync with {item.itemName} ({item.quantity} {item.unit} in stock)</option>
-              ))}
-            </select>
-            <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl">
-              <Info className="w-5 h-5" />
-            </div>
-          </div>
-        </div>
-
         {/* Form Actions */}
         <div className="flex items-center gap-4 pt-4">
           <button 
@@ -217,7 +293,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
           <div className="relative h-[300px] rounded-[2.5rem] overflow-hidden bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group-hover:border-[#D4AF37]/50 transition-colors">
             {imagePreview ? (
               <>
-                <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                <ImageWithFallback src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <label className="cursor-pointer bg-white text-slate-900 px-6 py-3 rounded-full font-bold text-sm shadow-xl flex items-center gap-2">
                     <Camera className="w-4 h-4" /> Change Image

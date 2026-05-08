@@ -113,11 +113,26 @@ export function AdminInventory() {
 
   const handleInventorySubmit = async (event) => {
     event.preventDefault();
+
+    // Validation
+    if (!inventoryForm.itemName.trim()) {
+      return alert('Please provide a name for this inventory asset');
+    }
+    const qty = Number(inventoryForm.quantity);
+    const threshold = Number(inventoryForm.thresholdLevel);
+    
+    if (isNaN(qty) || qty < 0) {
+      return alert('Quantity must be a valid non-negative number');
+    }
+    if (isNaN(threshold) || threshold < 0) {
+      return alert('Threshold level must be a valid non-negative number');
+    }
+
     const payload = {
       itemName: inventoryForm.itemName,
-      quantity: Number(inventoryForm.quantity),
-      thresholdLevel: Number(inventoryForm.thresholdLevel),
-      unit: inventoryForm.unit,
+      quantity: qty,
+      thresholdLevel: threshold,
+      unit: inventoryForm.unit || 'pcs',
     };
 
     try {
@@ -151,6 +166,17 @@ export function AdminInventory() {
 
   const handleIssueSubmit = async (e) => {
     e.preventDefault();
+
+    // Validation
+    if (!issueForm.itemId) return alert('Please select an item to issue');
+    const issueQty = Number(issueForm.quantity);
+    if (isNaN(issueQty) || issueQty <= 0) return alert('Please enter a valid quantity to issue');
+
+    const selectedItem = inventoryItems.find(i => i._id === issueForm.itemId);
+    if (selectedItem && selectedItem.quantity < issueQty) {
+      return alert(`Insufficient Stock: Only ${selectedItem.quantity} ${selectedItem.unit} available.`);
+    }
+
     try {
       setSavingIssue(true);
       await apiFetch('/inventory/issue', {
@@ -197,20 +223,19 @@ export function AdminInventory() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Header Banner - Ultra Luxury */}
-      <div className="rounded-[3rem] bg-[#0F172A] p-12 shadow-2xl relative overflow-hidden border border-white/5">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-[100px] -mr-32 -mt-32" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -ml-24 -mb-24" />
+      {/* Premium Header Banner - Compact Version to match Dashboard */}
+      <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-6 py-8 md:px-8 shadow-2xl overflow-hidden border border-white/5 mb-8">
+        <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-[#D4AF37]/5 rounded-full blur-[80px] -mr-24 -mt-24" />
         
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/20 text-[#D4AF37] text-[9px] font-black uppercase tracking-[0.3em] mb-6">
+            <div className="inline-flex items-center gap-2 text-[#D4AF37] text-[9px] font-black uppercase tracking-[0.3em] mb-3">
               <TrendingUp className="w-3 h-3" /> Supply Excellence
             </div>
-            <h2 className="text-4xl md:text-6xl text-white font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
+            <h2 className="text-3xl md:text-4xl text-white font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
               Inventory <span className="text-[#D4AF37]">Intelligence</span>
             </h2>
-            <p className="text-slate-400 mt-6 max-w-xl text-lg font-light leading-relaxed">
+            <p className="text-slate-400 mt-3 max-w-xl text-sm leading-relaxed">
               Precision tracking for your luxury establishment. Monitor, allocate, and analyze stock usage with real-time accuracy.
             </p>
           </div>

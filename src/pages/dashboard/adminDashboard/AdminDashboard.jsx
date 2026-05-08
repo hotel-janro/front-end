@@ -1,5 +1,5 @@
 // AdminDashboard.jsx - Admin Dashboard Page
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Bed,
   Calendar,
@@ -7,6 +7,7 @@ import {
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
+  Loader
 } from "lucide-react";
 import { useSettings } from "../../../context/SettingsContext.jsx";
 import {
@@ -20,19 +21,99 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { dashboardStats, revenueData, occupancyData } from "../../../data/mockData.js";
-import { enhancedDashboardStats } from "../../../data/newMockData.js";
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export function AdminDashboard() {
   const { settings } = useSettings();
-  const occupancyRate = Math.round(
-    (dashboardStats.occupiedRooms / dashboardStats.totalRooms) * 100
-  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_BASE}/api/reports`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        
+        if (!res.ok) throw new Error('Failed to fetch dashboard data');
+        
+        const json = await res.json();
+        setDashboardData(json.data);
+      } catch (err) {
+        setError(err.message || "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatTime = (date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader className="w-8 h-8 text-[#D4AF37] animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-red-500 font-medium">{error}</p>
+      </div>
+    );
+  }
+
+  if (!dashboardData) return null;
+
+  const {
+    totalRevenue = 0,
+    totalBookings = 0,
+    avgDailyRevenue = 0,
+    occupancyRate = 0,
+    revenueData = [],
+    weeklyOccupancy = [],
+    todayCheckIns = 0,
+    todayCheckOuts = 0,
+    availableRooms = 0
+  } = dashboardData;
+
+  const monthlyRevenue = avgDailyRevenue * 30;
 
   const stats = [
     {
       title: "Total Revenue",
-      value: `${settings.currency.symbol}${dashboardStats.totalRevenue.toLocaleString()}`,
+      value: `${settings?.currency?.symbol || '$'}${totalRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}`,
       change: "+12.5%",
       trend: "up",
       icon: DollarSign,
@@ -48,7 +129,7 @@ export function AdminDashboard() {
     },
     {
       title: "Total Bookings",
-      value: enhancedDashboardStats.totalBookings,
+      value: totalBookings,
       change: "+8.3%",
       trend: "up",
       icon: Calendar,
@@ -56,7 +137,7 @@ export function AdminDashboard() {
     },
     {
       title: "Monthly Revenue",
-      value: `${settings.currency.symbol}${dashboardStats.monthlyRevenue.toLocaleString()}`,
+      value: `${settings?.currency?.symbol || '$'}${monthlyRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}`,
       change: "+8.1%",
       trend: "up",
       icon: TrendingUp,
@@ -67,14 +148,28 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8">
-        <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
-        <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-          Admin Dashboard
-        </h1>
-        <p className="text-slate-300 mt-2">
-          Welcome back! Here&apos;s your hotel overview
-        </p>
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Admin Dashboard
+          </h1>
+          <p className="text-slate-300 mt-2">
+            Welcome back! Here&apos;s your hotel overview
+          </p>
+        </div>
+        
+        {/* Real-time Clock Widget */}
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md shadow-lg shadow-black/10 self-start md:self-center shrink-0">
+          <div className="p-1.5 bg-[#D4AF37]/20 rounded-lg">
+            <Calendar className="w-4 h-4 text-[#D4AF37]" />
+          </div>
+          <div className="flex items-center gap-2 text-white">
+            <span className="font-medium tracking-wide text-xs sm:text-sm">{formatDate(currentTime)}</span>
+            <span className="text-white/20 text-xs sm:text-sm">|</span>
+            <span className="font-bold tracking-wider text-xs sm:text-sm text-[#D4AF37]">{formatTime(currentTime)}</span>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -137,6 +232,7 @@ export function AdminDashboard() {
                   border: "1px solid #D4AF37",
                   borderRadius: "8px",
                 }}
+                formatter={(value) => [`${settings?.currency?.symbol || '$'}${value}`, "Revenue"]}
               />
               <Line
                 type="monotone"
@@ -155,7 +251,7 @@ export function AdminDashboard() {
             Weekly Occupancy
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={occupancyData}>
+            <BarChart data={weeklyOccupancy}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="day" stroke="#9ca3af" />
               <YAxis stroke="#9ca3af" />
@@ -165,6 +261,7 @@ export function AdminDashboard() {
                   border: "1px solid #D4AF37",
                   borderRadius: "8px",
                 }}
+                formatter={(value) => [`${value}%`, "Occupancy"]}
               />
               <Bar dataKey="occupancy" fill="#0F172A" radius={[8, 8, 0, 0]} />
             </BarChart>
@@ -182,7 +279,7 @@ export function AdminDashboard() {
             <div>
               <p className="text-sm text-slate-500">Today&apos;s Check-ins</p>
               <h3 className="text-2xl font-semibold text-[#0F172A]">
-                {dashboardStats.todayCheckIns}
+                {todayCheckIns}
               </h3>
             </div>
           </div>
@@ -196,7 +293,7 @@ export function AdminDashboard() {
             <div>
               <p className="text-sm text-slate-500">Today&apos;s Check-outs</p>
               <h3 className="text-2xl font-semibold text-[#0F172A]">
-                {dashboardStats.todayCheckOuts}
+                {todayCheckOuts}
               </h3>
             </div>
           </div>
@@ -210,7 +307,7 @@ export function AdminDashboard() {
             <div>
               <p className="text-sm text-slate-500">Available Rooms</p>
               <h3 className="text-2xl font-semibold text-[#0F172A]">
-                {dashboardStats.availableRooms}
+                {availableRooms}
               </h3>
             </div>
           </div>

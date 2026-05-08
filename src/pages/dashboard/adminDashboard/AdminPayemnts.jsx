@@ -46,13 +46,20 @@ export function AdminPayments() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header */}
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Payments</h1>
-          <p className="text-gray-500 mt-1">Manage and track all payment transactions</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Payments
+          </h1>
+          <p className="text-slate-300 mt-2">
+            Manage and track all payment transactions
+          </p>
         </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <CreditCard className="w-5 h-5" />New Payment
+        <button className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap">
+          <CreditCard className="w-5 h-5" />
+          New Payment
         </button>
       </div>
 
@@ -66,7 +73,7 @@ export function AdminPayments() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-green-50 rounded-lg"><DollarSign className="w-6 h-6 text-green-600" /></div>
-            <div><p className="text-sm text-gray-600">Total Revenue</p><h3 className="text-2xl font-semibold text-gray-900">${totalRevenue.toLocaleString()}</h3></div>
+            <div><p className="text-sm text-gray-600">Total Revenue</p><h3 className="text-2xl font-semibold text-gray-900">Rs {totalRevenue.toLocaleString()}</h3></div>
           </div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -125,7 +132,7 @@ export function AdminPayments() {
                   <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">{payment.customerName}</div></td>
                   <td className="px-6 py-4 whitespace-nowrap"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(payment.type)}`}>{payment.type}</span></td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.paymentMethod}</td>
-                  <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-semibold text-gray-900">${payment.amount.toLocaleString()}</div></td>
+                  <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-semibold text-gray-900">Rs {payment.amount.toLocaleString()}</div></td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{new Date(payment.date).toLocaleDateString()}</div>
                     <div className="text-xs text-gray-500">{new Date(payment.date).toLocaleTimeString()}</div>

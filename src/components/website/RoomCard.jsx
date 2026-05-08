@@ -20,6 +20,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
@@ -62,6 +63,24 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
   const grandTotal = (Number(room.price || 0) * slots) + decorationTotal;
 
   const handleSubmitBooking = () => {
+    if (!checkIn) {
+      alert("Please select a check-in date.");
+      return;
+    }
+    if (!checkOut) {
+      alert("Please select a check-out date.");
+      return;
+    }
+    if (!phone || phone.trim() === "") {
+      setPhoneError("Please enter your phone number.");
+      return;
+    }
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(phone.trim())) {
+      setPhoneError("this is invalid");
+      return;
+    }
+
     onBook({
       room,
       roomId: room._id || room.id,
@@ -110,7 +129,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
         <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">
-          {settings.currency.symbol} {formattedPrice}/night
+          {settings.currency.symbol} {formattedPrice}
         </div>
         <div className="absolute top-4 left-4 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-[#0F172A] shadow-sm">
           {room.availableRooms ?? 0} {Number(room.availableRooms) === 1 ? "room" : "rooms"} available
@@ -156,19 +175,23 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
               </div>
 
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Phone</label>
+                <label className="text-xs text-gray-500 block mb-1">Phone <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (phoneError) setPhoneError("");
+                  }}
                   placeholder="0771234567"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] ${phoneError ? 'border-red-500' : 'border-gray-200'}`}
                 />
+                {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
               </div>
 
               <div>
                 <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                  <Calendar className="w-3 h-3" /> Check-in Date
+                  <Calendar className="w-3 h-3" /> Check-in Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -188,7 +211,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
 
               <div>
                 <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                  <Calendar className="w-3 h-3" /> Check-out Date
+                  <Calendar className="w-3 h-3" /> Check-out Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -309,6 +332,15 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
                 />
               </div>
+
+              {room.amenities && room.amenities.length > 0 && (
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Included Amenities</label>
+                  <p className="text-xs text-[#0F172A] bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                    {Array.isArray(room.amenities) ? room.amenities.join(', ') : room.amenities}
+                  </p>
+                </div>
+              )}
 
               {isHoneymoonSuite && isLoggedIn && (
                 <div>

@@ -18,7 +18,7 @@ import { MyOrders } from "../pages/dashboard/customerDashboard/MyOrders.jsx";
 import { DashboardLayout } from "../pages/dashboard/DashboardLayout.jsx";
 import { AdminDashboard } from "../pages/dashboard/adminDashboard/AdminDashboard.jsx";
 import { AdminRooms } from "../pages/dashboard/adminDashboard/AdminRooms.jsx";
-import { AdminRestaurant } from "../pages/dashboard/adminDashboard/AdminResturant.jsx";
+import { AdminRestaurant } from "../pages/dashboard/adminDashboard/AdminRestaurant.jsx";
 import { AdminPOS } from "../pages/dashboard/adminDashboard/AdminPos.jsx";
 import { AdminReports } from "../pages/dashboard/adminDashboard/AdminReports.jsx";
 import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayemnts.jsx";
@@ -32,11 +32,15 @@ import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory
 
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
+import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
+import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionRooms.jsx";
+import { ReceptionWedding } from "../pages/dashboard/receptionDashboard/ReceptionWedding.jsx";
 import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
 import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
 import { CashierPayments } from "../pages/dashboard/cashierDashboard/CashierPayments.jsx";
 import { CashierReceipts } from "../pages/dashboard/cashierDashboard/CashierReceipts.jsx";
+import { CashierProfile } from "../pages/dashboard/cashierDashboard/CashierProfile.jsx";
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
@@ -98,9 +102,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       navigate("/login");
       return;
     }
-    const total = Number(data?.total || 0);
-    const delivery = data?.delivery || data?.orderType || "pickup";
-    alert(`Order placed successfully!\n\nThank you, ${user?.name || "Guest"}.\nTotal: $${total.toFixed(2)}\nDelivery: ${delivery === "room" || delivery === "Room" ? "Room Delivery" : "Pickup"}\n\nThis is a frontend demo. In production, this would send data to the backend API.`);
+    const total = Number(data?.totalAmount || data?.total || 0);
+    const orderType = data?.orderType || "Dine-in";
+    alert(`Order placed successfully!\n\nThank you, ${user?.name || "Guest"}.\nTotal: Rs ${total.toLocaleString()}\nType: ${orderType}\n\nOur kitchen has received your order and is preparing it now.`);
   };
 
   return (
@@ -156,6 +160,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<ReceptionDashboard />} />
+        <Route path="rooms" element={<ReceptionRooms />} />
+        <Route path="wedding" element={<ReceptionWedding />} />
+        <Route path="bookings" element={<ReceptionBookings />} />
         <Route path="pool" element={<ReceptionPool />} />
       </Route>
 
@@ -167,6 +174,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="orders" element={<CashierOrders />} />
         <Route path="payments" element={<CashierPayments />} />
         <Route path="receipts" element={<CashierReceipts />} />
+        <Route path="profile" element={<CashierProfile />} />
         <Route path="*" element={<CashierDashboard />} />
       </Route>
 

@@ -199,9 +199,17 @@ export function AdminSettings() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-1">Manage your hotel system configuration and preferences</p>
+      {/* Header */}
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Settings
+          </h1>
+          <p className="text-slate-300 mt-2">
+            Manage your hotel system configuration and preferences
+          </p>
+        </div>
       </div>
 
       {message.text && (
