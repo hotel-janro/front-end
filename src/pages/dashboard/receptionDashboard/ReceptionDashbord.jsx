@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowDownRight,
@@ -18,58 +19,142 @@ import {
   Mail,
   ChevronRight,
 } from 'lucide-react';
-import { dashboardStats } from '../../../data/mockData.js';
-import { bookings } from '../../../data/mockData.js';
-import { rooms } from '../../../data/mockData.js';
 import { useSettings } from '../../../context/SettingsContext.jsx';
-import { poolBookings, weddingBookings } from '../../../data/newMockData.js';
+import { apiFetch } from '../../../api';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export function ReceptionDashboard() {
   const { settings } = useSettings();
+  
+  const [data, setData] = useState({
+    todayCheckIns: [],
+    todayCheckOuts: [],
+    upcomingWeddings: [],
+    activePoolBookings: [],
+    occupiedRooms: 0,
+    availableRooms: 0,
+    maintenanceRooms: 0,
+    reservedRooms: 0,
+    totalRooms: 0
+  });
+  
+  const [loading, setLoading] = useState(true);
 
-  const todayCheckIns = bookings.filter((b) => b.status === 'Confirmed');
-  const todayCheckOuts = bookings.filter((b) => b.status === 'Checked-In');
-  const occupiedRooms = rooms.filter((r) => r.status === 'Occupied').length;
-  const availableRooms = rooms.filter((r) => r.status === 'Available').length;
-  const maintenanceRooms = rooms.filter((r) => r.status === 'Maintenance').length;
-  const reservedRooms = rooms.filter((r) => r.status === 'Reserved').length;
-  const totalRooms = rooms.length;
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch data
+        const [bookingsRes, roomsRes] = await Promise.all([
+          apiFetch('/bookings').catch(() => ({ data: [] })),
+          apiFetch('/rooms/admin/list').catch(() => ({ data: [] }))
+        ]);
+        
+        const allBookings = bookingsRes.data || [];
+        const allRooms = roomsRes.data || [];
+        
+        let poolBookings = [];
+        try {
+          const poolRes = await fetch(`${API_BASE}/api/pool-bookings`);
+          if (poolRes.ok) {
+            const poolData = await poolRes.json();
+            poolBookings = poolData.bookings || [];
+          }
+        } catch(e) {}
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const isToday = (dateString) => {
+          if (!dateString) return false;
+          const d = new Date(dateString);
+          d.setHours(0, 0, 0, 0);
+          return d.getTime() === today.getTime();
+        };
 
-  const upcomingWeddings = weddingBookings.filter((w) => w.status === 'Confirmed');
-  const activePoolBookings = poolBookings.filter(
-    (p) => p.status === 'Confirmed' || p.status === 'Checked-In'
-  );
+        const todayCheckIns = allBookings.filter(b => (b.status === 'confirmed' || b.status === 'pending') && isToday(b.checkInDate));
+        const todayCheckOuts = allBookings.filter(b => b.status === 'checked-in' && isToday(b.checkOutDate));
+        
+        const occupiedRooms = allBookings.filter(b => b.status === 'checked-in').length;
+        const reservedRooms = allBookings.filter(b => b.status === 'confirmed').length;
+        
+        const BASE_COUNTS = { 'Standard Room': 6, 'Family Suite': 2, 'Honeymoon Suite': 2 };
+        const baseTotal = 10;
+        const addedTotal = allRooms.reduce((acc, room) => acc + (room.availableRooms || 0), 0);
+        const totalRooms = baseTotal + addedTotal + occupiedRooms; 
+        const availableRooms = totalRooms - occupiedRooms - reservedRooms;
+        
+        const activePoolBookings = poolBookings.filter(p => p.status === 'Confirmed' || p.status === 'Checked-In');
+        
+        setData({
+          todayCheckIns,
+          todayCheckOuts,
+          upcomingWeddings: [], // API not fully implemented yet for all bookings
+          activePoolBookings,
+          occupiedRooms,
+          availableRooms: availableRooms > 0 ? availableRooms : 0,
+          maintenanceRooms: 0,
+          reservedRooms,
+          totalRooms: totalRooms > 0 ? totalRooms : 1 // prevent division by zero
+        });
+        
+      } catch (error) {
+        console.error("Dashboard fetch error", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDashboardData();
+  }, []);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Morning';
+    if (hour < 18) return 'Afternoon';
+    return 'Evening';
+  };
 
   const quickStats = [
     {
       label: "Today's Check-ins",
-      value: todayCheckIns.length,
+      value: data.todayCheckIns.length,
       icon: LogIn,
       color: 'bg-emerald-50 text-emerald-600 border-emerald-200',
       iconBg: 'bg-emerald-100',
     },
     {
       label: "Today's Check-outs",
-      value: todayCheckOuts.length,
+      value: data.todayCheckOuts.length,
       icon: LogOut,
       color: 'bg-amber-50 text-amber-600 border-amber-200',
       iconBg: 'bg-amber-100',
     },
     {
       label: 'Available Rooms',
-      value: availableRooms,
+      value: data.availableRooms,
       icon: Bed,
       color: 'bg-blue-50 text-blue-600 border-blue-200',
       iconBg: 'bg-blue-100',
     },
     {
       label: 'Occupied Rooms',
-      value: occupiedRooms,
+      value: data.occupiedRooms,
       icon: Users,
       color: 'bg-violet-50 text-violet-600 border-violet-200',
       iconBg: 'bg-violet-100',
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -148,45 +233,45 @@ export function ReceptionDashboard() {
         <div className="flex rounded-full overflow-hidden h-6 bg-gray-100">
           <div
             className="bg-blue-500 flex items-center justify-center text-[10px] font-bold text-white transition-all"
-            style={{ width: `${(occupiedRooms / totalRooms) * 100}%` }}
-            title={`Occupied: ${occupiedRooms}`}
+            style={{ width: `${(data.occupiedRooms / data.totalRooms) * 100}%` }}
+            title={`Occupied: ${data.occupiedRooms}`}
           >
-            {occupiedRooms > 0 && occupiedRooms}
+            {data.occupiedRooms > 0 && data.occupiedRooms}
           </div>
           <div
             className="bg-amber-400 flex items-center justify-center text-[10px] font-bold text-white transition-all"
-            style={{ width: `${(reservedRooms / totalRooms) * 100}%` }}
-            title={`Reserved: ${reservedRooms}`}
+            style={{ width: `${(data.reservedRooms / data.totalRooms) * 100}%` }}
+            title={`Reserved: ${data.reservedRooms}`}
           >
-            {reservedRooms > 0 && reservedRooms}
+            {data.reservedRooms > 0 && data.reservedRooms}
           </div>
           <div
             className="bg-emerald-500 flex items-center justify-center text-[10px] font-bold text-white transition-all"
-            style={{ width: `${(availableRooms / totalRooms) * 100}%` }}
-            title={`Available: ${availableRooms}`}
+            style={{ width: `${(data.availableRooms / data.totalRooms) * 100}%` }}
+            title={`Available: ${data.availableRooms}`}
           >
-            {availableRooms > 0 && availableRooms}
+            {data.availableRooms > 0 && data.availableRooms}
           </div>
           <div
             className="bg-red-400 flex items-center justify-center text-[10px] font-bold text-white transition-all"
-            style={{ width: `${(maintenanceRooms / totalRooms) * 100}%` }}
-            title={`Maintenance: ${maintenanceRooms}`}
+            style={{ width: `${(data.maintenanceRooms / data.totalRooms) * 100}%` }}
+            title={`Maintenance: ${data.maintenanceRooms}`}
           >
-            {maintenanceRooms > 0 && maintenanceRooms}
+            {data.maintenanceRooms > 0 && data.maintenanceRooms}
           </div>
         </div>
         <div className="flex flex-wrap gap-4 mt-3">
           <div className="flex items-center gap-2 text-xs">
-            <span className="w-3 h-3 rounded-full bg-blue-500" /> Occupied ({occupiedRooms})
+            <span className="w-3 h-3 rounded-full bg-blue-500" /> Occupied ({data.occupiedRooms})
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <span className="w-3 h-3 rounded-full bg-amber-400" /> Reserved ({reservedRooms})
+            <span className="w-3 h-3 rounded-full bg-amber-400" /> Reserved ({data.reservedRooms})
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <span className="w-3 h-3 rounded-full bg-emerald-500" /> Available ({availableRooms})
+            <span className="w-3 h-3 rounded-full bg-emerald-500" /> Available ({data.availableRooms})
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <span className="w-3 h-3 rounded-full bg-red-400" /> Maintenance ({maintenanceRooms})
+            <span className="w-3 h-3 rounded-full bg-red-400" /> Maintenance ({data.maintenanceRooms})
           </div>
         </div>
       </div>
@@ -202,34 +287,32 @@ export function ReceptionDashboard() {
               <h2 className="text-base font-semibold text-gray-900">Pending Check-ins</h2>
             </div>
             <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-medium">
-              {todayCheckIns.length} guests
+              {data.todayCheckIns.length} guests
             </span>
           </div>
-          <div className="divide-y divide-gray-50">
-            {todayCheckIns.length > 0 ? (
-              todayCheckIns.map((booking) => (
-                <div key={booking.id} className="px-5 py-3 hover:bg-gray-50 transition-colors">
+          <div className="divide-y divide-gray-50 max-h-[300px] overflow-y-auto">
+            {data.todayCheckIns.length > 0 ? (
+              data.todayCheckIns.map((booking) => (
+                <div key={booking._id || Math.random()} className="px-5 py-3 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{booking.guestName}</p>
+                      <p className="text-sm font-semibold text-gray-900 truncate">{booking.fullName}</p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-gray-500">Room {booking.roomNumber}</span>
-                        <span className="text-xs text-gray-400">|</span>
-                        <span className="text-xs text-gray-500">{booking.roomType}</span>
+                        <span className="text-xs text-gray-500">{booking.room?.name || 'Unassigned'}</span>
                         <span className="text-xs text-gray-400">|</span>
                         <span className="text-xs text-gray-500">{booking.guests} guest(s)</span>
                       </div>
                     </div>
-                    <button className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap">
+                    <Link to="/reception/bookings" className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap">
                       Check In
-                    </button>
+                    </Link>
                   </div>
                 </div>
               ))
             ) : (
               <div className="px-5 py-8 text-center">
                 <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No pending check-ins</p>
+                <p className="text-sm text-gray-500">No pending check-ins today</p>
               </div>
             )}
           </div>
@@ -245,36 +328,32 @@ export function ReceptionDashboard() {
               <h2 className="text-base font-semibold text-gray-900">Pending Check-outs</h2>
             </div>
             <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">
-              {todayCheckOuts.length} guests
+              {data.todayCheckOuts.length} guests
             </span>
           </div>
-          <div className="divide-y divide-gray-50">
-            {todayCheckOuts.length > 0 ? (
-              todayCheckOuts.map((booking) => (
-                <div key={booking.id} className="px-5 py-3 hover:bg-gray-50 transition-colors">
+          <div className="divide-y divide-gray-50 max-h-[300px] overflow-y-auto">
+            {data.todayCheckOuts.length > 0 ? (
+              data.todayCheckOuts.map((booking) => (
+                <div key={booking._id || Math.random()} className="px-5 py-3 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{booking.guestName}</p>
+                      <p className="text-sm font-semibold text-gray-900 truncate">{booking.fullName}</p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-gray-500">Room {booking.roomNumber}</span>
+                        <span className="text-xs text-gray-500">{booking.room?.name || 'Unassigned'}</span>
                         <span className="text-xs text-gray-400">|</span>
-                        <span className="text-xs text-gray-500">{settings.currency.symbol}{booking.totalAmount}</span>
-                        <span className="text-xs text-gray-400">|</span>
-                        <span className="text-xs text-gray-500">
-                          Out: {new Date(booking.checkOut).toLocaleDateString()}
-                        </span>
+                        <span className="text-xs text-gray-500">{settings.currency.symbol}{booking.totalPrice}</span>
                       </div>
                     </div>
-                    <button className="px-3 py-1.5 bg-amber-500 text-white text-xs font-medium rounded-lg hover:bg-amber-600 transition-colors whitespace-nowrap">
+                    <Link to="/reception/bookings" className="px-3 py-1.5 bg-amber-500 text-white text-xs font-medium rounded-lg hover:bg-amber-600 transition-colors whitespace-nowrap">
                       Check Out
-                    </button>
+                    </Link>
                   </div>
                 </div>
               ))
             ) : (
               <div className="px-5 py-8 text-center">
                 <CheckCircle className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No pending check-outs</p>
+                <p className="text-sm text-gray-500">No pending check-outs today</p>
               </div>
             )}
           </div>
@@ -296,9 +375,9 @@ export function ReceptionDashboard() {
               View All
             </Link>
           </div>
-          <div className="divide-y divide-gray-50">
-            {upcomingWeddings.map((event) => (
-              <div key={event.id} className="px-5 py-3 hover:bg-gray-50 transition-colors">
+          <div className="divide-y divide-gray-50 max-h-[300px] overflow-y-auto">
+            {data.upcomingWeddings.length > 0 ? data.upcomingWeddings.map((event) => (
+              <div key={event.id || Math.random()} className="px-5 py-3 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{event.customerName}</p>
@@ -315,7 +394,12 @@ export function ReceptionDashboard() {
                   </span>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="px-5 py-8 text-center">
+                <Heart className="w-8 h-8 text-pink-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No upcoming events currently linked.</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -326,7 +410,7 @@ export function ReceptionDashboard() {
               <div className="p-1.5 bg-cyan-100 rounded-lg">
                 <Waves className="w-4 h-4 text-cyan-600" />
               </div>
-              <h2 className="text-base font-semibold text-gray-900">Pool Bookings Today</h2>
+              <h2 className="text-base font-semibold text-gray-900">Pool Bookings</h2>
             </div>
             <Link
               to="/reception/pool"
@@ -335,9 +419,9 @@ export function ReceptionDashboard() {
               View All
             </Link>
           </div>
-          <div className="divide-y divide-gray-50">
-            {activePoolBookings.map((booking) => (
-              <div key={booking.id} className="px-5 py-3 hover:bg-gray-50 transition-colors">
+          <div className="divide-y divide-gray-50 max-h-[300px] overflow-y-auto">
+            {data.activePoolBookings.length > 0 ? data.activePoolBookings.map((booking) => (
+              <div key={booking._id || Math.random()} className="px-5 py-3 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{booking.guestName}</p>
@@ -358,17 +442,15 @@ export function ReceptionDashboard() {
                   </span>
                 </div>
               </div>
-            ))}
+            )) : (
+               <div className="px-5 py-8 text-center">
+                <Waves className="w-8 h-8 text-cyan-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No active pool bookings today.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
-}
-
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Morning';
-  if (hour < 17) return 'Afternoon';
-  return 'Evening';
 }
