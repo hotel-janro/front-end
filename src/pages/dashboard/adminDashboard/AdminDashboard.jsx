@@ -1,5 +1,5 @@
 // AdminDashboard.jsx - Admin Dashboard Page
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Bed,
   Calendar,
@@ -7,6 +7,7 @@ import {
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
+  Loader
 } from "lucide-react";
 import { useSettings } from "../../../context/SettingsContext.jsx";
 import {
@@ -20,19 +21,73 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { dashboardStats, revenueData, occupancyData } from "../../../data/mockData.js";
-import { enhancedDashboardStats } from "../../../data/newMockData.js";
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export function AdminDashboard() {
   const { settings } = useSettings();
-  const occupancyRate = Math.round(
-    (dashboardStats.occupiedRooms / dashboardStats.totalRooms) * 100
-  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [dashboardData, setDashboardData] = useState(null);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_BASE}/api/reports`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        
+        if (!res.ok) throw new Error('Failed to fetch dashboard data');
+        
+        const json = await res.json();
+        setDashboardData(json.data);
+      } catch (err) {
+        setError(err.message || "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader className="w-8 h-8 text-[#D4AF37] animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-red-500 font-medium">{error}</p>
+      </div>
+    );
+  }
+
+  if (!dashboardData) return null;
+
+  const {
+    totalRevenue = 0,
+    totalBookings = 0,
+    avgDailyRevenue = 0,
+    occupancyRate = 0,
+    revenueData = [],
+    weeklyOccupancy = [],
+    todayCheckIns = 0,
+    todayCheckOuts = 0,
+    availableRooms = 0
+  } = dashboardData;
+
+  const monthlyRevenue = avgDailyRevenue * 30;
 
   const stats = [
     {
       title: "Total Revenue",
-      value: `${settings.currency.symbol}${dashboardStats.totalRevenue.toLocaleString()}`,
+      value: `${settings?.currency?.symbol || '$'}${totalRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}`,
       change: "+12.5%",
       trend: "up",
       icon: DollarSign,
@@ -48,7 +103,7 @@ export function AdminDashboard() {
     },
     {
       title: "Total Bookings",
-      value: enhancedDashboardStats.totalBookings,
+      value: totalBookings,
       change: "+8.3%",
       trend: "up",
       icon: Calendar,
@@ -56,7 +111,7 @@ export function AdminDashboard() {
     },
     {
       title: "Monthly Revenue",
-      value: `${settings.currency.symbol}${dashboardStats.monthlyRevenue.toLocaleString()}`,
+      value: `${settings?.currency?.symbol || '$'}${monthlyRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}`,
       change: "+8.1%",
       trend: "up",
       icon: TrendingUp,
@@ -137,6 +192,7 @@ export function AdminDashboard() {
                   border: "1px solid #D4AF37",
                   borderRadius: "8px",
                 }}
+                formatter={(value) => [`${settings?.currency?.symbol || '$'}${value}`, "Revenue"]}
               />
               <Line
                 type="monotone"
@@ -155,7 +211,7 @@ export function AdminDashboard() {
             Weekly Occupancy
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={occupancyData}>
+            <BarChart data={weeklyOccupancy}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="day" stroke="#9ca3af" />
               <YAxis stroke="#9ca3af" />
@@ -165,6 +221,7 @@ export function AdminDashboard() {
                   border: "1px solid #D4AF37",
                   borderRadius: "8px",
                 }}
+                formatter={(value) => [`${value}%`, "Occupancy"]}
               />
               <Bar dataKey="occupancy" fill="#0F172A" radius={[8, 8, 0, 0]} />
             </BarChart>
@@ -182,7 +239,7 @@ export function AdminDashboard() {
             <div>
               <p className="text-sm text-slate-500">Today&apos;s Check-ins</p>
               <h3 className="text-2xl font-semibold text-[#0F172A]">
-                {dashboardStats.todayCheckIns}
+                {todayCheckIns}
               </h3>
             </div>
           </div>
@@ -196,7 +253,7 @@ export function AdminDashboard() {
             <div>
               <p className="text-sm text-slate-500">Today&apos;s Check-outs</p>
               <h3 className="text-2xl font-semibold text-[#0F172A]">
-                {dashboardStats.todayCheckOuts}
+                {todayCheckOuts}
               </h3>
             </div>
           </div>
@@ -210,7 +267,7 @@ export function AdminDashboard() {
             <div>
               <p className="text-sm text-slate-500">Available Rooms</p>
               <h3 className="text-2xl font-semibold text-[#0F172A]">
-                {dashboardStats.availableRooms}
+                {availableRooms}
               </h3>
             </div>
           </div>
