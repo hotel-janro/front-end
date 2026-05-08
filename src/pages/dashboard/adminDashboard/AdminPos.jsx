@@ -30,6 +30,7 @@ export function AdminPOS() {
     roomNumber: '',
     deliveryAddress: '',
     contactNumber: '',
+    customerName: '',
     discount: '0',
     coordinates: null
   });
@@ -47,13 +48,38 @@ export function AdminPOS() {
   const [settlingOrderId, setSettlingOrderId] = useState(null);
   const [settleAmount, setSettleAmount] = useState('');
 
+  const HOTEL_COORDS = { lat: 6.0833, lng: 80.5667 }; // Kamburupitiya, Matara
+
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; 
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
   const subtotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [cart]);
 
+  let serviceCharge = 0;
+  let deliveryFee = 0;
+  let distance = 0;
+
+  if (posForm.orderType === "Dine-in" || posForm.orderType === "Room") {
+    serviceCharge = subtotal * 0.1; 
+  } else if (posForm.orderType === "Delivery" && posForm.coordinates) {
+    distance = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
+    if (distance > 1 && distance <= 15) {
+      deliveryFee = subtotal * 0.1 * Math.floor(distance);
+    }
+  }
+
   const discountValue = Number(posForm.discount || 0);
-  const taxValue = subtotal * 0.1;
-  const grandTotal = Math.max(subtotal + taxValue - discountValue, 0);
+  const grandTotal = Math.max(subtotal + serviceCharge + deliveryFee - discountValue, 0);
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) return toast.error('Geolocation not supported');
@@ -127,6 +153,8 @@ export function AdminPOS() {
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
+  const [selectedPortion, setSelectedPortion] = useState('Full');
+
   const addPosItem = () => {
     const menuItem = menuItems.find((item) => item._id === selectedPosMenuItemId);
     const quantity = Number(selectedPosQuantity || 1);
@@ -136,22 +164,83 @@ export function AdminPOS() {
       if (!window.confirm(`Low stock: Only ${menuItem.inventoryItem.quantity} left. Continue?`)) return;
     }
 
+    const price = menuItem.hasPortions 
+      ? menuItem.portions.find(p => p.portionType === selectedPortion)?.price 
+      : menuItem.price;
+
     setCart((prev) => {
-      const existing = prev.find((i) => i.menuItemId === menuItem._id);
+      const cartItemId = `${menuItem._id}-${menuItem.hasPortions ? selectedPortion : 'single'}`;
+      const existing = prev.find((i) => i.cartItemId === cartItemId);
       if (existing) {
-        return prev.map((i) => i.menuItemId === menuItem._id ? { ...i, quantity: i.quantity + quantity } : i);
+        return prev.map((i) => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + quantity } : i);
       }
-      return [...prev, { menuItemId: menuItem._id, name: menuItem.name, price: menuItem.price, quantity }];
+      return [...prev, { 
+        cartItemId,
+        menuItemId: menuItem._id, 
+        name: menuItem.name, 
+        portion: menuItem.hasPortions ? selectedPortion : '',
+        price: price, 
+        quantity 
+      }];
     });
     setSelectedPosMenuItemId('');
     setSelectedPosQuantity('1');
+    setSelectedPortion('Full');
   };
 
   const handlePlaceOrder = async () => {
-    if (cart.length === 0) return;
+    console.log("POS: Initiating Order Validation...", posForm);
+    
+    if (cart.length === 0) {
+      alert("Error: Your cart is empty.");
+      toast.error('Your cart is empty. Please add items to the bill.');
+      return;
+    }
+
+    // --- STRIGENT VALIDATION WITH ALERTS ---
+
+    // 1. Contact Number Validation
+    if (posForm.contactNumber || posForm.orderType === 'Delivery') {
+      const cleanPhone = (posForm.contactNumber || "").replace(/[\s-]/g, '');
+      if (cleanPhone.length !== 10 || isNaN(Number(cleanPhone))) {
+        alert("CRITICAL ERROR: Phone number must be exactly 10 digits!");
+        toast.error('Phone number must be exactly 10 digits (e.g., 0712345678)');
+        return;
+      }
+    }
+
+    // 2. Room Number Validation
+    if (posForm.roomNumber || posForm.orderType === 'Room') {
+      const rNum = Number(posForm.roomNumber);
+      if (!posForm.roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
+        alert("CRITICAL ERROR: Invalid Room Number! Only rooms 1 to 10 are allowed.");
+        toast.error('Access Denied: Only rooms 1-10 are available in Hotel Janro.');
+        return;
+      }
+    }
+
+    // 3. Table Number Validation
+    if (posForm.orderType === 'Dine-in' && !posForm.tableNumber) {
+      alert("Error: Please assign a table number.");
+      toast.error('Please assign a table number');
+      return;
+    }
+
+    // 4. Delivery Address Validation
+    if (posForm.orderType === 'Delivery' && !posForm.deliveryAddress) {
+      alert("Error: Delivery address is required.");
+      toast.error('Delivery address is required');
+      return;
+    }
+
+    console.log("POS: Validation Passed. Sending to Backend...");
     const payload = {
       orderType: posForm.orderType,
-      items: cart.map(i => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
+      items: cart.map(i => ({ 
+        menuItemId: i.menuItemId, 
+        quantity: i.quantity,
+        portion: i.portion || ""
+      })),
       discount: discountValue,
       ...(posForm.orderType === 'Dine-in' && { tableNumber: posForm.tableNumber }),
       ...(posForm.orderType === 'Room' && { roomNumber: posForm.roomNumber }),
@@ -160,6 +249,10 @@ export function AdminPOS() {
         contactNumber: posForm.contactNumber,
         coordinates: posForm.coordinates
       }),
+      serviceCharge,
+      deliveryFee,
+      subtotal,
+      totalAmount: grandTotal
     };
 
     try {
@@ -182,7 +275,7 @@ export function AdminPOS() {
       }
 
       setCart([]);
-      setPosForm({ ...posForm, discount: '0', tableNumber: '', roomNumber: '', deliveryAddress: '', contactNumber: '', coordinates: null });
+      setPosForm({ ...posForm, customerName: '', discount: '0', tableNumber: '', roomNumber: '', deliveryAddress: '', contactNumber: '', coordinates: null });
       setAmountReceived('');
       await refreshData();
     } catch (e) {
@@ -193,6 +286,7 @@ export function AdminPOS() {
   };
 
   const handlePrintReceipt = (order) => {
+    const subtotalAmount = order.items.reduce((s, i) => s + (i.price * i.quantity), 0);
     const printWindow = window.open('', '_blank', 'width=400,height=700');
     const itemsHtml = order.items.map(item => `
       <div class="item-row">
@@ -258,8 +352,8 @@ export function AdminPOS() {
             <div class="logo">${hotelLogo}</div>
             <div class="hotel-name">HOTEL JANRO</div>
             <div class="hotel-details">
-              123 Luxury Avenue, Colombo 03, Sri Lanka<br>
-              Tel: +94 11 234 5678 | Web: www.hoteljanro.com<br>
+              Main Street, Kamburupitiya, Matara, Sri Lanka<br>
+              Tel: +94 41 229 2234 | Web: www.hoteljanro.com<br>
               VAT Reg No: 123456789-0000
             </div>
             <div class="receipt-title">Official Receipt</div>
@@ -278,7 +372,9 @@ export function AdminPOS() {
             ${itemsHtml}
           </div>
           <div class="totals">
-            <div class="total-row"><span>Subtotal</span><span>Rs ${order.items.reduce((s,i) => s + (i.price*i.quantity), 0).toLocaleString()}</span></div>
+            <div class="total-row"><span>Subtotal</span><span>Rs ${subtotalAmount.toLocaleString()}</span></div>
+            ${order.serviceCharge > 0 ? `<div class="total-row"><span>Service Charge (10%)</span><span>Rs ${order.serviceCharge.toLocaleString()}</span></div>` : ''}
+            ${order.deliveryFee > 0 ? `<div class="total-row"><span>Delivery Fee</span><span>Rs ${order.deliveryFee.toLocaleString()}</span></div>` : ''}
             <div class="total-row"><span>Discount</span><span>-Rs ${(order.discount || 0).toLocaleString()}</span></div>
             <div class="total-row grand-total"><span>Grand Total</span><span>Rs ${order.totalAmount.toLocaleString()}</span></div>
             ${order.amountReceived > 0 ? `
@@ -373,54 +469,80 @@ export function AdminPOS() {
                       <option className="text-slate-900" value="Take-away">Take-away</option>
                     </select>
                   </div>
-                  {posForm.orderType === 'Dine-in' && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Table</label>
+                                {/* Dynamic Info Fields */}
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2 col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Customer Name</label>
                       <input 
                         type="text" 
-                        placeholder="T-01" 
-                        value={posForm.tableNumber} 
-                        onChange={e => setPosForm({...posForm, tableNumber: e.target.value})} 
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm outline-none focus:border-[#D4AF37] transition-all"
+                        placeholder="Guest Name (Optional)" 
+                        value={posForm.customerName} 
+                        onChange={e => setPosForm({...posForm, customerName: e.target.value})} 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all"
                       />
                     </div>
-                  )}
-                  {posForm.orderType === 'Room' && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Room</label>
-                      <input 
-                        type="text" 
-                        placeholder="302" 
-                        value={posForm.roomNumber} 
-                        onChange={e => setPosForm({...posForm, roomNumber: e.target.value})} 
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm outline-none focus:border-[#D4AF37] transition-all"
-                      />
-                    </div>
-                  )}
-                </div>
 
-                {posForm.orderType === 'Delivery' && (
-                  <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Delivery Address</label>
-                      <textarea 
-                        placeholder="Enter full address..." 
-                        value={posForm.deliveryAddress} 
-                        onChange={e => setPosForm({...posForm, deliveryAddress: e.target.value})} 
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all resize-none h-20"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    {posForm.orderType === 'Dine-in' && (
+                      <div className="space-y-2 col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Assign Table</label>
+                        <select 
+                          value={posForm.tableNumber} 
+                          onChange={e => setPosForm({...posForm, tableNumber: e.target.value})} 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all text-white appearance-none cursor-pointer"
+                        >
+                          <option value="" className="bg-[#0F172A]">Select Table</option>
+                          {[...Array(15)].map((_, i) => {
+                            const t = `T-${(i + 1).toString().padStart(2, '0')}`;
+                            return <option key={t} value={t} className="bg-[#0F172A]">{t}</option>
+                          })}
+                        </select>
+                      </div>
+                    )}
+
+                    {posForm.orderType === 'Room' && (
+                      <div className="space-y-2 col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Assign Room</label>
+                        <select 
+                          value={posForm.roomNumber} 
+                          onChange={e => setPosForm({...posForm, roomNumber: e.target.value})} 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all text-white appearance-none cursor-pointer"
+                        >
+                          <option value="" className="bg-[#0F172A]">Select Room</option>
+                          {[...Array(10)].map((_, i) => {
+                            const r = `R-${(i + 1).toString().padStart(2, '0')}`;
+                            return <option key={r} value={r} className="bg-[#0F172A]">{r}</option>
+                          })}
+                        </select>
+                      </div>
+                    )}
+
+                    {posForm.orderType === 'Delivery' && (
+                      <div className="space-y-2 col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Delivery Address</label>
+                        <textarea 
+                          placeholder="Full address for delivery" 
+                          value={posForm.deliveryAddress} 
+                          onChange={e => setPosForm({...posForm, deliveryAddress: e.target.value})} 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all h-20 resize-none"
+                        />
+                      </div>
+                    )}
+
+                    {(posForm.orderType === 'Delivery' || posForm.orderType === 'Take-away') && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Contact Number</label>
                         <input 
-                          type="text" 
+                          type="tel" 
+                          maxLength="10"
                           placeholder="07x xxxxxxx" 
                           value={posForm.contactNumber} 
-                          onChange={e => setPosForm({...posForm, contactNumber: e.target.value})} 
+                          onChange={e => setPosForm({...posForm, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
                           className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all"
                         />
                       </div>
+                    )}
+
+                    {posForm.orderType === 'Delivery' && (
                       <div className="space-y-2">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">GPS Location</label>
                         <button 
@@ -433,33 +555,59 @@ export function AdminPOS() {
                           {isGettingLocation ? 'Locating...' : posForm.coordinates ? 'Location Set' : 'Get Location'}
                         </button>
                       </div>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
 
                 {/* Item Selection */}
                 <div className="space-y-3">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Select Cuisine</label>
-                  <div className="flex gap-3">
-                    <select 
-                      value={selectedPosMenuItemId} 
-                      onChange={e => setSelectedPosMenuItemId(e.target.value)} 
-                      className="flex-1 bg-white border-none rounded-2xl px-5 py-4 text-sm text-slate-900 font-bold focus:ring-4 focus:ring-[#D4AF37]/30 outline-none shadow-xl"
-                    >
-                      <option value="">Select a dish...</option>
-                      {menuItems.map(item => (
-                        <option key={item._id} value={item._id} disabled={!item.isAvailable}>
-                          {item.name} ({formatCurrency(item.price)})
-                        </option>
-                      ))}
-                    </select>
-                    <input 
-                      type="number" 
-                      min="1" 
-                      value={selectedPosQuantity} 
-                      onChange={e => setSelectedPosQuantity(e.target.value)} 
-                      className="w-20 bg-white/10 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-sm outline-none focus:border-[#D4AF37]"
-                    />
+                  <div className="flex flex-col gap-3">
+                    <div className="flex gap-3">
+                      <select 
+                        value={selectedPosMenuItemId} 
+                        onChange={e => {
+                          setSelectedPosMenuItemId(e.target.value);
+                          setSelectedPortion('Full');
+                        }} 
+                        className="flex-1 bg-white border-none rounded-2xl px-5 py-4 text-sm text-slate-900 font-bold focus:ring-4 focus:ring-[#D4AF37]/30 outline-none shadow-xl"
+                      >
+                        <option value="">Select a dish...</option>
+                        {menuItems.map(item => (
+                          <option key={item._id} value={item._id} disabled={!item.isAvailable}>
+                            {item.name} {item.hasPortions ? '(Multi-price)' : `(${formatCurrency(item.price)})`}
+                          </option>
+                        ))}
+                      </select>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        value={selectedPosQuantity} 
+                        onChange={e => setSelectedPosQuantity(e.target.value)} 
+                        className="w-20 bg-white/10 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-sm outline-none focus:border-[#D4AF37]"
+                      />
+                    </div>
+
+                    {selectedPosMenuItemId && menuItems.find(i => i._id === selectedPosMenuItemId)?.hasPortions && (
+                      <div className="flex gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                        {['Full', 'Half'].map(p => {
+                          const item = menuItems.find(i => i._id === selectedPosMenuItemId);
+                          const pPrice = item.portions.find(x => x.portionType === p)?.price;
+                          return (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setSelectedPortion(p)}
+                              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                                selectedPortion === p ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A]' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+                              }`}
+                            >
+                              {p} ({formatCurrency(pPrice)})
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   <button 
                     onClick={addPosItem} 
@@ -474,7 +622,7 @@ export function AdminPOS() {
               <div className="pt-8 border-t border-white/10 space-y-4">
                 <div className="flex items-center justify-between text-slate-400">
                   <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Current Items</span>
-                  <span className="text-[10px] font-bold">{cart.length} distinct</span>
+                  <span className="text-[10px] font-bold">{cart.length} items</span>
                 </div>
                 <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                   {cart.length === 0 ? (
@@ -484,12 +632,12 @@ export function AdminPOS() {
                     </div>
                   ) : (
                     cart.map(item => (
-                      <div key={item.menuItemId} className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors">
+                      <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors">
                         <div>
-                          <p className="text-sm font-bold">{item.name}</p>
+                          <p className="text-sm font-bold">{item.name} {item.portion ? `(${item.portion})` : ''}</p>
                           <p className="text-[10px] text-[#D4AF37] font-bold">{item.quantity} × {formatCurrency(item.price)}</p>
                         </div>
-                        <button onClick={() => setCart(c => c.filter(i => i.menuItemId !== item.menuItemId))} className="p-2 text-rose-400 hover:bg-rose-400/10 rounded-xl transition-colors">
+                        <button onClick={() => setCart(c => c.filter(i => i.cartItemId !== item.cartItemId))} className="p-2 text-rose-400 hover:bg-rose-400/10 rounded-xl transition-colors">
                           <Trash2 className="w-4 h-4"/>
                         </button>
                       </div>
@@ -501,7 +649,27 @@ export function AdminPOS() {
               {/* Totals */}
               <div className="pt-8 border-t border-white/10 space-y-3">
                 <div className="flex justify-between text-sm text-slate-400"><span>Subtotal</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
-                <div className="flex justify-between text-sm text-slate-400"><span>Service Charge (10%)</span><span className="font-medium">{formatCurrency(taxValue)}</span></div>
+                {serviceCharge > 0 && (
+                  <div className="flex justify-between text-sm text-[#D4AF37] font-bold italic">
+                    <span>Service Charge (10%)</span>
+                    <span>+{formatCurrency(serviceCharge)}</span>
+                  </div>
+                )}
+
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between text-sm text-blue-400 font-bold italic">
+                    <span>Delivery Fee (Dist: {distance.toFixed(1)}km)</span>
+                    <span>+{formatCurrency(deliveryFee)}</span>
+                  </div>
+                )}
+
+                {distance > 0 && distance <= 1 && posForm.orderType === 'Delivery' && (
+                  <div className="flex justify-between text-sm text-emerald-400 font-bold italic">
+                    <span>Delivery Distance ({distance.toFixed(1)}km)</span>
+                    <span>FREE</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center pt-4">
                   <span className="text-lg font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Grand Total</span>
                   <span className="text-3xl font-black text-[#D4AF37] tracking-tighter">{formatCurrency(grandTotal)}</span>
