@@ -138,7 +138,7 @@ export function Checkout() {
               <div className="space-y-4 mb-8">
                 <div className="flex justify-between text-gray-500">
                   <span>Cart Total</span>
-                  <span>$42.50</span>
+                  <span>Rs 42.50</span>
                 </div>
                 <div className="flex justify-between text-gray-500">
                   <span>Delivery Fee</span>
@@ -146,7 +146,7 @@ export function Checkout() {
                 </div>
                 <div className="pt-4 border-t border-gray-100 flex justify-between">
                   <span className="text-lg font-bold">Payable Amount</span>
-                  <span className="text-2xl font-bold text-[#1E3A8A]">$42.50</span>
+                  <span className="text-2xl font-bold text-[#1E3A8A]">Rs 42.50</span>
                 </div>
               </div>
               <Button type="submit" variant="secondary" className="w-full !py-4" isLoading={loading}>

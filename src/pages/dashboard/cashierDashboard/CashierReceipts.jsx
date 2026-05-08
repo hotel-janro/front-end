@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Receipt,
   Search,
@@ -13,35 +13,56 @@ import {
   CreditCard,
   FileText,
 } from 'lucide-react';
-import { posOrders } from '../../../data/newMockData.js';
-
-// Generate receipts from completed orders
-const receipts = posOrders
-  .filter((o) => o.status === 'Completed')
-  .map((order, idx) => ({
-    id: `REC-${String(idx + 1).padStart(4, '0')}`,
-    orderNumber: order.orderNumber,
-    customerName: order.customerName,
-    items: Array.isArray(order.items) ? order.items : [],
-    subtotal: typeof order.subtotal === 'number'
-      ? order.subtotal
-      : Number((Number(order.totalAmount || 0) - Number(order.tax || 0)).toFixed(2)),
-    tax: order.tax,
-    total: order.totalAmount,
-    paymentMethod: order.paymentMethod,
-    type: order.type,
-    issuedAt: order.completedAt || order.createdAt,
-    status: 'Issued',
-  }));
+import { apiFetch } from '../../../api.js';
 
 export function CashierReceipts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadOrders();
+    const interval = setInterval(loadOrders, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadOrders = async () => {
+    try {
+      const data = await apiFetch('/orders');
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load receipts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+  const receipts = orders
+    .filter((o) => o.paymentStatus === 'Paid' || o.orderStatus === 'Completed')
+    .map((order) => ({
+      id: `REC-${order._id.slice(-6).toUpperCase()}`,
+      orderId: order._id,
+      orderNumber: `#${order._id.slice(-8).toUpperCase()}`,
+      customerName: order.customerName || 'Guest',
+      items: order.items || [],
+      subtotal: order.subtotal || 0,
+      serviceCharge: order.serviceCharge || 0,
+      deliveryFee: order.deliveryFee || 0,
+      discount: order.discount || 0,
+      total: order.totalAmount,
+      paymentMethod: order.paymentMethod || 'Cash',
+      type: order.orderType,
+      issuedAt: order.updatedAt || order.createdAt,
+      status: 'Issued',
+    }));
 
   const filtered = receipts.filter((r) =>
-    r.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.orderNumber.toLowerCase().includes(searchTerm.toLowerCase())
+    (r.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (r.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (r.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -50,7 +71,7 @@ export function CashierReceipts() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Receipts</h1>
-          <p className="text-gray-500 mt-1">View and manage issued receipts</p>
+          <p className="text-gray-500 mt-1">View and manage issued receipts from real transactions</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg font-medium">
@@ -75,9 +96,14 @@ export function CashierReceipts() {
 
       {/* Receipts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((receipt) => (
+        {loading && orders.length === 0 ? (
+           <div className="col-span-full py-20 text-center">
+              <div className="w-10 h-10 border-4 border-teal-100 border-t-teal-600 rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-gray-400">Loading receipts...</p>
+           </div>
+        ) : filtered.map((receipt) => (
           <div
-            key={receipt.id}
+            key={receipt.orderId}
             className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all"
           >
             {/* Receipt Header */}
@@ -129,7 +155,7 @@ export function CashierReceipts() {
               <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-500">Total Amount</p>
-                  <p className="text-xl font-bold text-teal-700">${receipt.total.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-teal-700">{formatCurrency(receipt.total)}</p>
                 </div>
                 <div className="flex gap-1.5">
                   <button
@@ -139,25 +165,13 @@ export function CashierReceipts() {
                   >
                     <Eye className="w-4 h-4 text-gray-600" />
                   </button>
-                  <button
-                    className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                    title="Print Receipt"
-                  >
-                    <Printer className="w-4 h-4 text-gray-600" />
-                  </button>
-                  <button
-                    className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                    title="Download PDF"
-                  >
-                    <Download className="w-4 h-4 text-gray-600" />
-                  </button>
                 </div>
               </div>
             </div>
           </div>
         ))}
 
-        {filtered.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="col-span-full bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">No receipts found</p>
@@ -185,9 +199,9 @@ export function CashierReceipts() {
             <div className="px-6 py-6">
               {/* Header */}
               <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">HotelPro</h2>
-                <p className="text-xs text-gray-500 mt-1">123 Hotel Avenue, City, State 12345</p>
-                <p className="text-xs text-gray-500">Tel: +1 (555) 000-0000</p>
+                <h2 className="text-xl font-bold text-gray-900">HOTEL JANRO</h2>
+                <p className="text-xs text-gray-500 mt-1">Main Street, Kamburupitiya, Matara</p>
+                <p className="text-xs text-gray-500">Tel: +94 41 229 2234</p>
                 <div className="mt-3 border-t border-dashed border-gray-300 pt-3">
                   <p className="text-sm font-semibold text-gray-700">{selectedReceipt.id}</p>
                   <p className="text-xs text-gray-500">
@@ -218,11 +232,11 @@ export function CashierReceipts() {
                 {selectedReceipt.items.map((item, idx) => (
                   <div key={idx} className="flex justify-between text-sm py-1.5">
                     <div>
-                      <span className="text-gray-900">{item.name}</span>
+                      <span className="text-gray-900">{item.name} {item.portion ? `(${item.portion})` : ''}</span>
                       <span className="text-gray-400 ml-2">x{item.quantity}</span>
                     </div>
                     <span className="font-medium text-gray-900">
-                      ${(item.quantity * item.price).toFixed(2)}
+                      {formatCurrency(item.quantity * item.price)}
                     </span>
                   </div>
                 ))}
@@ -232,38 +246,44 @@ export function CashierReceipts() {
               <div className="border-t border-dashed border-gray-300 pt-3 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Subtotal</span>
-                  <span className="text-gray-900">${selectedReceipt.subtotal.toFixed(2)}</span>
+                  <span className="text-gray-900">{formatCurrency(selectedReceipt.subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Tax</span>
-                  <span className="text-gray-900">${selectedReceipt.tax.toFixed(2)}</span>
-                </div>
+                {selectedReceipt.serviceCharge > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Service Charge (10%)</span>
+                    <span className="text-gray-900">{formatCurrency(selectedReceipt.serviceCharge)}</span>
+                  </div>
+                )}
+                {selectedReceipt.deliveryFee > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Delivery Fee</span>
+                    <span className="text-gray-900">{formatCurrency(selectedReceipt.deliveryFee)}</span>
+                  </div>
+                )}
+                {selectedReceipt.discount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Discount</span>
+                    <span className="text-rose-600">-{formatCurrency(selectedReceipt.discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-base font-bold border-t border-dashed border-gray-300 pt-2">
                   <span className="text-gray-900">Total</span>
-                  <span className="text-teal-700">${selectedReceipt.total.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm pt-1">
-                  <span className="text-gray-500">Payment Method</span>
-                  <span className="text-gray-700 font-medium">{selectedReceipt.paymentMethod}</span>
+                  <span className="text-teal-700">{formatCurrency(selectedReceipt.total)}</span>
                 </div>
               </div>
 
               {/* Footer */}
               <div className="mt-6 text-center border-t border-dashed border-gray-300 pt-4">
-                <p className="text-xs text-gray-500">Thank you for your visit!</p>
+                <p className="text-xs text-gray-500">Thank you for choosing Hotel Janro!</p>
                 <p className="text-[10px] text-gray-400 mt-1">This is a computer-generated receipt</p>
               </div>
             </div>
 
             {/* Modal Actions */}
-            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-              <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors text-sm font-medium">
+            <div className="px-6 py-4 border-t border-gray-100">
+              <button className="w-full flex items-center justify-center gap-2 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors text-sm font-medium">
                 <Printer className="w-4 h-4" />
-                Print
-              </button>
-              <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors text-sm font-medium">
-                <Download className="w-4 h-4" />
-                Download PDF
+                Print Receipt
               </button>
             </div>
           </div>
