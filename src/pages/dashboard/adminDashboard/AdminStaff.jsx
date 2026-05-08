@@ -513,12 +513,20 @@ export function AdminStaff() {
 
                 <label className="admin-staff-form-label">
                   Department
-                  <input
+                  <select
                     className="admin-staff-form-input"
                     value={newStaff.department}
                     onChange={(e) => handleFieldChange('department', e.target.value)}
-                    placeholder="Front Office"
-                  />
+                  >
+                    <option>Front Office</option>
+                    <option>Housekeeping</option>
+                    <option>Food & Beverage</option>
+                    <option>Kitchen</option>
+                    <option>Maintenance</option>
+                    <option>Security</option>
+                    <option>Administration</option>
+                    <option>Sales & Marketing</option>
+                  </select>
                 </label>
 
                 <label className="admin-staff-form-label">
@@ -638,12 +646,20 @@ export function AdminStaff() {
 
                 <label className="admin-staff-form-label">
                   Department
-                  <input
+                  <select
                     className="admin-staff-form-input"
                     value={editStaff.department}
                     onChange={(e) => setEditStaff((p) => ({ ...p, department: e.target.value }))}
-                    placeholder="Front Office"
-                  />
+                  >
+                    <option>Front Office</option>
+                    <option>Housekeeping</option>
+                    <option>Food & Beverage</option>
+                    <option>Kitchen</option>
+                    <option>Maintenance</option>
+                    <option>Security</option>
+                    <option>Administration</option>
+                    <option>Sales & Marketing</option>
+                  </select>
                 </label>
 
                 <label className="admin-staff-form-label">
