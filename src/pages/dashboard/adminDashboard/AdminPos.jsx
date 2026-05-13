@@ -18,8 +18,11 @@ import {
   Phone
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSettings } from '../../../context/SettingsContext.jsx';
+
 
 export function AdminPOS() {
+  const { settings } = useSettings();
   const [menuItems, setMenuItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -213,8 +216,8 @@ export function AdminPOS() {
     if (posForm.roomNumber || posForm.orderType === 'Room') {
       const rNum = Number(posForm.roomNumber);
       if (!posForm.roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
-        alert("CRITICAL ERROR: Invalid Room Number! Only rooms 1 to 10 are allowed.");
-        toast.error('Access Denied: Only rooms 1-10 are available in Hotel Janro.');
+        alert(`CRITICAL ERROR: Invalid Room Number! Only rooms 1 to 10 are allowed.`);
+        toast.error(`Access Denied: Only rooms 1-10 are available in ${settings.hotelName}.`);
         return;
       }
     }
@@ -327,7 +330,7 @@ export function AdminPOS() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Hotel Janro - Receipt #${order._id.slice(-8)}</title>
+          <title>${settings.hotelName} - Receipt #${order._id.slice(-8)}</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;600;700;900&display=swap');
             body { font-family: 'Inter', sans-serif; padding: 30px; color: #0F172A; max-width: 400px; margin: 0 auto; }
@@ -350,10 +353,10 @@ export function AdminPOS() {
         <body>
           <div class="header">
             <div class="logo">${hotelLogo}</div>
-            <div class="hotel-name">HOTEL JANRO</div>
+            <div class="hotel-name">${settings.hotelName.toUpperCase()}</div>
             <div class="hotel-details">
-              Main Street, Kamburupitiya, Matara, Sri Lanka<br>
-              Tel: +94 41 229 2234 | Web: www.hoteljanro.com<br>
+              ${settings.address}<br>
+              Tel: ${settings.phone} | Web: ${settings.website}<br>
               VAT Reg No: 123456789-0000
             </div>
             <div class="receipt-title">Official Receipt</div>
@@ -384,7 +387,7 @@ export function AdminPOS() {
           </div>
           ${qrHtml}
           <div class="footer">
-            Thank you for choosing Hotel Janro<br>Visit again for a premium experience
+            Thank you for choosing ${settings.hotelName}<br>Visit again for a premium experience
           </div>
           <script>
             window.onload = () => {

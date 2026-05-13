@@ -2,6 +2,8 @@
 import React from "react";
 import { ImageWithFallback } from "../../components/common/ImageWithFallback.jsx";
 import { Shield, Heart, Award, Clock, Star, Users } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext.jsx";
+
 
 const GALLERY = [
   "https://images.unsplash.com/photo-1764148716678-40a4b8c5b812?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBob3RlbCUyMGxvYmJ5JTIwZ3JhbmQlMjBlbnRyYW5jZXxlbnwxfHx8fDE3NzI0ODIyNjV8MA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -22,12 +24,14 @@ const whyUs = [
 ];
 
 export function About() {
+  const { settings } = useSettings();
+
   return (
     <div className="min-h-screen">
       <div className="bg-[#0F172A] py-20 text-center">
         <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Our Story</p>
         <h1 className="text-4xl md:text-5xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-          About Hotel Janro
+          About {settings.hotelName}
         </h1>
         <p className="text-gray-400 mt-4 max-w-xl mx-auto">
           Two decades of unparalleled luxury and world-class hospitality.
@@ -50,10 +54,10 @@ export function About() {
                 A Legacy of Elegance
               </h2>
               <p className="text-gray-500 mb-4 leading-relaxed">
-                Founded in 2004, Hotel Janro was born from a vision to create a sanctuary of luxury in the heart of Paradise City. What began as a boutique hotel has grown into a world-renowned resort that combines timeless elegance with modern sophistication.
+                Founded in 2004, {settings.hotelName} was born from a vision to create a sanctuary of luxury in the heart of Paradise City. What began as a boutique hotel has grown into a world-renowned resort that combines timeless elegance with modern sophistication.
               </p>
               <p className="text-gray-500 leading-relaxed">
-                Our founder, inspired by the grand hotels of Europe, set out to create a space where every guest feels like royalty. Today, Hotel Janro stands as a testament to that vision -- a place where extraordinary experiences are crafted daily.
+                Our founder, inspired by the grand hotels of Europe, set out to create a space where every guest feels like royalty. Today, {settings.hotelName} stands as a testament to that vision -- a place where extraordinary experiences are crafted daily.
               </p>
             </div>
           </div>
@@ -90,7 +94,7 @@ export function About() {
           <div className="text-center mb-12">
             <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Gallery</p>
             <h2 className="text-3xl text-[#0F172A]" style={{ fontFamily: "DM Serif Display, serif" }}>
-              Glimpses of Hotel Janro
+              Glimpses of {settings.hotelName}
             </h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -106,7 +110,7 @@ export function About() {
       <section className="py-20 bg-[#0F172A]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Why Hotel Janro</p>
+            <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Why {settings.hotelName}</p>
             <h2 className="text-3xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
               Why Choose Us
             </h2>

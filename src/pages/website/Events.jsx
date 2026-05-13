@@ -1,5 +1,7 @@
 // Events.jsx - Wedding & Events Page (Pure JavaScript)
 import React, { useEffect, useMemo, useState } from "react";
+import { useSettings } from "../../context/SettingsContext.jsx";
+
 import { EventCard } from "../../components/website/EventCard.jsx";
 import { CustomCalendar } from "../../components/common/CustomCalendar.jsx";
 import { Calendar, Hotel, Heart, MapPin, Users, Sparkles, X, CheckCircle, Info, ChevronRight } from "lucide-react";
@@ -71,7 +73,9 @@ const AREAS = [
 ];
 
 export function Events() {
+  const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState("halls");
+
 
   const currentData = activeTab === "halls" ? HALLS : AREAS;
 
@@ -139,7 +143,7 @@ export function Events() {
                 Plan Your Event with Our Specialists
               </h3>
               <p className="text-gray-500 text-lg leading-relaxed mb-8">
-                Every event at Hotel Janro is tailored to your unique vision. Our dedicated events team is here to assist you with hall tours, custom catering menus, and technical requirements.
+                Every event at {settings.hotelName} is tailored to your unique vision. Our dedicated events team is here to assist you with hall tours, custom catering menus, and technical requirements.
               </p>
               <div className="grid grid-cols-2 gap-6 mb-10">
                 <div className="flex items-center gap-4">

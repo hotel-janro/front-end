@@ -55,11 +55,11 @@ export function Home() {
       {/* Hero Section */}
       <section className="relative h-[90vh] min-h-[600px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
-          <ImageWithFallback src={HERO_IMG} alt="Hotel Janro" className="w-full h-full object-cover" />
+          <ImageWithFallback src={HERO_IMG} alt={settings.hotelName} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0F172A]/90 via-[#0F172A]/70 to-[#0F172A]/40" />
         </div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-[#D4AF37] tracking-[0.4em] uppercase text-sm mb-4">Welcome to Hotel Janro</p>
+          <p className="text-[#D4AF37] tracking-[0.4em] uppercase text-sm mb-4">Welcome to {settings.hotelName}</p>
           <h1
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white mb-6 leading-tight"
             style={{ fontFamily: "DM Serif Display, serif" }}
@@ -93,7 +93,7 @@ export function Home() {
             A Legacy of Luxury & Elegance
           </h2>
           <p className="text-gray-500 max-w-3xl mx-auto leading-relaxed">
-            Nestled in the heart of Paradise City, Hotel Janro has been the epitome of luxury hospitality for over two decades. Our commitment to excellence, attention to detail, and personalized service ensure every guest experience is nothing short of extraordinary.
+            Nestled in the heart of Paradise City, {settings.hotelName} has been the epitome of luxury hospitality for over two decades. Our commitment to excellence, attention to detail, and personalized service ensure every guest experience is nothing short of extraordinary.
           </p>
         </div>
       </section>

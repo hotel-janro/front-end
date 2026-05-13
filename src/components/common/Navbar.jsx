@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Crown, User, LogOut, Calendar, ShoppingBag, ChevronDown, LayoutDashboard, Waves, Users, Settings } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext";
+
 
 export function Navbar({ isLoggedIn, user, onLogout, authChecked = true }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,6 +10,8 @@ export function Navbar({ isLoggedIn, user, onLogout, authChecked = true }) {
   const userMenuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const { settings } = useSettings();
+
 
   const links = [
     { path: "/", label: "Home" },
@@ -46,8 +50,8 @@ export function Navbar({ isLoggedIn, user, onLogout, authChecked = true }) {
           <Link to="/" className="flex items-center gap-2 group">
             <Crown className="w-8 h-8 text-[#D4AF37] group-hover:scale-110 transition-transform" />
             <div>
-              <span className="text-xl tracking-wider" style={{ fontFamily: "DM Serif Display, serif" }}>
-                HOTEL JANRO
+              <span className="text-xl tracking-wider uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
+                {settings.hotelName}
               </span>
               <span className="block text-[10px] tracking-[0.3em] text-[#D4AF37] uppercase -mt-1">
                 Hotel & Resort

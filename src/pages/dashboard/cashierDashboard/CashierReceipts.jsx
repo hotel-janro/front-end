@@ -14,9 +14,13 @@ import {
   FileText,
 } from 'lucide-react';
 import { apiFetch } from '../../../api.js';
+import { useSettings } from '../../../context/SettingsContext.jsx';
+
 
 export function CashierReceipts() {
+  const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
+
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -199,9 +203,9 @@ export function CashierReceipts() {
             <div className="px-6 py-6">
               {/* Header */}
               <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">HOTEL JANRO</h2>
-                <p className="text-xs text-gray-500 mt-1">Main Street, Kamburupitiya, Matara</p>
-                <p className="text-xs text-gray-500">Tel: +94 41 229 2234</p>
+                <h2 className="text-xl font-bold text-gray-900">{settings.hotelName.toUpperCase()}</h2>
+                <p className="text-xs text-gray-500 mt-1">{settings.address}</p>
+                <p className="text-xs text-gray-500">Tel: {settings.phone}</p>
                 <div className="mt-3 border-t border-dashed border-gray-300 pt-3">
                   <p className="text-sm font-semibold text-gray-700">{selectedReceipt.id}</p>
                   <p className="text-xs text-gray-500">
@@ -274,7 +278,7 @@ export function CashierReceipts() {
 
               {/* Footer */}
               <div className="mt-6 text-center border-t border-dashed border-gray-300 pt-4">
-                <p className="text-xs text-gray-500">Thank you for choosing Hotel Janro!</p>
+                <p className="text-xs text-gray-500">Thank you for choosing {settings.hotelName}!</p>
                 <p className="text-[10px] text-gray-400 mt-1">This is a computer-generated receipt</p>
               </div>
             </div>

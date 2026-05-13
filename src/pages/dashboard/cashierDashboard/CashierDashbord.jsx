@@ -14,7 +14,9 @@ import {
   DollarSign,
   History
 } from "lucide-react";
+import { useSettings } from "../../../context/SettingsContext.jsx";
 import "./CashierDashbord.css";
+
 
 function formatCurrency(value) {
   return `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
@@ -236,7 +238,9 @@ function CashierPayments() {
 
 // ---------------- Receipts Tab ---------------- //
 function CashierReceipts() {
+  const { settings } = useSettings();
   const [orders, setOrders] = useState([]);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -298,7 +302,7 @@ function CashierReceipts() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Hotel Janro - Receipt #${order._id.slice(-8)}</title>
+          <title>${settings.hotelName} - Receipt #${order._id.slice(-8)}</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;600;700;900&display=swap');
             body { font-family: 'Inter', sans-serif; padding: 30px; color: #0F172A; max-width: 400px; margin: 0 auto; }
@@ -321,10 +325,10 @@ function CashierReceipts() {
         <body>
           <div class="header">
             <div class="logo">${hotelLogo}</div>
-            <div class="hotel-name">HOTEL JANRO</div>
+            <div class="hotel-name">${settings.hotelName.toUpperCase()}</div>
             <div class="hotel-details">
-              123 Luxury Avenue, Colombo 03, Sri Lanka<br>
-              Tel: +94 11 234 5678 | Web: www.hoteljanro.com<br>
+              ${settings.address}<br>
+              Tel: ${settings.phone} | Web: ${settings.website}<br>
               VAT Reg No: 123456789-0000
             </div>
             <div class="receipt-title">Official Receipt</div>
@@ -353,7 +357,7 @@ function CashierReceipts() {
           </div>
           ${qrHtml}
           <div class="footer">
-            Thank you for choosing Hotel Janro<br>Visit again for a premium experience
+            Thank you for choosing ${settings.hotelName}<br>Visit again for a premium experience
           </div>
           <script>
             window.onload = () => {
