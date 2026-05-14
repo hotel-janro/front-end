@@ -22,6 +22,7 @@ export function AdminSettings() {
   
   // General Tab State
   const [formData, setFormData] = useState({
+    hotelName: '',
     email: '',
     address: '',
     phone: '',
@@ -55,6 +56,7 @@ export function AdminSettings() {
   useEffect(() => {
     if (settings) {
       setFormData({
+        hotelName: settings.hotelName || '',
         email: settings.email || '',
         address: settings.address || '',
         phone: settings.phone || '',
@@ -202,7 +204,7 @@ export function AdminSettings() {
       {/* Header */}
       <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">{settings.hotelName}</p>
           <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
             Settings
           </h1>
@@ -257,8 +259,14 @@ export function AdminSettings() {
                 <div className="space-y-4">
                   <div>
                     <label className="admin-settings-label">Hotel Name</label>
-                    <input type="text" value="HOTEL JANRO" disabled className="admin-settings-control bg-gray-50 cursor-not-allowed" />
-                    <p className="text-xs text-gray-400 mt-1">Hotel name is locked and cannot be changed.</p>
+                    <input 
+                      type="text" 
+                      name="hotelName"
+                      value={formData.hotelName} 
+                      onChange={handleChange}
+                      className="admin-settings-control" 
+                    />
+                    <p className="text-xs text-gray-400 mt-1">This name will be displayed across the website and in emails.</p>
                   </div>
                   <div>
                     <label className="admin-settings-label">Address</label>

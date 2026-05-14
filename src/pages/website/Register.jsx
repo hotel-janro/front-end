@@ -3,8 +3,12 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/common/Button.jsx";
 import { Crown, Mail, Lock, User, Eye, EyeOff, Phone } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext";
+
 
 export function Register({ onRegister }) {
+  const { settings } = useSettings();
+
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirmPassword: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -48,8 +52,8 @@ export function Register({ onRegister }) {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Crown className="w-8 h-8 text-[#D4AF37]" />
-            <span className="text-2xl text-[#0F172A] tracking-wider" style={{ fontFamily: "DM Serif Display, serif" }}>
-              HOTEL JANRO
+            <span className="text-2xl text-[#0F172A] tracking-wider uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
+              {settings.hotelName}
             </span>
           </div>
           <p className="text-gray-400 text-sm">Create your account to get started.</p>

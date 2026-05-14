@@ -22,12 +22,12 @@ export function Footer() {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Crown className="w-7 h-7 text-[#D4AF37]" />
-              <span className="text-xl text-white tracking-wider" style={{ fontFamily: "DM Serif Display, serif" }}>
-                HOTEL JANRO
+              <span className="text-xl text-white tracking-wider uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
+                {settings.hotelName}
               </span>
             </div>
             <p className="text-sm text-gray-400 mb-4">
-              Experience unparalleled luxury and world-class hospitality at Hotel Janro.
+              Experience unparalleled luxury and world-class hospitality at {settings.hotelName}.
             </p>
             <div className="flex gap-3">
               {[
@@ -87,7 +87,7 @@ export function Footer() {
 
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-6 text-center text-sm text-gray-500">
-          &copy; 2026 Hotel Janro. All rights reserved.
+          &copy; {new Date().getFullYear()} {settings.hotelName}. All rights reserved.
         </div>
       </div>
     </footer>

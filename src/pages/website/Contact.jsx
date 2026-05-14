@@ -84,7 +84,7 @@ export function Contact() {
             </div>
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
               <iframe
-                title="Hotel Janro Location"
+                title={`${settings.hotelName} Location`}
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3960.5!2d80.1!3d7.0!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ae2ff911e29b8b7%3A0x7e8e89d1a3c3c1e!2sHotel+Janro!5e0!3m2!1sen!2slk!4v1700000000000!5m2!1sen!2slk"
                 width="100%"
                 height="280"

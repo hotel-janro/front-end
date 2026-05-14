@@ -70,8 +70,14 @@ export const getImageUrl = (imagePath) => {
   if (!imagePath) return '';
   if (imagePath.startsWith('http') || imagePath.startsWith('blob:')) return imagePath;
   
-  // Clean up any double slashes and ensure proper API_HOST prefix
-  const cleanPath = imagePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  // Clean up any backslashes and leading slashes
+  let cleanPath = imagePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  
+  // If the path doesn't already start with 'uploads/', prepend it
+  // This ensures images are correctly routed to the backend's static file server
+  if (!cleanPath.startsWith('uploads/')) {
+    cleanPath = `uploads/${cleanPath}`;
+  }
   
   // Encode each segment of the path to handle spaces and special characters in filenames
   const encodedPath = cleanPath.split('/').map(seg => encodeURIComponent(seg)).join('/');
