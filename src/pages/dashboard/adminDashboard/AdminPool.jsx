@@ -15,6 +15,7 @@ const basePoolSlots = [
 const defaultForm = {
   guestName: '',
   guestEmail: '',
+  guestPhone: '',
   roomNumber: '',
   date: '',
   timeSlot: 'Morning Slot',
@@ -34,6 +35,7 @@ const normalizeBooking = (booking, index = 0) => {
     _id: bookingId,
     guestName: booking?.guestName || '',
     guestEmail: booking?.guestEmail || '',
+    guestPhone: booking?.guestPhone || '',
     roomNumber: booking?.roomNumber || '',
     date: booking?.date || new Date().toISOString(),
     timeSlot: booking?.timeSlot || '',
@@ -407,6 +409,7 @@ export function AdminPool() {
     setFormData({
       guestName: booking.guestName,
       guestEmail: booking.guestEmail,
+      guestPhone: booking.guestPhone || '',
       roomNumber: booking.roomNumber,
       date: booking.date ? booking.date.split('T')[0] : '',
       timeSlot: booking.timeSlot,
@@ -557,7 +560,13 @@ export function AdminPool() {
                 {filteredBookings.map((booking) => (
                   <tr key={booking._id || booking.id} className="admin-pool__table-row">
                     <td className="admin-pool__table-cell"><span className="admin-pool__booking-code">#POOL-{booking.id.padStart(3, '0')}</span></td>
-                    <td className="admin-pool__table-cell"><div><div className="admin-pool__guest-name">{booking.guestName}</div><div className="admin-pool__guest-email">{booking.guestEmail}</div></div></td>
+                    <td className="admin-pool__table-cell">
+                      <div>
+                        <div className="admin-pool__guest-name">{booking.guestName}</div>
+                        <div className="admin-pool__guest-email">{booking.guestEmail}</div>
+                        <div className="admin-pool__guest-phone text-xs text-blue-600 font-medium">{booking.guestPhone}</div>
+                      </div>
+                    </td>
                     <td className="admin-pool__table-cell">{booking.roomNumber || 'N/A'}</td>
                     <td className="admin-pool__table-cell">{new Date(booking.date).toLocaleDateString()}</td>
                     <td className="admin-pool__table-cell">{booking.timeSlot}</td>
@@ -636,6 +645,11 @@ export function AdminPool() {
               <label className="admin-pool__field">
                 Guest Email (Optional)
                 <input className="admin-pool__input" type="email" name="guestEmail" value={formData.guestEmail} onChange={handleFormChange} />
+              </label>
+
+              <label className="admin-pool__field">
+                Guest Phone Number *
+                <input className="admin-pool__input" type="tel" name="guestPhone" value={formData.guestPhone} onChange={handleFormChange} required placeholder="e.g. +94771234567" />
               </label>
 
               <label className="admin-pool__field">
