@@ -11,6 +11,8 @@ import {
   LogOut,
   Crown,
 } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext";
+
 
 const navItems = [
   { label: "Dashboard", icon: Grid3X3, path: "/reception" },
@@ -22,7 +24,9 @@ const navItems = [
 ];
 
 export function ReceptionSidebar({ user, onLogout }) {
+  const { settings } = useSettings();
   const navigate = useNavigate();
+
 
   const handleLogout = () => {
     if (onLogout) onLogout();
@@ -38,8 +42,8 @@ export function ReceptionSidebar({ user, onLogout }) {
             <Crown className="w-6 h-6 text-[#D4AF37]" />
           </div>
           <div>
-            <h1 className="text-[1.8rem] leading-none tracking-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-              HOTEL JANRO
+            <h1 className="text-[1.8rem] leading-none tracking-tight text-white uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
+              {settings.hotelName}
             </h1>
             <p className="text-xs text-[#D4AF37] tracking-[0.16em] uppercase mt-1">Reception Panel</p>
           </div>

@@ -14,9 +14,13 @@ import {
   FileText,
 } from 'lucide-react';
 import { apiFetch } from '../../../api.js';
+import { useSettings } from '../../../context/SettingsContext.jsx';
+
 
 export function CashierReceipts() {
+  const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
+
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -226,9 +230,9 @@ export function CashierReceipts() {
             <div className="px-6 py-4">
               {/* Header */}
               <div className="text-center mb-3">
-                <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wider">HOTEL JANRO</h2>
-                <p className="text-[10px] text-gray-400 mt-0.5 uppercase font-bold tracking-widest">Malwana Road, Dompe</p>
-                <p className="text-[10px] text-gray-400 font-bold">Tel: 011-1234567</p>
+                <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wider">{settings.hotelName}</h2>
+                <p className="text-[10px] text-gray-400 mt-0.5 uppercase font-bold tracking-widest">{settings.address}</p>
+                <p className="text-[10px] text-gray-400 font-bold">Tel: {settings.phone}</p>
                 <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
                   <p className="text-sm font-black text-slate-800 tracking-widest">{selectedReceipt.id}</p>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
