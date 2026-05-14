@@ -6,7 +6,7 @@ const BASE_URL = `${API_HOST}/api`;
 export const apiFetch = async (endpoint, options = {}) => {
   const token = localStorage.getItem("janro_token");
 
-  // If body is FormData, do not set Content-Type so the browser can add the multipart boundary
+  
   const isFormData = options.body instanceof FormData;
   const headers = {
     ...(isFormData ? {} : { "Content-Type": "application/json" }),
@@ -24,7 +24,7 @@ export const apiFetch = async (endpoint, options = {}) => {
     throw new Error("Unable to reach API server");
   }
 
-  // If 401 Unauthorized, try refreshing the token
+  // 401 Unauthorized, try refreshing token
   if (response.status === 401) {
     const refreshToken = localStorage.getItem("janro_refresh_token");
     if (refreshToken) {

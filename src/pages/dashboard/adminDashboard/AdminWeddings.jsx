@@ -310,7 +310,7 @@ export function AdminWedding() {
       subtotal += servicePrices[s] || 0;
     });
 
-    // --- Extra Hour Calculation ---
+    // Extra Hour Calculation
     if (formData.startTime && formData.endTime) {
       const calculateDuration = (start, end) => {
         const [sH, sM] = start.split(':').map(Number);
@@ -376,22 +376,22 @@ export function AdminWedding() {
   const handleSubmitBooking = async (e) => {
     e.preventDefault();
     
-    // --- FRONTEND VALIDATIONS ---
-    // 1. Phone Number Validation
+   
+    // Phone Number Validation
     const cleanPhone = formData.customerPhone.replace(/\s+/g, '');
     if (!/^(0\d{9}|\+94\d{9})$/.test(cleanPhone)) {
       alert("Invalid Phone Number. Please enter a valid 10-digit Sri Lankan number (e.g., 0712345678).");
       return;
     }
 
-    // 2. NIC Validation (9 digits + V/X OR 12 digits)
+    // NIC Validation
     const cleanNIC = formData.customerNIC.replace(/\s+/g, '').toUpperCase();
     if (!/^(\d{9}[VX]|\d{12})$/.test(cleanNIC)) {
       alert("Invalid NIC Number. Please enter a valid Sri Lankan NIC.");
       return;
     }
 
-    // 3. Time Validation
+    // Time Validation
     if (formData.startTime && formData.endTime) {
       const startParts = formData.startTime.split(':');
       const endParts = formData.endTime.split(':');
@@ -409,7 +409,8 @@ export function AdminWedding() {
          }
       }
     }
-    // --- END VALIDATIONS ---
+    
+    //
 
     try {
       const url = editingId ? `/wedding/bookings/${editingId}` : '/wedding/bookings';
@@ -812,7 +813,7 @@ export function AdminWedding() {
         )}
       </div>
 
-      {/* NEW BOOKING MODAL (MULTI-STEP) */}
+      {/* NEW BOOKING MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl border border-white/20 overflow-hidden flex flex-col max-h-[90vh]">
