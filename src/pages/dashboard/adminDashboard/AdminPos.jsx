@@ -1,10 +1,15 @@
+/**
+ * AdminPOS.jsx
+ * Premium Point of Sale Dashboard for Hotel Janro.
+ * Handles order creation, multi-order settlement, and thermal receipt printing.
+ */
 import React, { useEffect, useMemo, useState } from 'react';
-import { apiFetch, API_HOST } from '../../../api.js';
+import { apiFetch, API_HOST, getImageUrl } from '../../../api.js';
 import {
   ShoppingCart,
   Search,
   Clock,
-  DollarSign,
+  Gem,
   Plus,
   Trash2,
   CheckCircle,
@@ -19,11 +24,13 @@ import {
   MapPin,
   X,
   Truck,
-  Printer
+  Printer,
+  Banknote
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
 export function AdminPOS() {
+  // --- 1. STATE MANAGEMENT ---
   const [menuItems, setMenuItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,8 +69,10 @@ export function AdminPOS() {
 
   const [settlingOrderId, setSettlingOrderId] = useState(null);
   const [settleAmount, setSettleAmount] = useState('');
+  const [isPaidToggle, setIsPaidToggle] = useState(false);
+  const [lastPollTime, setLastPollTime] = useState(new Date());
 
-  const HOTEL_COORDS = { lat: 6.0833, lng: 80.5667 };
+  const HOTEL_COORDS = { lat: 6.9458, lng: 80.1250 };
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
@@ -76,11 +85,11 @@ export function AdminPOS() {
     return R * c;
   };
 
+  // --- 2. CALCULATIONS & DERIVED DATA ---
   const subtotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [cart]);
 
-  // Restoring Service Charge and Delivery Fee as requested
   const serviceCharge = useMemo(() => {
     return (posForm.orderType === "Dine-in" || posForm.orderType === "Room") ? subtotal * 0.1 : 0;
   }, [subtotal, posForm.orderType]);
@@ -92,7 +101,9 @@ export function AdminPOS() {
         return { deliveryFee: posForm.deliveryFee, distance: 0 };
       }
       if (posForm.coordinates) {
-        const dist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
+        const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
+        // Apply a 1.2x winding factor to estimate actual road distance
+        const dist = straightDist * 1.2;
         const fee = (dist > 1 && dist <= 15) ? subtotal * 0.1 * Math.floor(dist) : 0;
         return { deliveryFee: fee, distance: dist };
       }
@@ -160,9 +171,14 @@ export function AdminPOS() {
 
   useEffect(() => {
     const received = Number(amountReceived || 0);
-    setBalance(received > 0 ? Math.max(received - grandTotal, 0) : 0);
-  }, [amountReceived, grandTotal]);
+    if (isPaidToggle && received < grandTotal) {
+      setBalance(0);
+    } else {
+      setBalance(received > 0 ? Math.max(received - grandTotal, 0) : 0);
+    }
+  }, [amountReceived, grandTotal, isPaidToggle]);
 
+  // --- 3. DATA FETCHING ---
   useEffect(() => {
     refreshData();
     const interval = setInterval(() => loadOrders(true), 30000);
@@ -184,11 +200,13 @@ export function AdminPOS() {
     try {
       const data = await apiFetch('/orders');
       setOrders(Array.isArray(data) ? data : []);
+      setLastPollTime(new Date());
     } catch (e) { console.error(e); }
   };
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
+  // --- 4. CART OPERATIONS ---
   const addPosItem = () => {
     const menuItem = menuItems.find((item) => item._id === selectedPosMenuItemId);
     if (!menuItem) {
@@ -216,6 +234,7 @@ export function AdminPOS() {
     setSelectedPortion('Full');
   };
 
+  // --- 5. ORDER PLACEMENT & SETTLEMENT ---
   const handlePlaceOrder = async () => {
     // Comprehensive Validation
     const errors = {};
@@ -265,7 +284,7 @@ export function AdminPOS() {
     setSavingPosOrder(true);
     try {
       const receivedNum = Number(amountReceived || 0);
-      const isPaid = receivedNum >= grandTotal && receivedNum > 0;
+      const isPaid = isPaidToggle || (receivedNum >= grandTotal && grandTotal > 0) || (grandTotal === 0);
 
       const payload = {
         orderType: posForm.orderType,
@@ -299,16 +318,16 @@ export function AdminPOS() {
 
       if (!response?._id) throw new Error("Failed to create order");
 
-      toast.success('Order placed successfully!');
+      toast.success(`Order #${response._id.slice(-6).toUpperCase()} placed!`);
       handlePrintReceipt(response);
 
-      // Reset only Cart and Discount, preserve other details for consecutive orders
       setCart([]);
+      setAmountReceived('');
+      setIsPaidToggle(false);
       setPosForm(prev => ({
         ...prev,
         discount: '0'
       }));
-      setAmountReceived('');
       await loadOrders();
     } catch (e) {
       console.error(e);
@@ -321,13 +340,13 @@ export function AdminPOS() {
   };
 
   const handlePrintReceipt = (order) => {
-    const printWindow = window.open('', '_blank', 'width=300,height=700');
-    if (!printWindow) return toast.error('Pop-up blocked. Please allow pop-ups for printing.');
+    // Basic safety check
+    if (!order) return toast.error("No order data provided");
 
     // Find related unpaid orders to combine into a single bill if it's a table/room order
     let relatedOrders = [order];
     if (order.paymentStatus === 'Unpaid' && (order.tableNumber || order.roomNumber)) {
-      relatedOrders = orders.filter(o => 
+      relatedOrders = (orders || []).filter(o => 
         o.paymentStatus === 'Unpaid' && 
         ((order.tableNumber && o.tableNumber === order.tableNumber) || 
          (order.roomNumber && o.roomNumber === order.roomNumber))
@@ -342,32 +361,34 @@ export function AdminPOS() {
     const combinedTotalAmount = relatedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
     const totalQty = combinedItems.reduce((s, it) => s + it.quantity, 0);
 
+    // Calculate daily sequence number
+    const orderDate = new Date(order.createdAt).toLocaleDateString();
+    const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
+    const dailyNum = sameDayOrders.length - sameDayOrders.indexOf(order);
+    const dailySeqStr = dailyNum.toString().padStart(3, '0');
+
+    const printWindow = window.open('', '_blank', 'width=350,height=600');
+    if (!printWindow) return toast.error('Pop-up blocked!');
+
     const itemsHtml = combinedItems.map(it => `
       <tr>
-        <td style="padding: 2px 0;">
-          ${it.name}
-          ${it.portion ? `<br/><span style="font-size: 8px; color: #333;">(${it.portion})</span>` : ''}
-        </td>
+        <td style="padding: 2px 0;">${it.name}${it.portion ? ` (${it.portion})` : ''}</td>
         <td style="text-align: center;">${it.quantity}</td>
-        <td style="text-align: right;">${(it.price * it.quantity).toLocaleString()}</td>
+        <td style="text-align: right;">${((Number(it.price) || 0) * (Number(it.quantity) || 1)).toLocaleString()}</td>
       </tr>
     `).join('');
 
-    // QR Code for Delivery
-    let qrHtml = '';
-    if (order.orderType === 'Delivery' && order.coordinates) {
-      const mapsUrl = `https://www.google.com/maps?q=${order.coordinates.lat},${order.coordinates.lng}`;
-      qrHtml = `
-        <div style="text-align: center; margin-top: 10px;">
-          <p style="margin: 0 0 5px 0; font-size: 8px; font-weight: bold;">SCAN FOR LOCATION</p>
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(mapsUrl)}" width="80" height="80" />
-        </div>
-      `;
-    }
+    const qrHtml = `
+      <div style="text-align: center; margin-top: 10px;">
+        <div style="font-size: 8px; margin-bottom: 2px;">SCAN TO FEEDBACK</div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=JANRO-ORD-${order._id}" style="width:60px; height:60px; margin: 0 auto;" />
+      </div>
+    `;
 
     printWindow.document.write(`
       <html>
         <head>
+          <title>Hotel Janro - Bill #${order._id.slice(-6).toUpperCase()}</title>
           <style>
             @media print { @page { margin: 0; } body { margin: 0.2cm; } }
             body { 
@@ -376,7 +397,7 @@ export function AdminPOS() {
               line-height: 1.2; 
               color: #000; 
               width: 100%; 
-              max-width: 300px; /* Standard thermal width approx */
+              max-width: 300px; 
               margin: 0 auto;
             }
             .header { text-align: center; margin-bottom: 8px; }
@@ -390,23 +411,27 @@ export function AdminPOS() {
         <body>
           <div class="header">
             <h2 style="margin:0; font-size: 18px;">HOTEL JANRO</h2>
-            <p style="margin:1px 0;">Premium Hospitality</p>
-            <p style="margin:1px 0;">Dompe | 071-1234567</p>
+            <p style="margin:1px 0;">Malwana Road, Dompe</p>
+            <p style="margin:1px 0;">Tel: 011-1234567</p>
+          </div>
+          <div class="divider"></div>
+          <div style="text-align: center; margin-bottom: 5px;">
+            <div style="font-size: 16px; font-weight: bold; border: 2px solid #000; display: inline-block; padding: 4px 10px;">ORDER #${dailySeqStr}</div>
           </div>
           <div class="divider"></div>
           <div style="display:flex; justify-content:space-between;">
-            <span>Order: #${order._id.slice(-6).toUpperCase()}</span>
-            <span>${new Date(order.createdAt).toLocaleDateString()}</span>
+            <span>ID: #${(order?._id || "").slice(-6).toUpperCase()}</span>
+            <span>${order?.createdAt ? new Date(order.createdAt).toLocaleDateString() : ""}</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
-             <span>Time: ${new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-             <span class="badge">${order.orderType.toUpperCase()}</span>
+             <span>Time: ${order?.createdAt ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</span>
+             <span class="badge">${(order?.orderType || "").toUpperCase()}</span>
           </div>
-          ${order.tableNumber ? `<div>Table: ${order.tableNumber}</div>` : ''}
-          ${order.roomNumber ? `<div>Room: ${order.roomNumber}</div>` : ''}
-          ${order.customerName ? `<div>Guest: ${order.customerName}</div>` : ''}
-          ${order.contactNumber ? `<div>Phone: ${order.contactNumber}</div>` : ''}
-          ${order.deliveryAddress ? `<div>Address: ${order.deliveryAddress}</div>` : ''}
+          ${order?.tableNumber ? `<div>Table: ${order.tableNumber}</div>` : ''}
+          ${order?.roomNumber ? `<div>Room: ${order.roomNumber}</div>` : ''}
+          ${order?.customerName ? `<div>Guest: ${order.customerName}</div>` : ''}
+          ${order?.contactNumber ? `<div>Phone: ${order.contactNumber}</div>` : ''}
+          ${order?.deliveryAddress ? `<div>Address: ${order.deliveryAddress}</div>` : ''}
           
           <div class="divider"></div>
           <table>
@@ -425,16 +450,16 @@ export function AdminPOS() {
           
           <div style="text-align: right; space-y: 2px;">
             <div>Items Count: ${totalQty}</div>
-            <div>Subtotal Sum: Rs ${combinedSubtotal.toLocaleString()}</div>
+            <div>Subtotal Sum: Rs ${(combinedSubtotal || 0).toLocaleString()}</div>
             ${combinedServiceCharge > 0 ? `<div>Service (10%): Rs ${combinedServiceCharge.toLocaleString()}</div>` : ''}
             ${combinedDeliveryFee > 0 ? `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>` : ''}
             ${combinedDiscount > 0 ? `<div>Discount: -Rs ${combinedDiscount.toLocaleString()}</div>` : ''}
             <div class="divider"></div>
-            <div class="total-row">NET TOTAL: Rs ${combinedTotalAmount.toLocaleString()}</div>
+            <div class="total-row">NET TOTAL: Rs ${(combinedTotalAmount || 0).toLocaleString()}</div>
             <div class="divider"></div>
-            ${order.amountReceived > 0 ? `
-              <div>Cash Paid: Rs ${order.amountReceived.toLocaleString()}</div>
-              <div style="font-weight:bold;">Balance: Rs ${order.balance.toLocaleString()}</div>
+            ${(order?.amountReceived || 0) > 0 ? `
+              <div>Cash Paid: Rs ${(order?.amountReceived || 0).toLocaleString()}</div>
+              <div style="font-weight:bold;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
             ` : ''}
           </div>
 
@@ -447,10 +472,12 @@ export function AdminPOS() {
           </div>
           
           <script>
-            window.onload = function() {
+            setTimeout(function() {
               window.print();
-              setTimeout(function() { window.close(); }, 700);
-            };
+              window.onafterprint = function() { window.close(); };
+              // Fallback for browsers that don't support onafterprint well
+              setTimeout(function() { window.close(); }, 2000);
+            }, 500);
           </script>
         </body>
       </html>
@@ -458,6 +485,7 @@ export function AdminPOS() {
     printWindow.document.close();
   };
 
+  // --- 7. STATUS & PAYMENT UPDATES ---
   const updateOrderStatus = async (orderId, orderStatus) => {
     await apiFetch(`/orders/${orderId}`, { method: 'PUT', body: JSON.stringify({ orderStatus }) });
     await loadOrders();
@@ -484,6 +512,7 @@ export function AdminPOS() {
   const activeOrdersCount = orders.filter(o => o.orderStatus === 'Pending' || o.orderStatus === 'Preparing').length;
   const todayRevenue = todayOrders.filter(o => o.paymentStatus === 'Paid').reduce((s, o) => s + (o.totalAmount || 0), 0);
 
+  // --- 8. MAIN RENDER ---
   return (
     <div className="space-y-4">
       {/* Small Stats */}
@@ -491,7 +520,7 @@ export function AdminPOS() {
         {[
           { label: 'Today Orders', value: todayOrders.length, icon: ShoppingCart, color: 'blue' },
           { label: 'Active Kitchen', value: activeOrdersCount, icon: Clock, color: 'amber' },
-          { label: 'Net Revenue', value: formatCurrency(todayRevenue), icon: DollarSign, color: 'emerald' }
+          { label: 'Net Revenue', value: formatCurrency(todayRevenue), icon: Gem, color: 'emerald' }
         ].map((stat, i) => (
           <div key={i} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3">
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-${stat.color}-50 text-${stat.color}-600`}>
@@ -720,14 +749,18 @@ export function AdminPOS() {
                 <span className="text-xl font-black text-[#D4AF37]">{formatCurrency(grandTotal)}</span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <div className="space-y-1">
                   <label className="text-[7px] text-slate-500 uppercase tracking-widest">Discount</label>
-                  <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none" />
+                  <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[7px] text-slate-500 uppercase tracking-widest">Received</label>
-                  <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none" />
+                  <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white" />
+                </div>
+                <div className="flex flex-col justify-center items-center gap-1">
+                  <label className="text-[7px] text-slate-500 uppercase tracking-widest">Paid</label>
+                  <input type="checkbox" checked={isPaidToggle} onChange={e => setIsPaidToggle(e.target.checked)} className="w-4 h-4 accent-[#D4AF37] cursor-pointer" />
                 </div>
                 <div className="text-right">
                   <label className="text-[7px] text-slate-500 uppercase tracking-widest">Balance</label>
@@ -746,8 +779,30 @@ export function AdminPOS() {
         <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col overflow-hidden shadow-sm">
           <div className="p-4 border-b border-slate-50 flex items-center justify-between">
             <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-blue-600">Sync</span></h3>
-            <div className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase tracking-widest">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Orders
+            <div className="flex items-center gap-4">
+              {/* Status Legend */}
+              <div className="hidden sm:flex items-center gap-3 text-[7px] font-black uppercase tracking-widest border-r border-slate-100 pr-4">
+                <div className="flex items-center gap-1.5 text-amber-600">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" /> 
+                  Pending
+                </div>
+                <div className="flex items-center gap-1.5 text-blue-600">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" /> 
+                  Preparing
+                </div>
+                <div className="flex items-center gap-1.5 text-emerald-600">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" /> 
+                  Done
+                </div>
+                <div className="flex items-center gap-1.5 text-rose-600">
+                  <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" /> 
+                  Cancel
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> 
+                Live {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </div>
             </div>
           </div>
 
@@ -769,41 +824,49 @@ export function AdminPOS() {
                       { border: 'border-amber-500/30', hover: 'hover:border-amber-500', bg: 'bg-amber-50', text: 'text-amber-600', dot: 'bg-amber-500', borderLight: 'border-amber-100' };
 
               return (
-                <div key={order._id} className={`relative group p-4 rounded-2xl border-2 bg-white shadow-sm hover:shadow-md transition-all ${statusStyles.border} ${statusStyles.hover}`}>
-                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${statusStyles.dot}`} />
+                <div key={order._id} className={`relative group p-5 rounded-[2rem] border-2 bg-white shadow-[0_10px_30px_-15px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_40px_-20px_rgba(15,23,42,0.1)] transition-all duration-500 ${statusStyles.border} ${statusStyles.hover}`}>
+                  <div className={`absolute left-0 top-1/4 bottom-1/4 w-1.5 rounded-r-full ${statusStyles.dot} shadow-[0_0_15px_${statusStyles.dot}]`} />
 
-                  <div className="pl-1.5 space-y-3">
+                  <div className="pl-3 space-y-4">
                     <div className="flex justify-between items-center text-[10px]">
                       <div className="flex items-center gap-2">
-                        <span className={`font-black ${statusStyles.bg} ${statusStyles.text} px-2 py-0.5 rounded border ${statusStyles.borderLight} uppercase tracking-tighter`}>
-                          Order #{dailySequenceNum.toString().padStart(3, '0')}
+                        <span className={`font-black ${statusStyles.bg} ${statusStyles.text} px-3 py-1 rounded-full border ${statusStyles.borderLight} uppercase tracking-widest text-[8px]`}>
+                          Order {dailySequenceNum.toString().padStart(3, '0')}
                         </span>
-                        <span className="text-[8px] font-bold text-slate-300 uppercase">Ref: {order._id.slice(-4).toUpperCase()}</span>
+                        <span className="text-[7px] font-bold text-slate-300 uppercase tracking-widest">#{order._id.slice(-4).toUpperCase()}</span>
                       </div>
                       <div className="text-right">
-                        <p className="text-[9px] text-slate-400 font-bold">{new Date(order.createdAt).toLocaleDateString()}</p>
-                        <p className="text-[9px] text-slate-500 font-black">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString('en-GB')}</p>
+                        <p className="text-[9px] text-slate-900 font-black tracking-widest">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                       </div>
                     </div>
 
                     <div className="flex justify-between items-end">
                       <div>
-                        <h4 className="text-sm font-black text-slate-900">{order.orderType === 'Dine-in' ? `Table ${order.tableNumber}` :
-                          order.orderType === 'Room' ? `Room ${order.roomNumber}` : order.orderType}</h4>
-                        <p className="text-[10px] text-slate-500 font-medium">{order.customerName || 'Walk-in Guest'}</p>
+                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                          {order.orderType === 'Dine-in' ? `Table ${order.tableNumber}` :
+                           order.orderType === 'Room' ? `Room ${order.roomNumber}` : order.orderType}
+                        </h4>
+                        <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+                          <User className="w-3 h-3 text-[#D4AF37]" />
+                          {order.customerName || 'Boutique Guest'}
+                        </p>
                       </div>
                       <div className="text-right">
-                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-white' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                        <span className={`text-[7px] font-black uppercase px-2.5 py-1 rounded-full ${order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-white' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
                           {order.paymentStatus}
                         </span>
-                        <p className="text-lg font-black text-slate-900 mt-1 leading-none">{formatCurrency(order.totalAmount)}</p>
+                        <p className="text-xl font-black text-[#0F172A] mt-2 leading-none" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                          {formatCurrency(order.totalAmount)}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-1 pt-2 border-t border-slate-50">
+                    <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
                       {order.items.map((it, idx) => (
-                        <div key={idx} className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 text-[9px] font-bold text-slate-600">
-                          <span className="text-[#D4AF37]">{it.quantity}x</span> {it.name}
+                        <div key={idx} className="flex items-center gap-2 bg-slate-50/80 px-3 py-1.5 rounded-xl border border-slate-100 text-[9px] font-black text-slate-700">
+                          <span className="text-[#D4AF37] font-black text-[10px]">{it.quantity}x</span> 
+                          <span className="uppercase tracking-wider">{it.name}</span>
                         </div>
                       ))}
                     </div>
@@ -852,7 +915,7 @@ export function AdminPOS() {
                         <div className="mt-2 p-4 bg-slate-900 rounded-[1.5rem] space-y-3 border border-white/10 shadow-2xl animate-in zoom-in-95 duration-300">
                           <div className="flex justify-between items-center border-b border-white/5 pb-2">
                             <span className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
-                              <DollarSign className="w-3 h-3" /> {isMultiple ? `Settle All (${relatedOrders.length} Orders)` : 'Process Payment'}
+                              <Banknote className="w-3 h-3" /> {isMultiple ? `Settle All (${relatedOrders.length} Orders)` : 'Process Payment'}
                             </span>
                             <button onClick={() => { setSettlingOrderId(null); setValidationErrors({}); }} className="hover:rotate-90 transition-transform">
                               <X className="w-4 h-4 text-rose-400" />
@@ -873,14 +936,16 @@ export function AdminPOS() {
                           <div className="grid grid-cols-2 gap-3 items-end">
                             <div className="space-y-1.5">
                               <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Cash Received</label>
-                              <input 
-                                type="number" 
-                                autoFocus
-                                value={settleAmount} 
-                                onChange={e => { setSettleAmount(e.target.value); clearError('settleAmount'); }} 
-                                className={`w-full bg-white/5 border ${validationErrors.settleAmount ? 'border-rose-500' : 'border-white/10'} rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#D4AF37] font-black`} 
-                                placeholder="0.00"
-                              />
+                              <div className="flex items-center gap-2">
+                                <input 
+                                  type="number" 
+                                  autoFocus
+                                  value={settleAmount} 
+                                  onChange={e => { setSettleAmount(e.target.value); clearError('settleAmount'); }} 
+                                  className={`flex-1 bg-white/5 border ${validationErrors.settleAmount ? 'border-rose-500' : 'border-white/10'} rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#D4AF37] font-black`} 
+                                  placeholder="0.00"
+                                />
+                              </div>
                             </div>
                             <div className="bg-white/5 rounded-xl p-2 text-right border border-white/5">
                               <label className="block text-[7px] font-bold text-slate-500 uppercase tracking-widest mb-1">Change / Balance</label>
@@ -898,6 +963,10 @@ export function AdminPOS() {
                             <div className="flex justify-between text-[9px] text-[#D4AF37] uppercase tracking-widest font-bold">
                               <span>Total Service Charge (10%)</span>
                               <span>{formatCurrency(relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0))}</span>
+                            </div>
+                            <div className="flex items-center gap-2 pt-1 border-t border-white/5 mt-1">
+                              <input type="checkbox" id="forcePaid" checked={isPaidToggle} onChange={e => setIsPaidToggle(e.target.checked)} className="accent-[#D4AF37]" />
+                              <label htmlFor="forcePaid" className="text-[7px] text-slate-400 uppercase tracking-widest cursor-pointer">Exact Payment / Paid via Card</label>
                             </div>
                             {relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0) > 0 && (
                               <div className="flex justify-between text-[9px] text-blue-400 uppercase tracking-widest font-bold">
@@ -919,20 +988,21 @@ export function AdminPOS() {
                           <button 
                             onClick={() => {
                               const amount = Number(settleAmount);
-                              if (!settleAmount || amount <= 0) {
-                                setValidationErrors({ settleAmount: "Please enter cash amount" });
-                                return;
-                              }
-                              if (amount < combinedTotal) {
-                                setValidationErrors({ settleAmount: `Insufficient: Need Rs ${combinedTotal.toLocaleString()}` });
-                                return;
+                              if (!isPaidToggle) {
+                                if (!settleAmount || amount <= 0) {
+                                  setValidationErrors({ settleAmount: "Please enter cash amount" });
+                                  return;
+                                }
+                                if (amount < combinedTotal) {
+                                  setValidationErrors({ settleAmount: `Insufficient: Need Rs ${combinedTotal.toLocaleString()}` });
+                                  return;
+                                }
                               }
                               
-                              // Update all related orders to Paid
                               updatePaymentStatus(relatedOrders.map(o => o._id), { 
                                 paymentStatus: 'Paid', 
-                                amountReceived: amount, 
-                                balance: Math.max(amount - combinedTotal, 0),
+                                amountReceived: isPaidToggle && amount === 0 ? combinedTotal : amount, 
+                                balance: isPaidToggle && amount === 0 ? 0 : Math.max(amount - combinedTotal, 0),
                                 orderStatus: 'Completed'
                               });
                             }} 

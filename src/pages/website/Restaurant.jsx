@@ -75,7 +75,6 @@ export function Restaurant({ onOrder, user }) {
   , [menuItems, activeCategory]);
 
   const addToCart = (item) => {
-    console.log("Restaurant: Adding to cart:", item);
     setCart((prev) => {
       const cartItemId = `${item._id}-${item.portion || 'single'}`;
       const existing = prev.find((c) => c.cartItemId === cartItemId);
@@ -102,7 +101,7 @@ export function Restaurant({ onOrder, user }) {
   };
 
   // --- ADVANCED PRICING LOGIC ---
-  const HOTEL_COORDS = { lat: 6.0833, lng: 80.5667 }; // Kamburupitiya, Matara
+  const HOTEL_COORDS = { lat: 6.9458, lng: 80.1250 }; // Malwana Road, Dompe
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; 
@@ -114,6 +113,8 @@ export function Restaurant({ onOrder, user }) {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
+
+  const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
   const subtotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
   
@@ -140,7 +141,6 @@ export function Restaurant({ onOrder, user }) {
     }
 
     setIsLocating(true);
-    console.log("Restaurant: Requesting Geolocation...");
 
     const options = {
       enableHighAccuracy: true,
@@ -236,7 +236,6 @@ export function Restaurant({ onOrder, user }) {
     }
 
     try {
-      console.log("Restaurant: Validation Passed. Sending to Backend...");
       setIsPlacingOrder(true);
       const orderData = {
         items: cart.map(item => ({ 
@@ -378,7 +377,7 @@ export function Restaurant({ onOrder, user }) {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="text-white text-xs font-normal truncate" style={{ fontFamily: "DM Serif Display, serif" }}>{item.name}</h4>
-                            <p className="text-[8px] text-[#D4AF37] font-bold mt-0.5">{item.quantity}x • {settings?.currency?.symbol || "Rs."}{Number(item.price).toLocaleString()}</p>
+                            <p className="text-[8px] text-[#D4AF37] font-bold mt-0.5">{item.quantity}x • {formatCurrency(item.price)}</p>
                           </div>
                           <button onClick={() => removeFromCart(item.cartItemId)} className="text-rose-400/30 hover:text-rose-400">
                             <X className="w-3.5 h-3.5" />
@@ -392,18 +391,18 @@ export function Restaurant({ onOrder, user }) {
                 <div className="p-6 bg-black/20 border-t border-white/5 space-y-2">
                   <div className="flex justify-between text-[9px] text-white/40 uppercase tracking-widest font-black">
                     <span>Subtotal</span>
-                    <span>{settings?.currency?.symbol || "Rs."} {Number(subtotal).toLocaleString()}</span>
+                    <span>{formatCurrency(subtotal)}</span>
                   </div>
                   {serviceCharge > 0 && (
                     <div className="flex justify-between text-[9px] text-emerald-400 uppercase tracking-widest font-black">
                       <span>Service Charge (10%)</span>
-                      <span>{settings?.currency?.symbol || "Rs."} {Number(serviceCharge).toLocaleString()}</span>
+                      <span>{formatCurrency(serviceCharge)}</span>
                     </div>
                   )}
                   {deliveryFee > 0 && (
                     <div className="flex justify-between text-[9px] text-sky-400 uppercase tracking-widest font-black">
                       <span>Delivery Fee</span>
-                      <span>{settings?.currency?.symbol || "Rs."} {Number(deliveryFee).toLocaleString()}</span>
+                      <span>{formatCurrency(deliveryFee)}</span>
                     </div>
                   )}
 
@@ -411,8 +410,7 @@ export function Restaurant({ onOrder, user }) {
                     <div>
                       <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-widest mb-1">Total Payable</p>
                       <h3 className="text-3xl text-white font-normal leading-none" style={{ fontFamily: "DM Serif Display, serif" }}>
-                        <span className="text-xs opacity-40 font-sans mr-1">{settings?.currency?.symbol || "Rs."}</span>
-                        {Number(grandTotal).toLocaleString()}
+                        {formatCurrency(grandTotal)}
                       </h3>
                     </div>
                   </div>
