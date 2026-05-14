@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Receipt,
+  Gem,
   Search,
   Printer,
-  Download,
   Eye,
   X,
-  CheckCircle,
   Package,
   Calendar,
   User,
   CreditCard,
   FileText,
+  RefreshCcw
 } from 'lucide-react';
 import { apiFetch } from '../../../api.js';
 import { useSettings } from '../../../context/SettingsContext.jsx';
@@ -24,6 +23,7 @@ export function CashierReceipts() {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [lastPollTime, setLastPollTime] = useState(new Date());
 
   useEffect(() => {
     loadOrders();
@@ -35,8 +35,9 @@ export function CashierReceipts() {
     try {
       const data = await apiFetch('/orders');
       setOrders(Array.isArray(data) ? data : []);
+      setLastPollTime(new Date());
     } catch (error) {
-      console.error("Failed to load receipts:", error);
+      /* error logged */
     } finally {
       setLoading(false);
     }
@@ -46,22 +47,29 @@ export function CashierReceipts() {
 
   const receipts = orders
     .filter((o) => o.paymentStatus === 'Paid' || o.orderStatus === 'Completed')
-    .map((order) => ({
-      id: `REC-${order._id.slice(-6).toUpperCase()}`,
-      orderId: order._id,
-      orderNumber: `#${order._id.slice(-8).toUpperCase()}`,
-      customerName: order.customerName || 'Guest',
-      items: order.items || [],
-      subtotal: order.subtotal || 0,
-      serviceCharge: order.serviceCharge || 0,
-      deliveryFee: order.deliveryFee || 0,
-      discount: order.discount || 0,
-      total: order.totalAmount,
-      paymentMethod: order.paymentMethod || 'Cash',
-      type: order.orderType,
-      issuedAt: order.updatedAt || order.createdAt,
-      status: 'Issued',
-    }));
+    .map((order) => {
+      const orderDate = new Date(order.createdAt).toLocaleDateString();
+      const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
+      const dailySequenceNum = sameDayOrders.length - sameDayOrders.indexOf(order);
+
+      return {
+        id: `REC-${order._id.slice(-6).toUpperCase()}`,
+        orderId: order._id,
+        orderNumber: `#${order._id.slice(-8).toUpperCase()}`,
+        dailySequenceNum,
+        customerName: order.customerName || 'Boutique Guest',
+        items: order.items || [],
+        subtotal: order.subtotal || 0,
+        serviceCharge: order.serviceCharge || 0,
+        deliveryFee: order.deliveryFee || 0,
+        discount: order.discount || 0,
+        total: order.totalAmount,
+        paymentMethod: order.paymentMethod || 'Cash',
+        type: order.orderType,
+        issuedAt: order.updatedAt || order.createdAt,
+        status: 'Issued',
+      };
+    });
 
   const filtered = receipts.filter((r) =>
     (r.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,224 +78,348 @@ export function CashierReceipts() {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Receipts</h1>
-          <p className="text-gray-500 mt-1">View and manage issued receipts from real transactions</p>
+    <div className="space-y-8 pb-20 animate-in fade-in duration-700">
+      {/* Premium Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-[#0F172A] rounded-2xl flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(15,23,42,0.4)]">
+            <Gem className="w-7 h-7 text-[#D4AF37]" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-[#0F172A] uppercase tracking-wider">Receipt Archive</h1>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">Boutique Transaction History</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg font-medium">
-            {receipts.length} receipt(s) issued
-          </span>
+        <div className="flex flex-col items-end gap-1">
+          <button 
+            onClick={loadOrders}
+            className="group flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl hover:bg-[#0F172A] hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
+          >
+            <RefreshCcw className={`w-4 h-4 group-hover:rotate-180 transition-transform duration-700 ${loading ? 'animate-spin text-[#D4AF37]' : ''}`} />
+            Refresh Archive
+          </button>
+          <p className="text-[7px] font-black text-slate-300 uppercase tracking-widest pr-2">
+            Records: {receipts.length} Issued
+          </p>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* Search & Filter */}
+      <div className="bg-white/70 backdrop-blur-md rounded-[2.5rem] border border-white shadow-[0_10px_50px_-20px_rgba(0,0,0,0.05)] p-2">
+        <div className="relative group">
+          <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors" />
           <input
             type="text"
-            placeholder="Search receipts by ID, order number, or customer..."
+            placeholder="Locate receipt by ID, guest name or order reference..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+            className="w-full pl-14 pr-8 py-4 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-800 placeholder:text-slate-300"
           />
         </div>
       </div>
 
-      {/* Receipts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {/* Luxury Receipts Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         {loading && orders.length === 0 ? (
-           <div className="col-span-full py-20 text-center">
-              <div className="w-10 h-10 border-4 border-teal-100 border-t-teal-600 rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-gray-400">Loading receipts...</p>
-           </div>
+          <div className="col-span-full py-40 text-center">
+            <div className="w-16 h-16 border-4 border-slate-100 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6" />
+            <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[10px]">Curating your boutique records...</p>
+          </div>
         ) : filtered.map((receipt) => (
-          <div
-            key={receipt.orderId}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all"
-          >
-            {/* Receipt Header */}
-            <div className="px-5 py-4 border-b border-gray-100">
+          <div key={receipt.orderId} className="group bg-white rounded-[2.5rem] border-2 border-slate-50 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_30px_70px_-20px_rgba(212,175,55,0.15)] hover:border-[#D4AF37]/30 transition-all duration-700 overflow-hidden relative">
+            {/* Luxury Card Header */}
+            <div className="px-8 py-7 bg-gradient-to-br from-slate-50/50 to-white border-b border-slate-50 relative">
+              <div className="absolute top-0 left-0 w-2 h-full bg-[#D4AF37] opacity-0 group-hover:opacity-100 transition-all duration-500 shadow-[0_0_15px_rgba(212,175,55,0.5)]" />
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-teal-100 rounded-lg">
-                    <Receipt className="w-4 h-4 text-teal-600" />
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center group-hover:rotate-[15deg] group-hover:border-[#D4AF37] transition-all duration-500">
+                    <Gem className="w-6 h-6 text-[#D4AF37]" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{receipt.id}</p>
-                    <p className="text-[10px] text-gray-500">{receipt.orderNumber}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{receipt.id}</p>
+                      <span className="px-2.5 py-0.5 bg-[#0F172A] text-[#D4AF37] text-[8px] font-black uppercase tracking-widest rounded-lg">
+                        #{receipt.dailySequenceNum.toString().padStart(3, '0')}
+                      </span>
+                    </div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-widest">{receipt.orderNumber}</p>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-800">
-                  <CheckCircle className="w-3 h-3" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   {receipt.status}
                 </span>
               </div>
             </div>
 
-            {/* Receipt Body */}
-            <div className="px-5 py-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <User className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-700 font-medium">{receipt.customerName}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-500">
-                  {new Date(receipt.issuedAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <CreditCard className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-500">{receipt.paymentMethod}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Package className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-500">{receipt.items.length} item(s) - {receipt.type}</span>
+            {/* Luxury Card Body */}
+            <div className="p-8 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-400 group-hover:bg-[#0F172A] group-hover:text-white transition-all duration-500">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Boutique Guest</p>
+                  <span className="text-xs font-black text-slate-900 uppercase tracking-wider">{receipt.customerName}</span>
+                </div>
               </div>
 
-              <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest">Issued Date</span>
+                  </div>
+                  <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">
+                    {new Date(receipt.issuedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <CreditCard className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest">Channel</span>
+                  </div>
+                  <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{receipt.paymentMethod}</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#D4AF37]" />
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{receipt.items.length} Items</span>
+                </div>
+                <span className="text-[9px] font-black text-[#D4AF37] uppercase bg-[#D4AF37]/5 px-3 py-1 rounded-full border border-[#D4AF37]/10">{receipt.type}</span>
+              </div>
+
+              <div className="pt-6 border-t border-slate-50 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs text-gray-500">Total Amount</p>
-                  <p className="text-xl font-bold text-teal-700">{formatCurrency(receipt.total)}</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 italic">Total Settled</p>
+                  <p className="text-2xl font-black text-[#0F172A]" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                    {formatCurrency(receipt.total)}
+                  </p>
                 </div>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => setSelectedReceipt(receipt)}
-                    className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                    title="View Receipt"
-                  >
-                    <Eye className="w-4 h-4 text-gray-600" />
-                  </button>
-                </div>
+                <button
+                  onClick={() => setSelectedReceipt(receipt)}
+                  className="w-14 h-14 bg-[#0F172A] text-[#D4AF37] rounded-2xl shadow-xl hover:bg-white hover:text-[#0F172A] border-2 border-transparent hover:border-[#0F172A] transition-all duration-500 flex items-center justify-center group/btn"
+                >
+                  <Eye className="w-6 h-6 group-hover/btn:scale-110 transition-transform" />
+                </button>
               </div>
             </div>
           </div>
         ))}
 
         {!loading && filtered.length === 0 && (
-          <div className="col-span-full bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
-            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">No receipts found</p>
-            <p className="text-sm text-gray-400 mt-1">Completed orders will appear here as receipts</p>
+          <div className="col-span-full py-48 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
+            <FileText className="w-16 h-16 text-slate-200 mx-auto mb-6" />
+            <h4 className="text-xl font-black text-slate-900 uppercase tracking-widest mb-2">No Records Found</h4>
+            <p className="text-slate-400 text-xs font-black uppercase tracking-[0.2em]">Adjust your filters or sync to refresh</p>
           </div>
         )}
       </div>
 
       {/* Receipt Modal */}
       {selectedReceipt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-xl flex items-center justify-center z-[200] p-4 animate-in fade-in duration-500">
+          <div className="bg-white rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] w-full max-w-md border border-white/20 relative overflow-hidden animate-in zoom-in-95 duration-500">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">Receipt Details</h3>
+            <div className="bg-[#0F172A] px-8 py-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Receipt <span className="text-[#D4AF37]">Details</span></h3>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">{selectedReceipt.id}</p>
+              </div>
               <button
                 onClick={() => setSelectedReceipt(null)}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 text-white hover:bg-rose-500/20 hover:text-rose-400 transition-all"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Receipt Content */}
-            <div className="px-6 py-6">
+            <div className="p-8">
               {/* Header */}
               <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">{settings.hotelName.toUpperCase()}</h2>
-                <p className="text-xs text-gray-500 mt-1">{settings.address}</p>
-                <p className="text-xs text-gray-500">Tel: {settings.phone}</p>
-                <div className="mt-3 border-t border-dashed border-gray-300 pt-3">
-                  <p className="text-sm font-semibold text-gray-700">{selectedReceipt.id}</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(selectedReceipt.issuedAt).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
+                <h2 className="text-2xl font-black text-[#0F172A] tracking-widest uppercase">{settings.hotelName}</h2>
+                <p className="text-[10px] text-slate-400 mt-1 uppercase font-black tracking-[0.2em]">{settings.address}</p>
+                <p className="text-[10px] text-slate-400 font-bold">Tel: {settings.phone}</p>
+                <div className="mt-4 border-t border-dashed border-slate-200 pt-4">
+                  <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <span>{new Date(selectedReceipt.issuedAt).toLocaleDateString('en-GB')}</span>
+                    <span className="text-[#D4AF37]">{new Date(selectedReceipt.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Customer */}
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500">Customer</p>
-                <p className="text-sm font-semibold text-gray-900">{selectedReceipt.customerName}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Order: {selectedReceipt.orderNumber} | {selectedReceipt.type}
-                </p>
+              {/* Customer Info Card */}
+              <div className="mb-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="flex items-center gap-3 mb-2">
+                  <User className="w-3 h-3 text-[#D4AF37]" />
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Boutique Guest</p>
+                </div>
+                <p className="text-md font-black text-[#0F172A] uppercase tracking-wider">{selectedReceipt.customerName}</p>
+                <div className="mt-3 flex justify-between items-center">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Ref: {selectedReceipt.orderNumber}</p>
+                  <span className="px-2 py-0.5 bg-white text-[#D4AF37] text-[8px] font-black uppercase tracking-widest rounded-md border border-[#D4AF37]/20">{selectedReceipt.type}</span>
+                </div>
               </div>
 
-              {/* Items */}
-              <div className="space-y-2 mb-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Items</p>
-                {selectedReceipt.items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm py-1.5">
-                    <div>
-                      <span className="text-gray-900">{item.name} {item.portion ? `(${item.portion})` : ''}</span>
-                      <span className="text-gray-400 ml-2">x{item.quantity}</span>
+              {/* Items List */}
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Package className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Summary of Choice</p>
+                </div>
+                <div className="max-h-[180px] overflow-y-auto pr-2 custom-scrollbar space-y-3">
+                  {selectedReceipt.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-start group">
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider group-hover:text-[#D4AF37] transition-colors">{item.name}</span>
+                        {item.portion && <span className="text-[8px] font-bold text-[#D4AF37] uppercase italic mt-0.5">{item.portion}</span>}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[11px] font-black text-slate-900">{formatCurrency(item.quantity * item.price)}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase">x{item.quantity}</p>
+                      </div>
                     </div>
-                    <span className="font-medium text-gray-900">
-                      {formatCurrency(item.quantity * item.price)}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
-              {/* Totals */}
-              <div className="border-t border-dashed border-gray-300 pt-3 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Subtotal</span>
-                  <span className="text-gray-900">{formatCurrency(selectedReceipt.subtotal)}</span>
+              {/* Financial Breakdown */}
+              <div className="border-t-2 border-dashed border-slate-100 pt-5 space-y-2">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  <span>Subtotal Sum</span>
+                  <span>{formatCurrency(selectedReceipt.subtotal)}</span>
                 </div>
                 {selectedReceipt.serviceCharge > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Service Charge (10%)</span>
-                    <span className="text-gray-900">{formatCurrency(selectedReceipt.serviceCharge)}</span>
-                  </div>
-                )}
-                {selectedReceipt.deliveryFee > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Delivery Fee</span>
-                    <span className="text-gray-900">{formatCurrency(selectedReceipt.deliveryFee)}</span>
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                    <span>Service Earnings (10%)</span>
+                    <span>{formatCurrency(selectedReceipt.serviceCharge)}</span>
                   </div>
                 )}
                 {selectedReceipt.discount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Discount</span>
-                    <span className="text-rose-600">-{formatCurrency(selectedReceipt.discount)}</span>
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-rose-400">
+                    <span>Loyalty Discount</span>
+                    <span>-{formatCurrency(selectedReceipt.discount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-base font-bold border-t border-dashed border-gray-300 pt-2">
-                  <span className="text-gray-900">Total</span>
-                  <span className="text-teal-700">{formatCurrency(selectedReceipt.total)}</span>
+                <div className="flex justify-between items-center border-t-2 border-dashed border-slate-100 pt-4 mt-2">
+                  <span className="text-xs font-black text-slate-900 uppercase tracking-[0.3em]">Net Total</span>
+                  <span className="text-2xl font-black text-[#0F172A]" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(selectedReceipt.total)}</span>
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="mt-6 text-center border-t border-dashed border-gray-300 pt-4">
-                <p className="text-xs text-gray-500">Thank you for choosing {settings.hotelName}!</p>
-                <p className="text-[10px] text-gray-400 mt-1">This is a computer-generated receipt</p>
+              {/* Modern Receipt Footer */}
+              <div className="mt-8 text-center bg-slate-50 p-4 rounded-3xl">
+                <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">Boutique Experience by Janro</p>
+                <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase italic tracking-widest">Professional Digital Artifact</p>
+              </div>
               </div>
             </div>
 
             {/* Modal Actions */}
-            <div className="px-6 py-4 border-t border-gray-100">
-              <button className="w-full flex items-center justify-center gap-2 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors text-sm font-medium">
-                <Printer className="w-4 h-4" />
-                Print Receipt
+            <div className="p-8 bg-slate-50 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  const printWindow = window.open('', '_blank');
+                  if (!printWindow) return alert('Pop-up blocked! Please allow pop-ups for printing.');
+
+                  const itemsHtml = selectedReceipt.items.map(it => `
+                    <tr>
+                      <td style="padding: 6px 0; border-bottom: 1px solid #eee;">
+                        <div style="font-weight: bold; text-transform: uppercase;">${it.name}</div>
+                        ${it.portion ? `<div style="font-size: 8px; color: #D4AF37; text-transform: uppercase;">(${it.portion})</div>` : ''}
+                      </td>
+                      <td style="text-align: center; border-bottom: 1px solid #eee;">x${it.quantity}</td>
+                      <td style="text-align: right; font-weight: bold; border-bottom: 1px solid #eee;">${formatCurrency(it.price * it.quantity)}</td>
+                    </tr>
+                  `).join('');
+
+                  printWindow.document.write(`
+                    <html>
+                      <head>
+                        <style>
+                          @media print { @page { margin: 0; } body { margin: 0.2cm; } }
+                          body { 
+                            font-family: 'Courier New', Courier, monospace; 
+                            font-size: 11px; 
+                            line-height: 1.2; 
+                            color: #000; 
+                            width: 100%; 
+                            max-width: 300px;
+                            margin: 0 auto;
+                          }
+                          .header { text-align: center; margin-bottom: 15px; }
+                          .divider { border-top: 1px dashed #000; margin: 8px 0; }
+                          table { width: 100%; border-collapse: collapse; }
+                          .total-row { font-weight: bold; font-size: 14px; }
+                          .footer { text-align: center; margin-top: 20px; font-size: 9px; }
+                          .badge { display: inline-block; padding: 2px 6px; border: 1.5px solid #000; font-weight: bold; text-transform: uppercase; }
+                        </style>
+                      </head>
+                      <body>
+                        <div class="header">
+                          <h1 style="margin:0; font-size: 22px; letter-spacing: 2px;">HOTEL JANRO</h1>
+                          <p style="margin:2px 0; font-weight: bold; text-transform: uppercase; font-size: 9px;">Luxury Boutique Experience</p>
+                          <p style="margin:1px 0;">Malwana Road, Dompe</p>
+                          <p style="margin:1px 0;">Tel: 011-1234567</p>
+                        </div>
+                        <div class="divider"></div>
+                        <div style="display:flex; justify-content:space-between; font-weight: bold;">
+                          <span>REF: ${selectedReceipt.id}</span>
+                          <span>${new Date(selectedReceipt.issuedAt).toLocaleDateString()}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-top: 4px;">
+                           <span>TIME: ${new Date(selectedReceipt.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                           <span class="badge">${selectedReceipt.type}</span>
+                        </div>
+                        <div style="margin-top:5px; font-weight: bold; text-transform: uppercase;">GUEST: ${selectedReceipt.customerName}</div>
+                        <div style="font-size: 9px; color: #666;">ORDER REF: ${selectedReceipt.orderNumber}</div>
+                        
+                        <div class="divider"></div>
+                        <table>
+                          <thead>
+                            <tr style="border-bottom: 1.5px solid #000;">
+                              <th style="text-align: left; padding: 5px 0;">DESCRIPTION</th>
+                              <th style="width: 40px; text-align: center;">QTY</th>
+                              <th style="text-align: right; width: 80px;">AMOUNT</th>
+                            </tr>
+                          </thead>
+                          <tbody>${itemsHtml}</tbody>
+                        </table>
+                        <div class="divider" style="margin-top: 15px;"></div>
+                        
+                        <div style="text-align: right; space-y: 4px;">
+                          <div style="margin-bottom: 2px;">SUBTOTAL SUM: ${formatCurrency(selectedReceipt.subtotal)}</div>
+                          ${selectedReceipt.serviceCharge > 0 ? `<div style="margin-bottom: 2px;">SERVICE (10%): ${formatCurrency(selectedReceipt.serviceCharge)}</div>` : ''}
+                          ${selectedReceipt.deliveryFee > 0 ? `<div style="margin-bottom: 2px;">DELIVERY FEE: ${formatCurrency(selectedReceipt.deliveryFee)}</div>` : ''}
+                          ${selectedReceipt.discount > 0 ? `<div style="margin-bottom: 2px;">BOUTIQUE DISC: -${formatCurrency(selectedReceipt.discount)}</div>` : ''}
+                          <div class="divider"></div>
+                          <div class="total-row" style="margin-top: 5px;">NET SETTLED: ${formatCurrency(selectedReceipt.total)}</div>
+                        </div>
+
+                        <div class="footer">
+                          <p style="margin: 8px 0; font-weight: bold; letter-spacing: 1px;">*** THANK YOU! ***</p>
+                          <p style="margin: 2px 0;">PLEASE RETAIN THIS ARTIFACT</p>
+                          <p style="margin: 0; font-size: 8px; color: #444; border: 1px solid #eee; display: inline-block; padding: 2px 8px; margin-top: 5px;">BOUTIQUE EXPERIENCE BY JANRO</p>
+                        </div>
+                        <script>
+                          setTimeout(function() {
+                            window.print();
+                            window.onafterprint = function() { window.close(); };
+                            setTimeout(function() { window.close(); }, 2000);
+                          }, 500);
+                        </script>
+                      </body>
+                    </html>
+                  `);
+                  printWindow.document.close();
+                }}
+                className="w-full flex items-center justify-center gap-4 py-5 bg-[#0F172A] text-[#D4AF37] rounded-[2rem] hover:bg-slate-800 transition-all text-xs font-black uppercase tracking-[0.3em] shadow-2xl active:scale-[0.98]"
+              >
+                <Printer className="w-5 h-5" />
+                Produce Receipt
               </button>
             </div>
           </div>

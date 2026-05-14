@@ -223,7 +223,7 @@ export function AdminInventory() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Premium Header Banner - Compact Version to match Dashboard */}
+      {/* Premium Header Banner */}
       <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-6 py-8 md:px-8 shadow-2xl overflow-hidden border border-white/5 mb-8">
         <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-[#D4AF37]/5 rounded-full blur-[80px] -mr-24 -mt-24" />
         
