@@ -315,7 +315,6 @@ export function CashierReceipts() {
                 <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">Boutique Experience by Janro</p>
                 <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase italic tracking-widest">Professional Digital Artifact</p>
               </div>
-              </div>
             </div>
 
             {/* Modal Actions */}
