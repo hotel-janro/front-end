@@ -5,7 +5,7 @@ import "./CustomerDashboard.css";
 
 export function Profile({ user }) {
   const token = localStorage.getItem("janro_token");
-  const [activeTab, setActiveTab] = useState("info"); // "info" or "security"
+  const [activeTab, setActiveTab] = useState("info");
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
