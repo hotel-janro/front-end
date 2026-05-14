@@ -466,7 +466,7 @@ export function AdminPool() {
       {/* Header */}
       <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">{settings.hotelName}</p>
           <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
             Pool Management
           </h1>
@@ -519,6 +519,8 @@ export function AdminPool() {
           </div>
         </div>
 
+        {/* search bar */}
+
         <div className="border-b border-gray-100 p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="admin-pool__search-wrap flex-1">
@@ -532,6 +534,8 @@ export function AdminPool() {
             )}
           </div>
         </div>
+
+        
 
         {activeTab === 'bookings' ? (
           <div className="overflow-x-auto">
@@ -620,6 +624,8 @@ export function AdminPool() {
                 Close
               </button>
             </div>
+
+            {/* popup window for booking */}  
 
             <form className="admin-pool__modal-form" onSubmit={handleSubmitBooking}>
               <label className="admin-pool__field">

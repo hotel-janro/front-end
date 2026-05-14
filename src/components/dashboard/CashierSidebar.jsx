@@ -9,6 +9,8 @@ import {
   LogOut,
   User,
 } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext";
+
 
 const navItems = [
   { label: "POS Dashboard", icon: LayoutGrid, path: "/cashier" },
@@ -19,7 +21,9 @@ const navItems = [
 ];
 
 export function CashierSidebar({ user, onLogout }) {
+  const { settings } = useSettings();
   const navigate = useNavigate();
+
 
   const handleLogout = () => {
     if (onLogout) onLogout();
@@ -35,8 +39,8 @@ export function CashierSidebar({ user, onLogout }) {
             <Building2 className="w-6 h-6 text-[#D4AF37]" />
           </div>
           <div>
-            <h1 className="text-[1.8rem] leading-none tracking-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-              HOTEL JANRO
+            <h1 className="text-[1.8rem] leading-none tracking-tight text-white uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
+              {settings.hotelName}
             </h1>
             <p className="text-xs text-[#D4AF37] tracking-[0.16em] uppercase mt-1">Cashier Panel</p>
           </div>

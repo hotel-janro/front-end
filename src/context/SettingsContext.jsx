@@ -8,6 +8,7 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export const SettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState({
+    hotelName: 'Hotel Janro',
     email: 'info@hoteljanro.com',
     address: '123 Luxury Avenue, Paradise City, PC 10001',
     phone: '+1 (555) 123-4567',

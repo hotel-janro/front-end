@@ -13,9 +13,13 @@ import {
   RefreshCcw
 } from 'lucide-react';
 import { apiFetch } from '../../../api.js';
+import { useSettings } from '../../../context/SettingsContext.jsx';
+
 
 export function CashierReceipts() {
+  const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
+
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -236,14 +240,16 @@ export function CashierReceipts() {
             <div className="p-8">
               {/* Header */}
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-black text-[#0F172A] tracking-widest">HOTEL JANRO</h2>
-                <p className="text-[10px] text-slate-400 mt-1 uppercase font-black tracking-[0.2em]">Malwana Road, Dompe</p>
-                <p className="text-[10px] text-slate-400 font-bold">Tel: 011-1234567</p>
+                <h2 className="text-2xl font-black text-[#0F172A] tracking-widest uppercase">{settings.hotelName}</h2>
+                <p className="text-[10px] text-slate-400 mt-1 uppercase font-black tracking-[0.2em]">{settings.address}</p>
+                <p className="text-[10px] text-slate-400 font-bold">Tel: {settings.phone}</p>
                 <div className="mt-4 border-t border-dashed border-slate-200 pt-4">
                   <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <span>{new Date(selectedReceipt.issuedAt).toLocaleDateString('en-GB')}</span>
                     <span className="text-[#D4AF37]">{new Date(selectedReceipt.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
+                </div>
+              </div>
                 </div>
               </div>
 
