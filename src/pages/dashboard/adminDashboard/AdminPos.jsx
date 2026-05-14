@@ -302,18 +302,12 @@ export function AdminPOS() {
       toast.success('Order placed successfully!');
       handlePrintReceipt(response);
 
-      // Reset Form
+      // Reset only Cart and Discount, preserve other details for consecutive orders
       setCart([]);
-      setPosForm({
-        orderType: 'Dine-in',
-        customerName: '',
-        discount: '0',
-        tableNumber: '',
-        roomNumber: '',
-        deliveryAddress: '',
-        contactNumber: '',
-        coordinates: null
-      });
+      setPosForm(prev => ({
+        ...prev,
+        discount: '0'
+      }));
       setAmountReceived('');
       await loadOrders();
     } catch (e) {
@@ -330,12 +324,32 @@ export function AdminPOS() {
     const printWindow = window.open('', '_blank', 'width=300,height=700');
     if (!printWindow) return toast.error('Pop-up blocked. Please allow pop-ups for printing.');
 
-    const totalQty = order.items.reduce((sum, i) => sum + i.quantity, 0);
-    const itemsHtml = order.items.map(item => `
+    // Find related unpaid orders to combine into a single bill if it's a table/room order
+    let relatedOrders = [order];
+    if (order.paymentStatus === 'Unpaid' && (order.tableNumber || order.roomNumber)) {
+      relatedOrders = orders.filter(o => 
+        o.paymentStatus === 'Unpaid' && 
+        ((order.tableNumber && o.tableNumber === order.tableNumber) || 
+         (order.roomNumber && o.roomNumber === order.roomNumber))
+      );
+    }
+
+    const combinedItems = relatedOrders.flatMap(o => o.items);
+    const combinedSubtotal = relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0);
+    const combinedServiceCharge = relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0);
+    const combinedDeliveryFee = relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
+    const combinedDiscount = relatedOrders.reduce((s, o) => s + (o.discount || 0), 0);
+    const combinedTotalAmount = relatedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const totalQty = combinedItems.reduce((s, it) => s + it.quantity, 0);
+
+    const itemsHtml = combinedItems.map(it => `
       <tr>
-        <td style="padding: 5px 0;">${item.name} ${item.portion ? `<br/><small>(${item.portion})</small>` : ''}</td>
-        <td style="text-align: center;">${item.quantity}</td>
-        <td style="text-align: right;">${(item.price * item.quantity).toLocaleString()}</td>
+        <td style="padding: 2px 0;">
+          ${it.name}
+          ${it.portion ? `<br/><span style="font-size: 8px; color: #333;">(${it.portion})</span>` : ''}
+        </td>
+        <td style="text-align: center;">${it.quantity}</td>
+        <td style="text-align: right;">${(it.price * it.quantity).toLocaleString()}</td>
       </tr>
     `).join('');
 
@@ -355,8 +369,16 @@ export function AdminPOS() {
       <html>
         <head>
           <style>
-            @media print { @page { margin: 0; } body { margin: 0.5cm; } }
-            body { font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.2; color: #000; width: 260px; }
+            @media print { @page { margin: 0; } body { margin: 0.2cm; } }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              font-size: 11px; 
+              line-height: 1.2; 
+              color: #000; 
+              width: 100%; 
+              max-width: 300px; /* Standard thermal width approx */
+              margin: 0 auto;
+            }
             .header { text-align: center; margin-bottom: 8px; }
             .divider { border-top: 1px dashed #000; margin: 4px 0; }
             table { width: 100%; border-collapse: collapse; }
@@ -403,12 +425,12 @@ export function AdminPOS() {
           
           <div style="text-align: right; space-y: 2px;">
             <div>Items Count: ${totalQty}</div>
-            <div>Subtotal: Rs ${order.subtotal.toLocaleString()}</div>
-            ${order.serviceCharge > 0 ? `<div>Service (10%): Rs ${order.serviceCharge.toLocaleString()}</div>` : ''}
-            ${order.deliveryFee > 0 ? `<div>Delivery Fee: Rs ${order.deliveryFee.toLocaleString()}</div>` : ''}
-            <div>Discount: -Rs ${(order.discount || 0).toLocaleString()}</div>
+            <div>Subtotal Sum: Rs ${combinedSubtotal.toLocaleString()}</div>
+            ${combinedServiceCharge > 0 ? `<div>Service (10%): Rs ${combinedServiceCharge.toLocaleString()}</div>` : ''}
+            ${combinedDeliveryFee > 0 ? `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>` : ''}
+            ${combinedDiscount > 0 ? `<div>Discount: -Rs ${combinedDiscount.toLocaleString()}</div>` : ''}
             <div class="divider"></div>
-            <div class="total-row">NET TOTAL: Rs ${order.totalAmount.toLocaleString()}</div>
+            <div class="total-row">NET TOTAL: Rs ${combinedTotalAmount.toLocaleString()}</div>
             <div class="divider"></div>
             ${order.amountReceived > 0 ? `
               <div>Cash Paid: Rs ${order.amountReceived.toLocaleString()}</div>
@@ -516,7 +538,7 @@ export function AdminPOS() {
                   }} 
                   className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
                 />
-                {validationErrors.customerName && <p className="text-[7px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.customerName}</p>}
+                {validationErrors.customerName && <p className="text-[9px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.customerName}</p>}
               </div>
 
               {posForm.orderType === 'Dine-in' && (
@@ -531,7 +553,7 @@ export function AdminPOS() {
                       <option value="" className="bg-slate-900 text-white">Select Table</option>
                       {[...Array(15)].map((_, i) => <option key={i} value={`T-${i + 1}`} className="bg-slate-900 text-white">Table {i + 1}</option>)}
                     </select>
-                    {validationErrors.tableNumber && <p className="text-[7px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.tableNumber}</p>}
+                    {validationErrors.tableNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.tableNumber}</p>}
                   </div>
                   <div className="space-y-1">
                     <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
@@ -548,7 +570,7 @@ export function AdminPOS() {
                       }} 
                       className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
                     />
-                    {validationErrors.contactNumber && <p className="text-[7px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+                    {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
                   </div>
                 </>
               )}
@@ -563,9 +585,9 @@ export function AdminPOS() {
                       className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
                     >
                       <option value="" className="bg-slate-900 text-white">Select Room</option>
-                      {[...Array(10)].map((_, i) => <option key={i} value={`R-${i + 1}`} className="bg-slate-900 text-white">Room {i + 1}</option>)}
+                      {[...Array(10)].map((_, i) => <option key={i} value={`${101 + i}`} className="bg-slate-900 text-white">Room {101 + i}</option>)}
                     </select>
-                    {validationErrors.roomNumber && <p className="text-[7px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.roomNumber}</p>}
+                    {validationErrors.roomNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.roomNumber}</p>}
                   </div>
                   <div className="space-y-1">
                     <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
@@ -582,7 +604,7 @@ export function AdminPOS() {
                       }} 
                       className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
                     />
-                    {validationErrors.contactNumber && <p className="text-[7px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+                    {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
                   </div>
                 </>
               )}
@@ -599,7 +621,7 @@ export function AdminPOS() {
                       onBlur={(e) => autoGeocode(e.target.value)}
                       className={`w-full bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                     />
-                    {validationErrors.deliveryAddress && <p className="text-[7px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.deliveryAddress}</p>}
+                    {validationErrors.deliveryAddress && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.deliveryAddress}</p>}
                   </div>
                   <div className="space-y-1">
                     <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Fee (Rs)</label>
@@ -626,7 +648,7 @@ export function AdminPOS() {
                       }} 
                       className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
                     />
-                    {validationErrors.contactNumber && <p className="text-[7px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+                    {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
                   </div>
                 </>
               )}
@@ -647,7 +669,7 @@ export function AdminPOS() {
                     }} 
                     className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
                   />
-                  {validationErrors.contactNumber && <p className="text-[7px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+                  {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
                 </div>
               )}
             </div>
@@ -868,8 +890,25 @@ export function AdminPOS() {
                             </div>
                           </div>
 
+                          <div className="space-y-1.5 px-2 py-2 bg-white/5 rounded-xl border border-white/5">
+                            <div className="flex justify-between text-[9px] text-slate-400 uppercase tracking-widest font-bold">
+                              <span>Subtotal Sum</span>
+                              <span>{formatCurrency(relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0))}</span>
+                            </div>
+                            <div className="flex justify-between text-[9px] text-[#D4AF37] uppercase tracking-widest font-bold">
+                              <span>Total Service Charge (10%)</span>
+                              <span>{formatCurrency(relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0))}</span>
+                            </div>
+                            {relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0) > 0 && (
+                              <div className="flex justify-between text-[9px] text-blue-400 uppercase tracking-widest font-bold">
+                                <span>Total Delivery Fee</span>
+                                <span>{formatCurrency(relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0))}</span>
+                              </div>
+                            )}
+                          </div>
+
                           <div className="flex justify-between items-center px-1">
-                            <p className="text-[8px] font-bold text-slate-500 uppercase">Total to Pay: <span className="text-white ml-1">{formatCurrency(combinedTotal)}</span></p>
+                            <p className="text-[10px] font-black text-white uppercase tracking-widest">Net Total: <span className="text-[#D4AF37] ml-2">{formatCurrency(combinedTotal)}</span></p>
                             {validationErrors.settleAmount && (
                               <p className="text-[8px] text-rose-500 font-bold uppercase animate-pulse">
                                 {validationErrors.settleAmount}

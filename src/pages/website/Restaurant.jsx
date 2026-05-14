@@ -56,6 +56,13 @@ export function Restaurant({ onOrder, user }) {
     fetchMenu();
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      setCustomerName(user.name || "");
+      setContactNumber(user.phone || "");
+    }
+  }, [user]);
+
   const categories = useMemo(() => {
     const rawCategories = ["All", ...new Set(menuItems.map(i => i.category).filter(Boolean))];
     return rawCategories
@@ -209,8 +216,8 @@ export function Restaurant({ onOrder, user }) {
 
     if (orderType === "Room") {
       const rNum = Number(roomNumber);
-      if (!roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
-        errors.roomNumber = "Select a room (1-10)";
+      if (!roomNumber || isNaN(rNum) || rNum < 101 || rNum > 110) {
+        errors.roomNumber = "Select a valid room (101-110)";
       }
     }
 
@@ -382,8 +389,25 @@ export function Restaurant({ onOrder, user }) {
                   )}
                 </div>
 
-                <div className="p-6 bg-black/20 border-t border-white/5">
-                  <div className="flex justify-between items-end">
+                <div className="p-6 bg-black/20 border-t border-white/5 space-y-2">
+                  <div className="flex justify-between text-[9px] text-white/40 uppercase tracking-widest font-black">
+                    <span>Subtotal</span>
+                    <span>{settings?.currency?.symbol || "Rs."} {Number(subtotal).toLocaleString()}</span>
+                  </div>
+                  {serviceCharge > 0 && (
+                    <div className="flex justify-between text-[9px] text-emerald-400 uppercase tracking-widest font-black">
+                      <span>Service Charge (10%)</span>
+                      <span>{settings?.currency?.symbol || "Rs."} {Number(serviceCharge).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {deliveryFee > 0 && (
+                    <div className="flex justify-between text-[9px] text-sky-400 uppercase tracking-widest font-black">
+                      <span>Delivery Fee</span>
+                      <span>{settings?.currency?.symbol || "Rs."} {Number(deliveryFee).toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-white/5 flex justify-between items-end">
                     <div>
                       <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-widest mb-1">Total Payable</p>
                       <h3 className="text-3xl text-white font-normal leading-none" style={{ fontFamily: "DM Serif Display, serif" }}>
@@ -463,24 +487,33 @@ export function Restaurant({ onOrder, user }) {
                       <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
                       <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">02. Guest Information</h3>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="relative">
-                        <input 
-                          value={customerName} 
-                          onChange={e => { setCustomerName(e.target.value); clearError('customerName'); }}
-                          className={`w-full bg-white border-2 ${validationErrors.customerName ? 'border-rose-400' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-[#D4AF37] pl-10 text-slate-900 shadow-sm`}
-                          placeholder="Your Full Name"
-                        />
-                        <Star className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D4AF37]/60" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Name Field */}
+                      <div className="space-y-1">
+                        <div className="relative">
+                          <input 
+                            value={customerName} 
+                            onChange={e => { setCustomerName(e.target.value); clearError('customerName'); }}
+                            className={`w-full bg-white border-2 ${validationErrors.customerName ? 'border-rose-400' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-[#D4AF37] pl-10 text-slate-900 shadow-sm`}
+                            placeholder="Your Full Name"
+                          />
+                          <Star className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D4AF37]/60" />
+                        </div>
+                        {validationErrors.customerName && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.customerName}</p>}
                       </div>
-                      <div className="relative">
-                        <input 
-                          value={contactNumber} 
-                          onChange={e => { setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); clearError('contactNumber'); }}
-                          className={`w-full bg-white border-2 ${validationErrors.contactNumber ? 'border-rose-400' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-[#D4AF37] pl-10 text-slate-900 shadow-sm`}
-                          placeholder="Phone Number"
-                        />
-                        <Phone className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D4AF37]/60" />
+
+                      {/* Phone Field */}
+                      <div className="space-y-1">
+                        <div className="relative">
+                          <input 
+                            value={contactNumber} 
+                            onChange={e => { setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); clearError('contactNumber'); }}
+                            className={`w-full bg-white border-2 ${validationErrors.contactNumber ? 'border-rose-400' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-[#D4AF37] pl-10 text-slate-900 shadow-sm`}
+                            placeholder="Phone Number"
+                          />
+                          <Phone className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D4AF37]/60" />
+                        </div>
+                        {validationErrors.contactNumber && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.contactNumber}</p>}
                       </div>
                     </div>
                   </div>
@@ -493,44 +526,53 @@ export function Restaurant({ onOrder, user }) {
                     </div>
                     <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
                       {orderType === "Dine-in" && (
-                        <div className="relative">
-                          <select value={tableNumber} onChange={e => { setTableNumber(e.target.value); clearError('tableNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.tableNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
-                            <option value="">Select Table Number</option>
-                            {["T-01", "T-02", "T-03", "T-04", "T-05", "T-06", "T-07", "T-08", "T-09", "T-10"].map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                          <UtensilsCrossed className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
-                        </div>
+                        <>
+                          <div className="relative">
+                            <select value={tableNumber} onChange={e => { setTableNumber(e.target.value); clearError('tableNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.tableNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
+                              <option value="">Select Table Number</option>
+                              {["T-01", "T-02", "T-03", "T-04", "T-05", "T-06", "T-07", "T-08", "T-09", "T-10"].map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                            <UtensilsCrossed className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
+                          </div>
+                          {validationErrors.tableNumber && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.tableNumber}</p>}
+                        </>
                       )}
                       {orderType === "Room" && (
-                        <div className="relative">
-                          <select value={roomNumber} onChange={e => { setRoomNumber(e.target.value); clearError('roomNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.roomNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
-                            <option value="">Select Room Number</option>
-                            {["101", "102", "103", "104", "105", "106", "107", "108", "109", "110"].map(r => <option key={r} value={r}>Room {r}</option>)}
-                          </select>
-                          <Building2 className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
-                        </div>
+                        <>
+                          <div className="relative">
+                            <select value={roomNumber} onChange={e => { setRoomNumber(e.target.value); clearError('roomNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.roomNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
+                              <option value="">Select Room Number</option>
+                              {["101", "102", "103", "104", "105", "106", "107", "108", "109", "110"].map(r => <option key={r} value={r}>Room {r}</option>)}
+                            </select>
+                            <Building2 className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
+                          </div>
+                          {validationErrors.roomNumber && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.roomNumber}</p>}
+                        </>
                       )}
                       {orderType === "Delivery" && (
-                        <div className="flex gap-3">
-                          <textarea value={deliveryAddress} onChange={e => { setDeliveryAddress(e.target.value); clearError('deliveryAddress'); }} className="flex-1 bg-slate-50/50 border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold outline-none h-16 resize-none text-slate-700" placeholder="Type delivery address here..." />
-                          <button 
-                            onClick={handleGetLocation} 
-                            className={`w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all duration-500 shadow-lg group ${
-                              coordinates 
-                              ? 'bg-emerald-500 text-white shadow-emerald-200' 
-                              : 'bg-[#0F172A] text-[#D4AF37] hover:bg-slate-800'
-                            }`}
-                          >
-                            {isLocating ? (
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                              coordinates ? <CheckCircle className="w-5 h-5" /> : <MapPin className="w-5 h-5 group-hover:animate-bounce" />
-                            )}
-                            <span className="text-[7px] font-black uppercase tracking-widest mt-1">
-                              {isLocating ? "Loading" : (coordinates ? "Pinned" : "Pin Location")}
-                            </span>
-                          </button>
-                        </div>
+                        <>
+                          <div className="flex gap-3">
+                            <textarea value={deliveryAddress} onChange={e => { setDeliveryAddress(e.target.value); clearError('deliveryAddress'); }} className="flex-1 bg-slate-50/50 border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold outline-none h-16 resize-none text-slate-700" placeholder="Type delivery address here..." />
+                            <button 
+                              onClick={handleGetLocation} 
+                              className={`w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all duration-500 shadow-lg group ${
+                                coordinates 
+                                ? 'bg-emerald-500 text-white shadow-emerald-200' 
+                                : 'bg-[#0F172A] text-[#D4AF37] hover:bg-slate-800'
+                              }`}
+                            >
+                              {isLocating ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                coordinates ? <CheckCircle className="w-5 h-5" /> : <MapPin className="w-5 h-5 group-hover:animate-bounce" />
+                              )}
+                              <span className="text-[7px] font-black uppercase tracking-widest mt-1">
+                                {isLocating ? "Loading" : (coordinates ? "Pinned" : "Pin Location")}
+                              </span>
+                            </button>
+                          </div>
+                          {validationErrors.deliveryAddress && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.deliveryAddress}</p>}
+                        </>
                       )}
                       {orderType === "Take-away" && <p className="text-[9px] font-black text-[#D4AF37] uppercase text-center py-2 tracking-widest">Self-Pickup at Restaurant</p>}
                     </div>
