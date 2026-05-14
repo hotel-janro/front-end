@@ -1,7 +1,6 @@
 // FoodCard.jsx - Supreme Luxury Food Item Card Component
 import React, { useState } from "react";
 import { Plus, Minus, ShoppingCart, Star, Clock } from "lucide-react";
-import { Button } from "../common/Button.jsx";
 import { ImageWithFallback } from "../common/ImageWithFallback.jsx";
 import { useSettings } from "../../context/SettingsContext";
 import { getImageUrl } from "../../api";

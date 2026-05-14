@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Camera, 
-  ChevronRight, 
-  DollarSign, 
-  Clock, 
-  Tag, 
+import {
+  Camera,
+  ChevronRight,
+  DollarSign,
+  Clock,
+  Tag,
   Info,
   CheckCircle2,
   X,
@@ -98,7 +98,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
   const validate = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Dish name is required';
-    
+
     if (formData.hasPortions) {
       const fullPortion = formData.portions.find(p => p.portionType === 'Full');
       const halfPortion = formData.portions.find(p => p.portionType === 'Half');
@@ -109,7 +109,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     }
 
     if (!imagePreview && !initialItem) newErrors.image = 'Image is required';
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -178,17 +178,17 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
 
       <form onSubmit={handleSubmit} className="p-8">
         <div className="grid lg:grid-cols-3 gap-8">
-          
+
           {/* Column 1: Identity */}
           <div className="space-y-6">
             <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-4">
               <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
                 <Sparkles className="w-3 h-3" /> Basic Identity
               </h3>
-              
+
               <div className="space-y-1.5">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Dish Name</label>
-                <input 
+                <input
                   value={formData.name}
                   onChange={e => handleInputChange('name', e.target.value)}
                   placeholder="Lobster Thermidor..."
@@ -199,7 +199,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
 
               <div className="space-y-1.5">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Cuisine Group</label>
-                <select 
+                <select
                   value={formData.category}
                   onChange={e => handleInputChange('category', e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37]"
@@ -212,7 +212,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Prep Time (Min)</label>
                 <div className="relative">
                   <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-                  <input 
+                  <input
                     type="number"
                     value={formData.prepTime}
                     onChange={e => handleInputChange('prepTime', e.target.value)}
@@ -236,13 +236,13 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
 
           {/* Column 2: Pricing */}
           <div className="space-y-6">
-              <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-5">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
-                    <DollarSign className="w-3 h-3" /> Cost Structure
-                  </h3>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 mb-4">
+            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-5">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
+                  <DollarSign className="w-3 h-3" /> Cost Structure
+                </h3>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 mb-4">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl ${formData.hasPortions ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-white/5 text-slate-500'}`}>
                     <Layers className="w-4 h-4" />
@@ -262,34 +262,34 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
                 <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-300">
                   <div className="space-y-1.5">
                     <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Full Portion</label>
-                    <input 
-                      type="number" 
-                      value={formData.portions.find(p => p.portionType === 'Full')?.price || ''} 
-                      onChange={e => updatePortionPrice('Full', e.target.value)} 
-                      className={`w-full bg-white/5 border ${errors.fullPrice ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`} 
-                      placeholder="Rs" 
+                    <input
+                      type="number"
+                      value={formData.portions.find(p => p.portionType === 'Full')?.price || ''}
+                      onChange={e => updatePortionPrice('Full', e.target.value)}
+                      className={`w-full bg-white/5 border ${errors.fullPrice ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
+                      placeholder="Rs"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Half Portion</label>
-                    <input 
-                      type="number" 
-                      value={formData.portions.find(p => p.portionType === 'Half')?.price || ''} 
-                      onChange={e => updatePortionPrice('Half', e.target.value)} 
-                      className={`w-full bg-white/5 border ${errors.halfPrice ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`} 
-                      placeholder="Rs" 
+                    <input
+                      type="number"
+                      value={formData.portions.find(p => p.portionType === 'Half')?.price || ''}
+                      onChange={e => updatePortionPrice('Half', e.target.value)}
+                      className={`w-full bg-white/5 border ${errors.halfPrice ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
+                      placeholder="Rs"
                     />
                   </div>
                 </div>
               ) : (
                 <div className="space-y-1.5">
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Standard Price</label>
-                  <input 
-                    type="number" 
-                    value={formData.price} 
-                    onChange={e => handleInputChange('price', e.target.value)} 
-                    className={`w-full bg-white/5 border ${errors.price ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`} 
-                    placeholder="Rs 0.00" 
+                  <input
+                    type="number"
+                    value={formData.price}
+                    onChange={e => handleInputChange('price', e.target.value)}
+                    className={`w-full bg-white/5 border ${errors.price ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
+                    placeholder="Rs 0.00"
                   />
                   {errors.price && <p className="text-[9px] text-rose-500 ml-1">{errors.price}</p>}
                 </div>
@@ -300,7 +300,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
               <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
                 <Layers className="w-3 h-3" /> The Story
               </h3>
-              <textarea 
+              <textarea
                 rows="4"
                 value={formData.description}
                 onChange={e => handleInputChange('description', e.target.value)}
@@ -334,7 +334,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
                   </label>
                 )}
               </div>
-              
+
               <div className="mt-4 px-2">
                 <div className="flex justify-between items-start gap-4">
                   <h4 className="text-lg text-white font-normal truncate" style={{ fontFamily: "DM Serif Display, serif" }}>{formData.name || 'New Dish'}</h4>
@@ -349,15 +349,15 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
 
         {/* Footer Actions */}
         <div className="mt-10 flex items-center justify-end gap-6 pt-6 border-t border-white/5">
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={onCancel}
             className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hover:text-white transition-colors"
           >
             Abandon
           </button>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
             className="bg-[#D4AF37] text-[#0F172A] px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-xl disabled:opacity-50"
           >

@@ -243,7 +243,7 @@ export function AdminPOS() {
 
     // General Empty Check
     const isCartEmpty = cart.length === 0;
-    
+
     if (isCartEmpty) {
       toast.error("Your cart is empty. Please add at least one item.");
       return;
@@ -357,10 +357,10 @@ export function AdminPOS() {
     // Find related unpaid orders to combine into a single bill if it's a table/room order
     let relatedOrders = [order];
     if (order.paymentStatus === 'Unpaid' && (order.tableNumber || order.roomNumber)) {
-      relatedOrders = (orders || []).filter(o => 
-        o.paymentStatus === 'Unpaid' && 
-        ((order.tableNumber && o.tableNumber === order.tableNumber) || 
-         (order.roomNumber && o.roomNumber === order.roomNumber))
+      relatedOrders = (orders || []).filter(o =>
+        o.paymentStatus === 'Unpaid' &&
+        ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+          (order.roomNumber && o.roomNumber === order.roomNumber))
       );
     }
 
@@ -508,7 +508,7 @@ export function AdminPOS() {
   const updatePaymentStatus = async (orderIdOrIds, updates) => {
     const ids = Array.isArray(orderIdOrIds) ? orderIdOrIds : [orderIdOrIds];
     try {
-      await Promise.all(ids.map(id => 
+      await Promise.all(ids.map(id =>
         apiFetch(`/orders/${id}`, { method: 'PUT', body: JSON.stringify(updates) })
       ));
       setSettlingOrderId(null);
@@ -567,18 +567,18 @@ export function AdminPOS() {
               </div>
               <div className="space-y-1">
                 <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Guest Name</label>
-                <input 
-                  type="text" 
-                  placeholder="Kasun Tharaka" 
-                  value={posForm.customerName} 
+                <input
+                  type="text"
+                  placeholder="Kasun Tharaka"
+                  value={posForm.customerName}
                   onChange={e => {
                     const val = e.target.value;
                     if (val === "" || /^[a-zA-Z\s.]+$/.test(val)) {
                       setPosForm({ ...posForm, customerName: val });
                       clearError('customerName');
                     }
-                  }} 
-                  className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
+                  }}
+                  className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                 />
                 {validationErrors.customerName && <p className="text-[9px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.customerName}</p>}
               </div>
@@ -587,9 +587,9 @@ export function AdminPOS() {
                 <>
                   <div className="space-y-1">
                     <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Table</label>
-                    <select 
-                      value={posForm.tableNumber} 
-                      onChange={e => { setPosForm({ ...posForm, tableNumber: e.target.value }); clearError('tableNumber'); }} 
+                    <select
+                      value={posForm.tableNumber}
+                      onChange={e => { setPosForm({ ...posForm, tableNumber: e.target.value }); clearError('tableNumber'); }}
                       className={`w-full bg-white/5 border ${validationErrors.tableNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
                     >
                       <option value="" className="bg-slate-900 text-white">Select Table</option>
@@ -599,18 +599,18 @@ export function AdminPOS() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
-                    <input 
-                      type="tel" 
-                      placeholder="07XXXXXXXX" 
-                      value={posForm.contactNumber} 
+                    <input
+                      type="tel"
+                      placeholder="07XXXXXXXX"
+                      value={posForm.contactNumber}
                       onChange={e => {
                         const val = e.target.value;
                         if (val === "" || /^\d{0,10}$/.test(val)) {
                           setPosForm({ ...posForm, contactNumber: val });
                           clearError('contactNumber');
                         }
-                      }} 
-                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
+                      }}
+                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                     />
                     {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
                   </div>
@@ -621,9 +621,9 @@ export function AdminPOS() {
                 <>
                   <div className="space-y-1">
                     <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Room</label>
-                    <select 
-                      value={posForm.roomNumber} 
-                      onChange={e => { setPosForm({ ...posForm, roomNumber: e.target.value }); clearError('roomNumber'); }} 
+                    <select
+                      value={posForm.roomNumber}
+                      onChange={e => { setPosForm({ ...posForm, roomNumber: e.target.value }); clearError('roomNumber'); }}
                       className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
                     >
                       <option value="" className="bg-slate-900 text-white">Select Room</option>
@@ -633,18 +633,18 @@ export function AdminPOS() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
-                    <input 
-                      type="tel" 
-                      placeholder="07XXXXXXXX" 
-                      value={posForm.contactNumber} 
+                    <input
+                      type="tel"
+                      placeholder="07XXXXXXXX"
+                      value={posForm.contactNumber}
                       onChange={e => {
                         const val = e.target.value;
                         if (val === "" || /^\d{0,10}$/.test(val)) {
                           setPosForm({ ...posForm, contactNumber: val });
                           clearError('contactNumber');
                         }
-                      }} 
-                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
+                      }}
+                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                     />
                     {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
                   </div>
@@ -667,28 +667,28 @@ export function AdminPOS() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Fee (Rs)</label>
-                    <input 
-                      type="number" 
-                      placeholder="0.00" 
-                      value={posForm.deliveryFee} 
-                      onChange={e => setPosForm({ ...posForm, deliveryFee: Number(e.target.value) })} 
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black" 
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={posForm.deliveryFee}
+                      onChange={e => setPosForm({ ...posForm, deliveryFee: Number(e.target.value) })}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black"
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
-                    <input 
-                      type="tel" 
-                      placeholder="07XXXXXXXX" 
-                      value={posForm.contactNumber} 
+                    <input
+                      type="tel"
+                      placeholder="07XXXXXXXX"
+                      value={posForm.contactNumber}
                       onChange={e => {
                         const val = e.target.value;
                         if (val === "" || /^\d{0,10}$/.test(val)) {
                           setPosForm({ ...posForm, contactNumber: val });
                           clearError('contactNumber');
                         }
-                      }} 
-                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
+                      }}
+                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                     />
                     {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
                   </div>
@@ -698,18 +698,18 @@ export function AdminPOS() {
               {posForm.orderType === 'Take-away' && (
                 <div className="space-y-1 col-span-2">
                   <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Number</label>
-                  <input 
-                    type="tel" 
-                    placeholder="0771234567" 
-                    value={posForm.contactNumber} 
+                  <input
+                    type="tel"
+                    placeholder="0771234567"
+                    value={posForm.contactNumber}
                     onChange={e => {
                       const val = e.target.value;
                       if (val === "" || /^\d{0,10}$/.test(val)) {
                         setPosForm({ ...posForm, contactNumber: val });
                         clearError('contactNumber');
                       }
-                    }} 
-                    className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
+                    }}
+                    className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                   />
                   {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
                 </div>
@@ -796,24 +796,24 @@ export function AdminPOS() {
               {/* Status Legend */}
               <div className="hidden sm:flex items-center gap-3 text-[7px] font-black uppercase tracking-widest border-r border-slate-100 pr-4">
                 <div className="flex items-center gap-1.5 text-amber-600">
-                  <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" /> 
+                  <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
                   Pending
                 </div>
                 <div className="flex items-center gap-1.5 text-blue-600">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" /> 
+                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
                   Preparing
                 </div>
                 <div className="flex items-center gap-1.5 text-emerald-600">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" /> 
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                   Done
                 </div>
                 <div className="flex items-center gap-1.5 text-rose-600">
-                  <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" /> 
+                  <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
                   Cancel
                 </div>
               </div>
               <div className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase tracking-widest">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> 
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Live {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </div>
             </div>
@@ -858,7 +858,7 @@ export function AdminPOS() {
                       <div>
                         <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">
                           {order.orderType === 'Dine-in' ? `Table ${order.tableNumber}` :
-                           order.orderType === 'Room' ? `Room ${order.roomNumber}` : order.orderType}
+                            order.orderType === 'Room' ? `Room ${order.roomNumber}` : order.orderType}
                         </h4>
                         <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
                           <User className="w-3 h-3 text-[#D4AF37]" />
@@ -878,7 +878,7 @@ export function AdminPOS() {
                     <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
                       {order.items.map((it, idx) => (
                         <div key={idx} className="flex items-center gap-2 bg-slate-50/80 px-3 py-1.5 rounded-xl border border-slate-100 text-[9px] font-black text-slate-700">
-                          <span className="text-[#D4AF37] font-black text-[10px]">{it.quantity}x</span> 
+                          <span className="text-[#D4AF37] font-black text-[10px]">{it.quantity}x</span>
                           <span className="uppercase tracking-wider">{it.name}</span>
                         </div>
                       ))}
@@ -897,17 +897,17 @@ export function AdminPOS() {
                         <span className="text-[10px] font-black uppercase tracking-widest">Bill</span>
                       </button>
                       {order.paymentStatus === 'Unpaid' && (
-                        <button 
-                          onClick={() => { 
-                            const related = orders.filter(o => 
-                              o.paymentStatus === 'Unpaid' && 
-                              ((order.tableNumber && o.tableNumber === order.tableNumber) || 
-                               (order.roomNumber && o.roomNumber === order.roomNumber))
+                        <button
+                          onClick={() => {
+                            const related = orders.filter(o =>
+                              o.paymentStatus === 'Unpaid' &&
+                              ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+                                (order.roomNumber && o.roomNumber === order.roomNumber))
                             );
                             const total = related.reduce((s, o) => s + o.totalAmount, 0);
-                            setSettlingOrderId(order._id); 
-                            setSettleAmount(total); 
-                          }} 
+                            setSettlingOrderId(order._id);
+                            setSettleAmount(total);
+                          }}
                           className="px-3 py-1 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-lg"
                         >
                           Settle
@@ -916,10 +916,10 @@ export function AdminPOS() {
                     </div>
 
                     {settlingOrderId === order._id && (() => {
-                      const relatedOrders = orders.filter(o => 
-                        o.paymentStatus === 'Unpaid' && 
-                        ((order.tableNumber && o.tableNumber === order.tableNumber) || 
-                         (order.roomNumber && o.roomNumber === order.roomNumber))
+                      const relatedOrders = orders.filter(o =>
+                        o.paymentStatus === 'Unpaid' &&
+                        ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+                          (order.roomNumber && o.roomNumber === order.roomNumber))
                       );
                       const combinedTotal = relatedOrders.reduce((s, o) => s + o.totalAmount, 0);
                       const isMultiple = relatedOrders.length > 1;
@@ -950,12 +950,12 @@ export function AdminPOS() {
                             <div className="space-y-1.5">
                               <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Cash Received</label>
                               <div className="flex items-center gap-2">
-                                <input 
-                                  type="number" 
+                                <input
+                                  type="number"
                                   autoFocus
-                                  value={settleAmount} 
-                                  onChange={e => { setSettleAmount(e.target.value); clearError('settleAmount'); }} 
-                                  className={`flex-1 bg-white/5 border ${validationErrors.settleAmount ? 'border-rose-500' : 'border-white/10'} rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#D4AF37] font-black`} 
+                                  value={settleAmount}
+                                  onChange={e => { setSettleAmount(e.target.value); clearError('settleAmount'); }}
+                                  className={`flex-1 bg-white/5 border ${validationErrors.settleAmount ? 'border-rose-500' : 'border-white/10'} rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
                                   placeholder="0.00"
                                 />
                               </div>
@@ -998,7 +998,7 @@ export function AdminPOS() {
                             )}
                           </div>
 
-                          <button 
+                          <button
                             onClick={() => {
                               const amount = Number(settleAmount);
                               if (!isPaidToggle) {
@@ -1011,14 +1011,14 @@ export function AdminPOS() {
                                   return;
                                 }
                               }
-                              
-                              updatePaymentStatus(relatedOrders.map(o => o._id), { 
-                                paymentStatus: 'Paid', 
-                                amountReceived: isPaidToggle && amount === 0 ? combinedTotal : amount, 
+
+                              updatePaymentStatus(relatedOrders.map(o => o._id), {
+                                paymentStatus: 'Paid',
+                                amountReceived: isPaidToggle && amount === 0 ? combinedTotal : amount,
                                 balance: isPaidToggle && amount === 0 ? 0 : Math.max(amount - combinedTotal, 0),
                                 orderStatus: 'Completed'
                               });
-                            }} 
+                            }}
                             className="w-full py-3 bg-[#D4AF37] text-[#0F172A] text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white transition-all shadow-lg active:scale-95"
                           >
                             Complete Settlement

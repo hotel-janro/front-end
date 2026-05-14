@@ -91,7 +91,7 @@ export function CashierReceipts() {
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <button 
+          <button
             onClick={loadOrders}
             className="group flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl hover:bg-[#0F172A] hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
           >
@@ -314,7 +314,6 @@ export function CashierReceipts() {
               <div className="mt-8 text-center bg-slate-50 p-4 rounded-3xl">
                 <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">Boutique Experience by Janro</p>
                 <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase italic tracking-widest">Professional Digital Artifact</p>
-              </div>
               </div>
             </div>
 
