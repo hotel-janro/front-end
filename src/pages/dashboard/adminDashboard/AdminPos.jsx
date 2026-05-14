@@ -30,7 +30,7 @@ import {
 import { toast, Toaster } from 'sonner';
 
 export function AdminPOS() {
-  // --- 1. STATE MANAGEMENT ---
+  // State Management
   const [menuItems, setMenuItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +85,7 @@ export function AdminPOS() {
     return R * c;
   };
 
-  // --- 2. CALCULATIONS & DERIVED DATA ---
+  // Calculations & Derived Data
   const subtotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [cart]);
@@ -178,7 +178,7 @@ export function AdminPOS() {
     }
   }, [amountReceived, grandTotal, isPaidToggle]);
 
-  // --- 3. DATA FETCHING ---
+  // Data Fetching
   useEffect(() => {
     refreshData();
     const interval = setInterval(() => loadOrders(true), 30000);
@@ -201,12 +201,12 @@ export function AdminPOS() {
       const data = await apiFetch('/orders');
       setOrders(Array.isArray(data) ? data : []);
       setLastPollTime(new Date());
-    } catch (e) { console.error(e); }
+    } catch (e) { /* error logged */ }
   };
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
-  // --- 4. CART OPERATIONS ---
+  // Cart Operations
   const addPosItem = () => {
     const menuItem = menuItems.find((item) => item._id === selectedPosMenuItemId);
     if (!menuItem) {
@@ -234,7 +234,7 @@ export function AdminPOS() {
     setSelectedPortion('Full');
   };
 
-  // --- 5. ORDER PLACEMENT & SETTLEMENT ---
+  // Order Placement & Settlement
   const handlePlaceOrder = async () => {
     // Comprehensive Validation
     const errors = {};
@@ -330,7 +330,6 @@ export function AdminPOS() {
       }));
       await loadOrders();
     } catch (e) {
-      console.error(e);
       toast.error('Order Placement Failed', {
         description: e.message || "Something went wrong while connecting to the server.",
         duration: 5000,
@@ -485,7 +484,7 @@ export function AdminPOS() {
     printWindow.document.close();
   };
 
-  // --- 7. STATUS & PAYMENT UPDATES ---
+  // Status & Payment Updates
   const updateOrderStatus = async (orderId, orderStatus) => {
     await apiFetch(`/orders/${orderId}`, { method: 'PUT', body: JSON.stringify({ orderStatus }) });
     await loadOrders();
@@ -503,7 +502,6 @@ export function AdminPOS() {
       await loadOrders();
     } catch (e) {
       toast.error("Failed to settle order(s)");
-      console.error(e);
     }
   };
 
@@ -512,7 +510,7 @@ export function AdminPOS() {
   const activeOrdersCount = orders.filter(o => o.orderStatus === 'Pending' || o.orderStatus === 'Preparing').length;
   const todayRevenue = todayOrders.filter(o => o.paymentStatus === 'Paid').reduce((s, o) => s + (o.totalAmount || 0), 0);
 
-  // --- 8. MAIN RENDER ---
+  // Main Interface Render
   return (
     <div className="space-y-4">
       {/* Small Stats */}

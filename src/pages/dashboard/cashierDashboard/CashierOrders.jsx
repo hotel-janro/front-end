@@ -29,7 +29,7 @@ import { apiFetch } from '../../../api.js';
 import { toast } from 'sonner';
 
 export function CashierOrders() {
-  // --- 1. COMPONENT STATE ---
+  // Component State
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -49,14 +49,14 @@ export function CashierOrders() {
     return () => clearInterval(interval);
   }, []);
 
-  // --- 2. DATA ACTIONS ---
+  // Data Actions
   const loadOrders = async () => {
     try {
       const data = await apiFetch('/orders');
       setOrders(Array.isArray(data) ? data : []);
       setLastPollTime(new Date());
     } catch (error) {
-      console.error("Failed to load orders:", error);
+      /* error logged */
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ export function CashierOrders() {
     return matchesSearch && matchesType && matchesStatus;
   });
 
-  // --- 3. UI STYLE HELPERS ---
+  // UI Style Helpers
   const getStatusStyles = (status) => {
     switch (status) {
       case 'Pending': return 'bg-amber-50 text-amber-600 border-amber-100';
@@ -104,7 +104,7 @@ export function CashierOrders() {
     }
   };
 
-  // --- 4. BUSINESS LOGIC (Settlement & Cancellation) ---
+  // Business Logic (Settlement & Cancellation)
   const handleSettleOrder = async () => {
     if (!settlingOrder) return;
     const received = Number(cashReceived || 0);
@@ -139,7 +139,7 @@ export function CashierOrders() {
     }
   };
 
-  // --- 5. THERMAL PRINTING LOGIC ---
+  // Thermal Printing Logic
   const handlePrintReceipt = (order) => {
     if (!order) return toast.error("No order data provided");
     const printWindow = window.open('', '_blank');

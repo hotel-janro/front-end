@@ -40,7 +40,6 @@ export function AdminRestaurant() {
     setMenuLoading(true);
     try {
       const data = await apiFetch('/menu?populate=inventoryItem');
-      console.log('DEBUG: Menu Data:', data);
       setMenuItems(Array.isArray(data) ? data : []);
     } finally {
       setMenuLoading(false);
