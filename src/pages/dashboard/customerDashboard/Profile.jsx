@@ -1,6 +1,6 @@
 // Profile.jsx - Premium Guest Profile Management
 import React, { useState } from "react";
-import { User, Mail, Phone, MapPin, ShieldAlert, Edit2, Camera, CheckCircle2, ArrowUpRight, Star, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Phone, MapPin, ShieldAlert, Camera, Star, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import "./CustomerDashboard.css";
 
 export function Profile({ user }) {
@@ -133,7 +133,6 @@ export function Profile({ user }) {
       if (result.success) {
         setMessage({ type: "success", text: "Profile updated successfully!" });
         setIsEditing(false);
-        // Optional: reload or update parent state if needed
       } else {
         setMessage({ type: "error", text: result.message });
       }
