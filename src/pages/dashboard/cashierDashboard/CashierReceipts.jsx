@@ -250,8 +250,6 @@ export function CashierReceipts() {
                   </div>
                 </div>
               </div>
-                </div>
-              </div>
 
               {/* Customer Info Card */}
               <div className="mb-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
@@ -316,6 +314,7 @@ export function CashierReceipts() {
               <div className="mt-8 text-center bg-slate-50 p-4 rounded-3xl">
                 <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">Boutique Experience by Janro</p>
                 <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase italic tracking-widest">Professional Digital Artifact</p>
+              </div>
               </div>
             </div>
 

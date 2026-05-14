@@ -421,6 +421,7 @@ export function AdminPOS() {
         </head>
         <body>
           <div class="header">
+            <div class="logo">${settings.hotelLogo || ''}</div>
             <div class="hotel-name">${settings.hotelName.toUpperCase()}</div>
             <div class="hotel-details">
               ${settings.address}<br>
