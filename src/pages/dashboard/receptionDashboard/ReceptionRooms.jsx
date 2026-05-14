@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { useSettings } from '../../../context/SettingsContext.jsx';
 import { apiFetch } from '../../../api';
 import '../adminDashboard/AdminRooms.css';
 
@@ -53,6 +54,7 @@ const BASE_COUNTS = {
 };
 
 export function ReceptionRooms() {
+  const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'bookings'
   const [rooms, setRooms] = useState([]);
   const [bookings, setBookings] = useState([]);

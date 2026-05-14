@@ -42,8 +42,12 @@ export function AdminDashboard() {
     const fetchDashboard = async () => {
       try {
         setLoading(true);
+        const token = localStorage.getItem('janro_token') || localStorage.getItem('token');
         const res = await fetch(`${API_BASE}/api/reports`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
         });
         
         if (!res.ok) throw new Error('Failed to fetch dashboard data');
