@@ -1,4 +1,4 @@
-// Restaurant.jsx - Supreme Luxury Customer Menu & Ordering
+// Restaurant - Customer Menu & Ordering
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FoodCard } from "../../components/website/FoodCard.jsx";
@@ -17,7 +17,7 @@ export function Restaurant({ onOrder, user }) {
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
   
-  // Advanced Order State
+  // Order state
   const [orderType, setOrderType] = useState("Dine-in");
   const [customerName, setCustomerName] = useState(user?.name || "");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -100,7 +100,7 @@ export function Restaurant({ onOrder, user }) {
     );
   };
 
-  // --- ADVANCED PRICING LOGIC ---
+  // Pricing and distance logic
   const HOTEL_COORDS = { lat: 6.9458, lng: 80.1250 }; // Malwana Road, Dompe
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -125,15 +125,29 @@ export function Restaurant({ onOrder, user }) {
   if (orderType === "Dine-in" || orderType === "Room") {
     serviceCharge = subtotal * 0.1; 
   } else if (orderType === "Delivery" && coordinates) {
-    distance = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, coordinates.lat, coordinates.lng);
+    const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, coordinates.lat, coordinates.lng);
+    // Apply a 1.2x winding factor to estimate actual road distance
+    distance = straightDist * 1.2;
     if (distance > 1 && distance <= 15) {
-      // 10% of subtotal for each km after the first free km
-      deliveryFee = subtotal * 0.1 * Math.floor(distance); 
+      // 1km free, then 10% per 1km
+      deliveryFee = subtotal * 0.1 * Math.ceil(distance - 1); 
     }
   }
 
   const grandTotal = subtotal + serviceCharge + deliveryFee;
   const isDistanceTooFar = orderType === "Delivery" && distance > 15;
+
+  const autoGeocode = async (address) => {
+    if (!address || address.length < 5) return;
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        setCoordinates({ lat: parseFloat(lat), lng: parseFloat(lon) });
+      }
+    } catch (e) { /* Ignore */ }
+  };
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
@@ -154,7 +168,7 @@ export function Restaurant({ onOrder, user }) {
         console.log("Restaurant: Location Captured:", { latitude, longitude });
         setCoordinates({ lat: latitude, lng: longitude });
         
-        // Reverse Geocoding - Fetch readable address
+        // Fill address from location
         try {
           const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await response.json();
@@ -216,8 +230,8 @@ export function Restaurant({ onOrder, user }) {
 
     if (orderType === "Room") {
       const rNum = Number(roomNumber);
-      if (!roomNumber || isNaN(rNum) || rNum < 101 || rNum > 110) {
-        errors.roomNumber = "Select a valid room (101-110)";
+      if (!roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
+        errors.roomNumber = "Select a valid room (1-10)";
       }
     }
 
@@ -276,8 +290,8 @@ export function Restaurant({ onOrder, user }) {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Hero Section - Perfectly Matched with Events Page */}
       <div className="bg-[#0F172A] py-16 text-center relative overflow-hidden">
+        {/* Hero */}
         <div className="absolute inset-0 opacity-10">
           <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="Luxury Dining" />
         </div>
@@ -292,7 +306,7 @@ export function Restaurant({ onOrder, user }) {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Modern Category Tabs */}
+        {/* Categories */}
         <div className="flex flex-wrap justify-center gap-2 mb-10">
             {categories.map((cat) => (
               <button
@@ -309,7 +323,7 @@ export function Restaurant({ onOrder, user }) {
             ))}
         </div>
 
-        {/* Menu Grid - Matched Gap and Layout */}
+        {/* Menu Grid */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-10 h-10 animate-spin text-[#D4AF37]" />
@@ -330,7 +344,7 @@ export function Restaurant({ onOrder, user }) {
           )
         )}
 
-        {/* Elite Floating Cart Trigger */}
+        {/* Floating Cart Button */}
         {cart.length > 0 && (
           <div className="fixed bottom-10 right-10 z-40 group">
             <button
@@ -349,14 +363,14 @@ export function Restaurant({ onOrder, user }) {
           </div>
         )}
 
-        {/* Supreme Sliding Cart Panel */}
+        {/* Checkout Modal */}
         {showCart && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setShowCart(false)} />
             
             <div className="relative bg-white w-full max-w-5xl h-[85vh] rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-500 border border-white/10">
               
-              {/* Left Side: Scrollable Order Summary */}
+              {/* Order Summary */}
               <div className="w-full md:w-[35%] bg-[#0F172A] flex flex-col border-r border-white/5">
                 <div className="px-6 py-6 border-b border-white/5">
                   <h2 className="text-xl text-white font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Your <span className="text-[#D4AF37]">Selection</span></h2>
@@ -417,7 +431,7 @@ export function Restaurant({ onOrder, user }) {
                 </div>
               </div>
 
-              {/* Right Side: Non-Scrolling Form */}
+              {/* Checkout Form */}
               <div className="flex-1 bg-white flex flex-col h-full overflow-hidden">
                 <div className="px-8 py-5 border-b border-slate-50 flex items-center justify-between">
                   <div>
@@ -479,7 +493,7 @@ export function Restaurant({ onOrder, user }) {
                     </div>
                   </div>
 
-                  {/* Step 2: Details */}
+                  {/* Step 2: Info */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
@@ -516,7 +530,7 @@ export function Restaurant({ onOrder, user }) {
                     </div>
                   </div>
 
-                  {/* Step 3: Location Dropdowns */}
+                  {/* Step 3: Location */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
@@ -528,7 +542,7 @@ export function Restaurant({ onOrder, user }) {
                           <div className="relative">
                             <select value={tableNumber} onChange={e => { setTableNumber(e.target.value); clearError('tableNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.tableNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
                               <option value="">Select Table Number</option>
-                              {["T-01", "T-02", "T-03", "T-04", "T-05", "T-06", "T-07", "T-08", "T-09", "T-10"].map(t => <option key={t} value={t}>{t}</option>)}
+                              {["T-01", "T-02", "T-03", "T-04", "T-05", "T-06", "T-07", "T-08", "T-09", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15"].map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                             <UtensilsCrossed className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
                           </div>
@@ -540,7 +554,7 @@ export function Restaurant({ onOrder, user }) {
                           <div className="relative">
                             <select value={roomNumber} onChange={e => { setRoomNumber(e.target.value); clearError('roomNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.roomNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
                               <option value="">Select Room Number</option>
-                              {["101", "102", "103", "104", "105", "106", "107", "108", "109", "110"].map(r => <option key={r} value={r}>Room {r}</option>)}
+                              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map(r => <option key={r} value={r}>Room {r}</option>)}
                             </select>
                             <Building2 className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
                           </div>
@@ -550,7 +564,13 @@ export function Restaurant({ onOrder, user }) {
                       {orderType === "Delivery" && (
                         <>
                           <div className="flex gap-3">
-                            <textarea value={deliveryAddress} onChange={e => { setDeliveryAddress(e.target.value); clearError('deliveryAddress'); }} className="flex-1 bg-slate-50/50 border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold outline-none h-16 resize-none text-slate-700" placeholder="Type delivery address here..." />
+                            <textarea 
+                              value={deliveryAddress} 
+                              onChange={e => { setDeliveryAddress(e.target.value); clearError('deliveryAddress'); }} 
+                              onBlur={(e) => autoGeocode(e.target.value)}
+                              className="flex-1 bg-slate-50/50 border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold outline-none h-16 resize-none text-slate-700" 
+                              placeholder="Type delivery address here..." 
+                            />
                             <button 
                               onClick={handleGetLocation} 
                               className={`w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all duration-500 shadow-lg group ${
@@ -569,7 +589,16 @@ export function Restaurant({ onOrder, user }) {
                               </span>
                             </button>
                           </div>
+                          {coordinates && distance > 0 && (
+                            <div className="mt-2 flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Est. Distance</span>
+                              <span className={`text-[9px] font-black ${isDistanceTooFar ? 'text-rose-500' : 'text-[#D4AF37]'}`}>
+                                {distance.toFixed(1)} km {isDistanceTooFar ? '(Too Far!)' : ''}
+                              </span>
+                            </div>
+                          )}
                           {validationErrors.deliveryAddress && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.deliveryAddress}</p>}
+                          {isDistanceTooFar && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">Sorry, we only deliver within 15km.</p>}
                         </>
                       )}
                       {orderType === "Take-away" && <p className="text-[9px] font-black text-[#D4AF37] uppercase text-center py-2 tracking-widest">Self-Pickup at Restaurant</p>}

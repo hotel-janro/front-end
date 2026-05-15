@@ -19,6 +19,7 @@ import { ImageWithFallback } from '../../../components/common/ImageWithFallback.
 import { toast } from 'sonner';
 
 export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
+  // Form state
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -37,6 +38,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  // Sync with initial data when editing
   useEffect(() => {
     if (initialItem) {
       setFormData({
@@ -75,6 +77,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     setErrors({});
   }, [initialItem]);
 
+  // Update form fields
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -86,6 +89,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     }
   };
 
+  // Handle image selection
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -95,6 +99,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     }
   };
 
+  // Check for required fields
   const validate = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Dish name is required';
@@ -114,6 +119,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Submit to backend
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) {
@@ -146,6 +152,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     }
   };
 
+  // Helper to update specific portion price
   const updatePortionPrice = (type, price) => {
     setFormData(prev => ({
       ...prev,
@@ -158,7 +165,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
 
   return (
     <div className="bg-[#0F172A] rounded-[2.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border border-white/10 max-w-6xl w-full mx-auto animate-in zoom-in-95 duration-500">
-      {/* Header */}
+      {/* Header Section */}
       <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-[#D4AF37] flex items-center justify-center shadow-lg shadow-[#D4AF37]/20">
@@ -179,7 +186,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
       <form onSubmit={handleSubmit} className="p-8">
         <div className="grid lg:grid-cols-3 gap-8">
 
-          {/* Column 1: Identity */}
+          {/* Form Content - Name, Category, Prep Time */}
           <div className="space-y-6">
             <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-4">
               <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
@@ -222,6 +229,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
               </div>
             </div>
 
+            {/* Visibility Settings */}
             <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-black text-white uppercase tracking-widest">Visibility</p>
@@ -234,7 +242,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
             </div>
           </div>
 
-          {/* Column 2: Pricing */}
+          {/* Pricing and Portion Logic */}
           <div className="space-y-6">
             <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-5">
               <div className="flex items-center justify-between mb-2">
@@ -296,6 +304,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
               )}
             </div>
 
+            {/* Description Textarea */}
             <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-4 flex-1">
               <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
                 <Layers className="w-3 h-3" /> The Story
@@ -310,7 +319,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
             </div>
           </div>
 
-          {/* Column 3: Preview */}
+          {/* Image Upload and Preview */}
           <div className="space-y-6">
             <div className={`p-4 bg-white/[0.03] rounded-[2.5rem] border ${errors.image ? 'border-rose-500' : 'border-white/5'} relative group h-full flex flex-col`}>
               <div className="relative aspect-square lg:aspect-auto lg:flex-1 rounded-[2rem] overflow-hidden bg-white/5 border border-white/10">
@@ -347,7 +356,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
           </div>
         </div>
 
-        {/* Footer Actions */}
+        {/* Action Buttons */}
         <div className="mt-10 flex items-center justify-end gap-6 pt-6 border-t border-white/5">
           <button
             type="button"

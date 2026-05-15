@@ -1,23 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import {
-  CreditCard,
-  Banknote,
-  Wifi,
-  Gem,
-  Search,
-  CheckCircle,
-  Clock,
-  TrendingUp,
-  RefreshCcw,
-  Calendar,
-  User,
-  ArrowUpRight,
-  ArrowDownRight,
-  Activity
+import { 
+  Search, FileText, CheckCircle, Clock, 
+  TrendingUp, Download, ArrowUpRight, Check,
+  CreditCard, Calendar, BarChart3, Filter,
+  Activity, Wifi, RefreshCcw, Gem, Banknote, User
 } from 'lucide-react';
 import { apiFetch } from '../../../api.js';
 
+// CashierPayments.jsx - Financial tracking for the Cashier
+// Handles revenue monitoring and payment records
 export function CashierPayments() {
+  // Page state
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMethod, setFilterMethod] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -25,19 +18,21 @@ export function CashierPayments() {
   const [loading, setLoading] = useState(true);
   const [lastPollTime, setLastPollTime] = useState(new Date());
 
+  // Fetch orders on mount
   useEffect(() => {
     loadOrders();
     const interval = setInterval(loadOrders, 30000);
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch orders from API
   const loadOrders = async () => {
     try {
       const data = await apiFetch('/orders');
       setOrders(Array.isArray(data) ? data : []);
       setLastPollTime(new Date());
     } catch (error) {
-      /* error logged */
+      console.error("Failed to load payments:", error);
     } finally {
       setLoading(false);
     }
@@ -45,6 +40,7 @@ export function CashierPayments() {
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
+  // Map orders to payment records
   const paymentRecords = orders.map((order) => ({
     id: `PAY-${order._id.slice(-6).toUpperCase()}`,
     orderId: `#${order._id.slice(-8).toUpperCase()}`,
@@ -57,6 +53,7 @@ export function CashierPayments() {
     type: order.orderType,
   }));
 
+  // Apply filters
   const filtered = paymentRecords.filter((p) => {
     const matchSearch =
       (p.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -67,6 +64,7 @@ export function CashierPayments() {
     return matchSearch && matchMethod && matchStatus;
   });
 
+  // Calculate totals for stats
   const totalSettled = paymentRecords
     .filter((p) => p.status === 'Settled')
     .reduce((sum, p) => sum + p.amount, 0);
@@ -82,6 +80,7 @@ export function CashierPayments() {
     return acc;
   }, {});
 
+  // UI helpers for icons and styles
   const getMethodIcon = (method) => {
     switch (method) {
       case 'Card': return CreditCard;

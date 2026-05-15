@@ -1,8 +1,5 @@
-/**
- * AdminPOS.jsx
- * Premium Point of Sale Dashboard for Hotel Janro.
- * Handles order creation, multi-order settlement, and thermal receipt printing.
- */
+// AdminPOS.jsx - Point of Sale for Hotel Janro
+// Handles orders, billing, and thermal receipts
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch, API_HOST, getImageUrl } from '../../../api.js';
 import {
@@ -87,7 +84,7 @@ export function AdminPOS() {
     return R * c;
   };
 
-  // Calculations & Derived Data
+  // Logic for totals and delivery fees
   const subtotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [cart]);
@@ -106,7 +103,8 @@ export function AdminPOS() {
         const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
         // Apply a 1.2x winding factor to estimate actual road distance
         const dist = straightDist * 1.2;
-        const fee = (dist > 1 && dist <= 15) ? subtotal * 0.1 * Math.floor(dist) : 0;
+        // First 1km free, then 10% for every additional 1km 
+        const fee = (dist > 1 && dist <= 15) ? subtotal * 0.1 * Math.ceil(dist - 1) : 0;
         return { deliveryFee: fee, distance: dist };
       }
     }
@@ -147,10 +145,10 @@ export function AdminPOS() {
           coordinates: { lat: parseFloat(lat), lng: parseFloat(lon) }
         }));
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { /* Ignore format errors */ }
   };
 
-  // Auto-fill Logic for Table/Room
+  // Auto-fill guest details for existing rooms/tables
   useEffect(() => {
     if (orders.length > 0) {
       let existingOrder = null;
@@ -180,7 +178,7 @@ export function AdminPOS() {
     }
   }, [amountReceived, grandTotal, isPaidToggle]);
 
-  // Data Fetching
+  // Load menu and orders on mount
   useEffect(() => {
     refreshData();
     const interval = setInterval(() => loadOrders(true), 30000);
@@ -208,7 +206,7 @@ export function AdminPOS() {
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
-  // Cart Operations
+  // Add item to active cart
   const addPosItem = () => {
     const menuItem = menuItems.find((item) => item._id === selectedPosMenuItemId);
     if (!menuItem) {
@@ -236,7 +234,7 @@ export function AdminPOS() {
     setSelectedPortion('Full');
   };
 
-  // Order Placement & Settlement
+  // Validate and submit order to backend
   const handlePlaceOrder = async () => {
     // Comprehensive Validation
     const errors = {};
@@ -271,8 +269,7 @@ export function AdminPOS() {
     if (posForm.roomNumber || posForm.orderType === 'Room') {
       const rNum = Number(posForm.roomNumber);
       if (!posForm.roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
-        alert(`CRITICAL ERROR: Invalid Room Number! Only rooms 1 to 10 are allowed.`);
-        toast.error(`Access Denied: Only rooms 1-10 are available in ${settings.hotelName}.`);
+        toast.error(`Access Denied: Only Room 1 to Room 10 are available in ${settings.hotelName}.`);
         return;
       }
     }
@@ -350,33 +347,45 @@ export function AdminPOS() {
     finally { setSavingPosOrder(false); }
   };
 
+  // Generate thermal receipt layout and print
   const handlePrintReceipt = (order) => {
     // Basic safety check
     if (!order) return toast.error("No order data provided");
 
-    // Find related unpaid orders to combine into a single bill if it's a table/room order
+    // Find related orders to combine into a single bill if it's a table/room order
     let relatedOrders = [order];
-    if (order.paymentStatus === 'Unpaid' && (order.tableNumber || order.roomNumber)) {
-      relatedOrders = (orders || []).filter(o =>
-        o.paymentStatus === 'Unpaid' &&
-        ((order.tableNumber && o.tableNumber === order.tableNumber) ||
-          (order.roomNumber && o.roomNumber === order.roomNumber))
-      );
+    if (order.tableNumber || order.roomNumber) {
+      if (order.paymentStatus === 'Unpaid') {
+        // Find other unpaid for the same table/room
+        const existingUnpaid = (orders || []).filter(o =>
+          o.paymentStatus === 'Unpaid' &&
+          ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+            (order.roomNumber && o.roomNumber === order.roomNumber)) &&
+          o._id !== order._id
+        );
+        relatedOrders = [...existingUnpaid, order];
+      } else if (order.paymentStatus === 'Paid') {
+        // Find other paid for the same table/room that were likely settled together
+        // same table/room and very close updatedAt (within 10 seconds)
+        const orderTime = new Date(order.updatedAt || order.createdAt).getTime();
+        const existingPaid = (orders || []).filter(o =>
+          o.paymentStatus === 'Paid' &&
+          ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+            (order.roomNumber && o.roomNumber === order.roomNumber)) &&
+          Math.abs(new Date(o.updatedAt || o.createdAt).getTime() - orderTime) < 10000 &&
+          o._id !== order._id
+        );
+        relatedOrders = [...existingPaid, order];
+      }
     }
 
-    const combinedItems = relatedOrders.flatMap(o => o.items);
+    const combinedItems = relatedOrders.flatMap(o => o.items || []);
     const combinedSubtotal = relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0);
     const combinedServiceCharge = relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0);
     const combinedDeliveryFee = relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
     const combinedDiscount = relatedOrders.reduce((s, o) => s + (o.discount || 0), 0);
     const combinedTotalAmount = relatedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const totalQty = combinedItems.reduce((s, it) => s + it.quantity, 0);
-
-    // Calculate daily sequence number
-    const orderDate = new Date(order.createdAt).toLocaleDateString();
-    const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
-    const dailyNum = sameDayOrders.length - sameDayOrders.indexOf(order);
-    const dailySeqStr = dailyNum.toString().padStart(3, '0');
+    const totalQty = combinedItems.reduce((s, it) => s + (it?.quantity || 0), 0);
 
     const printWindow = window.open('', '_blank', 'width=350,height=600');
     if (!printWindow) return toast.error('Pop-up blocked!');
@@ -389,12 +398,23 @@ export function AdminPOS() {
       </tr>
     `).join('');
 
-    const qrHtml = `
-      <div style="text-align: center; margin-top: 10px;">
-        <div style="font-size: 8px; margin-bottom: 2px;">SCAN TO FEEDBACK</div>
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=JANRO-ORD-${order._id}" style="width:60px; height:60px; margin: 0 auto;" />
-      </div>
-    `;
+    let qrHtml = '';
+    if (order.orderType === 'Delivery' && order.coordinates) {
+      const mapsUrl = `https://www.google.com/maps?q=${order.coordinates.lat},${order.coordinates.lng}`;
+      qrHtml = `
+        <div style="text-align: center; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #000;">
+          <div style="font-size: 8px; margin-bottom: 2px;">DELIVERY LOCATION</div>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(mapsUrl)}" style="width:100px; height:100px; margin: 0 auto;" />
+          <div style="font-size: 7px; margin-top: 2px;">SCAN FOR GOOGLE MAPS</div>
+        </div>
+      `;
+    }
+
+    // Calculate daily sequence number
+    const orderDate = new Date(order.createdAt).toLocaleDateString();
+    const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
+    const dailyNum = sameDayOrders.length - sameDayOrders.indexOf(order);
+    const dailySeqStr = dailyNum.toString().padStart(3, '0');
 
     printWindow.document.write(`
       <html>
@@ -445,7 +465,7 @@ export function AdminPOS() {
           </div>
           ${order?.tableNumber ? `<div>Table: ${order.tableNumber}</div>` : ''}
           ${order?.roomNumber ? `<div>Room: ${order.roomNumber}</div>` : ''}
-          ${order?.customerName ? `<div>Guest: ${order.customerName}</div>` : ''}
+          <div>Guest: ${order.customerName.toUpperCase()}</div>
           ${order?.contactNumber ? `<div>Phone: ${order.contactNumber}</div>` : ''}
           ${order?.deliveryAddress ? `<div>Address: ${order.deliveryAddress}</div>` : ''}
           
@@ -471,12 +491,14 @@ export function AdminPOS() {
             ${combinedDeliveryFee > 0 ? `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>` : ''}
             ${combinedDiscount > 0 ? `<div>Discount: -Rs ${combinedDiscount.toLocaleString()}</div>` : ''}
             <div class="divider"></div>
-            <div class="total-row">NET TOTAL: Rs ${(combinedTotalAmount || 0).toLocaleString()}</div>
+            <div class="total-row">GROUP TOTAL: Rs ${(combinedTotalAmount || 0).toLocaleString()}</div>
             <div class="divider"></div>
             ${(order?.amountReceived || 0) > 0 ? `
               <div>Cash Paid: Rs ${(order?.amountReceived || 0).toLocaleString()}</div>
-              <div style="font-weight:bold;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
-            ` : ''}
+              <div style="font-weight:bold; font-size: 13px;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
+            ` : `
+              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending / Group Settle</div>
+            `}
           </div>
 
           ${qrHtml}
@@ -499,7 +521,7 @@ export function AdminPOS() {
     printWindow.document.close();
   };
 
-  // Status & Payment Updates
+  // Update order and payment status
   const updateOrderStatus = async (orderId, orderStatus) => {
     await apiFetch(`/orders/${orderId}`, { method: 'PUT', body: JSON.stringify({ orderStatus }) });
     await loadOrders();
@@ -548,7 +570,7 @@ export function AdminPOS() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[550px_1fr] 2xl:grid-cols-[650px_1fr]">
-        {/* Digital Checkout */}
+        {/* Billing and Cart Section */}
         <div className="bg-[#0F172A] p-4 rounded-[2rem] shadow-xl text-white relative overflow-hidden flex flex-col gap-4">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/10 rounded-full blur-3xl -mr-16 -mt-16" />
 
@@ -627,7 +649,7 @@ export function AdminPOS() {
                       className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
                     >
                       <option value="" className="bg-slate-900 text-white">Select Room</option>
-                      {[...Array(10)].map((_, i) => <option key={i} value={`${101 + i}`} className="bg-slate-900 text-white">Room {101 + i}</option>)}
+                      {[...Array(10)].map((_, i) => <option key={i} value={`${i + 1}`} className="bg-slate-900 text-white">Room {i + 1}</option>)}
                     </select>
                     {validationErrors.roomNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.roomNumber}</p>}
                   </div>
@@ -788,7 +810,7 @@ export function AdminPOS() {
           </div>
         </div>
 
-        {/* Kitchen Sync Monitor */}
+        {/* Kitchen Status Monitor */}
         <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col overflow-hidden shadow-sm">
           <div className="p-4 border-b border-slate-50 flex items-center justify-between">
             <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-blue-600">Sync</span></h3>
@@ -936,13 +958,21 @@ export function AdminPOS() {
                           </div>
 
                           {isMultiple && (
-                            <div className="bg-white/5 rounded-xl p-2 border border-[#D4AF37]/20">
-                              <p className="text-[7px] font-black text-[#D4AF37] uppercase tracking-widest mb-1">Items for {order.tableNumber ? `Table ${order.tableNumber}` : `Room ${order.roomNumber}`}</p>
-                              <div className="flex flex-wrap gap-1">
-                                {relatedOrders.flatMap(o => o.items).map((it, idx) => (
-                                  <span key={idx} className="text-[8px] text-white/60 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">{it.quantity}x {it.name}</span>
-                                ))}
-                              </div>
+                            <div className="bg-white/5 rounded-2xl p-3 border border-white/5 space-y-3">
+                              <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Order Stream Details</p>
+                              {relatedOrders.map((o, oIdx) => (
+                                <div key={oIdx} className="space-y-1.5">
+                                  <div className="flex justify-between items-center border-b border-white/5 pb-1">
+                                    <span className="text-[8px] font-black text-[#D4AF37] uppercase tracking-widest">{new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} Order</span>
+                                    <span className="text-[8px] font-bold text-white/60">{formatCurrency(o.totalAmount)}</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {(o.items || []).map((it, itIdx) => (
+                                      <span key={itIdx} className="text-[7px] text-white/40 bg-white/5 px-1.5 py-0.5 rounded border border-white/5 uppercase">{it.quantity}x {it.name}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           )}
 
@@ -1037,3 +1067,4 @@ export function AdminPOS() {
     </div>
   );
 }
+

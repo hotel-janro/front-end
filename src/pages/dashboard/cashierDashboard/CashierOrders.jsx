@@ -1,35 +1,16 @@
-/**
- * CashierOrders.jsx
- * Boutique Cashier Management Interface.
- * Real-time order monitoring, settlement processing, and receipt generation.
- */
 import React, { useState, useEffect } from 'react';
-import {
-  ShoppingCart,
-  Search,
-  Plus,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Eye,
-  ChevronDown,
-  ChevronUp,
-  Package,
-  Gem,
-  RefreshCcw,
-  User,
-  CreditCard,
-  Banknote,
-  X,
-  Calendar,
-  Printer,
-  Trash2
+import { 
+  Search, Clock, CheckCircle, XCircle, ChevronDown, 
+  ChevronUp, Check, X, Coffee, MapPin, Printer, Zap,
+  RefreshCcw, Gem, Banknote, Calendar, User, ShoppingCart, Package
 } from 'lucide-react';
-import { apiFetch } from '../../../api.js';
 import { toast } from 'sonner';
+import { apiFetch } from '../../../api.js';
 
+// CashierOrders.jsx - Live order management for Cashiers
+// Handles tracking, settling, and printing orders
 export function CashierOrders() {
-  // Component State
+  // Page and filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -37,26 +18,27 @@ export function CashierOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Settlement States
+  // Payment settlement state
   const [settlingOrder, setSettlingOrder] = useState(null);
   const [cashReceived, setCashReceived] = useState('');
   const [isSettling, setIsSettling] = useState(false);
   const [lastPollTime, setLastPollTime] = useState(new Date());
 
+  // Load orders and start polling
   useEffect(() => {
     loadOrders();
-    const interval = setInterval(loadOrders, 30000); // Poll every 30s
+    const interval = setInterval(loadOrders, 30000); 
     return () => clearInterval(interval);
   }, []);
 
-  // Data Actions
+  // Fetch orders from API
   const loadOrders = async () => {
     try {
       const data = await apiFetch('/orders');
       setOrders(Array.isArray(data) ? data : []);
       setLastPollTime(new Date());
     } catch (error) {
-      /* error logged */
+      console.error("Failed to load orders:", error);
     } finally {
       setLoading(false);
     }
@@ -64,6 +46,7 @@ export function CashierOrders() {
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
+  // Filter orders based on search and dropdowns
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       (order.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -73,7 +56,7 @@ export function CashierOrders() {
     return matchesSearch && matchesType && matchesStatus;
   });
 
-  // UI Style Helpers
+  // UI helpers for status and icons
   const getStatusStyles = (status) => {
     switch (status) {
       case 'Pending': return 'bg-amber-50 text-amber-600 border-amber-100';
@@ -104,48 +87,91 @@ export function CashierOrders() {
     }
   };
 
-  // Business Logic (Settlement & Cancellation)
+  // Mark order(s) as paid
   const handleSettleOrder = async () => {
     if (!settlingOrder) return;
-    const received = Number(cashReceived || 0);
-    const balance = Math.max(received - settlingOrder.totalAmount, 0);
+    
+    // Find all related unpaid orders for this table/room
+    const relatedOrders = orders.filter(o => 
+      o.paymentStatus === 'Unpaid' && 
+      ((settlingOrder.tableNumber && o.tableNumber === settlingOrder.tableNumber) || 
+       (settlingOrder.roomNumber && o.roomNumber === settlingOrder.roomNumber))
+    );
 
-    if (received < settlingOrder.totalAmount) {
+    const combinedTotal = relatedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const received = Number(cashReceived || 0);
+    const balance = Math.max(received - combinedTotal, 0);
+
+    if (received < combinedTotal) {
       toast.error("Insufficient amount received");
       return;
     }
 
     try {
       setIsSettling(true);
-      await apiFetch(`/orders/${settlingOrder._id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          paymentStatus: 'Paid',
-          paymentMethod: 'Cash',
-          amountReceived: received,
-          balance: balance,
-          orderStatus: settlingOrder.orderStatus === 'Pending' ? 'Preparing' : settlingOrder.orderStatus
+      
+      // Update each related order (sequential updates as backend handles single ID)
+      await Promise.all(relatedOrders.map(o => 
+        apiFetch(`/orders/${o._id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            paymentStatus: 'Paid',
+            paymentMethod: 'Cash',
+            amountReceived: o._id === settlingOrder._id ? received : o.totalAmount,
+            balance: o._id === settlingOrder._id ? balance : 0,
+            orderStatus: 'Completed'
+          })
         })
-      });
+      ));
 
-      toast.success(`Order ${settlingOrder._id.slice(-6).toUpperCase()} settled successfully!`);
+      toast.success(`${relatedOrders.length > 1 ? 'All group orders' : 'Order'} settled successfully!`);
       setSettlingOrder(null);
       setCashReceived('');
       loadOrders();
     } catch (error) {
-      toast.error("Failed to settle order");
+      toast.error("Failed to settle order(s)");
     } finally {
       setIsSettling(false);
     }
   };
 
-  // Thermal Printing Logic
+  // Generate and print receipt
   const handlePrintReceipt = (order) => {
     if (!order) return toast.error("No order data provided");
-    const printWindow = window.open('', '_blank');
+
+    // Find related orders to combine into a single bill if it's a table/room order
+    let relatedOrders = [order];
+    if (order.tableNumber || order.roomNumber) {
+      if (order.paymentStatus === 'Unpaid') {
+        relatedOrders = (orders || []).filter(o =>
+          o.paymentStatus === 'Unpaid' &&
+          ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+            (order.roomNumber && o.roomNumber === order.roomNumber))
+        );
+      } else if (order.paymentStatus === 'Paid') {
+        // Find other paid for the same table/room that were likely settled together
+        const orderTime = new Date(order.updatedAt || order.createdAt).getTime();
+        relatedOrders = (orders || []).filter(o =>
+          o.paymentStatus === 'Paid' &&
+          ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+            (order.roomNumber && o.roomNumber === order.roomNumber)) &&
+          Math.abs(new Date(o.updatedAt || o.createdAt).getTime() - orderTime) < 10000
+        );
+      }
+    }
+
+    const combinedItems = relatedOrders.flatMap(o => o.items || []);
+    const combinedSubtotal = relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0);
+    const combinedServiceCharge = relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0);
+    const combinedDeliveryFee = relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
+    const combinedDiscount = relatedOrders.reduce((s, o) => s + (o.discount || 0), 0);
+    const combinedTotalAmount = relatedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const totalQty = combinedItems.reduce((s, it) => s + (it?.quantity || 0), 0);
+
+    const printWindow = window.open('', '_blank', 'width=350,height=600');
     if (!printWindow) return toast.error('Pop-up blocked! Please click the icon in your browser address bar to allow pop-ups.');
 
-    const itemsHtml = (order.items || []).map(it => `
+    const itemsHtml = combinedItems.map(it => `
       <tr>
         <td style="padding: 2px 0;">
           ${it?.name || 'Item'}
@@ -196,14 +222,16 @@ export function CashierOrders() {
           </div>
           <div class="divider"></div>
           <div style="display:flex; justify-content:space-between;">
-            <span>ID: #${(order?._id || "").slice(-6).toUpperCase()}</span>
-            <span>${order?.createdAt ? new Date(order.createdAt).toLocaleDateString() : ""}</span>
+            <span>ID: #${order._id.slice(-6).toUpperCase()}</span>
+            <span>${new Date().toLocaleDateString()}</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
-             <span>Time: ${order?.createdAt ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</span>
-             <span class="badge">${(order?.orderType || "").toUpperCase()}</span>
+             <span>Time: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+             <span class="badge">${order.orderType.toUpperCase()}</span>
           </div>
-          ${order?.customerName ? `<div>Guest: ${order.customerName}</div>` : ''}
+          ${order.tableNumber ? `<div>TABLE: ${order.tableNumber}</div>` : ''}
+          ${order.roomNumber ? `<div>ROOM: ${order.roomNumber}</div>` : ''}
+          <div>GUEST: ${order.customerName.toUpperCase()}</div>
           <div class="divider"></div>
           <table>
             <thead>
@@ -219,12 +247,20 @@ export function CashierOrders() {
           </table>
           <div class="divider"></div>
           <div style="text-align: right; space-y: 2px;">
-            <div>Subtotal: Rs ${(order.subtotal || 0).toLocaleString()}</div>
-            ${order.serviceCharge > 0 ? `<div>Service (10%): Rs ${order.serviceCharge.toLocaleString()}</div>` : ''}
-            ${order.deliveryFee > 0 ? `<div>Delivery Fee: Rs ${order.deliveryFee.toLocaleString()}</div>` : ''}
-            ${order.discount > 0 ? `<div>Discount: -Rs ${order.discount.toLocaleString()}</div>` : ''}
+            <div>Items Count: ${totalQty}</div>
+            <div>Subtotal Sum: Rs ${(combinedSubtotal || 0).toLocaleString()}</div>
+            ${combinedServiceCharge > 0 ? `<div>Service (10%): Rs ${combinedServiceCharge.toLocaleString()}</div>` : ''}
+            ${combinedDeliveryFee > 0 ? `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>` : ''}
+            ${combinedDiscount > 0 ? `<div>Discount: -Rs ${combinedDiscount.toLocaleString()}</div>` : ''}
             <div class="divider"></div>
-            <div class="total-row">NET TOTAL: Rs ${(order.totalAmount || 0).toLocaleString()}</div>
+            <div class="total-row">GROUP TOTAL: Rs ${(combinedTotalAmount || 0).toLocaleString()}</div>
+            <div class="divider"></div>
+            ${(order?.amountReceived || 0) > 0 ? `
+              <div>Cash Paid: Rs ${(order?.amountReceived || 0).toLocaleString()}</div>
+              <div style="font-weight:bold; font-size: 13px;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
+            ` : `
+              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending / Group Settle</div>
+            `}
           </div>
           <div class="footer">
             <p style="margin: 5px 0;">*** Thank You! ***</p>
@@ -499,8 +535,9 @@ export function CashierOrders() {
                          ) : (
                            <button 
                              onClick={() => handlePrintReceipt(order)}
-                             className="flex-1 py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-slate-800 transition-all active:scale-95"
+                             className="flex-1 py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
                            >
+                             <Printer className="w-4 h-4" />
                              Print Receipt
                            </button>
                          )}
@@ -530,71 +567,104 @@ export function CashierOrders() {
         )}
       </div>
 
-      {/* Settle Bill Modal */}
-      {settlingOrder && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setSettlingOrder(null)} />
-          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden animate-in zoom-in-95 duration-500 border border-slate-100">
-            {/* Modal Header */}
-            <div className="bg-[#0F172A] px-8 py-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Settle <span className="text-[#D4AF37]">Order</span></h2>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">#{settlingOrder._id.slice(-8).toUpperCase()}</p>
-              </div>
-              <button onClick={() => setSettlingOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {settlingOrder && (() => {
+        // Find related unpaid orders
+        const relatedOrders = orders.filter(o => 
+          o.paymentStatus === 'Unpaid' && 
+          ((settlingOrder.tableNumber && o.tableNumber === settlingOrder.tableNumber) || 
+           (settlingOrder.roomNumber && o.roomNumber === settlingOrder.roomNumber))
+        );
+        const combinedTotal = relatedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+        const isMultiple = relatedOrders.length > 1;
 
-            {/* Modal Content */}
-            <div className="p-8 space-y-6">
-              <div className="flex justify-between items-end border-b border-dashed border-slate-100 pb-6">
+        return (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setSettlingOrder(null)} />
+            <div className="relative bg-white w-full max-md rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden animate-in zoom-in-95 duration-500 border border-slate-100">
+              {/* Modal Header */}
+              <div className="bg-[#0F172A] px-8 py-6 flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount Due</p>
-                  <h3 className="text-4xl font-black text-[#0F172A]" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(settlingOrder.totalAmount)}</h3>
+                  <h2 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Settle <span className="text-[#D4AF37]">Order</span></h2>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                    {isMultiple ? `${relatedOrders.length} Linked Orders` : `#${settlingOrder._id.slice(-8).toUpperCase()}`}
+                  </p>
                 </div>
-                <div className="text-right">
-                   <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{settlingOrder.orderType}</p>
-                   <p className="text-xs font-black text-slate-900">{settlingOrder.customerName}</p>
-                </div>
+                <button onClick={() => setSettlingOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash Received (Rs)</label>
-                  <div className="relative">
-                    <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
-                    <input
-                      autoFocus
-                      type="number"
-                      placeholder="Enter amount..."
-                      value={cashReceived}
-                      onChange={(e) => setCashReceived(e.target.value)}
-                      className="w-full pl-14 pr-6 py-5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xl font-black text-[#0F172A]"
-                    />
+              {/* Modal Content */}
+              <div className="p-8 space-y-6">
+                <div className="flex justify-between items-end border-b border-dashed border-slate-100 pb-6">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{isMultiple ? 'Combined Total' : 'Total Amount Due'}</p>
+                    <h3 className="text-4xl font-black text-[#0F172A]" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(combinedTotal)}</h3>
+                  </div>
+                  <div className="text-right">
+                     <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{settlingOrder.orderType}</p>
+                     <p className="text-xs font-black text-slate-900">{settlingOrder.tableNumber ? `Table ${settlingOrder.tableNumber}` : settlingOrder.roomNumber ? `Room ${settlingOrder.roomNumber}` : settlingOrder.customerName}</p>
                   </div>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-100 flex justify-between items-center">
-                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Balance to Return</span>
-                  <span className="text-2xl font-black text-emerald-700" style={{ fontFamily: 'DM Serif Display, serif' }}>
-                    {formatCurrency(Math.max((Number(cashReceived) || 0) - settlingOrder.totalAmount, 0))}
-                  </span>
-                </div>
-              </div>
+                {isMultiple && (
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Order Group Summary</p>
+                    <div className="space-y-3">
+                      {relatedOrders.map(o => (
+                        <div key={o._id} className="space-y-1">
+                          <div className="flex justify-between text-[9px] font-black text-slate-700 uppercase tracking-wider border-b border-slate-200/50 pb-1">
+                            <span>{new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} Order</span>
+                            <span className="text-[#D4AF37]">{formatCurrency(o.totalAmount)}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {(o.items || []).map((it, idx) => (
+                              <span key={idx} className="text-[7px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded uppercase">{it.quantity}x {it.name}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              <button
-                disabled={isSettling || (Number(cashReceived) || 0) < settlingOrder.totalAmount}
-                onClick={handleSettleOrder}
-                className="w-full py-5 rounded-2xl bg-[#0F172A] text-[#D4AF37] font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] active:scale-95 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {isSettling ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                Confirm Settlement
-              </button>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash Received (Rs)</label>
+                    <div className="relative">
+                      <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+                      <input
+                        autoFocus
+                        type="number"
+                        placeholder="Enter amount..."
+                        value={cashReceived}
+                        onChange={(e) => setCashReceived(e.target.value)}
+                        className="w-full pl-14 pr-6 py-5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xl font-black text-[#0F172A]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-100 flex justify-between items-center">
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Balance to Return</span>
+                    <span className="text-2xl font-black text-emerald-700" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                      {formatCurrency(Math.max((Number(cashReceived) || 0) - combinedTotal, 0))}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  disabled={isSettling || (Number(cashReceived) || 0) < combinedTotal}
+                  onClick={handleSettleOrder}
+                  className="w-full py-5 rounded-2xl bg-[#0F172A] text-[#D4AF37] font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] active:scale-95 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  {isSettling ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                  {isMultiple ? `Confirm Group Settle` : `Confirm Settlement`}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
-}
+}

@@ -104,7 +104,7 @@ export function Checkout() {
                 >
                   <option value="">Choose Room Number</option>
                   {[...Array(10)].map((_, i) => (
-                    <option key={i} value={`${101 + i}`}>Room {101 + i}</option>
+                    <option key={i} value={`${i + 1}`}>Room {i + 1}</option>
                   ))}
                 </select>
               </section>
