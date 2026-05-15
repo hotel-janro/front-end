@@ -1,4 +1,4 @@
-// Profile.jsx - Premium Guest Profile Management
+// Profile.jsx 
 import React, { useState } from "react";
 import { User, Mail, Phone, MapPin, ShieldAlert, Camera, Star, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import "./CustomerDashboard.css";
