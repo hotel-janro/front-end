@@ -129,13 +129,9 @@ export function VerifyOTP({ onLogin }) {
       setStatus("success");
       setMessage("Email verified successfully!");
       
-      // Pass the user data back to App.jsx manually since verifyEmail acts like a login
+      // Pass the user data back to App.jsx manually
       if (onLogin && data.data) {
-          // This simulates a login from App.jsx perspective but with tokens already provided
-          // Since onLogin expects credentials, we should adjust App.jsx or manually handle storage here.
-          // For simplicity, we can let App.jsx's handleLogin handle the credentials, but we don't have password.
-          // Wait, App.jsx's handleLogin needs email and password. Since we have tokens here,
-          // We can dispatch a custom event or navigate to login. Navigating to login is easiest.
+          
       }
       
       setTimeout(() => {
