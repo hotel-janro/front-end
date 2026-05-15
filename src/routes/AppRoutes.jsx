@@ -74,7 +74,8 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
             specialRequests: data.specialRequests || "",
             decorationItems: data.decorationItems || [],
             checkInType: data.checkInType || 'Day',
-            checkOutType: data.checkOutType || 'Night'
+            checkOutType: data.checkOutType || 'Night',
+            stayMode: data.stayMode || 'custom'
           })
         });
 

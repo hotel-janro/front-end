@@ -24,34 +24,6 @@ import {
 import { apiFetch } from '../../../api';
 import './AdminRooms.css';
 
-const ROOM_TYPES = {
-  'Standard Room': {
-    price: 5000,
-    description: "Comfortable and elegant, our Standard Room features a king-size bed, work desk, and modern amenities for a pleasant stay.",
-    defaultGuests: 4,
-    amenities: "King-size bed, Work desk, WiFi, AC, TV"
-  },
-  'Family Suite': {
-    price: 10000,
-    description: "Designed for families, featuring two bedrooms, a play area, kid-friendly amenities, and connecting rooms.",
-    defaultGuests: 4,
-    amenities: "Two bedrooms, Play area, Kid-friendly amenities, Connecting rooms, WiFi, AC"
-  },
-  'Honeymoon Suite': {
-    price: 7500,
-    description: "A romantic escape with private pool, candlelit dining setup, rose petal turndown, and couples spa treatment.",
-    defaultGuests: 2,
-    amenities: "Private pool, Candlelit dining, Rose petal turndown, Couples spa, WiFi, AC"
-  }
-};
-
-// Fixed base inventory — matches the seeded database exactly
-const BASE_COUNTS = {
-  'Standard Room': 6,
-  'Family Suite': 2,
-  'Honeymoon Suite': 2
-};
-
 export function AdminRooms() {
   const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'bookings'
   const [rooms, setRooms] = useState([]);
@@ -95,8 +67,8 @@ export function AdminRooms() {
         apiFetch('/rooms/admin/list'),
         apiFetch('/bookings')
       ]);
-      setRooms(roomsRes.data || []);
-      setBookings(bookingsRes.data || []);
+      setRooms(roomsRes?.data || []);
+      setBookings(bookingsRes?.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -105,15 +77,17 @@ export function AdminRooms() {
   };
 
   const handleTypeChange = (type) => {
-    if (type && ROOM_TYPES[type]) {
-      const details = ROOM_TYPES[type];
+    // Look for an existing room of this type in the database to suggest defaults
+    const existingRoom = rooms.find(r => r.name === type);
+    
+    if (existingRoom) {
       setFormData({
         ...formData,
         name: type,
-        price: details.price,
-        description: details.description,
-        defaultGuests: details.defaultGuests,
-        amenities: details.amenities
+        price: existingRoom.price,
+        description: existingRoom.description,
+        defaultGuests: existingRoom.defaultGuests,
+        amenities: existingRoom.amenities.join(', ')
       });
     } else {
       setFormData({
@@ -137,18 +111,19 @@ export function AdminRooms() {
         availableRooms: room.availableRooms,
         totalRooms: room.totalRooms,
         defaultGuests: room.defaultGuests,
-        amenities: room.amenities.join(', '),
+        amenities: (room.amenities && Array.isArray(room.amenities)) ? room.amenities.join(', ') : '',
         isActive: room.isActive
       });
     } else {
+      const defaultData = rooms.find(r => r.name === preSelectedType);
       setEditingRoom(null);
       setFormData({
         name: preSelectedType,
-        description: preSelectedType ? ROOM_TYPES[preSelectedType].description : '',
-        price: preSelectedType ? ROOM_TYPES[preSelectedType].price : '',
+        description: defaultData ? defaultData.description : '',
+        price: defaultData ? defaultData.price : '',
         availableRooms: '',
-        defaultGuests: preSelectedType ? ROOM_TYPES[preSelectedType].defaultGuests : 1,
-        amenities: preSelectedType ? ROOM_TYPES[preSelectedType].amenities : '',
+        defaultGuests: defaultData ? defaultData.defaultGuests : 1,
+        amenities: (defaultData?.amenities && Array.isArray(defaultData.amenities)) ? defaultData.amenities.join(', ') : '',
         isActive: true
       });
     }
@@ -284,17 +259,17 @@ export function AdminRooms() {
   };
 
   // ENSURE ALL TYPES ARE SHOWN IN THE TABLE
-  const aggregatedRooms = Object.keys(ROOM_TYPES).map(typeName => {
+  const uniqueTypes = [...new Set(rooms.map(r => r.name).filter(Boolean))];
+  const aggregatedRooms = uniqueTypes.map(typeName => {
     // Only aggregate ACTIVE rooms from the database
     const backendRoomsOfType = rooms.filter(r => 
-      r.isActive && r.name?.toLowerCase() === typeName.toLowerCase()
+      r.isActive && r.name === typeName
     );
-    const typeDetails = ROOM_TYPES[typeName];
     const bookedCount = getBookedCount(typeName);
     
     if (backendRoomsOfType.length > 0) {
       const dbAvailable = backendRoomsOfType.reduce((sum, r) => sum + (r.availableRooms || 0), 0);
-      const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms || 1), 0); // Default to 1 if missing
+      const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms || 1), 0);
       const firstRoom = backendRoomsOfType[0];
       return {
         ...firstRoom,
@@ -304,32 +279,23 @@ export function AdminRooms() {
         isPlaceholder: false
       };
     }
-
-    return {
-      _id: `placeholder-${typeName}`,
-      name: typeName,
-      price: typeDetails.price,
-      description: typeDetails.description,
-      availableRooms: 0,
-      totalRooms: 0,
-      bookedCount,
-      defaultGuests: typeDetails.defaultGuests,
-      isActive: true,
-      isPlaceholder: true
-    };
-  });
+    return null;
+  }).filter(Boolean);
 
   const filteredRooms = aggregatedRooms.filter(room => 
-    room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    room.description.toLowerCase().includes(searchTerm.toLowerCase())
+    (room.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (room.description || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredBookings = bookings.filter(booking => 
-    booking.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (booking.room && booking.room.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredBookings = bookings.filter(booking => {
+    const fullName = booking.fullName || booking.guestName || '';
+    const roomName = booking.room?.name || '';
+    return fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           roomName.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const getStatusBadge = (status) => {
+    if (!status) return <span className="admin-rooms__status-badge admin-rooms__status-badge--maintenance">Unknown</span>;
     const s = status.toLowerCase();
     if (s === 'confirmed' || s === 'available') return <span className="admin-rooms__status-badge admin-rooms__status-badge--available">{status}</span>;
     if (s === 'occupied' || s === 'checked-in') return <span className="admin-rooms__status-badge admin-rooms__status-badge--occupied">{status}</span>;
@@ -354,15 +320,12 @@ export function AdminRooms() {
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {aggregatedRooms.map((room) => {
-          const baseCount = BASE_COUNTS[room.name] || 0;
-          const addedCount = room.availableRooms || 0;
-          const bookedCount = room.bookedCount || 0;
-          const totalInStock = addedCount + bookedCount;
-          const freeCount = addedCount;
+          const totalInStock = room.totalRooms || 0;
+          const freeCount = room.availableRooms || 0;
           
           let iconColorClass = "admin-rooms__stat-icon-wrap--blue";
-          if (room.name.includes("Family")) iconColorClass = "admin-rooms__stat-icon-wrap--green";
-          if (room.name.includes("Honeymoon")) iconColorClass = "admin-rooms__stat-icon-wrap--amber";
+          if (room.name?.includes("Family")) iconColorClass = "admin-rooms__stat-icon-wrap--green";
+          if (room.name?.includes("Honeymoon")) iconColorClass = "admin-rooms__stat-icon-wrap--amber";
 
           return (
             <div key={room.name} className="admin-rooms__stat-card">
@@ -435,11 +398,9 @@ export function AdminRooms() {
               </thead>
               <tbody>
                 {filteredRooms.map(room => {
-                  const baseCount = BASE_COUNTS[room.name] || 0;
-                  const addedCount = room.availableRooms || 0;
+                  const totalInStock = room.totalRooms || 0;
+                  const freeCount = room.availableRooms || 0;
                   const bookedCount = room.bookedCount || 0;
-                  const totalInStock = addedCount + bookedCount;
-                  const freeCount = addedCount;
                   const isExpanded = expandedTypes.has(room.name);
 
                   return (
@@ -499,7 +460,6 @@ export function AdminRooms() {
                           {Array.from({ length: totalInStock }).map((_, i) => {
                             const roomNumber = i + 1;
                             const isBooked = i < bookedCount;
-                            const isBase = roomNumber <= baseCount;
                             // Any room that is not booked can be deleted
                             const canDelete = !isBooked;
 
@@ -598,9 +558,35 @@ export function AdminRooms() {
                       </div>
                     </td>
                     <td>
-                      <div className="flex flex-col text-xs">
-                        <span className="font-medium text-blue-600">IN: {new Date(booking.checkInDate).toLocaleDateString()}</span>
-                        <span className="font-medium text-red-600">OUT: {new Date(booking.checkOutDate).toLocaleDateString()}</span>
+                      <div className="flex flex-col gap-1.5">
+                        {new Date(booking.checkInDate).toLocaleDateString() === new Date(booking.checkOutDate).toLocaleDateString() && 
+                         booking.checkInType === booking.checkOutType ? (
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="font-bold text-slate-900 text-[11px]">
+                              {new Date(booking.checkInDate).toLocaleDateString()}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-tighter ${
+                              booking.checkInType === 'Day' 
+                                ? 'bg-orange-50 text-orange-600 border-orange-100' 
+                                : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                            }`}>
+                              ONLY {booking.checkInType}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-slate-400">IN:</span>
+                              <span className="text-[11px] font-bold text-slate-900">{new Date(booking.checkInDate).toLocaleDateString()}</span>
+                              <span className="px-1 py-0.5 bg-blue-50 text-[9px] text-blue-600 border border-blue-100 rounded font-bold uppercase">{booking.checkInType || 'Day'}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-slate-400">OUT:</span>
+                              <span className="text-[11px] font-bold text-slate-900">{new Date(booking.checkOutDate).toLocaleDateString()}</span>
+                              <span className="px-1 py-0.5 bg-red-50 text-[9px] text-red-600 border border-red-100 rounded font-bold uppercase">{booking.checkOutType || 'Night'}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td>{booking.guests}</td>
@@ -651,7 +637,7 @@ export function AdminRooms() {
                       onChange={(e) => handleTypeChange(e.target.value)}
                     >
                       <option value="">-- Select Room Type --</option>
-                      {Object.keys(ROOM_TYPES).map(type => (
+                      {['Standard Room', 'Family Suite', 'Honeymoon Suite', ...new Set(rooms.map(r => r.name))].filter((v, i, a) => a.indexOf(v) === i).map(type => (
                         <option key={type} value={type}>{type}</option>
                       ))}
                     </select>

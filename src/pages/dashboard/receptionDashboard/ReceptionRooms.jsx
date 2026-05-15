@@ -23,33 +23,6 @@ import {
 import { apiFetch } from '../../../api';
 import '../adminDashboard/AdminRooms.css';
 
-const ROOM_TYPES = {
-  'Standard Room': {
-    price: 5000,
-    description: "Comfortable and elegant, our Standard Room features a king-size bed, work desk, and modern amenities for a pleasant stay.",
-    defaultGuests: 4,
-    amenities: "King-size bed, Work desk, WiFi, AC, TV"
-  },
-  'Family Suite': {
-    price: 10000,
-    description: "Designed for families, featuring two bedrooms, a play area, kid-friendly amenities, and connecting rooms.",
-    defaultGuests: 4,
-    amenities: "Two bedrooms, Play area, Kid-friendly amenities, Connecting rooms, WiFi, AC"
-  },
-  'Honeymoon Suite': {
-    price: 15000,
-    description: "A romantic escape with private pool, candlelit dining setup, rose petal turndown, and couples spa treatment.",
-    defaultGuests: 2,
-    amenities: "Private pool, Candlelit dining, Rose petal turndown, Couples spa, WiFi, AC"
-  }
-};
-
-const BASE_COUNTS = {
-  'Standard Room': 6,
-  'Family Suite': 2,
-  'Honeymoon Suite': 2
-};
-
 export function ReceptionRooms() {
   const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'bookings'
   const [rooms, setRooms] = useState([]);
@@ -80,8 +53,8 @@ export function ReceptionRooms() {
         apiFetch('/rooms/admin/list'),
         apiFetch('/bookings')
       ]);
-      setRooms(roomsRes.data || []);
-      setBookings(bookingsRes.data || []);
+      setRooms(roomsRes?.data || []);
+      setBookings(bookingsRes?.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -98,35 +71,26 @@ export function ReceptionRooms() {
   };
 
   // ENSURE ALL TYPES ARE SHOWN IN THE TABLE
-  const aggregatedRooms = Object.keys(ROOM_TYPES).map(typeName => {
+  const uniqueTypes = [...new Set(rooms.map(r => r.name).filter(Boolean))];
+  const aggregatedRooms = uniqueTypes.map(typeName => {
     // Case-insensitive search to be more robust
-    const backendRoomsOfType = rooms.filter(r => r.name?.toLowerCase() === typeName.toLowerCase());
-    const typeDetails = ROOM_TYPES[typeName];
+    const backendRoomsOfType = rooms.filter(r => r.name === typeName);
     const bookedCount = getBookedCount(typeName);
     
     if (backendRoomsOfType.length > 0) {
       const dbAvailable = backendRoomsOfType.reduce((sum, r) => sum + (r.availableRooms || 0), 0);
+      const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms || 1), 0);
       const firstRoom = backendRoomsOfType[0];
       return {
         ...firstRoom,
         availableRooms: dbAvailable,
+        totalRooms: dbTotal,
         bookedCount,
         isPlaceholder: false
       };
     }
-
-    return {
-      _id: `placeholder-${typeName}`,
-      name: typeName,
-      price: typeDetails.price,
-      description: typeDetails.description,
-      availableRooms: 0,
-      bookedCount,
-      defaultGuests: typeDetails.defaultGuests,
-      isActive: true,
-      isPlaceholder: true
-    };
-  });
+    return null;
+  }).filter(Boolean);
 
   const filteredRooms = aggregatedRooms.filter(room => 
     (room.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -134,9 +98,10 @@ export function ReceptionRooms() {
   );
 
   const filteredBookings = bookings.filter(booking => {
-    const nameMatch = (booking.fullName || booking.guestName || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const roomMatch = booking.room && (booking.room.name || '').toLowerCase().includes(searchTerm.toLowerCase());
-    return nameMatch || roomMatch;
+    const fullName = booking.fullName || booking.guestName || '';
+    const roomName = booking.room?.name || '';
+    return fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           roomName.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const getStatusBadge = (status) => {
@@ -240,11 +205,9 @@ export function ReceptionRooms() {
               </thead>
               <tbody>
                 {filteredRooms.map(room => {
-                  const baseCount = BASE_COUNTS[room.name] || 0;
-                  const addedCount = room.availableRooms || 0;
+                  const totalInStock = room.totalRooms || 0;
+                  const freeCount = room.availableRooms || 0;
                   const bookedCount = room.bookedCount || 0;
-                  const totalInStock = baseCount + addedCount + bookedCount;
-                  const freeCount = baseCount + addedCount;
                   const isExpanded = expandedTypes.has(room.name);
 
                   return (

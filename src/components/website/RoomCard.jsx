@@ -25,11 +25,11 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [checkInType, setCheckInType] = useState("Day");
-  const [checkOutType, setCheckOutType] = useState("Night");
-  const [stayMode, setStayMode] = useState("custom"); // custom, onlyDay, onlyNight
-  const isStandardRoom = room.name.toLowerCase().includes("standard");
-  const isFamilySuite = room.name.toLowerCase().includes("family");
-  const isHoneymoonSuite = room.name.toLowerCase().includes("honeymoon");
+  const [checkOutType, setCheckOutType] = useState("Day");
+  const [stayMode, setStayMode] = useState("onlyDay"); // onlyDay, onlyNight, custom
+  const isStandardRoom = (room.name || "").toLowerCase().includes("standard");
+  const isFamilySuite = (room.name || "").toLowerCase().includes("family");
+  const isHoneymoonSuite = (room.name || "").toLowerCase().includes("honeymoon");
   const [selectedGuests, setSelectedGuests] = useState(1);
   const [selectedDecorations, setSelectedDecorations] = useState([]);
   const guests = (isStandardRoom || isFamilySuite)
@@ -38,6 +38,12 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
   const { settings } = useSettings();
   const formattedPrice = Number(room.price || 0).toLocaleString("en-LK");
   const todayStr = new Date().toISOString().split("T")[0];
+
+  const getNextDay = (dateStr) => {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split("T")[0];
+  };
 
   const toggleDecoration = (itemName) => {
     setSelectedDecorations((prev) =>
@@ -52,6 +58,9 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
 
   const calculateSlots = () => {
     if (!checkIn || !checkOut) return 1;
+    // Single-period stays are always exactly 1 slot
+    if (stayMode === "onlyDay" || stayMode === "onlyNight") return 1;
+    // Custom multi-day calculation
     const start = new Date(checkIn);
     const end = new Date(checkOut);
     const startIndex = (Math.floor(start.getTime() / (1000 * 60 * 60 * 24)) * 2) + (checkInType === "Night" ? 1 : 0);
@@ -88,6 +97,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
       checkOut,
       checkInType,
       checkOutType,
+      stayMode,
       checkInDate: checkIn,
       checkOutDate: checkOut,
       guests,
@@ -200,29 +210,11 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
                   onChange={(e) => {
                     const newDate = e.target.value;
                     setCheckIn(newDate);
-                    // Auto-sync check-out if in single-day mode
-                    if (stayMode !== "custom") {
+                    // Auto-sync check-out when not in custom mode
+                    if (stayMode === "onlyDay") {
                       setCheckOut(newDate);
-                    }
-                  }}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                  <Calendar className="w-3 h-3" /> Check-out Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={checkOut}
-                  min={checkIn || todayStr}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setCheckOut(newDate);
-                    // If multi-day selected, force Custom mode
-                    if (newDate !== checkIn && checkIn !== "") {
-                      setStayMode("custom");
+                    } else if (stayMode === "onlyNight") {
+                      setCheckOut(getNextDay(newDate));
                     }
                   }}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
@@ -240,9 +232,10 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
                       setCheckOutType("Day");
                       if (checkIn) setCheckOut(checkIn);
                     }}
-                    className={`py-2 text-[10px] font-bold rounded-lg transition-all ${stayMode === "onlyDay" ? "bg-white text-[#D4AF37] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                    className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center ${stayMode === "onlyDay" ? "bg-white text-[#D4AF37] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                   >
-                    ONLY DAY
+                    <span>ONLY DAY</span>
+                    <span className="text-[8px] opacity-75">9AM - 4PM</span>
                   </button>
                   <button
                     type="button"
@@ -250,21 +243,48 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
                       setStayMode("onlyNight");
                       setCheckInType("Night");
                       setCheckOutType("Night");
-                      if (checkIn) setCheckOut(checkIn);
+                      if (checkIn) setCheckOut(getNextDay(checkIn));
                     }}
-                    className={`py-2 text-[10px] font-bold rounded-lg transition-all ${stayMode === "onlyNight" ? "bg-white text-[#D4AF37] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                    className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center ${stayMode === "onlyNight" ? "bg-white text-[#D4AF37] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                   >
-                    ONLY NIGHT
+                    <span>ONLY NIGHT</span>
+                    <span className="text-[8px] opacity-75">6PM - 8AM</span>
                   </button>
                   <button
                     type="button"
-                    disabled={checkIn === checkOut && checkIn !== ""}
-                    onClick={() => setStayMode("custom")}
-                    className={`py-2 text-[10px] font-bold rounded-lg transition-all ${stayMode === "custom" ? "bg-white text-[#D4AF37] shadow-sm" : (checkIn === checkOut && checkIn !== "" ? "text-gray-400 opacity-50 cursor-not-allowed" : "text-gray-500 hover:text-gray-700")}`}
+                    onClick={() => {
+                      setStayMode("custom");
+                      setCheckInType("Day");
+                      setCheckOutType("Night");
+                    }}
+                    className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center ${stayMode === "custom" ? "bg-white text-[#D4AF37] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                   >
-                    CUSTOM
+                    <span>CUSTOM</span>
+                    <span className="text-[8px] opacity-75">Multi-day</span>
                   </button>
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                  <Calendar className="w-3 h-3" /> Check-out Date {stayMode === "custom" && <span className="text-red-500">*</span>}
+                </label>
+                <input
+                  type="date"
+                  value={checkOut}
+                  min={checkIn || todayStr}
+                  readOnly={stayMode !== "custom"}
+                  onChange={(e) => {
+                    if (stayMode === "custom") {
+                      setCheckOut(e.target.value);
+                    }
+                  }}
+                  className={`w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none ${
+                    stayMode !== "custom"
+                      ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                      : "bg-[#F8FAFC] focus:border-[#D4AF37]"
+                  }`}
+                />
               </div>
 
               {stayMode === "custom" && (
@@ -276,8 +296,8 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
                       onChange={(e) => setCheckInType(e.target.value)}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
                     >
-                      <option value="Day">Day</option>
-                      <option value="Night">Night</option>
+                      <option value="Day">Day (9AM)</option>
+                      <option value="Night">Night (6PM)</option>
                     </select>
                   </div>
                   <div>
@@ -287,12 +307,13 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
                       onChange={(e) => setCheckOutType(e.target.value)}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
                     >
-                      <option value="Day">Day</option>
-                      <option value="Night">Night</option>
+                      <option value="Day">Day (4PM)</option>
+                      <option value="Night">Night (8AM)</option>
                     </select>
                   </div>
                 </div>
               )}
+
 
               {!isHoneymoonSuite && (
                 (isStandardRoom || isFamilySuite) ? (
