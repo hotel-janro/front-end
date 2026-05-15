@@ -43,7 +43,7 @@ export function Restaurant({ onOrder, user }) {
   useEffect(() => {
     const fetchMenu = async () => {
       try {
-        const data = await apiFetch("/menu?limit=100&populate=inventoryItem");
+        const data = await apiFetch("/menu?limit=100&populate=inventoryItem&isAvailable=true");
         // Handle both paginated and non-paginated responses
         const items = Array.isArray(data) ? data : (data?.items || []);
         setMenuItems(items);

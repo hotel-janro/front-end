@@ -1,4 +1,3 @@
-// AdminPOS.jsx - Point of Sale for Hotel Janro
 // Handles orders, billing, and thermal receipts
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch, API_HOST, getImageUrl } from '../../../api.js';
@@ -192,8 +191,16 @@ export function AdminPOS() {
   };
 
   const loadMenu = async () => {
-    const data = await apiFetch('/menu?populate=inventoryItem');
-    setMenuItems(Array.isArray(data) ? data : []);
+    try {
+      const data = await apiFetch('/menu?populate=inventoryItem');
+      setMenuItems(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("POS: Failed to load menu:", e);
+      toast.error('Menu Loading Failed', {
+        description: "Something went wrong while fetching the culinary collection.",
+        duration: 5000,
+      });
+    }
   };
 
   const loadOrders = async (isPoll = false) => {
@@ -743,7 +750,11 @@ export function AdminPOS() {
               <div className="flex gap-2">
                 <select value={selectedPosMenuItemId} onChange={e => setSelectedPosMenuItemId(e.target.value)} className="flex-1 bg-white text-black rounded-lg px-2 py-1.5 text-[11px] font-bold outline-none">
                   <option value="">Select dish...</option>
-                  {menuItems.map(item => <option key={item._id} value={item._id}>{item.name}</option>)}
+                  {menuItems.map(item => (
+                    <option key={item._id} value={item._id} className={!item.isAvailable ? "text-slate-400" : "text-black"}>
+                      {item.name} {!item.isAvailable ? '(OFF)' : ''}
+                    </option>
+                  ))}
                 </select>
                 <input type="number" min="1" value={selectedPosQuantity} onChange={e => setSelectedPosQuantity(e.target.value)} className="w-10 bg-white/10 border border-white/10 rounded-xl text-center text-xs outline-none" />
                 <button onClick={addPosItem} className="bg-[#D4AF37] text-[#0F172A] px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest">Add</button>

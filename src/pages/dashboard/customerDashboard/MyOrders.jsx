@@ -15,7 +15,12 @@ import {
   Wallet,
   Receipt,
   CreditCard,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Edit,
+  Minus,
+  Plus,
+  Save,
+  X
 } from "lucide-react";
 import { apiFetch } from "../../../api.js";
 import { useSettings } from "../../../context/SettingsContext.jsx";
@@ -25,8 +30,28 @@ export function MyOrders() {
   const { settings } = useSettings();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [now] = useState(new Date());
+  const [now, setNow] = useState(new Date());
   const [activeTab, setActiveTab] = useState("orders"); // orders, payments, receipts
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [menuItems, setMenuItems] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showMenuDropdown, setShowMenuDropdown] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000);
+    loadMenu();
+    return () => clearInterval(timer);
+  }, []);
+
+  const loadMenu = async () => {
+    try {
+      const data = await apiFetch('/menu?isAvailable=true');
+      setMenuItems(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Failed to load menu for editing:", e);
+    }
+  };
 
   useEffect(() => {
     loadMyOrders();
@@ -65,6 +90,76 @@ export function MyOrders() {
       minute: "2-digit",
     });
   }
+
+  function getRemainingTime(createdAt) {
+    const diff = 5 * 60 * 1000 - (now.getTime() - new Date(createdAt).getTime());
+    if (diff <= 0) return null;
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  }
+
+  async function handleUpdateOrder() {
+    if (!editingOrder) return;
+    setIsUpdating(true);
+    try {
+      await apiFetch(`/orders/${editingOrder._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ items: editingOrder.items })
+      });
+      setEditingOrder(null);
+      loadMyOrders();
+    } catch (error) {
+      alert(`Update failed: ${error.message}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  function updateItemQuantity(idx, delta) {
+    const newItems = [...editingOrder.items];
+    newItems[idx].quantity = Math.max(1, newItems[idx].quantity + delta);
+    setEditingOrder({ ...editingOrder, items: newItems });
+  }
+
+  function removeItem(idx) {
+    if (editingOrder.items.length <= 1) {
+      alert("Order must have at least one item. Cancel the order instead if needed.");
+      return;
+    }
+    const newItems = editingOrder.items.filter((_, i) => i !== idx);
+    setEditingOrder({ ...editingOrder, items: newItems });
+  }
+
+  function addNewItem(menuItem, portion = "") {
+    // Check if already in order
+    const existingIdx = editingOrder.items.findIndex(i => i.menuItemId === menuItem._id && i.portion === portion);
+    if (existingIdx !== -1) {
+      updateItemQuantity(existingIdx, 1);
+    } else {
+      let price = menuItem.price;
+      if (menuItem.hasPortions && portion) {
+        const pDetails = menuItem.portions.find(p => p.portionType === portion);
+        if (pDetails) price = pDetails.price;
+      }
+
+      const newItem = {
+        menuItemId: menuItem._id,
+        name: menuItem.name,
+        portion: portion,
+        price: price,
+        quantity: 1
+      };
+      setEditingOrder({ ...editingOrder, items: [...editingOrder.items, newItem] });
+    }
+    setSearchTerm("");
+    setShowMenuDropdown(false);
+  }
+
+  const filteredMenu = menuItems.filter(item => 
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    !editingOrder?.items.some(oi => oi.menuItemId === item._id && !item.hasPortions)
+  );
 
   const completedOrders = orders.filter(o => o.orderStatus === "Completed");
   const pendingOrders = orders.filter(o => o.orderStatus === "Pending" || o.orderStatus === "Preparing");
@@ -268,10 +363,22 @@ export function MyOrders() {
                           <div className="md:text-right border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 flex flex-col items-start md:items-end justify-center">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
                             <p className="text-3xl font-black text-[#0F172A]">{formatMoney(order.totalAmount)}</p>
-                            <button className="mt-4 flex items-center gap-2 px-6 py-3 bg-[#0F172A] text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all shadow-lg hover:shadow-[#D4AF37]/20">
-                              Order Details
-                              <ChevronRight className="w-3 h-3" />
-                            </button>
+                            <div className="flex items-center gap-3 mt-4">
+                              <button className="flex items-center gap-2 px-6 py-3 bg-[#0F172A] text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all shadow-lg hover:shadow-[#D4AF37]/20">
+                                Order Details
+                                <ChevronRight className="w-3 h-3" />
+                              </button>
+                              
+                              {order.orderStatus === "Pending" && getRemainingTime(order.createdAt) && (
+                                <button 
+                                  onClick={() => setEditingOrder(JSON.parse(JSON.stringify(order)))}
+                                  className="flex items-center gap-2 px-6 py-3 bg-white text-[#0F172A] border-2 border-[#0F172A] rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                  Edit Order ({getRemainingTime(order.createdAt)})
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -387,6 +494,151 @@ export function MyOrders() {
 
         </section>
       </div>
+
+      {/* Edit Order Modal */}
+      {editingOrder && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl" onClick={() => setEditingOrder(null)} />
+          <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <header className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center">
+                  <Edit className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-2xl text-slate-900 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Modify Order</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Ref: #{editingOrder.orderNumber || editingOrder._id.slice(-8)}</p>
+                </div>
+              </div>
+              <button onClick={() => setEditingOrder(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                <X className="w-6 h-6 text-slate-400" />
+              </button>
+            </header>
+
+            <div className="p-10 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              {/* Add New Item Search */}
+              <div className="relative mb-8">
+                <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest mb-3">Add More Delicacies</p>
+                <div className="relative">
+                  <input 
+                    type="text"
+                    placeholder="Search menu for new items..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setShowMenuDropdown(true);
+                    }}
+                    onFocus={() => setShowMenuDropdown(true)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-[#D4AF37]/20 transition-all"
+                  />
+                  {searchTerm && (
+                    <button onClick={() => setSearchTerm("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {showMenuDropdown && searchTerm.length > 0 && (
+                  <div className="absolute z-20 left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 max-h-60 overflow-y-auto overflow-x-hidden">
+                    {filteredMenu.length > 0 ? filteredMenu.map(item => (
+                      <div key={item._id} className="p-4 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100" />
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">{item.name}</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase">{item.category}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            {item.hasPortions ? (
+                              item.portions.map(p => (
+                                <button 
+                                  key={p.portionType}
+                                  onClick={() => addNewItem(item, p.portionType)}
+                                  className="px-3 py-1.5 bg-[#D4AF37]/10 text-[#D4AF37] rounded-lg text-[9px] font-black uppercase hover:bg-[#D4AF37] hover:text-white transition-all"
+                                >
+                                  + {p.portionType}
+                                </button>
+                              ))
+                            ) : (
+                              <button 
+                                onClick={() => addNewItem(item)}
+                                className="px-3 py-1.5 bg-[#0F172A] text-[#D4AF37] rounded-lg text-[9px] font-black uppercase hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all"
+                              >
+                                + Add
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="p-8 text-center text-slate-400 text-xs italic">No items found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Current Selection</p>
+                {editingOrder.items.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="flex-1">
+                      <h4 className="font-bold text-slate-900">{item.name}</h4>
+                      <p className="text-[10px] text-[#D4AF37] font-black uppercase tracking-widest mt-0.5">
+                        {item.portion || "Standard"} • {formatMoney(item.price)}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden">
+                        <button 
+                          onClick={() => updateItemQuantity(idx, -1)}
+                          className="p-2 hover:bg-slate-50 text-slate-400 hover:text-[#0F172A] transition-colors"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <span className="w-8 text-center text-sm font-black">{item.quantity}</span>
+                        <button 
+                          onClick={() => updateItemQuantity(idx, 1)}
+                          className="p-2 hover:bg-slate-50 text-slate-400 hover:text-[#0F172A] transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <button 
+                        onClick={() => removeItem(idx)}
+                        className="p-2 text-rose-400 hover:bg-rose-50 rounded-xl transition-all"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <footer className="p-10 border-t border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">New Order Total</p>
+                <p className="text-3xl font-black text-[#0F172A]">
+                  {formatMoney(editingOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0) + (editingOrder.serviceCharge || 0) + (editingOrder.deliveryFee || 0) - (editingOrder.discount || 0))}
+                </p>
+              </div>
+              <button 
+                onClick={handleUpdateOrder}
+                disabled={isUpdating}
+                className="w-full md:w-auto flex items-center justify-center gap-3 px-10 py-5 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[11px] font-black uppercase tracking-[0.3em] hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all shadow-2xl disabled:opacity-50"
+              >
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Confirm Changes
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
