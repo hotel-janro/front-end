@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { RoomCard } from "../../components/website/RoomCard.jsx";
 import { apiFetch } from "../../api";
 
-export function Rooms({ onBook, isLoggedIn = false }) {
+export function Rooms({ onBook, isLoggedIn = false, hideHeader = false }) {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -73,15 +73,17 @@ export function Rooms({ onBook, isLoggedIn = false }) {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      <div className="bg-[#0F172A] py-20 text-center">
-        <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Accommodations</p>
-        <h1 className="text-4xl md:text-5xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-          Rooms & Suites
-        </h1>
-        <p className="text-gray-400 mt-4 max-w-xl mx-auto">
-          Choose from our collection of elegantly appointed rooms and suites, each designed for ultimate comfort.
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="bg-[#0F172A] py-20 text-center">
+          <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Accommodations</p>
+          <h1 className="text-4xl md:text-5xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Rooms & Suites
+          </h1>
+          <p className="text-gray-400 mt-4 max-w-xl mx-auto">
+            Choose from our collection of elegantly appointed rooms and suites, each designed for ultimate comfort.
+          </p>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {rooms.map((room) => (

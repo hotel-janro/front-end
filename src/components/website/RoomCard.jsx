@@ -72,6 +72,14 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
   const grandTotal = (Number(room.price || 0) * slots) + decorationTotal;
 
   const handleSubmitBooking = () => {
+    if (!fullName || fullName.trim() === "") {
+      alert("Please enter the guest's full name.");
+      return;
+    }
+    if (!email || email.trim() === "") {
+      alert("Please enter the guest's email address.");
+      return;
+    }
     if (!checkIn) {
       alert("Please select a check-in date.");
       return;
@@ -119,9 +127,16 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
     if (savedUser) {
       try {
         const userData = JSON.parse(savedUser);
-        setFullName(userData.name || "");
-        setEmail(userData.email || "");
-        setPhone(userData.phone || "");
+        const isStaff = userData.role === "receptionist" || userData.role === "reception" || userData.role === "admin";
+        if (!isStaff) {
+          setFullName(userData.name || "");
+          setEmail(userData.email || "");
+          setPhone(userData.phone || "");
+        } else {
+          setFullName("");
+          setEmail("");
+          setPhone("");
+        }
       } catch (err) {
         console.error("Error parsing user data:", err);
       }

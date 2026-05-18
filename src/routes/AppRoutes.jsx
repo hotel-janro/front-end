@@ -160,7 +160,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<ReceptionDashboard />} />
-        <Route path="rooms" element={<ReceptionRooms />} />
+        <Route path="rooms" element={<ReceptionRooms isLoggedIn={isLoggedIn} onBook={protectedBook} />} />
         <Route path="wedding" element={<ReceptionWedding />} />
         <Route path="bookings" element={<ReceptionBookings />} />
         <Route path="pool" element={<ReceptionPool />} />

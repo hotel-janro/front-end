@@ -13,56 +13,97 @@ import {
   Heart,
   DollarSign,
   ArrowUpRight,
-  Star
+  Star,
+  X,
+  Edit2
 } from "lucide-react";
+import { apiFetch } from "../../../api";
 import "./CustomerDashboard.css";
 
 export function MyBookings() {
   const [activeTab, setActiveTab] = useState("rooms");
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState({ rooms: [], weddings: [] });
-  const [now] = useState(new Date());
+  const [editingBooking, setEditingBooking] = useState(null);
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    phone: "",
+    guests: 1,
+    specialRequests: "",
+    decorationItems: []
+  });
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [roomsRes, weddingsRes] = await Promise.all([
+        apiFetch("/bookings/my"),
+        apiFetch("/wedding/my-bookings")
+      ]);
+      setBookings({
+        rooms: roomsRes?.data || [],
+        weddings: weddingsRes?.data || []
+      });
+    } catch (error) {
+      console.error("Error fetching my bookings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Simulating API fetch
-    setTimeout(() => {
-      setBookings({
-        rooms: [
-          {
-            id: "BK-1001",
-            roomName: "Deluxe Ocean Suite",
-            checkIn: "2026-06-15",
-            checkOut: "2026-06-18",
-            status: "confirmed",
-            amount: 450.0,
-            image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&q=80&w=400"
-          }
-        ],
-        weddings: [
-          {
-            id: "WB-2002",
-            hallName: "Grand Ballroom",
-            eventDate: "2026-12-20",
-            package: "Premium Gold",
-            status: "pending",
-            amount: 2500.0,
-            image: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=400"
-          }
-        ],
-      });
-      setLoading(false);
-    }, 800);
+    fetchData();
   }, []);
+
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm("Are you sure you want to cancel this booking?")) return;
+    try {
+      await apiFetch(`/bookings/${bookingId}/cancel`, {
+        method: 'PATCH'
+      });
+      alert("Booking cancelled successfully!");
+      fetchData();
+    } catch (error) {
+      alert("Error cancelling booking: " + error.message);
+    }
+  };
+
+  const handleOpenEditModal = (booking) => {
+    setEditingBooking(booking);
+    setEditForm({
+      fullName: booking.fullName || "",
+      phone: booking.phone || "",
+      guests: booking.guests || 1,
+      specialRequests: booking.specialRequests || "",
+      decorationItems: booking.decorationItems || []
+    });
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    try {
+      await apiFetch(`/bookings/${editingBooking._id}`, {
+        method: "PUT",
+        body: JSON.stringify(editForm)
+      });
+      alert("Booking updated successfully!");
+      setEditingBooking(null);
+      fetchData();
+    } catch (error) {
+      alert("Error updating booking: " + error.message);
+    }
+  };
 
   const getStatusBadge = (status) => {
     const styles = {
-      pending: "bg-amber-100 text-amber-700",
-      confirmed: "bg-green-100 text-green-700",
-      cancelled: "bg-red-100 text-red-700",
+      pending: "bg-amber-100 text-amber-700 border-amber-200",
+      confirmed: "bg-green-100 text-green-700 border-green-200",
+      cancelled: "bg-red-100 text-red-700 border-red-200",
     };
+    const s = String(status || 'pending').toLowerCase();
     return (
-      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${styles[status] || styles.pending}`}>
-        {status}
+      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${styles[s] || styles.pending}`}>
+        {s}
       </span>
     );
   };
@@ -80,7 +121,7 @@ export function MyBookings() {
   const stats = [
     {
       label: "Room Nights",
-      value: "03",
+      value: String(bookings.rooms.reduce((s, b) => s + (b.nights || 1), 0)),
       note: "Upcoming Stays",
       Icon: Bed,
       card: "bg-blue-50 border-blue-200",
@@ -98,7 +139,7 @@ export function MyBookings() {
     },
     {
       label: "Total Value",
-      value: `$${(bookings.rooms.reduce((s, b) => s + b.amount, 0) + bookings.weddings.reduce((s, b) => s + b.amount, 0)).toLocaleString()}`,
+      value: `Rs. ${(bookings.rooms.reduce((s, b) => s + (b.totalPrice || 0), 0) + bookings.weddings.reduce((s, b) => s + (b.totalAmount || 0), 0)).toLocaleString()}`,
       note: "Total Bookings",
       Icon: DollarSign,
       card: "bg-emerald-50 border-emerald-200",
@@ -152,25 +193,6 @@ export function MyBookings() {
           </div>
         </section>
 
-        {/* Stats Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          {stats.map((stat) => {
-            const Icon = stat.Icon;
-            return (
-              <article key={stat.label} className="rounded-[2.5rem] bg-white border border-slate-100 p-8 shadow-xl shadow-slate-200/20 transition-all hover:-translate-y-2 duration-500">
-                <div className="flex flex-col items-start gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-[#0F172A] text-[#D4AF37] flex items-center justify-center shadow-lg">
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{stat.label}</p>
-                    <h3 className="text-2xl font-bold mt-1 text-slate-900">{stat.value}</h3>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </section>
 
         <section className="grid grid-cols-1 gap-8">
           <article className="customer-panel rounded-[2.5rem]">
@@ -190,60 +212,100 @@ export function MyBookings() {
               {currentData.length === 0 ? (
                 <div className="p-20 text-center text-slate-300 italic">No reservations found in this category</div>
               ) : (
-                currentData.map((item) => (
-                  <div key={item.id} className="p-8 flex flex-col md:flex-row md:items-center gap-8 group hover:bg-slate-50/50 transition-all duration-500">
-                    {/* Image Box */}
-                    <div className="w-full md:w-48 h-32 rounded-3xl overflow-hidden shadow-lg border border-white relative">
-                      <img src={item.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Resort" />
-                      <div className="absolute top-3 left-3">
-                         {getStatusBadge(item.status)}
-                      </div>
-                    </div>
+                currentData.map((item) => {
+                  const checkInDateObj = activeTab === "rooms" ? new Date(item.checkInDate) : new Date(item.eventDate);
+                  const diffTime = checkInDateObj.getTime() - Date.now();
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  const canModify = diffDays >= 3 && item.status !== 'cancelled';
 
-                    {/* Content */}
-                    <div className="flex-1 space-y-4">
-                      <div>
-                        <p className="text-[#D4AF37] text-[10px] font-black uppercase tracking-[0.3em] mb-1">Elite Reservation</p>
-                        <h3 className="text-2xl font-bold text-slate-900">
-                          {activeTab === "rooms" ? item.roomName : item.hallName}
-                        </h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">REF: #{item.id}</p>
-                      </div>
+                  const id = item._id;
+                  const title = activeTab === "rooms" ? (item.room?.name || "Premium Room") : (item.hallId?.hallName || "Exquisite Venue");
+                  const subtitle = activeTab === "rooms" ? `In: ${new Date(item.checkInDate).toLocaleDateString()} (${item.checkInType || 'Day'})` : `Event: ${new Date(item.eventDate).toLocaleDateString()}`;
+                  const durationLabel = activeTab === "rooms" ? `Out: ${new Date(item.checkOutDate).toLocaleDateString()} (${item.checkOutType || 'Night'})` : `Package: ${item.cateringPackage || 'Custom'}`;
+                  const amount = activeTab === "rooms" ? (item.totalPrice || 0) : (item.totalAmount || 0);
+                  const image = activeTab === "rooms" 
+                    ? (item.room?.image || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&q=80&w=400") 
+                    : "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=400";
 
-                      <div className="flex flex-wrap items-center gap-x-10 gap-y-3">
-                        <div className="flex items-center gap-3">
-                          <Calendar className="w-4 h-4 text-[#D4AF37]" />
-                          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            {activeTab === "rooms" ? `In: ${item.checkIn}` : `Date: ${item.eventDate}`}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Clock className="w-4 h-4 text-[#D4AF37]" />
-                          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            {activeTab === "rooms" ? `Out: ${item.checkOut}` : `Package: ${item.package}`}
-                          </span>
+                  return (
+                    <div key={id} className="p-8 flex flex-col md:flex-row md:items-center gap-8 group hover:bg-slate-50/50 transition-all duration-500">
+                      {/* Image Box */}
+                      <div className="w-full md:w-48 h-32 rounded-3xl overflow-hidden shadow-lg border border-white relative">
+                        <img src={image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Resort" />
+                        <div className="absolute top-3 left-3">
+                           {getStatusBadge(activeTab === "rooms" ? item.status : item.bookingStatus)}
                         </div>
                       </div>
-                    </div>
 
-                    {/* Price & Actions */}
-                    <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-6 pt-6 md:pt-0 border-t md:border-t-0 border-slate-100">
-                      <div className="text-left md:text-right">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
-                        <p className="text-3xl font-black text-slate-900">${item.amount.toLocaleString()}</p>
+                      {/* Content */}
+                      <div className="flex-1 space-y-4">
+                        <div>
+                          <p className="text-[#D4AF37] text-[10px] font-black uppercase tracking-[0.3em] mb-1">Elite Reservation</p>
+                          <h3 className="text-2xl font-bold text-slate-900">
+                            {title}
+                          </h3>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">REF: #{id}</p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-10 gap-y-3">
+                          <div className="flex items-center gap-3">
+                            <Calendar className="w-4 h-4 text-[#D4AF37]" />
+                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              {subtitle}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Clock className="w-4 h-4 text-[#D4AF37]" />
+                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              {durationLabel}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                         <button className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
-                            <Trash2 className="h-5 w-5" />
-                         </button>
-                         <button className="flex items-center gap-2 px-6 py-3 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all shadow-xl shadow-[#0F172A]/10">
-                            Details
-                            <ChevronRight className="h-4 w-4" />
-                         </button>
+
+                      {/* Price & Actions */}
+                      <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-6 pt-6 md:pt-0 border-t md:border-t-0 border-slate-100">
+                        <div className="text-left md:text-right">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
+                          <p className="text-2xl font-black text-slate-900">Rs. {amount.toLocaleString()}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                           {activeTab === "rooms" && (
+                             <>
+                               {canModify ? (
+                                 <>
+                                   <button 
+                                     onClick={() => handleOpenEditModal(item)}
+                                     className="p-3 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                                     title="Edit Booking"
+                                   >
+                                      <Edit2 className="h-5 w-5" />
+                                   </button>
+                                   <button 
+                                     onClick={() => handleCancelBooking(item._id)}
+                                     className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                     title="Cancel Booking"
+                                   >
+                                      <Trash2 className="h-5 w-5" />
+                                   </button>
+                                 </>
+                               ) : (
+                                 <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                                   {item.status === 'cancelled' ? 'Cancelled' : 'Locked (Starts < 3 Days)'}
+                                 </span>
+                               )}
+                             </>
+                           )}
+                           {activeTab === "weddings" && (
+                             <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                               Contact Concierge to modify
+                             </span>
+                           )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </article>
@@ -263,6 +325,114 @@ export function MyBookings() {
            </button>
         </section>
       </main>
+
+      {/* Edit Booking Modal */}
+      {editingBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden transform transition-all duration-300 scale-100">
+            <header className="px-6 py-4 bg-[#0F172A] text-white flex items-center justify-between">
+              <h3 className="font-semibold text-lg text-white">Modify Reservation</h3>
+              <button 
+                onClick={() => setEditingBooking(null)}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </header>
+
+            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Guest Name</label>
+                <input 
+                  type="text" 
+                  value={editForm.fullName} 
+                  onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                  required
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] text-sm font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Phone Number</label>
+                <input 
+                  type="text" 
+                  value={editForm.phone} 
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  required
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] text-sm font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Guests Count</label>
+                <select 
+                  value={editForm.guests}
+                  onChange={(e) => setEditForm({ ...editForm, guests: Number(e.target.value) })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] text-sm font-semibold"
+                >
+                  {[1, 2, 3, 4].map(num => (
+                    <option key={num} value={num}>{num} Guest{num > 1 ? 's' : ''}</option>
+                  ))}
+                </select>
+              </div>
+
+              {String(editingBooking.room?.name || '').toLowerCase().includes('honeymoon') && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Add-on Decorations</label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto p-2 border border-slate-100 rounded-xl bg-slate-50">
+                    {['Roses petals', 'Chocolates', 'Champagne', 'Ballon decorations'].map(item => {
+                      const isChecked = editForm.decorationItems.includes(item);
+                      return (
+                        <label key={item} className="flex items-center gap-2 text-xs font-bold text-slate-600 select-none cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditForm({ ...editForm, decorationItems: [...editForm.decorationItems, item] });
+                              } else {
+                                setEditForm({ ...editForm, decorationItems: editForm.decorationItems.filter(i => i !== item) });
+                              }
+                            }}
+                            className="rounded text-[#D4AF37] focus:ring-[#D4AF37]"
+                          />
+                          {item}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Special Requests</label>
+                <textarea 
+                  value={editForm.specialRequests} 
+                  onChange={(e) => setEditForm({ ...editForm, specialRequests: e.target.value })}
+                  rows={2}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] text-sm font-semibold resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingBooking(null)}
+                  className="flex-1 py-3 border border-slate-200 text-slate-500 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 py-3 bg-[#0F172A] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#0F172A] rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-lg"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
