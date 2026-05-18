@@ -12,7 +12,7 @@ const CURRENCIES = [
   { code: 'GBP', symbol: '£', label: 'British Pound (GBP)' },
 ];
 
-const LANGUAGES = ['English', 'Sinhala', 'Tamil', 'French', 'German'];
+const LANGUAGES = ['English',];
 const TIMEZONES = ['UTC+05:30 (Colombo)', 'UTC+00:00 (GMT)', 'UTC-05:00 (EST)', 'UTC+01:00 (CET)'];
 const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
 

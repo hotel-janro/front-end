@@ -3,6 +3,14 @@ import { Search, UserPlus, Users as UsersIcon, Briefcase, DollarSign, X } from '
 import { staffMembers } from '../../../data/newMockData.js';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 import './AdminStaff.css';
+const calculateDuration = (start, end) => {
+  if (!start || !end) return 0;
+  const [sH, sM] = start.split(':').map(Number);
+  const [eH, eM] = end.split(':').map(Number);
+  let diff = (eH * 60 + eM) - (sH * 60 + sM);
+  if (diff < 0) diff += 24 * 60; // Handle overnight shifts
+  return (diff / 60).toFixed(2);
+};
 
 export function AdminStaff() {
   const { settings } = useSettings();
@@ -10,6 +18,7 @@ export function AdminStaff() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [filterEmployment, setFilterEmployment] = useState('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [newStaff, setNewStaff] = useState({
@@ -25,7 +34,12 @@ export function AdminStaff() {
     employeeId: '',
     address: '',
     emergencyContact: '',
-    emergencyContactPhone: ''
+    emergencyContactPhone: '',
+    employmentType: 'permanent',
+    hourlyRate: '',
+    startTime: '',
+    endTime: '',
+    additionalHours: ''
   });
   const [formError, setFormError] = useState('');
   const [editStaff, setEditStaff] = useState(null);
@@ -67,7 +81,12 @@ export function AdminStaff() {
             employeeId: u.employeeId || '',
             address: u.address || '',
             emergencyContact: u.emergencyContact || '',
-            emergencyContactPhone: u.emergencyContactPhone || ''
+            emergencyContactPhone: u.emergencyContactPhone || '',
+            employmentType: u.employmentType || 'permanent',
+            hourlyRate: u.hourlyRate || 0,
+            startTime: u.startTime || '',
+            endTime: u.endTime || '',
+            additionalHours: u.additionalHours || 0
           }));
 
           setStaffList(formattedStaff.length > 0 ? formattedStaff : staffMembers);
@@ -87,7 +106,8 @@ export function AdminStaff() {
       (staff.email && staff.email.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesRole = filterRole === 'All' || (staff.role && staff.role.toLowerCase() === filterRole.toLowerCase());
     const matchesStatus = filterStatus === 'All' || (staff.status && staff.status.toLowerCase() === filterStatus.toLowerCase());
-    return matchesSearch && matchesRole && matchesStatus;
+    const matchesEmployment = filterEmployment === 'All' || (staff.employmentType && staff.employmentType.toLowerCase() === filterEmployment.toLowerCase());
+    return matchesSearch && matchesRole && matchesStatus && matchesEmployment;
   });
 
   const getStatusColor = (status) => {
@@ -128,7 +148,12 @@ export function AdminStaff() {
       department: 'Front Office',
       salary: '',
       joinDate: '',
-      status: 'Active'
+      status: 'Active',
+      employmentType: 'permanent',
+      hourlyRate: '',
+      startTime: '',
+      endTime: '',
+      additionalHours: ''
     });
     setIsAddModalOpen(true);
   };
@@ -160,7 +185,12 @@ export function AdminStaff() {
       employeeId: staff.employeeId || '',
       address: staff.address || '',
       emergencyContact: staff.emergencyContact || '',
-      emergencyContactPhone: staff.emergencyContactPhone || ''
+      emergencyContactPhone: staff.emergencyContactPhone || '',
+      employmentType: staff.employmentType || 'permanent',
+      hourlyRate: staff.hourlyRate || '',
+      startTime: staff.startTime || '',
+      endTime: staff.endTime || '',
+      additionalHours: staff.additionalHours || ''
     });
     setIsEditModalOpen(true);
   };
@@ -205,7 +235,12 @@ export function AdminStaff() {
         employeeId: editStaff.employeeId,
         address: editStaff.address,
         emergencyContact: editStaff.emergencyContact,
-        emergencyContactPhone: editStaff.emergencyContactPhone
+        emergencyContactPhone: editStaff.emergencyContactPhone,
+        employmentType: editStaff.employmentType,
+        hourlyRate: Number(editStaff.hourlyRate) || 0,
+        startTime: editStaff.startTime,
+        endTime: editStaff.endTime,
+        additionalHours: Number(editStaff.additionalHours) || 0
       };
 
       const res = await fetch(`${API_BASE}/api/auth/users/${editStaff._id}`, {
@@ -230,7 +265,12 @@ export function AdminStaff() {
         department: updated.department,
         salary: updated.salary,
         joinDate: updated.joinDate,
-        status: updated.status
+        status: updated.status,
+        employmentType: updated.employmentType,
+        hourlyRate: updated.hourlyRate,
+        startTime: updated.startTime,
+        endTime: updated.endTime,
+        additionalHours: updated.additionalHours
       }} : s)));
 
       closeEditModal();
@@ -298,9 +338,25 @@ export function AdminStaff() {
   const handleAddStaff = (e) => {
     e.preventDefault();
 
-    if (!newStaff.name || !newStaff.email || !newStaff.phone || !newStaff.salary || !newStaff.joinDate) {
+    if (!newStaff.name || !newStaff.email || !newStaff.phone || !newStaff.joinDate) {
       setFormError('Please fill all required fields.');
       return;
+    }
+    
+    if (newStaff.employmentType === 'permanent' && !newStaff.salary) {
+      setFormError('Monthly salary is required for permanent staff.');
+      return;
+    }
+    
+    if (newStaff.employmentType === 'temporary') {
+      if (!newStaff.hourlyRate) {
+        setFormError('Hourly rate is required for temporary staff.');
+        return;
+      }
+      if (!newStaff.startTime || !newStaff.endTime) {
+        setFormError('Start time and end time are required for temporary staff.');
+        return;
+      }
     }
     const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const token = localStorage.getItem('janro_token');
@@ -321,7 +377,12 @@ export function AdminStaff() {
           employeeId: newStaff.employeeId,
           address: newStaff.address,
           emergencyContact: newStaff.emergencyContact,
-          emergencyContactPhone: newStaff.emergencyContactPhone
+          emergencyContactPhone: newStaff.emergencyContactPhone,
+          employmentType: newStaff.employmentType,
+          hourlyRate: Number(newStaff.hourlyRate) || 0,
+          startTime: newStaff.startTime,
+          endTime: newStaff.endTime,
+          additionalHours: Number(newStaff.additionalHours) || 0
         };
 
         const res = await fetch(`${API_BASE}/api/auth/users`, {
@@ -355,7 +416,12 @@ export function AdminStaff() {
           employeeId: user.employeeId || newStaff.employeeId,
           address: user.address || newStaff.address,
           emergencyContact: user.emergencyContact || newStaff.emergencyContact,
-          emergencyContactPhone: user.emergencyContactPhone || newStaff.emergencyContactPhone
+          emergencyContactPhone: user.emergencyContactPhone || newStaff.emergencyContactPhone,
+          employmentType: user.employmentType || newStaff.employmentType,
+          hourlyRate: user.hourlyRate || Number(newStaff.hourlyRate),
+          startTime: user.startTime || newStaff.startTime,
+          endTime: user.endTime || newStaff.endTime,
+          additionalHours: user.additionalHours || Number(newStaff.additionalHours)
         };
 
         setStaffList((prev) => [createdStaff, ...prev]);
@@ -424,6 +490,11 @@ export function AdminStaff() {
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="admin-staff-select lg:w-40">
               <option>All</option><option>Active</option><option>Inactive</option><option>On Leave</option>
             </select>
+            <select value={filterEmployment} onChange={(e) => setFilterEmployment(e.target.value)} className="admin-staff-select lg:w-40">
+              <option value="All">All Types</option>
+              <option value="permanent">Permanent</option>
+              <option value="temporary">Temporary</option>
+            </select>
           </div>
         </div>
 
@@ -436,7 +507,7 @@ export function AdminStaff() {
                 <th>Contact</th>
                 <th>Role</th>
                 <th>Department</th>
-                <th>Salary</th>
+                <th>Pay</th>
                 <th>Join Date</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -457,7 +528,27 @@ export function AdminStaff() {
                   <td className="admin-staff-table-cell"><div><div className="admin-staff-contact-email text-gray-900">{staff.email}</div><div className="admin-staff-contact-phone">{staff.phone}</div></div></td>
                   <td className="admin-staff-table-cell"><span className={`admin-staff-role-badge ${getRoleBadgeColor(staff.role)}`}>{staff.role ? staff.role.charAt(0).toUpperCase() + staff.role.slice(1).toLowerCase() : ''}</span></td>
                   <td className="admin-staff-table-cell">{staff.department}</td>
-                  <td className="admin-staff-table-cell"><span className="admin-staff-salary">{settings.currency.symbol}{staff.salary.toLocaleString()}</span></td>
+                  <td className="admin-staff-table-cell">
+                    {staff.employmentType === 'temporary' ? (
+                      <div className="flex flex-col">
+                        <span className="admin-staff-salary">
+                          {settings.currency.symbol}
+                          {((staff.hourlyRate * calculateDuration(staff.startTime, staff.endTime)) + ((staff.additionalHours || 0) * 500)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {staff.startTime && staff.endTime ? `${staff.startTime} - ${staff.endTime} (${calculateDuration(staff.startTime, staff.endTime)}h)` : 'No times set'}
+                        </span>
+                        {(staff.additionalHours > 0) && (
+                           <span className="text-xs text-orange-500 font-medium">+ {staff.additionalHours}h Extra</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="admin-staff-salary">
+                        {settings.currency.symbol}
+                        {(staff.salary || 0).toLocaleString()}/mo
+                      </span>
+                    )}
+                  </td>
                   <td className="admin-staff-table-cell">{new Date(staff.joinDate).toLocaleDateString()}</td>
                   <td className="admin-staff-table-cell"><span className={`admin-staff-status-badge ${getStatusColor(staff.status)}`}>{staff.status ? staff.status.charAt(0).toUpperCase() + staff.status.slice(1).toLowerCase() : ''}</span></td>
                   <td className="admin-staff-table-cell">
@@ -560,17 +651,95 @@ export function AdminStaff() {
                 </label>
 
                 <label className="admin-staff-form-label">
-                  Monthly Salary
-                  <input
-                    type="number"
-                    min="0"
+                  Employment Type
+                  <select
                     className="admin-staff-form-input"
-                    value={newStaff.salary}
-                    onChange={(e) => handleFieldChange('salary', e.target.value)}
-                    placeholder="90000"
-                    required
-                  />
+                    value={newStaff.employmentType}
+                    onChange={(e) => handleFieldChange('employmentType', e.target.value)}
+                  >
+                    <option value="permanent">Permanent</option>
+                    <option value="temporary">Temporary</option>
+                  </select>
                 </label>
+
+                {newStaff.employmentType === 'permanent' ? (
+                  <label className="admin-staff-form-label">
+                    Monthly Salary
+                    <input
+                      type="number"
+                      min="0"
+                      className="admin-staff-form-input"
+                      value={newStaff.salary}
+                      onChange={(e) => handleFieldChange('salary', e.target.value)}
+                      placeholder="90000"
+                      required
+                    />
+                  </label>
+                ) : (
+                  <>
+                    <label className="admin-staff-form-label">
+                      Hourly Rate
+                      <input
+                        type="number"
+                        min="0"
+                        className="admin-staff-form-input"
+                        value={newStaff.hourlyRate}
+                        onChange={(e) => handleFieldChange('hourlyRate', e.target.value)}
+                        placeholder="500"
+                        required
+                      />
+                    </label>
+                    <label className="admin-staff-form-label">
+                      Start Time
+                      <input
+                        type="time"
+                        className="admin-staff-form-input"
+                        value={newStaff.startTime}
+                        onChange={(e) => handleFieldChange('startTime', e.target.value)}
+                        required
+                      />
+                    </label>
+                    <label className="admin-staff-form-label">
+                      End Time
+                      <input
+                        type="time"
+                        className="admin-staff-form-input"
+                        value={newStaff.endTime}
+                        onChange={(e) => handleFieldChange('endTime', e.target.value)}
+                        required
+                      />
+                    </label>
+                    <label className="admin-staff-form-label">
+                      Additional Hours (OT)
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        className="admin-staff-form-input"
+                        value={newStaff.additionalHours}
+                        onChange={(e) => handleFieldChange('additionalHours', e.target.value)}
+                        placeholder="e.g. 2"
+                      />
+                    </label>
+                    <div className="admin-staff-form-label col-span-1 sm:col-span-2 md:col-span-1 p-3 bg-blue-50 border border-blue-100 rounded-lg flex flex-col justify-center">
+                       <span className="text-sm font-medium text-blue-900 mb-1">Shift Summary</span>
+                       <div className="flex justify-between items-center">
+                         <span className="text-xs text-blue-700">Calculated Duration:</span>
+                         <span className="text-sm font-bold text-blue-900">{calculateDuration(newStaff.startTime, newStaff.endTime)} hrs</span>
+                       </div>
+                       {(newStaff.additionalHours > 0) && (
+                       <div className="flex justify-between items-center mt-1">
+                         <span className="text-xs text-orange-600">Extra Pay (Rs. 500/hr):</span>
+                         <span className="text-sm font-bold text-orange-600">+{settings.currency.symbol}{((newStaff.additionalHours || 0) * 500).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                       </div>
+                       )}
+                       <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
+                         <span className="text-xs text-blue-700">Total Shift Pay:</span>
+                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((newStaff.hourlyRate * calculateDuration(newStaff.startTime, newStaff.endTime)) + ((newStaff.additionalHours || 0) * 500)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                       </div>
+                    </div>
+                  </>
+                )}
 
                 <label className="admin-staff-form-label">
                   Join Date
@@ -744,17 +913,95 @@ export function AdminStaff() {
                 </label>
 
                 <label className="admin-staff-form-label">
-                  Monthly Salary
-                  <input
-                    type="number"
-                    min="0"
+                  Employment Type
+                  <select
                     className="admin-staff-form-input"
-                    value={editStaff.salary}
-                    onChange={(e) => setEditStaff((p) => ({ ...p, salary: e.target.value }))}
-                    placeholder="90000"
-                    required
-                  />
+                    value={editStaff.employmentType}
+                    onChange={(e) => setEditStaff((p) => ({ ...p, employmentType: e.target.value }))}
+                  >
+                    <option value="permanent">Permanent</option>
+                    <option value="temporary">Temporary</option>
+                  </select>
                 </label>
+
+                {editStaff.employmentType === 'permanent' ? (
+                  <label className="admin-staff-form-label">
+                    Monthly Salary
+                    <input
+                      type="number"
+                      min="0"
+                      className="admin-staff-form-input"
+                      value={editStaff.salary}
+                      onChange={(e) => setEditStaff((p) => ({ ...p, salary: e.target.value }))}
+                      placeholder="90000"
+                      required
+                    />
+                  </label>
+                ) : (
+                  <>
+                    <label className="admin-staff-form-label">
+                      Hourly Rate
+                      <input
+                        type="number"
+                        min="0"
+                        className="admin-staff-form-input"
+                        value={editStaff.hourlyRate}
+                        onChange={(e) => setEditStaff((p) => ({ ...p, hourlyRate: e.target.value }))}
+                        placeholder="500"
+                        required
+                      />
+                    </label>
+                    <label className="admin-staff-form-label">
+                      Start Time
+                      <input
+                        type="time"
+                        className="admin-staff-form-input"
+                        value={editStaff.startTime}
+                        onChange={(e) => setEditStaff((p) => ({ ...p, startTime: e.target.value }))}
+                        required
+                      />
+                    </label>
+                    <label className="admin-staff-form-label">
+                      End Time
+                      <input
+                        type="time"
+                        className="admin-staff-form-input"
+                        value={editStaff.endTime}
+                        onChange={(e) => setEditStaff((p) => ({ ...p, endTime: e.target.value }))}
+                        required
+                      />
+                    </label>
+                    <label className="admin-staff-form-label">
+                      Additional Hours (OT)
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        className="admin-staff-form-input"
+                        value={editStaff.additionalHours}
+                        onChange={(e) => setEditStaff((p) => ({ ...p, additionalHours: e.target.value }))}
+                        placeholder="e.g. 2"
+                      />
+                    </label>
+                    <div className="admin-staff-form-label col-span-1 sm:col-span-2 md:col-span-1 p-3 bg-blue-50 border border-blue-100 rounded-lg flex flex-col justify-center">
+                       <span className="text-sm font-medium text-blue-900 mb-1">Shift Summary</span>
+                       <div className="flex justify-between items-center">
+                         <span className="text-xs text-blue-700">Calculated Duration:</span>
+                         <span className="text-sm font-bold text-blue-900">{calculateDuration(editStaff.startTime, editStaff.endTime)} hrs</span>
+                       </div>
+                       {(editStaff.additionalHours > 0) && (
+                       <div className="flex justify-between items-center mt-1">
+                         <span className="text-xs text-orange-600">Extra Pay (Rs. 500/hr):</span>
+                         <span className="text-sm font-bold text-orange-600">+{settings.currency.symbol}{((editStaff.additionalHours || 0) * 500).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                       </div>
+                       )}
+                       <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
+                         <span className="text-xs text-blue-700">Total Shift Pay:</span>
+                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((editStaff.hourlyRate * calculateDuration(editStaff.startTime, editStaff.endTime)) + ((editStaff.additionalHours || 0) * 500)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                       </div>
+                    </div>
+                  </>
+                )}
 
                 <label className="admin-staff-form-label">
                   Join Date
