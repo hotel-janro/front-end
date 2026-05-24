@@ -5,6 +5,8 @@ import { Navbar } from "./components/common/Navbar.jsx";
 import { Footer } from "./components/common/Footer.jsx";
 import { AppRoutes } from "./routes/AppRoutes.jsx";
 import { SettingsProvider } from "./context/SettingsContext.jsx";
+import { SocketProvider } from "./context/SocketContext.jsx";
+import { Toaster } from "sonner";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -180,6 +182,7 @@ function AppInner() {
 
     return (
         <div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+            <Toaster position="top-right" richColors />
             {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout} authChecked={authChecked}/>}
             <main className="flex-1">
                 <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
@@ -190,9 +193,11 @@ function AppInner() {
 }
 export default function App() {
     return (<SettingsProvider>
-        <BrowserRouter>
-          <ScrollToTop />
-          <AppInner />
-        </BrowserRouter>
+        <SocketProvider>
+          <BrowserRouter>
+            <ScrollToTop />
+            <AppInner />
+          </BrowserRouter>
+        </SocketProvider>
       </SettingsProvider>);
 }
