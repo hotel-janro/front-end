@@ -25,10 +25,12 @@ import {
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { useSettings } from '../../../context/SettingsContext.jsx';
+import { useSocket } from '../../../context/SocketContext.jsx';
 
 
 export function AdminPOS() {
   const { settings } = useSettings();
+  const socket = useSocket();
   const [menuItems, setMenuItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -183,6 +185,43 @@ export function AdminPOS() {
     const interval = setInterval(() => loadOrders(true), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Real-time socket event listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("orderCreated", (newOrder) => {
+      setOrders((prev) => {
+        if (prev.some((o) => o._id === newOrder._id)) return prev;
+        toast.info(`New Order #${newOrder._id.slice(-6).toUpperCase()} placed!`, {
+          description: `By: ${newOrder.customerName || "Guest"} (${newOrder.orderType})`,
+          duration: 6000,
+        });
+        return [newOrder, ...prev];
+      });
+    });
+
+    socket.on("orderUpdated", (updatedOrder) => {
+      setOrders((prev) =>
+        prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o))
+      );
+      toast.success(`Order #${updatedOrder._id.slice(-6).toUpperCase()} updated!`, {
+        description: `Status: ${updatedOrder.orderStatus} | Payment: ${updatedOrder.paymentStatus}`,
+        duration: 5000,
+      });
+    });
+
+    socket.on("orderDeleted", ({ id }) => {
+      setOrders((prev) => prev.filter((o) => o._id !== id));
+      toast.warning("An order was deleted.", { duration: 4000 });
+    });
+
+    return () => {
+      socket.off("orderCreated");
+      socket.off("orderUpdated");
+      socket.off("orderDeleted");
+    };
+  }, [socket]);
 
   const refreshData = async () => {
     setLoading(true);

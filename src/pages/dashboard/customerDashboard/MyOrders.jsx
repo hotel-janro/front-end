@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { apiFetch } from "../../../api.js";
 import { useSettings } from "../../../context/SettingsContext.jsx";
+import { useSocket } from "../../../context/SocketContext.jsx";
+import { toast } from "sonner";
 import "./CustomerDashboard.css";
 
 export function MyOrders() {
@@ -31,6 +33,7 @@ export function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
+  const socket = useSocket();
   const [activeTab, setActiveTab] = useState("orders"); // orders, payments, receipts
   const [editingOrder, setEditingOrder] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -56,6 +59,56 @@ export function MyOrders() {
   useEffect(() => {
     loadMyOrders();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("orderCreated", (newOrder) => {
+      setOrders((prev) => {
+        if (prev.some((o) => o._id === newOrder._id)) return prev;
+        return [newOrder, ...prev];
+      });
+    });
+
+    socket.on("orderUpdated", (updatedOrder) => {
+      setOrders((prev) => {
+        const match = prev.find((o) => o._id === updatedOrder._id);
+        if (match) {
+          if (match.orderStatus !== updatedOrder.orderStatus) {
+            let desc = "";
+            if (updatedOrder.orderStatus === "Preparing") {
+              desc = "Our chef has started preparing your gourmet selection! 👨‍🍳";
+            } else if (updatedOrder.orderStatus === "Ready" || updatedOrder.orderStatus === "Ready for Delivery") {
+              desc = "Your selection is prepared and ready! 🍽️";
+            } else if (updatedOrder.orderStatus === "Completed") {
+              desc = "Your order has been completed. Enjoy your dining! ✨";
+            } else if (updatedOrder.orderStatus === "Cancelled") {
+              desc = "Your order was cancelled.";
+            }
+
+            if (desc) {
+              toast.success(`Order Status Updated!`, {
+                description: desc,
+                duration: 7000,
+              });
+            }
+          }
+          return prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o));
+        }
+        return prev;
+      });
+    });
+
+    socket.on("orderDeleted", ({ id }) => {
+      setOrders((prev) => prev.filter((o) => o._id !== id));
+    });
+
+    return () => {
+      socket.off("orderCreated");
+      socket.off("orderUpdated");
+      socket.off("orderDeleted");
+    };
+  }, [socket]);
 
   const loadMyOrders = async () => {
     try {
@@ -620,12 +673,44 @@ export function MyOrders() {
               </div>
             </div>
 
-            <footer className="p-10 border-t border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-center gap-6">
-              <div className="flex-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">New Order Total</p>
-                <p className="text-3xl font-black text-[#0F172A]">
-                  {formatMoney(editingOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0) + (editingOrder.serviceCharge || 0) + (editingOrder.deliveryFee || 0) - (editingOrder.discount || 0))}
-                </p>
+            <footer className="p-8 border-t border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-1 w-full">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-3 border-b border-slate-200 pb-3">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtotal</div>
+                  <div className="text-right text-xs font-bold text-slate-600">
+                    {formatMoney(editingOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0))}
+                  </div>
+                  
+                  {editingOrder.serviceCharge > 0 && (
+                    <>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Service Charge (10%)</div>
+                      <div className="text-right text-xs font-bold text-slate-600">{formatMoney(editingOrder.serviceCharge)}</div>
+                    </>
+                  )}
+                  
+                  {editingOrder.deliveryFee > 0 && (
+                    <>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Delivery Fee</div>
+                      <div className="text-right text-xs font-bold text-slate-600">{formatMoney(editingOrder.deliveryFee)}</div>
+                    </>
+                  )}
+                  
+                  {editingOrder.discount > 0 && (
+                    <>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-rose-500">Discount</div>
+                      <div className="text-right text-xs font-bold text-rose-500">-{formatMoney(editingOrder.discount)}</div>
+                    </>
+                  )}
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.2em] mb-0.5">New Grand Total</p>
+                    <p className="text-3xl font-black text-[#0F172A]">
+                      {formatMoney(editingOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0) + (editingOrder.serviceCharge || 0) + (editingOrder.deliveryFee || 0) - (editingOrder.discount || 0))}
+                    </p>
+                  </div>
+                </div>
               </div>
               <button 
                 onClick={handleUpdateOrder}

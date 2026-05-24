@@ -15,6 +15,8 @@ import {
   History
 } from "lucide-react";
 import { useSettings } from "../../../context/SettingsContext.jsx";
+import { useSocket } from "../../../context/SocketContext.jsx";
+import { toast } from "sonner";
 import "./CashierDashbord.css";
 
 
@@ -51,12 +53,49 @@ function RealTimeClock({ className = "" }) {
 function CashierOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const socket = useSocket();
 
   useEffect(() => {
     loadOrders();
     const interval = setInterval(loadOrders, 30000); // Auto refresh every 30s
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("orderCreated", (newOrder) => {
+      setOrders((prev) => {
+        if (prev.some((o) => o._id === newOrder._id)) return prev;
+        toast.info(`New Order #${newOrder._id.slice(-6).toUpperCase()} placed!`, {
+          description: `Guest: ${newOrder.customerName || "Walk-in"} (${newOrder.orderType})`,
+          duration: 6000,
+        });
+        return [newOrder, ...prev];
+      });
+    });
+
+    socket.on("orderUpdated", (updatedOrder) => {
+      setOrders((prev) =>
+        prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o))
+      );
+      toast.success(`Order #${updatedOrder._id.slice(-6).toUpperCase()} updated!`, {
+        description: `Status: ${updatedOrder.orderStatus} | Payment: ${updatedOrder.paymentStatus}`,
+        duration: 5000,
+      });
+    });
+
+    socket.on("orderDeleted", ({ id }) => {
+      setOrders((prev) => prev.filter((o) => o._id !== id));
+      toast.warning("An order was deleted.");
+    });
+
+    return () => {
+      socket.off("orderCreated");
+      socket.off("orderUpdated");
+      socket.off("orderDeleted");
+    };
+  }, [socket]);
 
   const loadOrders = async () => {
     try {
@@ -144,12 +183,40 @@ function CashierOrders() {
 function CashierPayments() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const socket = useSocket();
 
   useEffect(() => {
     loadOrders();
     const interval = setInterval(loadOrders, 30000); 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("orderCreated", (newOrder) => {
+      setOrders((prev) => {
+        if (prev.some((o) => o._id === newOrder._id)) return prev;
+        return [newOrder, ...prev];
+      });
+    });
+
+    socket.on("orderUpdated", (updatedOrder) => {
+      setOrders((prev) =>
+        prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o))
+      );
+    });
+
+    socket.on("orderDeleted", ({ id }) => {
+      setOrders((prev) => prev.filter((o) => o._id !== id));
+    });
+
+    return () => {
+      socket.off("orderCreated");
+      socket.off("orderUpdated");
+      socket.off("orderDeleted");
+    };
+  }, [socket]);
 
   const loadOrders = async () => {
     try {
@@ -240,14 +307,52 @@ function CashierPayments() {
 function CashierReceipts() {
   const { settings } = useSettings();
   const [orders, setOrders] = useState([]);
-
   const [loading, setLoading] = useState(true);
+  const socket = useSocket();
 
   useEffect(() => {
     loadOrders();
     const interval = setInterval(loadOrders, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("orderCreated", (newOrder) => {
+      if (newOrder.paymentStatus === 'Paid') {
+        setOrders((prev) => {
+          if (prev.some((o) => o._id === newOrder._id)) return prev;
+          return [newOrder, ...prev];
+        });
+      }
+    });
+
+    socket.on("orderUpdated", (updatedOrder) => {
+      setOrders((prev) => {
+        const exists = prev.some((o) => o._id === updatedOrder._id);
+        if (updatedOrder.paymentStatus === 'Paid') {
+          if (exists) {
+            return prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o));
+          } else {
+            return [updatedOrder, ...prev];
+          }
+        } else {
+          return prev.filter((o) => o._id !== updatedOrder._id);
+        }
+      });
+    });
+
+    socket.on("orderDeleted", ({ id }) => {
+      setOrders((prev) => prev.filter((o) => o._id !== id));
+    });
+
+    return () => {
+      socket.off("orderCreated");
+      socket.off("orderUpdated");
+      socket.off("orderDeleted");
+    };
+  }, [socket]);
 
   const loadOrders = async () => {
     try {
