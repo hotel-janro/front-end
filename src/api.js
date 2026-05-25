@@ -45,9 +45,28 @@ export const apiFetch = async (endpoint, options = {}) => {
             ...options,
             headers,
           });
+        } else {
+          // Refresh token invalid or expired
+          if (window.location.pathname !== "/login") {
+            localStorage.removeItem("janro_token");
+            localStorage.removeItem("janro_refresh_token");
+            window.location.href = "/login";
+          }
         }
       } catch (err) {
         console.error("Token refresh failed:", err);
+        if (window.location.pathname !== "/login") {
+          localStorage.removeItem("janro_token");
+          localStorage.removeItem("janro_refresh_token");
+          window.location.href = "/login";
+        }
+      }
+    } else {
+      // No refresh token available
+      if (window.location.pathname !== "/login") {
+        localStorage.removeItem("janro_token");
+        localStorage.removeItem("janro_refresh_token");
+        window.location.href = "/login";
       }
     }
   }
