@@ -107,10 +107,7 @@ export function AdminWedding() {
     image: ''
   });
 
-  // Edit Guest Count State
-  const [showGuestModal, setShowGuestModal] = useState(false);
-  const [editingBooking, setEditingBooking] = useState(null);
-  const [newGuestCount, setNewGuestCount] = useState('');
+
 
   // Image Upload State
   const fileInputRef = React.useRef(null);
@@ -383,7 +380,6 @@ export function AdminWedding() {
   const handleSubmitBooking = async (e) => {
     e.preventDefault();
     
-   
     // Phone Number Validation
     const cleanPhone = formData.customerPhone.replace(/\s+/g, '');
     if (!/^(0\d{9}|\+94\d{9})$/.test(cleanPhone)) {
@@ -426,8 +422,6 @@ export function AdminWedding() {
          }
       }
     }
-    
-    //
 
     try {
       const url = editingId ? `/wedding/bookings/${editingId}` : '/wedding/bookings';
@@ -493,22 +487,6 @@ export function AdminWedding() {
     }
   };
 
-  const handleUpdateGuestCount = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await apiFetch(`/wedding/bookings/${editingBooking._id}/guest-count`, {
-        method: 'PUT',
-        body: JSON.stringify({ guestCount: Number(newGuestCount) })
-      });
-      if (res.success) {
-        alert("Guest count updated successfully!");
-        setShowGuestModal(false);
-        fetchData();
-      }
-    } catch (error) {
-      alert(error.message);
-    }
-  };
 
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch = booking.customerName?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1638,53 +1616,6 @@ export function AdminWedding() {
         </div>
       )}
 
-      {/* GUEST COUNT MODAL */}
-      {showGuestModal && editingBooking && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md border border-white/20 overflow-hidden">
-            <div className="bg-[#0F172A] text-white p-6 flex justify-between items-center relative overflow-hidden">
-              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/20 rounded-l-full blur-2xl" />
-              <div className="relative z-10">
-                <h2 className="text-xl font-semibold" style={{ fontFamily: "DM Serif Display, serif" }}>Update Guest Count</h2>
-                <p className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mt-1">Guest Finalization</p>
-              </div>
-              <button onClick={() => setShowGuestModal(false)} className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateGuestCount} className="p-8">
-              <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-xs text-slate-500 font-medium mb-1">Current Count: <span className="font-bold text-slate-900">{editingBooking.guestCount} Guests</span></p>
-                <p className="text-[10px] text-slate-400">Updating this will automatically recalculate the total amount based on the selected package/meals.</p>
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">New Guest Count *</label>
-                <div className="relative">
-                  <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input 
-                    autoFocus
-                    required 
-                    type="number" 
-                    min="1"
-                    value={newGuestCount} 
-                    onChange={e => setNewGuestCount(e.target.value)} 
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] focus:bg-white outline-none transition-all text-lg font-bold"
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-[0.98]"
-              >
-                Update & Recalculate
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
       {/* VIEW BOOKING MODAL */}
       {showViewModal && viewingBooking && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4" onClick={() => setShowViewModal(false)}>

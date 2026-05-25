@@ -3,17 +3,14 @@ import React, { useState } from "react";
 import { User, Mail, Phone, MapPin, ShieldAlert, Camera, Star, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import "./CustomerDashboard.css";
 
+const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export function Profile({ user }) {
   const token = localStorage.getItem("janro_token");
   const [activeTab, setActiveTab] = useState("info");
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
-  
-  // Email Update State
-  const [showEmailOTP, setShowEmailOTP] = useState(false);
-  const [newEmail, setNewEmail] = useState("");
-  const [otp, setOtp] = useState("");
   
   // Password Update State
   const [passwords, setPasswords] = useState({
@@ -43,61 +40,6 @@ export function Profile({ user }) {
     }
   }, [user]);
 
-  const handleRequestEmailChange = async (e) => {
-    e.preventDefault();
-    setIsUpdating(true);
-    setMessage({ type: "", text: "" });
-    try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-      const response = await fetch(`${apiBaseUrl}/api/auth/request-email-change`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ newEmail })
-      });
-      const result = await response.json();
-      if (result.success) {
-        setShowEmailOTP(true);
-        setMessage({ type: "success", text: result.message });
-      } else {
-        setMessage({ type: "error", text: result.message });
-      }
-    } catch (error) {
-      setMessage({ type: "error", text: "Connection error. Please try again." });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleVerifyEmailChange = async (e) => {
-    e.preventDefault();
-    setIsUpdating(true);
-    try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-      const response = await fetch(`${apiBaseUrl}/api/auth/verify-email-change`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ otp })
-      });
-      const result = await response.json();
-      if (result.success) {
-        setMessage({ type: "success", text: "Email updated! Please log in again." });
-        setTimeout(() => window.location.href = "/login", 2000);
-      } else {
-        setMessage({ type: "error", text: result.message });
-      }
-    } catch (error) {
-      setMessage({ type: "error", text: "Verification failed." });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
   const handleUpdateProfile = async () => {
     // --- VALIDATIONS ---
     if (!formData.name || formData.name.trim().length < 3) {
@@ -120,7 +62,6 @@ export function Profile({ user }) {
     setMessage({ type: "", text: "" });
 
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
       const response = await fetch(`${apiBaseUrl}/api/auth/updateme`, {
         method: "PUT",
         headers: {
@@ -151,7 +92,6 @@ export function Profile({ user }) {
     }
     setIsUpdating(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
       const response = await fetch(`${apiBaseUrl}/api/auth/change-password`, {
         method: "PUT",
         headers: {
@@ -299,67 +239,7 @@ export function Profile({ user }) {
             </div>
           </article>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Email Management */}
-            <article className="customer-panel rounded-[2.5rem] p-8 md:p-10">
-              <header className="mb-8">
-                <h3 className="text-xl font-normal text-slate-900 flex items-center gap-3" style={{ fontFamily: "DM Serif Display, serif" }}>
-                  <Mail className="w-5 h-5 text-[#D4AF37]" />
-                  Email Security
-                </h3>
-              </header>
-
-              {message.text && activeTab === "security" && (
-                <div className={`mb-6 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest ${message.type === "success" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"}`}>
-                  {message.text}
-                </div>
-              )}
-
-              {!showEmailOTP ? (
-                <form onSubmit={handleRequestEmailChange} className="space-y-6">
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">New Email Address</label>
-                    <input
-                      type="email"
-                      required
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      placeholder="Enter new email..."
-                      className="w-full px-6 py-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold focus:outline-none focus:border-[#D4AF37] transition-all"
-                    />
-                  </div>
-                  <button 
-                    disabled={isUpdating}
-                    className="w-full py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all disabled:opacity-50"
-                  >
-                    {isUpdating ? "Processing..." : "Update Email"}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyEmailChange} className="space-y-6">
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Verification Code</label>
-                    <input
-                      type="text"
-                      required
-                      maxLength="6"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                      placeholder="Enter 6-digit OTP..."
-                      className="w-full px-6 py-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-center tracking-[1em] focus:outline-none focus:border-[#D4AF37] transition-all"
-                    />
-                  </div>
-                  <button 
-                    disabled={isUpdating}
-                    className="w-full py-4 bg-[#D4AF37] text-[#0F172A] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#0F172A] hover:text-[#D4AF37] transition-all"
-                  >
-                    {isUpdating ? "Verifying..." : "Confirm Verification"}
-                  </button>
-                  <button type="button" onClick={() => setShowEmailOTP(false)} className="w-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-[#0F172A]">Back</button>
-                </form>
-              )}
-            </article>
-
+          <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Password Management */}
             <article className="customer-panel rounded-[2.5rem] p-8 md:p-10">
               <header className="mb-8">
@@ -367,7 +247,14 @@ export function Profile({ user }) {
                   <ShieldCheck className="w-5 h-5 text-[#D4AF37]" />
                   Password Management
                 </h3>
+                <p className="text-slate-400 text-xs font-medium mt-1">Refine and update your account credentials securely.</p>
               </header>
+
+              {message.text && activeTab === "security" && (
+                <div className={`mb-6 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest ${message.type === "success" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"}`}>
+                  {message.text}
+                </div>
+              )}
 
               <form onSubmit={handleChangePassword} className="space-y-4">
                 <div className="space-y-2">
@@ -377,6 +264,7 @@ export function Profile({ user }) {
                     required
                     value={passwords.current}
                     onChange={(e) => setPasswords({...passwords, current: e.target.value})}
+                    placeholder="Enter your current password..."
                     className="w-full px-6 py-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold focus:outline-none focus:border-[#D4AF37] transition-all"
                   />
                 </div>
@@ -388,6 +276,7 @@ export function Profile({ user }) {
                       required
                       value={passwords.new}
                       onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+                      placeholder="Enter a secure new password..."
                       className="w-full px-6 py-4 pr-14 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold focus:outline-none focus:border-[#D4AF37] transition-all"
                     />
                     <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#D4AF37] transition-colors">
@@ -403,6 +292,7 @@ export function Profile({ user }) {
                       required
                       value={passwords.confirm}
                       onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                      placeholder="Confirm your secure new password..."
                       className="w-full px-6 py-4 pr-14 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold focus:outline-none focus:border-[#D4AF37] transition-all"
                     />
                     <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#D4AF37] transition-colors">

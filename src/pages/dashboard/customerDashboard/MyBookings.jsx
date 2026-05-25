@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
   Star
 } from "lucide-react";
+import { apiFetch, getImageUrl } from "../../../api.js";
 import "./CustomerDashboard.css";
 
 export function MyBookings() {
@@ -24,34 +25,65 @@ export function MyBookings() {
   const [now] = useState(new Date());
 
   useEffect(() => {
-    // Simulating API fetch
-    setTimeout(() => {
-      setBookings({
-        rooms: [
-          {
-            id: "BK-1001",
-            roomName: "Deluxe Ocean Suite",
-            checkIn: "2026-06-15",
-            checkOut: "2026-06-18",
-            status: "confirmed",
-            amount: 450.0,
-            image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&q=80&w=400"
+    const fetchReservations = async () => {
+      try {
+        setLoading(true);
+        let roomsData = [];
+        let weddingsData = [];
+
+        try {
+          const res = await apiFetch("/bookings/my");
+          if (res && res.success) {
+            roomsData = res.data || [];
           }
-        ],
-        weddings: [
-          {
-            id: "WB-2002",
-            hallName: "Grand Ballroom",
-            eventDate: "2026-12-20",
-            package: "Premium Gold",
-            status: "pending",
-            amount: 2500.0,
-            image: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=400"
+        } catch (err) {
+          console.error("Failed to load room bookings:", err);
+        }
+
+        try {
+          const res = await apiFetch("/wedding/my-bookings");
+          if (res && res.success) {
+            weddingsData = res.data || [];
           }
-        ],
-      });
-      setLoading(false);
-    }, 800);
+        } catch (err) {
+          console.error("Failed to load wedding bookings:", err);
+        }
+
+        const mappedRooms = roomsData.map(item => ({
+          id: item._id,
+          roomName: item.room?.name || "Refined Luxury Suite",
+          checkIn: new Date(item.checkInDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          checkOut: new Date(item.checkOutDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          status: item.status || "pending",
+          amount: item.totalPrice || 0,
+          image: item.room?.images?.[0] 
+            ? getImageUrl(item.room.images[0]) 
+            : "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&q=80&w=400"
+        }));
+
+        const mappedWeddings = weddingsData.map(item => ({
+          id: item._id,
+          hallName: item.hallId?.name || item.eventType || "Grand Ballroom",
+          eventDate: new Date(item.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          package: item.cateringPackage || "Custom Package",
+          status: item.bookingStatus || "pending",
+          amount: item.totalAmount || 0,
+          image: item.hallId?.images?.[0] 
+            ? getImageUrl(item.hallId.images[0]) 
+            : "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=400"
+        }));
+
+        setBookings({
+          rooms: mappedRooms,
+          weddings: mappedWeddings
+        });
+      } catch (err) {
+        console.error("Failed to load reservations:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReservations();
   }, []);
 
   const getStatusBadge = (status) => {
@@ -59,6 +91,7 @@ export function MyBookings() {
       pending: "bg-amber-100 text-amber-700",
       confirmed: "bg-green-100 text-green-700",
       cancelled: "bg-red-100 text-red-700",
+      rejected: "bg-rose-100 text-rose-700",
     };
     return (
       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${styles[status] || styles.pending}`}>
@@ -80,7 +113,7 @@ export function MyBookings() {
   const stats = [
     {
       label: "Room Nights",
-      value: "03",
+      value: String(bookings.rooms.filter(b => b.status !== 'cancelled').length).padStart(2, '0'),
       note: "Upcoming Stays",
       Icon: Bed,
       card: "bg-blue-50 border-blue-200",
@@ -89,7 +122,7 @@ export function MyBookings() {
     },
     {
       label: "Events Planned",
-      value: String(bookings.weddings.length),
+      value: String(bookings.weddings.filter(w => w.status !== 'cancelled' && w.status !== 'rejected').length).padStart(2, '0'),
       note: "Grand Celebrations",
       Icon: Heart,
       card: "bg-rose-50 border-rose-200",
@@ -98,7 +131,7 @@ export function MyBookings() {
     },
     {
       label: "Total Value",
-      value: `$${(bookings.rooms.reduce((s, b) => s + b.amount, 0) + bookings.weddings.reduce((s, b) => s + b.amount, 0)).toLocaleString()}`,
+      value: `$${(bookings.rooms.reduce((s, b) => s + (b.status !== 'cancelled' ? b.amount : 0), 0) + bookings.weddings.reduce((s, b) => s + (b.status !== 'cancelled' && b.status !== 'rejected' ? b.amount : 0), 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       note: "Total Bookings",
       Icon: DollarSign,
       card: "bg-emerald-50 border-emerald-200",
@@ -207,7 +240,7 @@ export function MyBookings() {
                         <h3 className="text-2xl font-bold text-slate-900">
                           {activeTab === "rooms" ? item.roomName : item.hallName}
                         </h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">REF: #{item.id}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">REF: #{item.id.length === 24 ? item.id.slice(-8).toUpperCase() : item.id}</p>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-x-10 gap-y-3">
@@ -230,10 +263,13 @@ export function MyBookings() {
                     <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-6 pt-6 md:pt-0 border-t md:border-t-0 border-slate-100">
                       <div className="text-left md:text-right">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
-                        <p className="text-3xl font-black text-slate-900">${item.amount.toLocaleString()}</p>
+                        <p className="text-3xl font-black text-slate-900">${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       </div>
                       <div className="flex items-center gap-3">
-                         <button className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                         <button 
+                            onClick={() => alert("To modify or cancel your booking, please contact Hotel Janro reception directly at +94 11 234 5678 or support@hoteljanro.com.")}
+                            className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                         >
                             <Trash2 className="h-5 w-5" />
                          </button>
                          <button className="flex items-center gap-2 px-6 py-3 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all shadow-xl shadow-[#0F172A]/10">
