@@ -1,0 +1,1253 @@
+import React, { useEffect, useState, useMemo } from 'react';
+import { Dumbbell, CreditCard, Users, DollarSign, Plus, Search, Trash2, Download, Check, X, Edit, Calendar, UserPlus } from 'lucide-react';
+import { useSettings } from '../../../context/SettingsContext.jsx';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const defaultForm = {
+  passType: 'Day Pass',
+  guestName: '',
+  guestPhone: '',
+  roomNumber: '',
+  paymentStatus: 'Paid',
+  validDays: '1',
+  status: 'Active'
+};
+
+const defaultMemberForm = {
+  name: '',
+  phone: '',
+  email: '',
+  nic: '',
+  gender: 'Male',
+  dob: '',
+  address: '',
+  emergencyName: '',
+  emergencyPhone: '',
+  medicalNotes: '',
+  status: 'Active'
+};
+
+export function AdminGym() {
+  const { settings } = useSettings();
+  
+  // Navigation tabs
+  const [activeTab, setActiveTab] = useState('passes'); // 'passes' or 'members'
+  
+  // State for Passes
+  const [passes, setPasses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [formData, setFormData] = useState(defaultForm);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('All');
+  const [editId, setEditId] = useState(null);
+  const [newPass, setNewPass] = useState(null);
+
+  // State for Gym Members
+  const [members, setMembers] = useState([]);
+  const [isMembersLoading, setIsMembersLoading] = useState(true);
+  const [membersFetchError, setMembersFetchError] = useState('');
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+  const [memberFormData, setMemberFormData] = useState(defaultMemberForm);
+  const [isMemberSubmitting, setIsMemberSubmitting] = useState(false);
+  const [memberSubmitError, setMemberSubmitError] = useState('');
+  const [editMemberId, setEditMemberId] = useState(null);
+  const [memberSearchTerm, setMemberSearchTerm] = useState('');
+  const [regStep, setRegStep] = useState(1);
+
+  // Fetch Passes
+  const fetchPasses = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/gym/passes`);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to load gym passes');
+      }
+
+      setPasses(result.passes || []);
+      setFetchError('');
+    } catch (error) {
+      setFetchError(error.message || 'Could not load gym passes');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch Gym Members
+  const fetchMembers = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/gym/members`);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to load gym members');
+      }
+
+      setMembers(result.members || []);
+      setMembersFetchError('');
+    } catch (error) {
+      setMembersFetchError(error.message || 'Could not load gym members');
+    } finally {
+      setIsMembersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPasses();
+    fetchMembers();
+  }, []);
+
+  // Passes Handlers
+  const handleFormChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((previous) => {
+      const updated = { ...previous, [name]: value };
+      if (name === 'passType') {
+        updated.validDays = value === 'Day Pass' ? '1' : '30';
+      }
+      return updated;
+    });
+  };
+
+  const handleMemberSelectChange = (event) => {
+    const selectedId = event.target.value;
+    if (!selectedId) return;
+
+    const selectedMember = members.find((m) => m._id === selectedId);
+    if (selectedMember) {
+      setFormData((previous) => ({
+        ...previous,
+        guestName: selectedMember.name,
+        guestPhone: selectedMember.phone
+      }));
+    }
+  };
+
+  const handleSubmitPass = async (event) => {
+    event.preventDefault();
+    setSubmitError('');
+    setIsSubmitting(true);
+
+    try {
+      const isEdit = !!editId;
+      const url = isEdit ? `${API_BASE}/api/gym/pass/${editId}` : `${API_BASE}/api/gym/pass`;
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...formData,
+          validDays: Number(formData.validDays)
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || `Failed to ${isEdit ? 'update' : 'issue'} gym pass`);
+      }
+
+      if (isEdit) {
+        setPasses((prev) => prev.map((p) => p._id === editId ? result.pass : p));
+        setIsModalOpen(false);
+        setEditId(null);
+        setFormData(defaultForm);
+      } else {
+        setPasses((prev) => [result.pass, ...prev]);
+        setNewPass(result.pass);
+        setIsModalOpen(false);
+        setFormData(defaultForm);
+        setIsQrModalOpen(true);
+      }
+    } catch (error) {
+      setSubmitError(error.message || 'Failed to submit gym pass');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditClick = (pass) => {
+    setEditId(pass._id);
+    setFormData({
+      passType: pass.passType,
+      guestName: pass.guestName,
+      guestPhone: pass.guestPhone,
+      roomNumber: pass.roomNumber || '',
+      paymentStatus: pass.paymentStatus,
+      validDays: '0',
+      status: pass.status
+    });
+    setSubmitError('');
+    setIsModalOpen(true);
+  };
+
+  const handleDeletePass = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this gym pass?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/gym/pass/${id}`, {
+        method: 'DELETE'
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to delete pass');
+      }
+
+      setPasses((previous) => previous.filter((p) => p._id !== id));
+    } catch (error) {
+      alert(error.message || 'Failed to delete pass');
+    }
+  };
+
+  // Gym Members Handlers
+  const handleMemberFormChange = (event) => {
+    const { name, value } = event.target;
+    setMemberFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleMemberSubmit = async (event) => {
+    event.preventDefault();
+    setMemberSubmitError('');
+    setIsMemberSubmitting(true);
+
+    try {
+      const isEdit = !!editMemberId;
+      const url = isEdit ? `${API_BASE}/api/gym/member/${editMemberId}` : `${API_BASE}/api/gym/member`;
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(memberFormData)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || `Failed to ${isEdit ? 'update' : 'register'} member`);
+      }
+
+      if (isEdit) {
+        setMembers((prev) => prev.map((m) => m._id === editMemberId ? result.member : m));
+      } else {
+        setMembers((prev) => [result.member, ...prev]);
+      }
+
+      setIsMemberModalOpen(false);
+      setEditMemberId(null);
+      setMemberFormData(defaultMemberForm);
+    } catch (error) {
+      setMemberSubmitError(error.message || 'Failed to register gym member');
+    } finally {
+      setIsMemberSubmitting(false);
+    }
+  };
+
+  const handleEditMemberClick = (member) => {
+    setEditMemberId(member._id);
+    setMemberFormData({
+      name: member.name,
+      phone: member.phone,
+      email: member.email || '',
+      nic: member.nic || '',
+      gender: member.gender || 'Male',
+      dob: member.dob || '',
+      address: member.address || '',
+      emergencyName: member.emergencyName || '',
+      emergencyPhone: member.emergencyPhone || '',
+      medicalNotes: member.medicalNotes || '',
+      status: member.status
+    });
+    setRegStep(1);
+    setMemberSubmitError('');
+    setIsMemberModalOpen(true);
+  };
+
+  const handleDeleteMember = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this gym member? This will remove their record from the registry.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/gym/member/${id}`, {
+        method: 'DELETE'
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to delete member');
+      }
+
+      setMembers((previous) => previous.filter((m) => m._id !== id));
+    } catch (error) {
+      alert(error.message || 'Failed to delete member');
+    }
+  };
+
+  // Filter lists
+  const filteredPasses = useMemo(() => {
+    return passes.filter((p) => {
+      const matchesSearch =
+        p.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.roomNumber && p.roomNumber.includes(searchTerm)) ||
+        p.passId.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'All' || p.passType === filterType;
+      return matchesSearch && matchesType;
+    });
+  }, [passes, searchTerm, filterType]);
+
+  const filteredMembers = useMemo(() => {
+    return members.filter((m) => {
+      return (
+        m.name.toLowerCase().includes(memberSearchTerm.toLowerCase()) ||
+        m.phone.includes(memberSearchTerm) ||
+        m.memberId.toLowerCase().includes(memberSearchTerm.toLowerCase())
+      );
+    });
+  }, [members, memberSearchTerm]);
+
+  // Statistics
+  const totalRevenue = useMemo(() => {
+    return passes.reduce((sum, p) => {
+      if (p.paymentStatus === 'Paid') {
+        return sum + (p.passType === 'Day Pass' ? 1000 : 8000);
+      }
+      return sum;
+    }, 0);
+  }, [passes]);
+
+  const activeMembersCount = useMemo(() => {
+    return members.filter((m) => m.status === 'Active').length;
+  }, [members]);
+
+  const activeDayPassCount = useMemo(() => {
+    return passes.filter((p) => p.status === 'Active' && p.passType === 'Day Pass').length;
+  }, [passes]);
+
+  return (
+    <div className="space-y-6">
+      {/* Header Banner */}
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-xl">
+        <div>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3 font-semibold">{settings.hotelName}</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Gym Panel
+          </h1>
+          <p className="text-slate-300 mt-2">
+            Issue passes, register recurring members, and track daily gate check-ins
+          </p>
+        </div>
+        
+        {/* Dual Actions based on active tab */}
+        <div className="flex gap-3">
+          <button 
+            className="flex items-center gap-2 px-5 py-3 bg-white/10 hover:bg-white/20 border border-white/15 text-white rounded-xl font-medium transition-all transform hover:-translate-y-0.5 whitespace-nowrap"
+            onClick={() => {
+              setEditMemberId(null);
+              setMemberFormData(defaultMemberForm);
+              setRegStep(1);
+              setMemberSubmitError('');
+              setIsMemberModalOpen(true);
+            }}
+          >
+            <UserPlus className="w-5 h-5 text-[#D4AF37]" />
+            Register Member
+          </button>
+          
+          <button 
+            className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-slate-900 rounded-xl font-bold transition-all transform hover:-translate-y-0.5 shadow-lg shadow-[#D4AF37]/20 whitespace-nowrap"
+            onClick={() => {
+              setEditId(null);
+              setFormData(defaultForm);
+              setSubmitError('');
+              setIsModalOpen(true);
+            }}
+          >
+            <Plus className="w-5 h-5" />
+            Issue Pass
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div className="flex border-b border-slate-200 gap-6">
+        <button
+          onClick={() => setActiveTab('passes')}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'passes' 
+              ? 'border-[#0F172A] text-[#0F172A]' 
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <Dumbbell className="w-5 h-5" />
+          Passes & Bookings ({passes.length})
+        </button>
+        
+        <button
+          onClick={() => setActiveTab('members')}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'members' 
+              ? 'border-[#0F172A] text-[#0F172A]' 
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <Users className="w-5 h-5" />
+          Gym Members Registry ({members.length})
+        </button>
+      </div>
+
+      {/* RENDER PASSES TAB */}
+      {activeTab === 'passes' && (
+        <div className="space-y-6">
+          {/* Statistics Row */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-amber-50 text-[#D4AF37] rounded-xl flex items-center justify-center">
+                <Dumbbell className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-medium">Gym Passes Issued</p>
+                <h3 className="text-2xl font-bold text-slate-800">{passes.length}</h3>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                <Users className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-medium">Registered Members</p>
+                <h3 className="text-2xl font-bold text-slate-800">{members.length}</h3>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                <CreditCard className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-medium">Active Day Passes</p>
+                <h3 className="text-2xl font-bold text-slate-800">{activeDayPassCount}</h3>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center">
+                <DollarSign className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-medium">Est. Gym Revenue</p>
+                <h3 className="text-2xl font-bold text-slate-800">{settings.currency.symbol}{totalRevenue.toLocaleString()}</h3>
+              </div>
+            </div>
+          </div>
+
+          {/* Directory Section */}
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+            {fetchError && (
+              <div className="m-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold">
+                {fetchError}
+              </div>
+            )}
+
+            {/* Filter Toolbar */}
+            <div className="border-b border-slate-100 p-6 flex flex-col gap-4 lg:flex-row lg:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute top-1/2 left-3 w-5 h-5 text-slate-400 -translate-y-1/2" />
+                <input 
+                  type="text" 
+                  placeholder="Search by guest name, pass ID, or room number..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm" 
+                />
+              </div>
+              <select 
+                value={filterType} 
+                onChange={(e) => setFilterType(e.target.value)} 
+                className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-600"
+              >
+                <option value="All">All Pass Types</option>
+                <option value="Day Pass">Day Passes Only</option>
+                <option value="Monthly Member">Monthly Members Only</option>
+              </select>
+            </div>
+
+            {/* Table View */}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="bg-slate-50/70 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Pass ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Guest Name</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Contact</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Pass Type</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Room No.</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Validity Expiry</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">QR Code</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredPasses.map((pass) => (
+                    <tr key={pass._id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">{pass.passId}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-800">{pass.guestName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">{pass.guestPhone}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          pass.passType === 'Day Pass' ? 'bg-amber-50 text-amber-700' : 'bg-indigo-50 text-indigo-700'
+                        }`}>
+                          {pass.passType}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-semibold">{pass.roomNumber || 'Walk-in'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-slate-600">
+                        {new Date(pass.validDate).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          pass.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                        }`}>
+                          {pass.status === 'Active' ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                          {pass.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <button 
+                          onClick={() => {
+                            setNewPass(pass);
+                            setIsQrModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 mx-auto"
+                        >
+                          <Download className="w-3 h-3" /> Show QR
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm flex justify-end gap-1.5">
+                        <button 
+                          onClick={() => handleEditClick(pass)} 
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
+                          title="Edit Pass"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeletePass(pass._id)} 
+                          className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                          title="Delete Pass"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {isLoading && (
+                <div className="py-12 text-center text-slate-500 font-medium">Loading passes...</div>
+              )}
+              {!isLoading && filteredPasses.length === 0 && (
+                <div className="py-12 text-center text-slate-400 font-medium">No gym passes found.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RENDER MEMBERS REGISTRY TAB */}
+      {activeTab === 'members' && (
+        <div className="space-y-6">
+          
+          {/* Members Stats */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                <Users className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-medium">Total Registered Gym Users</p>
+                <h3 className="text-2xl font-bold text-slate-800">{members.length}</h3>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                <Check className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-medium">Active Gym Members</p>
+                <h3 className="text-2xl font-bold text-slate-800">{activeMembersCount}</h3>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-medium">Members Added This Month</p>
+                <h3 className="text-2xl font-bold text-slate-800">
+                  {members.filter(m => new Date(m.joinedDate).getMonth() === new Date().getMonth()).length}
+                </h3>
+              </div>
+            </div>
+          </div>
+
+          {/* Members Registry Directory */}
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+            {membersFetchError && (
+              <div className="m-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold">
+                {membersFetchError}
+              </div>
+            )}
+
+            {/* Filter Toolbar */}
+            <div className="border-b border-slate-100 p-6">
+              <div className="relative">
+                <Search className="absolute top-1/2 left-3 w-5 h-5 text-slate-400 -translate-y-1/2" />
+                <input 
+                  type="text" 
+                  placeholder="Search members by name, phone, or Member ID..." 
+                  value={memberSearchTerm} 
+                  onChange={(e) => setMemberSearchTerm(e.target.value)} 
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm" 
+                />
+              </div>
+            </div>
+
+            {/* Members Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="bg-slate-50/70 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Member ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Full Name</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">NIC / Passport</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Contact</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Emergency Contact</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Reg. Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredMembers.map((member) => (
+                    <tr key={member._id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">{member.memberId}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-800">
+                        <div>{member.name}</div>
+                        <span className="text-[10px] uppercase font-bold text-[#D4AF37]">{member.gender || 'Male'} • DOB: {member.dob || 'N/A'}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-700">{member.nic || 'Walk-in'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="font-semibold text-slate-800">{member.phone}</div>
+                        <div className="text-xs text-slate-400">{member.email || 'No email'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {member.emergencyName ? (
+                          <>
+                            <div className="font-semibold text-slate-800">{member.emergencyName}</div>
+                            <div className="text-xs text-slate-400">{member.emergencyPhone}</div>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 text-xs font-medium">None</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-slate-600">
+                        {new Date(member.joinedDate).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          member.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {member.status === 'Active' ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                          {member.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm flex justify-end gap-1.5">
+                        <button 
+                          onClick={() => handleEditMemberClick(member)} 
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
+                          title="Edit Profile"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteMember(member._id)} 
+                          className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                          title="Delete Member"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {isMembersLoading && (
+                <div className="py-12 text-center text-slate-500 font-medium">Loading registered users...</div>
+              )}
+              {!isMembersLoading && filteredMembers.length === 0 && (
+                <div className="py-12 text-center text-slate-400 font-medium">No registered gym users found.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Issue Gym Pass (Enforces selection for monthly, allows typing for day pass) */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl my-4 border border-white/20 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="bg-[#0F172A] text-white p-6 flex justify-between items-center relative overflow-hidden">
+              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/20 rounded-l-full blur-3xl" />
+              <div className="relative z-10">
+                <h2 className="text-2xl" style={{ fontFamily: "DM Serif Display, serif" }}>{editId ? 'Edit Gym Pass' : 'Issue Gym Pass'}</h2>
+                <p className="text-[#D4AF37] text-xs uppercase tracking-widest mt-1">{editId ? 'Modify Details' : 'Gym Management'}</p>
+              </div>
+              <button 
+                type="button" 
+                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white" 
+                onClick={() => setIsModalOpen(false)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (formData.passType === 'Monthly Member' && !formData.guestName) {
+                  setSubmitError('A registered gym member is required to issue a Monthly Membership pass!');
+                  return;
+                }
+                handleSubmitPass(e);
+              }} 
+              className="p-8 overflow-y-auto space-y-5"
+            >
+              {submitError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
+                  {submitError}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-600 ml-1">Pass / Membership Type</label>
+                <select 
+                  name="passType" 
+                  value={formData.passType} 
+                  onChange={(e) => {
+                    handleFormChange(e);
+                    // Clear autofills on switch
+                    setFormData(prev => ({
+                      ...prev,
+                      passType: e.target.value,
+                      guestName: '',
+                      guestPhone: '',
+                      validDays: e.target.value === 'Day Pass' ? '1' : '30'
+                    }));
+                  }} 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                >
+                  <option value="Day Pass">One-Day Gym Pass (Rs. 1,000) [Anonymous]</option>
+                  <option value="Monthly Member">Monthly Membership (Rs. 8,000) [Enforced Registry]</option>
+                </select>
+              </div>
+
+              {/* Enforced Registered Member select dropdown (Only when issuing new Monthly Membership) */}
+              {!editId && formData.passType === 'Monthly Member' && (
+                <div className="flex flex-col gap-1.5 bg-amber-500/5 border border-amber-500/10 p-4 rounded-xl">
+                  <label className="text-xs font-bold text-slate-700 ml-1">Select Registered Active Member <span className="text-red-500">*</span></label>
+                  <select 
+                    onChange={handleMemberSelectChange}
+                    required
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                  >
+                    <option value="">-- Choose active member from registry --</option>
+                    {members.filter(m => m.status === 'Active').map((m) => (
+                      <option key={m._id} value={m._id}>{m.name} ({m.phone})</option>
+                    ))}
+                  </select>
+                  
+                  {formData.guestName && (
+                    <div className="mt-3 p-3 bg-white border border-slate-100 rounded-xl text-xs space-y-1">
+                      <div>👤 <span className="font-bold text-slate-700">Selected:</span> {formData.guestName}</div>
+                      <div>📞 <span className="font-bold text-slate-700">Phone:</span> {formData.guestPhone}</div>
+                      <div className="text-[10px] text-slate-400 mt-1 uppercase font-bold">Details fetched securely from members database.</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Day pass manual entry OR Monthly pass read-only details */}
+              {formData.passType === 'Day Pass' ? (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-600 ml-1">Guest Full Name</label>
+                    <input 
+                      type="text" 
+                      name="guestName" 
+                      value={formData.guestName} 
+                      onChange={handleFormChange} 
+                      required 
+                      placeholder="Enter guest's full name (no registration required)" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-600 ml-1">Contact Phone Number</label>
+                    <input 
+                      type="tel" 
+                      name="guestPhone" 
+                      value={formData.guestPhone} 
+                      onChange={handleFormChange} 
+                      required 
+                      placeholder="e.g. +94771234567" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                    />
+                  </div>
+                </>
+              ) : (
+                editId && (
+                  <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm">
+                    <div className="font-semibold text-slate-800">Member: {formData.guestName}</div>
+                    <div className="text-xs text-slate-500 mt-1">Phone: {formData.guestPhone}</div>
+                  </div>
+                )
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-600 ml-1">Room Number (Optional)</label>
+                  <input 
+                    type="text" 
+                    name="roomNumber" 
+                    value={formData.roomNumber} 
+                    onChange={handleFormChange} 
+                    placeholder="e.g. 102" 
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-600 ml-1">{editId ? 'Extend Validity (Days)' : 'Validity (Days)'}</label>
+                  <input 
+                    type="number" 
+                    name="validDays" 
+                    value={formData.validDays} 
+                    onChange={handleFormChange} 
+                    min="0" 
+                    required 
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-600 ml-1">Payment Status</label>
+                <select 
+                  name="paymentStatus" 
+                  value={formData.paymentStatus} 
+                  onChange={handleFormChange} 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                >
+                  <option value="Paid">Paid / Confirmed</option>
+                  <option value="Unpaid">Unpaid / Booked</option>
+                </select>
+              </div>
+
+              {editId && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-600 ml-1">Activation Status</label>
+                  <select 
+                    name="status" 
+                    value={formData.status} 
+                    onChange={handleFormChange} 
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Expired">Expired</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button 
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)} 
+                  className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="px-8 py-2.5 bg-[#D4AF37] hover:bg-[#b8962d] text-slate-900 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 shadow-md shadow-[#D4AF37]/20"
+                >
+                  {isSubmitting ? 'Submitting...' : editId ? 'Save Changes' : 'Issue Pass'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Register Gym Member (Create & Update Members with 3-Step Wizard) */}
+      {isMemberModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl my-4 border border-white/20 flex flex-col max-h-[95vh] overflow-hidden">
+            <div className="bg-[#0F172A] text-white p-6 flex justify-between items-center relative overflow-hidden">
+              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/20 rounded-l-full blur-3xl" />
+              <div className="relative z-10">
+                <h2 className="text-2xl" style={{ fontFamily: "DM Serif Display, serif" }}>{editMemberId ? 'Edit Gym Member' : 'Register Gym Member'}</h2>
+                <p className="text-[#D4AF37] text-xs uppercase tracking-widest mt-1">{editMemberId ? 'Modify Member Profile' : 'Gym Registry'}</p>
+              </div>
+              <button 
+                type="button" 
+                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white" 
+                onClick={() => setIsMemberModalOpen(false)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Stepper Progress Bar */}
+            <div className="px-8 pt-6 pb-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+              {[1, 2, 3].map((s) => (
+                <React.Fragment key={s}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
+                      regStep === s 
+                        ? 'bg-[#0F172A] text-[#D4AF37] ring-4 ring-[#D4AF37]/20 shadow-md' 
+                        : regStep > s 
+                        ? 'bg-emerald-500 text-white shadow-sm' 
+                        : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {regStep > s ? <Check className="w-4 h-4" /> : s}
+                    </div>
+                    <span className={`text-xs font-bold ${
+                      regStep === s ? 'text-slate-800' : 'text-slate-400'
+                    }`}>
+                      {s === 1 ? 'Contact Info' : s === 2 ? 'Identity & Address' : 'Health & Emergency'}
+                    </span>
+                  </div>
+                  {s < 3 && <div className={`flex-1 h-[2px] mx-4 transition-all duration-300 ${regStep > s ? 'bg-emerald-500' : 'bg-slate-200'}`} />}
+                </React.Fragment>
+              ))}
+            </div>
+
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (regStep < 3) {
+                  // If they press Enter early, increment step instead of submitting
+                  if (regStep === 1 && (!memberFormData.name || !memberFormData.phone)) return;
+                  setRegStep(prev => prev + 1);
+                  return;
+                }
+                handleMemberSubmit(e);
+              }} 
+              className="p-8 overflow-y-auto space-y-5 flex-1"
+            >
+              {memberSubmitError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
+                  {memberSubmitError}
+                </div>
+              )}
+
+              {/* STEP 1: Basic Profile Details */}
+              {regStep === 1 && (
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="p-4 bg-slate-50 rounded-xl mb-2">
+                    <h3 className="text-sm font-bold text-slate-800">Step 1: Contact details</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Please provide the member's full name and mobile phone numbers to create their communication logs.</p>
+                  </div>
+                  
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 ml-1">Member Full Name <span className="text-red-500">*</span></label>
+                    <input 
+                      type="text" 
+                      name="name" 
+                      value={memberFormData.name} 
+                      onChange={handleMemberFormChange} 
+                      required 
+                      placeholder="Enter full name" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 ml-1">Phone Number <span className="text-red-500">*</span></label>
+                    <input 
+                      type="tel" 
+                      name="phone" 
+                      value={memberFormData.phone} 
+                      onChange={handleMemberFormChange} 
+                      required 
+                      placeholder="e.g. +94771234567" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-600 ml-1">Email Address</label>
+                    <input 
+                      type="email" 
+                      name="email" 
+                      value={memberFormData.email} 
+                      onChange={handleMemberFormChange} 
+                      placeholder="e.g. member@email.com" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: Demographics & Identity */}
+              {regStep === 2 && (
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="p-4 bg-slate-50 rounded-xl mb-2">
+                    <h3 className="text-sm font-bold text-slate-800">Step 2: Identity & Demographics</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Collect the member's legal identity documentation, gender, and age records.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-600 ml-1">NIC / Passport Number</label>
+                      <input 
+                        type="text" 
+                        name="nic" 
+                        value={memberFormData.nic} 
+                        onChange={handleMemberFormChange} 
+                        placeholder="e.g. 199512345678 or N123456" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-600 ml-1">Gender</label>
+                      <select 
+                        name="gender" 
+                        value={memberFormData.gender} 
+                        onChange={handleMemberFormChange} 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-600 ml-1">Date of Birth</label>
+                    <input 
+                      type="date" 
+                      name="dob" 
+                      value={memberFormData.dob} 
+                      onChange={handleMemberFormChange} 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800 text-slate-500"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-600 ml-1">Home Address</label>
+                    <input 
+                      type="text" 
+                      name="address" 
+                      value={memberFormData.address} 
+                      onChange={handleMemberFormChange} 
+                      placeholder="Enter residential address" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: Emergency Contacts & Health Details */}
+              {regStep === 3 && (
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="p-4 bg-slate-50 rounded-xl mb-2">
+                    <h3 className="text-sm font-bold text-slate-800">Step 3: Health Remarks & Emergency</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Define emergency notification contacts and safety medical limitations.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-amber-500/5 p-4 rounded-xl border border-amber-500/10">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-amber-950 ml-1">Emergency Contact Name</label>
+                      <input 
+                        type="text" 
+                        name="emergencyName" 
+                        value={memberFormData.emergencyName} 
+                        onChange={handleMemberFormChange} 
+                        placeholder="Person name" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-amber-950 ml-1">Emergency Phone</label>
+                      <input 
+                        type="tel" 
+                        name="emergencyPhone" 
+                        value={memberFormData.emergencyPhone} 
+                        onChange={handleMemberFormChange} 
+                        placeholder="Contact number" 
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-600 ml-1">Medical/Health Notes</label>
+                    <input 
+                      type="text" 
+                      name="medicalNotes" 
+                      value={memberFormData.medicalNotes} 
+                      onChange={handleMemberFormChange} 
+                      placeholder="e.g. cardiac conditions, allergies, bone issues..." 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-600 ml-1">Membership Status</label>
+                    <select 
+                      name="status" 
+                      value={memberFormData.status} 
+                      onChange={handleMemberFormChange} 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                    >
+                      <option value="Active">Active / Registered</option>
+                      <option value="Inactive">Inactive / Suspended</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Wizard Navigations */}
+              <div className="flex justify-between items-center pt-6 border-t border-slate-100 mt-6">
+                <div>
+                  {regStep > 1 && (
+                    <button 
+                      type="button" 
+                      onClick={() => setRegStep(prev => prev - 1)} 
+                      className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition-colors"
+                    >
+                      Back
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsMemberModalOpen(false)} 
+                    className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition-colors"
+                  >
+                    Cancel
+                  </button>
+
+                  {regStep < 3 ? (
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        if (regStep === 1 && (!memberFormData.name || !memberFormData.phone)) {
+                          setMemberSubmitError('Name and Phone are mandatory to proceed!');
+                          return;
+                        }
+                        setMemberSubmitError('');
+                        setRegStep(prev => prev + 1);
+                      }}
+                      className="px-8 py-2.5 bg-[#0F172A] hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition-colors shadow-md"
+                    >
+                      Next Step
+                    </button>
+                  ) : (
+                    <button 
+                      type="submit" 
+                      disabled={isMemberSubmitting}
+                      className="px-8 py-2.5 bg-[#D4AF37] hover:bg-[#b8962d] text-slate-900 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 shadow-md shadow-[#D4AF37]/20"
+                    >
+                      {isMemberSubmitting ? 'Registering...' : editMemberId ? 'Save Changes' : 'Complete Registration'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: QR Code Display & Download */}
+      {isQrModalOpen && newPass && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md my-4 border border-white/20 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="bg-[#0F172A] text-white p-6 flex justify-between items-center relative overflow-hidden">
+              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/20 rounded-l-full blur-3xl" />
+              <div className="relative z-10">
+                <h2 className="text-xl" style={{ fontFamily: "DM Serif Display, serif" }}>Pass QR Generated</h2>
+                <p className="text-[#D4AF37] text-xs uppercase tracking-widest mt-1">Ready for Entrance Scan</p>
+              </div>
+              <button 
+                type="button" 
+                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white" 
+                onClick={() => setIsQrModalOpen(false)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-8 flex flex-col items-center text-center space-y-6">
+              <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 shadow-inner flex justify-center items-center">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${newPass.qrCodeKey}`} 
+                  alt="Guest Gym Pass QR Code" 
+                  className="w-48 h-48 block"
+                />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">{newPass.guestName}</h3>
+                <p className="text-xs text-[#D4AF37] font-semibold tracking-wider uppercase mt-1">{newPass.passType}</p>
+                <p className="text-xs text-slate-500 font-medium mt-1">Pass ID: {newPass.passId}</p>
+              </div>
+
+              <div className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl text-left text-xs text-slate-600 space-y-1.5 font-medium">
+                <div>🔑 <span className="font-bold text-slate-700">QR Key:</span> <code className="bg-slate-200/60 px-1 py-0.5 rounded text-[10px]">{newPass.qrCodeKey}</code></div>
+                <div>📞 <span className="font-bold text-slate-700">Phone:</span> {newPass.guestPhone}</div>
+                <div>🚪 <span className="font-bold text-slate-700">Room:</span> {newPass.roomNumber || 'Walk-in'}</div>
+                <div>📅 <span className="font-bold text-slate-700">Expires:</span> {new Date(newPass.validDate).toLocaleString()}</div>
+              </div>
+
+              <button 
+                onClick={() => window.print()}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#0F172A] hover:bg-slate-800 text-white rounded-xl font-bold text-sm transition-colors shadow-lg"
+              >
+                <Download className="w-4 h-4" /> Print / Save Pass
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

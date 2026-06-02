@@ -10,6 +10,7 @@ import {
   Users2,
   LogOut,
   Crown,
+  Dumbbell
 } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext";
 
@@ -20,6 +21,7 @@ const navItems = [
   { label: "Rooms", icon: Bed, path: "/reception/rooms" },
   { label: "Wedding Events", icon: Heart, path: "/reception/wedding" },
   { label: "Pool Access", icon: Waves, path: "/reception/pool" },
+  { label: "Gym Entrance", icon: Dumbbell, path: "/reception/gym" },
   { label: "Customers", icon: Users2, path: "/reception/customers" },
 ];
 

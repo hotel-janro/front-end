@@ -23,6 +23,7 @@ import { AdminPOS } from "../pages/dashboard/adminDashboard/AdminPos.jsx";
 import { AdminReports } from "../pages/dashboard/adminDashboard/AdminReports.jsx";
 import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayemnts.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
+import { AdminGym } from "../pages/dashboard/adminDashboard/AdminGym.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
 import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.jsx";
 import { AdminBookings } from "../pages/dashboard/adminDashboard/AdminBooking.jsx";
@@ -32,6 +33,7 @@ import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory
 
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
+import { ReceptionGym } from "../pages/dashboard/receptionDashboard/ReceptionGym.jsx";
 import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
 import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionRooms.jsx";
 import { ReceptionWedding } from "../pages/dashboard/receptionDashboard/ReceptionWedding.jsx";
@@ -144,6 +146,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="rooms" element={<AdminRooms />} />
         <Route path="bookings" element={<AdminBookings />} />
         <Route path="pool" element={<AdminPool />} />
+        <Route path="gym" element={<AdminGym />} />
         <Route path="staff" element={<AdminStaff />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="guests" element={<AdminGuests />} />
@@ -164,6 +167,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="wedding" element={<ReceptionWedding />} />
         <Route path="bookings" element={<ReceptionBookings />} />
         <Route path="pool" element={<ReceptionPool />} />
+        <Route path="gym" element={<ReceptionGym />} />
       </Route>
 
       <Route
