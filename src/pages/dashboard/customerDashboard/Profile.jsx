@@ -1,11 +1,11 @@
 // Profile.jsx - Premium Guest Profile Management
 import React, { useState } from "react";
-import { User, Mail, Phone, MapPin, ShieldAlert, Edit2, Camera, CheckCircle2, ArrowUpRight, Star, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Phone, MapPin, ShieldAlert, Camera, Star, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import "./CustomerDashboard.css";
 
 export function Profile({ user }) {
   const token = localStorage.getItem("janro_token");
-  const [activeTab, setActiveTab] = useState("info"); // "info" or "security"
+  const [activeTab, setActiveTab] = useState("info");
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -30,6 +30,18 @@ export function Profile({ user }) {
     address: user?.address || "",
     emergencyContact: user?.emergencyContact || "",
   });
+
+  // Sync formData with user prop when it updates
+  React.useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || "",
+        phone: user.phone || "",
+        address: user.address || "",
+        emergencyContact: user.emergencyContact || "",
+      });
+    }
+  }, [user]);
 
   const handleRequestEmailChange = async (e) => {
     e.preventDefault();
@@ -81,6 +93,51 @@ export function Profile({ user }) {
       }
     } catch (error) {
       setMessage({ type: "error", text: "Verification failed." });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    // --- VALIDATIONS ---
+    if (!formData.name || formData.name.trim().length < 3) {
+      setMessage({ type: "error", text: "Please enter a valid full name (min 3 characters)" });
+      return;
+    }
+
+    const cleanPhone = formData.phone.replace(/\s+/g, '');
+    if (!/^(0\d{9}|\+94\d{9})$/.test(cleanPhone)) {
+      setMessage({ type: "error", text: "Please enter a valid Sri Lankan phone number" });
+      return;
+    }
+
+    if (!formData.address || formData.address.trim().length < 5) {
+      setMessage({ type: "error", text: "Please enter a valid home address" });
+      return;
+    }
+
+    setIsUpdating(true);
+    setMessage({ type: "", text: "" });
+
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+      const response = await fetch(`${apiBaseUrl}/api/auth/updateme`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+      const result = await response.json();
+      if (result.success) {
+        setMessage({ type: "success", text: "Profile updated successfully!" });
+        setIsEditing(false);
+      } else {
+        setMessage({ type: "error", text: result.message });
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: "Failed to update profile." });
     } finally {
       setIsUpdating(false);
     }
@@ -191,13 +248,25 @@ export function Profile({ user }) {
                 </h3>
                 <p className="text-slate-400 text-xs font-medium mt-1">Manage your refined details for a seamless stay.</p>
               </div>
-              <button
-                onClick={() => setIsEditing(!isEditing)}
-                className="px-8 py-3 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all shadow-xl shadow-[#0F172A]/10"
-              >
-                {isEditing ? "Save Changes" : "Edit Profile"}
-              </button>
-            </header>
+                {message.text && activeTab === "info" && (
+                  <div className={`mb-4 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest ${message.type === "success" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"}`}>
+                    {message.text}
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    if (isEditing) {
+                      handleUpdateProfile();
+                    } else {
+                      setIsEditing(true);
+                    }
+                  }}
+                  disabled={isUpdating}
+                  className="px-8 py-3 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all shadow-xl shadow-[#0F172A]/10 disabled:opacity-50"
+                >
+                  {isUpdating ? "Saving..." : (isEditing ? "Save Changes" : "Edit Profile")}
+                </button>
+              </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {profileFields.map((field) => {

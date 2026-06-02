@@ -90,6 +90,26 @@ export function Checkout() {
               </div>
             </section>
 
+            {/* Room Selection (Only if Room Delivery is active) */}
+            {delivery === "room" && (
+              <section className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 animate-in fade-in slide-in-from-top-2">
+                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                  <Home className="text-[#D4AF37]" />
+                  Select Your Room
+                </h2>
+                <select 
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-100 rounded-xl focus:ring-2 focus:ring-[#D4AF37] outline-none font-bold text-gray-700 appearance-none bg-no-repeat bg-[right_1rem_center]"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundSize: '1.5em' }}
+                >
+                  <option value="">Choose Room Number</option>
+                  {[...Array(10)].map((_, i) => (
+                    <option key={i} value={`${101 + i}`}>Room {101 + i}</option>
+                  ))}
+                </select>
+              </section>
+            )}
+
             {/* Payment Section */}
             <section className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">

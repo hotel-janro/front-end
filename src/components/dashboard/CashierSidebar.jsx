@@ -1,4 +1,3 @@
-// CashierSidebar.jsx - Cashier Dashboard Sidebar Navigation
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
@@ -41,7 +40,7 @@ export function CashierSidebar({ user, onLogout }) {
           </div>
           <div>
             <h1 className="text-[1.8rem] leading-none tracking-tight text-white uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
-               {settings.hotelName}
+              {settings.hotelName}
             </h1>
             <p className="text-xs text-[#D4AF37] tracking-[0.16em] uppercase mt-1">Cashier Panel</p>
           </div>
@@ -58,10 +57,9 @@ export function CashierSidebar({ user, onLogout }) {
               to={item.path}
               end={item.path === "/cashier"}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-[#D4AF37]/20 text-[#F5E7B2] border border-[#D4AF37]/40"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
+                  ? "bg-[#D4AF37]/20 text-[#F5E7B2] border border-[#D4AF37]/40"
+                  : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`
               }
             >
@@ -78,10 +76,10 @@ export function CashierSidebar({ user, onLogout }) {
           <div className="w-10 h-10 bg-[#D4AF37] rounded-full flex items-center justify-center text-sm font-bold text-[#0F172A]">
             {user?.name
               ? user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase()
               : "LC"}
           </div>
           <div className="flex-1 min-w-0">

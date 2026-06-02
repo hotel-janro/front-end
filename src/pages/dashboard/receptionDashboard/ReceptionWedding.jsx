@@ -201,7 +201,7 @@ export function ReceptionWedding() {
         total += extraHours * extraHourPrice;
       }
     }
-    // -------------------------
+    // ---
 
     return total;
   };
@@ -533,7 +533,7 @@ export function ReceptionWedding() {
             </div>
             
             <form onSubmit={handleSubmitBooking} className="p-8 overflow-y-auto">
-              {/* Category & Location Selectors - Professional Segmented Style */}
+              
               <div className="flex flex-col sm:flex-row gap-6 mb-10 p-5 bg-slate-50 rounded-3xl border border-slate-100">
                 <div className="flex-1">
                   <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Booking Category</label>
