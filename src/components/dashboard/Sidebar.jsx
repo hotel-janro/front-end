@@ -1,4 +1,4 @@
-// Sidebar.jsx - Admin Dashboard Sidebar Navigation
+// Sidebar.jsx -   Admin Dashboard Sidebar Navigation bar
 import { Link } from "react-router-dom";
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";

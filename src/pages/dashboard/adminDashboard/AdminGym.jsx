@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { Dumbbell, CreditCard, Users, DollarSign, Plus, Search, Trash2, Download, Check, X, Edit, Calendar, UserPlus } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
@@ -31,7 +32,7 @@ const defaultMemberForm = {
 export function AdminGym() {
   const { settings } = useSettings();
   
-  // Navigation tabs
+  // Navigation tab
   const [activeTab, setActiveTab] = useState('passes'); // 'passes' or 'members'
   
   // State for Passes

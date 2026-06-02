@@ -1,4 +1,4 @@
-// AppRoutes.jsx - Application Routes (Pure JavaScript)
+// AppRoutes.jsx - Application Routes 
 import React from "react";
 import { apiFetch } from "../api";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";

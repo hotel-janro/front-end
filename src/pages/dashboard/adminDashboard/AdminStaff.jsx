@@ -8,7 +8,7 @@ const calculateDuration = (start, end) => {
   const [sH, sM] = start.split(':').map(Number);
   const [eH, eM] = end.split(':').map(Number);
   let diff = (eH * 60 + eM) - (sH * 60 + sM);
-  if (diff < 0) diff += 24 * 60; // Handle overnight shifts
+  if (diff < 0) diff += 24 * 60; // Handle overnight  shifts
   return (diff / 60).toFixed(2);
 };
 
