@@ -18,9 +18,12 @@ import {
   Edit2
 } from "lucide-react";
 import { apiFetch, getImageUrl } from "../../../api.js";
+import { useSettings } from "../../../context/SettingsContext.jsx";
+import { generateInvoicePDF } from "../../../utils/invoiceGenerator.js";
 import "./CustomerDashboard.css";
 
 export function MyBookings() {
+  const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState("rooms");
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState({ rooms: [], weddings: [] });
@@ -59,8 +62,8 @@ export function MyBookings() {
           status: item.status || item.bookingStatus || "pending",
           amount: item.totalPrice || item.totalAmount || item.amount || 0,
           nights,
-          image: item.room?.images?.[0]
-            ? getImageUrl(item.room.images[0])
+          image: item.room?.image
+            ? getImageUrl(item.room.image)
             : "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&q=80&w=400"
         };
       });
@@ -77,8 +80,8 @@ export function MyBookings() {
           package: item.cateringPackage || "Custom Package",
           status: item.bookingStatus || item.status || "pending",
           amount: item.totalAmount || item.amount || 0,
-          image: item.hallId?.images?.[0]
-            ? getImageUrl(item.hallId.images[0])
+          image: item.hallId?.image
+            ? getImageUrl(item.hallId.image)
             : "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=400"
         };
       });
@@ -318,6 +321,13 @@ export function MyBookings() {
                             <p className="text-2xl font-black text-slate-900">Rs. {amount.toLocaleString()}</p>
                           </div>
                           <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => generateInvoicePDF(item, settings)}
+                              className="px-4 py-2.5 bg-slate-100 text-slate-600 hover:bg-[#0F172A] hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                              title="Download PDF Receipt"
+                            >
+                              Receipt
+                            </button>
                             {isRoomBooking ? (
                               <>
                                 {canModify ? (
