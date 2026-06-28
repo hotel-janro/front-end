@@ -42,8 +42,12 @@ export function AdminDashboard() {
     const fetchDashboard = async () => {
       try {
         setLoading(true);
+        const token = localStorage.getItem('janro_token') || localStorage.getItem('token');
         const res = await fetch(`${API_BASE}/api/reports`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
         });
         
         if (!res.ok) throw new Error('Failed to fetch dashboard data');
@@ -150,7 +154,7 @@ export function AdminDashboard() {
       {/* Header */}
       <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">{settings.hotelName}</p>
           <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
             Admin Dashboard
           </h1>

@@ -40,12 +40,12 @@ import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDas
 import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
 import { CashierPayments } from "../pages/dashboard/cashierDashboard/CashierPayments.jsx";
 import { CashierReceipts } from "../pages/dashboard/cashierDashboard/CashierReceipts.jsx";
+import { CashierProfile } from "../pages/dashboard/cashierDashboard/CashierProfile.jsx";
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
-import { VerifyOTP } from "../pages/website/VerifyOTP.jsx";
 
-export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
+export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onGoogleLogin }) {
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
   const isReception = user?.role === "reception" || user?.role === "receptionist";
@@ -117,17 +117,16 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       <Route path="/contact" element={<Contact />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/checkout" element={<Checkout />} />
-      <Route path="/verify-email" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <VerifyOTP onLogin={onLogin} />} />
       <Route path="/forgot-password" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ForgotPassword />} />
       <Route path="/reset-password/:token" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ResetPassword />} />
 
       <Route
         path="/login"
-        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Login onLogin={onLogin} />}
+        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Login onLogin={onLogin} onGoogleLogin={onGoogleLogin} />}
       />
       <Route
         path="/register"
-        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Register onRegister={onRegister} />}
+        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Register onRegister={onRegister} onGoogleLogin={onGoogleLogin} />}
       />
 
       {/* Customer Management Routes (Website Style) */}
@@ -174,6 +173,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="orders" element={<CashierOrders />} />
         <Route path="payments" element={<CashierPayments />} />
         <Route path="receipts" element={<CashierReceipts />} />
+        <Route path="profile" element={<CashierProfile />} />
         <Route path="*" element={<CashierDashboard />} />
       </Route>
 

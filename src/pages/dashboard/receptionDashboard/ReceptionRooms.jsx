@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Bed, 
   Plus, 
@@ -10,6 +11,7 @@ import {
   XCircle, 
   Info,
   Calendar,
+  Heart,
   Users,
   DollarSign,
   X,
@@ -20,11 +22,40 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { useSettings } from '../../../context/SettingsContext.jsx';
 import { apiFetch } from '../../../api';
 import '../adminDashboard/AdminRooms.css';
 import { Rooms } from '../../website/Rooms.jsx';
 
+const ROOM_TYPES = {
+  'Standard Room': {
+    price: 5000,
+    description: "Comfortable and elegant, our Standard Room features a king-size bed, work desk, and modern amenities for a pleasant stay.",
+    defaultGuests: 4,
+    amenities: "King-size bed, Work desk, WiFi, AC, TV"
+  },
+  'Family Suite': {
+    price: 10000,
+    description: "Designed for families, featuring two bedrooms, a play area, kid-friendly amenities, and connecting rooms.",
+    defaultGuests: 4,
+    amenities: "Two bedrooms, Play area, Kid-friendly amenities, Connecting rooms, WiFi, AC"
+  },
+  'Honeymoon Suite': {
+    price: 15000,
+    description: "A romantic escape with private pool, candlelit dining setup, rose petal turndown, and couples spa treatment.",
+    defaultGuests: 2,
+    amenities: "Private pool, Candlelit dining, Rose petal turndown, Couples spa, WiFi, AC"
+  }
+};
+
+const BASE_COUNTS = {
+  'Standard Room': 6,
+  'Family Suite': 2,
+  'Honeymoon Suite': 2
+};
+
 export function ReceptionRooms({ isLoggedIn, onBook }) {
+  const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState('book'); // 'book', 'manage' or 'bookings'
   const [rooms, setRooms] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -148,6 +179,9 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
            roomName.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
+  const totalUnits = Object.values(BASE_COUNTS).reduce((a, b) => a + b, 0) + rooms.reduce((acc, room) => acc + (room.availableRooms || 0), 0);
+  const activeBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in').length;
+
   const getStatusBadge = (status) => {
     if (!status) return <span className="admin-rooms__status-badge admin-rooms__status-badge--maintenance">Unknown</span>;
     const s = status.toLowerCase();
@@ -160,44 +194,88 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Room Status & Bookings</h1>
-          <p className="text-slate-500">View live hotel stock and manage guest bookings.</p>
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">{settings.hotelName}</p>
+            <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
+              Room Status & Bookings
+            </h1>
+            <p className="text-slate-300 mt-2 max-w-2xl">
+              View live hotel stock, track active reservations, and manage guest bookings from one clean dashboard.
+            </p>
+            <div className="flex flex-wrap gap-3 mt-5">
+              <Link
+                to="/reception/bookings"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
+              >
+                <Calendar className="w-4 h-4 text-[#D4AF37]" />
+                View Bookings
+              </Link>
+              <Link
+                to="/reception/wedding"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
+              >
+                <Heart className="w-4 h-4 text-[#D4AF37]" />
+                Wedding Events
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Total Types</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{aggregatedRooms.length}</p>
+            </div>
+            <div className="rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-[#F5E7B2]">Active Bookings</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{activeBookings}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Total Units</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{totalUnits}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Room Types</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{Object.keys(ROOM_TYPES).length}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {aggregatedRooms.map((room) => {
-          const totalInStock = room.totalRooms || 0;
-          const freeCount = room.availableRooms || 0;
-          
-          let iconColorClass = "admin-rooms__stat-icon-wrap--blue";
-          if (room.name?.includes("Family")) iconColorClass = "admin-rooms__stat-icon-wrap--green";
-          if (room.name?.includes("Honeymoon")) iconColorClass = "admin-rooms__stat-icon-wrap--amber";
-
-          return (
-            <div key={room.name} className="admin-rooms__stat-card">
-              <div className={`admin-rooms__stat-icon-wrap ${iconColorClass}`}>
-                <Bed className="admin-rooms__stat-icon" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-slate-900 truncate">{room.name}</p>
-                <div className="flex items-end justify-between mt-1">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Total</p>
-                    <h3 className="text-xl font-bold text-slate-900">{totalInStock}</h3>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-green-500 font-bold">Available</p>
-                    <h3 className="text-xl font-bold text-green-600">{freeCount}</h3>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        <div className="admin-rooms__stat-card border-[#D4AF37]/20 bg-white">
+          <div className="admin-rooms__stat-icon-wrap admin-rooms__stat-icon-wrap--blue">
+            <Bed className="admin-rooms__stat-icon" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Total Types</p>
+            <h3 className="text-2xl font-bold text-slate-900">{aggregatedRooms.length}</h3>
+          </div>
+        </div>
+        <div className="admin-rooms__stat-card border-[#D4AF37]/20 bg-white">
+          <div className="admin-rooms__stat-icon-wrap admin-rooms__stat-icon-wrap--green">
+            <CheckCircle className="admin-rooms__stat-icon" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Total Units</p>
+            <h3 className="text-2xl font-bold text-slate-900">
+              {totalUnits}
+            </h3>
+          </div>
+        </div>
+        <div className="admin-rooms__stat-card border-[#D4AF37]/20 bg-white">
+          <div className="admin-rooms__stat-icon-wrap admin-rooms__stat-icon-wrap--amber">
+            <Calendar className="admin-rooms__stat-icon" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Active Bookings</p>
+            <h3 className="text-2xl font-bold text-slate-900">
+              {activeBookings}
+            </h3>
+          </div>
+        </div>
       </div>
 
       {/* Main Panel */}

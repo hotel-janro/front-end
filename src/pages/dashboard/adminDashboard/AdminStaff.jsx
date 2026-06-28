@@ -20,7 +20,12 @@ export function AdminStaff() {
     department: 'Front Office',
     salary: '',
     joinDate: '',
-    status: 'Active'
+    status: 'Active',
+    nic: '',
+    employeeId: '',
+    address: '',
+    emergencyContact: '',
+    emergencyContactPhone: ''
   });
   const [formError, setFormError] = useState('');
   const [editStaff, setEditStaff] = useState(null);
@@ -57,7 +62,12 @@ export function AdminStaff() {
             department: u.department || 'Front Office',
             salary: u.salary || 0,
             joinDate: u.joinDate,
-            status: u.status || 'Active'
+            status: u.status || 'Active',
+            nic: u.nic || '',
+            employeeId: u.employeeId || '',
+            address: u.address || '',
+            emergencyContact: u.emergencyContact || '',
+            emergencyContactPhone: u.emergencyContactPhone || ''
           }));
 
           setStaffList(formattedStaff.length > 0 ? formattedStaff : staffMembers);
@@ -145,7 +155,12 @@ export function AdminStaff() {
       department: staff.department || 'Front Office',
       salary: staff.salary || '',
       joinDate: staff.joinDate ? new Date(staff.joinDate).toISOString().slice(0,10) : '',
-      status: staff.status || 'Active'
+      status: staff.status || 'Active',
+      nic: staff.nic || '',
+      employeeId: staff.employeeId || '',
+      address: staff.address || '',
+      emergencyContact: staff.emergencyContact || '',
+      emergencyContactPhone: staff.emergencyContactPhone || ''
     });
     setIsEditModalOpen(true);
   };
@@ -185,7 +200,12 @@ export function AdminStaff() {
         department: editStaff.department,
         salary: Number(editStaff.salary) || 0,
         joinDate: editStaff.joinDate,
-        status: editStaff.status
+        status: editStaff.status,
+        nic: editStaff.nic,
+        employeeId: editStaff.employeeId,
+        address: editStaff.address,
+        emergencyContact: editStaff.emergencyContact,
+        emergencyContactPhone: editStaff.emergencyContactPhone
       };
 
       const res = await fetch(`${API_BASE}/api/auth/users/${editStaff._id}`, {
@@ -296,7 +316,12 @@ export function AdminStaff() {
           department: newStaff.department,
           salary: Number(newStaff.salary),
           joinDate: newStaff.joinDate,
-          status: newStaff.status
+          status: newStaff.status,
+          nic: newStaff.nic,
+          employeeId: newStaff.employeeId,
+          address: newStaff.address,
+          emergencyContact: newStaff.emergencyContact,
+          emergencyContactPhone: newStaff.emergencyContactPhone
         };
 
         const res = await fetch(`${API_BASE}/api/auth/users`, {
@@ -325,7 +350,12 @@ export function AdminStaff() {
           department: user.department || newStaff.department,
           salary: user.salary || Number(newStaff.salary),
           joinDate: user.joinDate || newStaff.joinDate,
-          status: user.status || newStaff.status
+          status: user.status || newStaff.status,
+          nic: user.nic || newStaff.nic,
+          employeeId: user.employeeId || newStaff.employeeId,
+          address: user.address || newStaff.address,
+          emergencyContact: user.emergencyContact || newStaff.emergencyContact,
+          emergencyContactPhone: user.emergencyContactPhone || newStaff.emergencyContactPhone
         };
 
         setStaffList((prev) => [createdStaff, ...prev]);
@@ -341,7 +371,7 @@ export function AdminStaff() {
       {/* Header */}
       <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">{settings.hotelName}</p>
           <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
             Users & Staff Management
           </h1>
@@ -513,12 +543,20 @@ export function AdminStaff() {
 
                 <label className="admin-staff-form-label">
                   Department
-                  <input
+                  <select
                     className="admin-staff-form-input"
                     value={newStaff.department}
                     onChange={(e) => handleFieldChange('department', e.target.value)}
-                    placeholder="Front Office"
-                  />
+                  >
+                    <option>Front Office</option>
+                    <option>Housekeeping</option>
+                    <option>Food & Beverage</option>
+                    <option>Kitchen</option>
+                    <option>Maintenance</option>
+                    <option>Security</option>
+                    <option>Administration</option>
+                    <option>Sales & Marketing</option>
+                  </select>
                 </label>
 
                 <label className="admin-staff-form-label">
@@ -556,6 +594,57 @@ export function AdminStaff() {
                     <option>Inactive</option>
                     <option>On Leave</option>
                   </select>
+                </label>
+
+                <label className="admin-staff-form-label">
+                  NIC Number
+                  <input
+                    className="admin-staff-form-input"
+                    value={newStaff.nic}
+                    onChange={(e) => handleFieldChange('nic', e.target.value)}
+                    placeholder="e.g. 19XXXXXXXXXX"
+                  />
+                </label>
+
+                <label className="admin-staff-form-label">
+                  Employee ID
+                  <input
+                    className="admin-staff-form-input"
+                    value={newStaff.employeeId}
+                    onChange={(e) => handleFieldChange('employeeId', e.target.value)}
+                    placeholder="e.g. STF-001"
+                  />
+                </label>
+
+                <label className="admin-staff-form-label col-span-2">
+                  Address
+                  <textarea
+                    className="admin-staff-form-input"
+                    value={newStaff.address}
+                    onChange={(e) => handleFieldChange('address', e.target.value)}
+                    placeholder="Enter full residential address"
+                    rows="2"
+                  />
+                </label>
+
+                <label className="admin-staff-form-label">
+                  Emergency Contact Name
+                  <input
+                    className="admin-staff-form-input"
+                    value={newStaff.emergencyContact}
+                    onChange={(e) => handleFieldChange('emergencyContact', e.target.value)}
+                    placeholder="Name of contact person"
+                  />
+                </label>
+
+                <label className="admin-staff-form-label">
+                  Emergency Contact Phone
+                  <input
+                    className="admin-staff-form-input"
+                    value={newStaff.emergencyContactPhone}
+                    onChange={(e) => handleFieldChange('emergencyContactPhone', e.target.value)}
+                    placeholder="Phone of contact person"
+                  />
                 </label>
               </div>
 
@@ -638,12 +727,20 @@ export function AdminStaff() {
 
                 <label className="admin-staff-form-label">
                   Department
-                  <input
+                  <select
                     className="admin-staff-form-input"
                     value={editStaff.department}
                     onChange={(e) => setEditStaff((p) => ({ ...p, department: e.target.value }))}
-                    placeholder="Front Office"
-                  />
+                  >
+                    <option>Front Office</option>
+                    <option>Housekeeping</option>
+                    <option>Food & Beverage</option>
+                    <option>Kitchen</option>
+                    <option>Maintenance</option>
+                    <option>Security</option>
+                    <option>Administration</option>
+                    <option>Sales & Marketing</option>
+                  </select>
                 </label>
 
                 <label className="admin-staff-form-label">
@@ -681,6 +778,57 @@ export function AdminStaff() {
                     <option>Inactive</option>
                     <option>On Leave</option>
                   </select>
+                </label>
+
+                <label className="admin-staff-form-label">
+                  NIC Number
+                  <input
+                    className="admin-staff-form-input"
+                    value={editStaff.nic}
+                    onChange={(e) => setEditStaff((p) => ({ ...p, nic: e.target.value }))}
+                    placeholder="e.g. 19XXXXXXXXXX"
+                  />
+                </label>
+
+                <label className="admin-staff-form-label">
+                  Employee ID
+                  <input
+                    className="admin-staff-form-input"
+                    value={editStaff.employeeId}
+                    onChange={(e) => setEditStaff((p) => ({ ...p, employeeId: e.target.value }))}
+                    placeholder="e.g. STF-001"
+                  />
+                </label>
+
+                <label className="admin-staff-form-label col-span-2">
+                  Address
+                  <textarea
+                    className="admin-staff-form-input"
+                    value={editStaff.address}
+                    onChange={(e) => setEditStaff((p) => ({ ...p, address: e.target.value }))}
+                    placeholder="Enter full residential address"
+                    rows="2"
+                  />
+                </label>
+
+                <label className="admin-staff-form-label">
+                  Emergency Contact Name
+                  <input
+                    className="admin-staff-form-input"
+                    value={editStaff.emergencyContact}
+                    onChange={(e) => setEditStaff((p) => ({ ...p, emergencyContact: e.target.value }))}
+                    placeholder="Name of contact person"
+                  />
+                </label>
+
+                <label className="admin-staff-form-label">
+                  Emergency Contact Phone
+                  <input
+                    className="admin-staff-form-input"
+                    value={editStaff.emergencyContactPhone}
+                    onChange={(e) => setEditStaff((p) => ({ ...p, emergencyContactPhone: e.target.value }))}
+                    placeholder="Phone of contact person"
+                  />
                 </label>
               </div>
 

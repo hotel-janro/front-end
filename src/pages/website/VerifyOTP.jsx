@@ -2,9 +2,13 @@ import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Button } from "../../components/common/Button.jsx";
 import { Crown, CheckCircle, RefreshCw, ArrowLeft } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext";
+
 
 export function VerifyOTP({ onLogin }) {
+  const { settings } = useSettings();
   const location = useLocation();
+
   const navigate = useNavigate();
   const email = location.state?.email || "";
 
@@ -125,13 +129,9 @@ export function VerifyOTP({ onLogin }) {
       setStatus("success");
       setMessage("Email verified successfully!");
       
-      // Pass the user data back to App.jsx manually since verifyEmail acts like a login
+      // Pass the user data back to App.jsx manually
       if (onLogin && data.data) {
-          // This simulates a login from App.jsx perspective but with tokens already provided
-          // Since onLogin expects credentials, we should adjust App.jsx or manually handle storage here.
-          // For simplicity, we can let App.jsx's handleLogin handle the credentials, but we don't have password.
-          // Wait, App.jsx's handleLogin needs email and password. Since we have tokens here,
-          // We can dispatch a custom event or navigate to login. Navigating to login is easiest.
+          
       }
       
       setTimeout(() => {
@@ -158,8 +158,8 @@ export function VerifyOTP({ onLogin }) {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Crown className="w-8 h-8 text-[#D4AF37]" />
-            <span className="text-2xl text-[#0F172A] tracking-wider" style={{ fontFamily: "DM Serif Display, serif" }}>
-              HOTEL JANRO
+            <span className="text-2xl text-[#0F172A] tracking-wider uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
+              {settings.hotelName}
             </span>
           </div>
           <h2 className="text-xl font-bold text-[#0F172A] mt-6">Verify Your Email</h2>

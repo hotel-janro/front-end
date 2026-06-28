@@ -1,10 +1,15 @@
+/**
+ * AdminPOS.jsx
+ * Premium Point of Sale Dashboard for Hotel Janro.
+ * Handles order creation, multi-order settlement, and thermal receipt printing.
+ */
 import React, { useEffect, useMemo, useState } from 'react';
-import { apiFetch, API_HOST } from '../../../api.js';
-import { 
-  ShoppingCart, 
-  Search, 
-  Clock, 
-  DollarSign, 
+import { apiFetch, API_HOST, getImageUrl } from '../../../api.js';
+import {
+  ShoppingCart,
+  Search,
+  Clock,
+  Gem,
   Plus,
   Trash2,
   CheckCircle,
@@ -15,15 +20,34 @@ import {
   Zap,
   ChevronRight,
   User,
-  Phone
+  Phone,
+  MapPin,
+  X,
+  Truck,
+  Printer,
+  Banknote
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast, Toaster } from 'sonner';
+import { useSettings } from '../../../context/SettingsContext.jsx';
+
 
 export function AdminPOS() {
+  const { settings } = useSettings();
   const [menuItems, setMenuItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const [validationErrors, setValidationErrors] = useState({});
+
+  const clearError = (field) => {
+    if (validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrs = { ...prev };
+        delete newErrs[field];
+        return newErrs;
+      });
+    }
+  };
+
   const [posForm, setPosForm] = useState({
     orderType: 'Dine-in',
     tableNumber: '',
@@ -32,51 +56,62 @@ export function AdminPOS() {
     contactNumber: '',
     customerName: '',
     discount: '0',
-    coordinates: null
+    coordinates: null,
+    deliveryFee: 0
   });
   const [cart, setCart] = useState([]);
   const [selectedPosMenuItemId, setSelectedPosMenuItemId] = useState('');
   const [selectedPosQuantity, setSelectedPosQuantity] = useState('1');
+  const [selectedPortion, setSelectedPortion] = useState('Full');
   const [savingPosOrder, setSavingPosOrder] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  
-  // Payment processing state
+
   const [amountReceived, setAmountReceived] = useState('');
   const [balance, setBalance] = useState(0);
 
-  // Existing order payment state
   const [settlingOrderId, setSettlingOrderId] = useState(null);
   const [settleAmount, setSettleAmount] = useState('');
+  const [isPaidToggle, setIsPaidToggle] = useState(false);
+  const [lastPollTime, setLastPollTime] = useState(new Date());
 
-  const HOTEL_COORDS = { lat: 6.0833, lng: 80.5667 }; // Kamburupitiya, Matara
+  const HOTEL_COORDS = { lat: 6.9458, lng: 80.1250 };
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; 
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
+  // Calculations & Derived Data
   const subtotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [cart]);
 
-  let serviceCharge = 0;
-  let deliveryFee = 0;
-  let distance = 0;
+  const serviceCharge = useMemo(() => {
+    return (posForm.orderType === "Dine-in" || posForm.orderType === "Room") ? subtotal * 0.1 : 0;
+  }, [subtotal, posForm.orderType]);
 
-  if (posForm.orderType === "Dine-in" || posForm.orderType === "Room") {
-    serviceCharge = subtotal * 0.1; 
-  } else if (posForm.orderType === "Delivery" && posForm.coordinates) {
-    distance = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
-    if (distance > 1 && distance <= 15) {
-      deliveryFee = subtotal * 0.1 * Math.floor(distance);
+  const { deliveryFee, distance } = useMemo(() => {
+    if (posForm.orderType === "Delivery") {
+      // Prioritize manual input if available
+      if (posForm.deliveryFee > 0) {
+        return { deliveryFee: posForm.deliveryFee, distance: 0 };
+      }
+      if (posForm.coordinates) {
+        const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
+        // Apply a 1.2x winding factor to estimate actual road distance
+        const dist = straightDist * 1.2;
+        const fee = (dist > 1 && dist <= 15) ? subtotal * 0.1 * Math.floor(dist) : 0;
+        return { deliveryFee: fee, distance: dist };
+      }
     }
-  }
+    return { deliveryFee: 0, distance: 0 };
+  }, [subtotal, posForm.orderType, posForm.coordinates, posForm.deliveryFee]);
 
   const discountValue = Number(posForm.discount || 0);
   const grandTotal = Math.max(subtotal + serviceCharge + deliveryFee - discountValue, 0);
@@ -86,35 +121,69 @@ export function AdminPOS() {
     setIsGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setPosForm({
-          ...posForm, 
+        setPosForm(prev => ({
+          ...prev,
           coordinates: { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        });
+        }));
         setIsGettingLocation(false);
-        toast.success('Location captured successfully!');
+        toast.success('GPS Pinned!');
       },
-      (err) => {
-        toast.error('Could not get location. Please enter address manually.');
+      () => {
+        toast.error('Location failed');
         setIsGettingLocation(false);
       }
     );
   };
 
+  const autoGeocode = async (address) => {
+    if (!address || address.length < 5) return;
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        setPosForm(prev => ({
+          ...prev,
+          coordinates: { lat: parseFloat(lat), lng: parseFloat(lon) }
+        }));
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  // Auto-fill Logic for Table/Room
   useEffect(() => {
-    const received = Number(amountReceived || 0);
-    if (received > 0) {
-      setBalance(Math.max(received - grandTotal, 0));
-    } else {
-      setBalance(0);
+    if (orders.length > 0) {
+      let existingOrder = null;
+      if (posForm.orderType === 'Dine-in' && posForm.tableNumber) {
+        existingOrder = orders.find(o => o.tableNumber === posForm.tableNumber && o.orderStatus !== 'Completed' && o.orderStatus !== 'Cancelled');
+      } else if (posForm.orderType === 'Room' && posForm.roomNumber) {
+        existingOrder = orders.find(o => o.roomNumber === posForm.roomNumber && o.orderStatus !== 'Completed' && o.orderStatus !== 'Cancelled');
+      }
+
+      if (existingOrder) {
+        setPosForm(prev => ({
+          ...prev,
+          customerName: existingOrder.customerName || prev.customerName,
+          contactNumber: existingOrder.contactNumber || prev.contactNumber
+        }));
+      }
     }
-  }, [amountReceived, grandTotal]);
+  }, [posForm.tableNumber, posForm.roomNumber, posForm.orderType, orders]);
+
 
   useEffect(() => {
+    const received = Number(amountReceived || 0);
+    if (isPaidToggle && received < grandTotal) {
+      setBalance(0);
+    } else {
+      setBalance(received > 0 ? Math.max(received - grandTotal, 0) : 0);
+    }
+  }, [amountReceived, grandTotal, isPaidToggle]);
+
+  // Data Fetching
+  useEffect(() => {
     refreshData();
-    // Auto-poll for new orders every 30 seconds
-    const interval = setInterval(() => {
-      loadOrders(true); // pass true to indicate it's a silent background poll
-    }, 30000);
+    const interval = setInterval(() => loadOrders(true), 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -132,40 +201,23 @@ export function AdminPOS() {
   const loadOrders = async (isPoll = false) => {
     try {
       const data = await apiFetch('/orders');
-      const newOrders = Array.isArray(data) ? data : [];
-      
-      // If polling, check if there are new orders that weren't in the previous list
-      if (isPoll && newOrders.length > orders.length) {
-        const latestOrder = newOrders[0]; // Assuming backend returns newest first
-        if (latestOrder.orderStatus === 'Pending') {
-          toast.success(`New order from ${latestOrder.customerName || 'Guest'}!`, {
-            description: `${latestOrder.orderType} order worth Rs ${latestOrder.totalAmount.toLocaleString()}`,
-            duration: 10000,
-          });
-        }
-      }
-      
-      setOrders(newOrders);
-    } catch (e) {
-      console.error("Order poll failed", e);
-    }
+      setOrders(Array.isArray(data) ? data : []);
+      setLastPollTime(new Date());
+    } catch (e) { /* error logged */ }
   };
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
-  const [selectedPortion, setSelectedPortion] = useState('Full');
-
+  // Cart Operations
   const addPosItem = () => {
     const menuItem = menuItems.find((item) => item._id === selectedPosMenuItemId);
-    const quantity = Number(selectedPosQuantity || 1);
-    if (!menuItem || quantity < 1) return;
-
-    if (menuItem.inventoryItem && menuItem.inventoryItem.quantity < quantity) {
-      if (!window.confirm(`Low stock: Only ${menuItem.inventoryItem.quantity} left. Continue?`)) return;
+    if (!menuItem) {
+      toast.warning("Please select a dish first!");
+      return;
     }
-
-    const price = menuItem.hasPortions 
-      ? menuItem.portions.find(p => p.portionType === selectedPortion)?.price 
+    const quantity = Number(selectedPosQuantity || 1);
+    const price = menuItem.hasPortions
+      ? menuItem.portions.find(p => p.portionType === selectedPortion)?.price
       : menuItem.price;
 
     setCart((prev) => {
@@ -174,13 +226,9 @@ export function AdminPOS() {
       if (existing) {
         return prev.map((i) => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + quantity } : i);
       }
-      return [...prev, { 
-        cartItemId,
-        menuItemId: menuItem._id, 
-        name: menuItem.name, 
-        portion: menuItem.hasPortions ? selectedPortion : '',
-        price: price, 
-        quantity 
+      return [...prev, {
+        cartItemId, menuItemId: menuItem._id, name: menuItem.name,
+        portion: menuItem.hasPortions ? selectedPortion : '', price: price, quantity
       }];
     });
     setSelectedPosMenuItemId('');
@@ -188,211 +236,262 @@ export function AdminPOS() {
     setSelectedPortion('Full');
   };
 
+  // Order Placement & Settlement
   const handlePlaceOrder = async () => {
-    console.log("POS: Initiating Order Validation...", posForm);
+    // Comprehensive Validation
+    const errors = {};
+
+    // General Empty Check
+    const isCartEmpty = cart.length === 0;
     
-    if (cart.length === 0) {
-      alert("Error: Your cart is empty.");
-      toast.error('Your cart is empty. Please add items to the bill.');
+    if (isCartEmpty) {
+      toast.error("Your cart is empty. Please add at least one item.");
       return;
     }
 
-    // --- STRIGENT VALIDATION WITH ALERTS ---
+    // Name Validation
+    if (!posForm.customerName || posForm.customerName.trim().length < 2) {
+      errors.customerName = "Guest Name is required (at least 2 characters).";
+    } else if (!/^[a-zA-Z\s.]+$/.test(posForm.customerName)) {
+      errors.customerName = "Invalid Guest Name: Only letters allowed.";
+    }
 
-    // 1. Contact Number Validation
-    if (posForm.contactNumber || posForm.orderType === 'Delivery') {
-      const cleanPhone = (posForm.contactNumber || "").replace(/[\s-]/g, '');
-      if (cleanPhone.length !== 10 || isNaN(Number(cleanPhone))) {
-        alert("CRITICAL ERROR: Phone number must be exactly 10 digits!");
-        toast.error('Phone number must be exactly 10 digits (e.g., 0712345678)');
-        return;
+    // Phone Validation
+    if (posForm.orderType !== 'Take-away') {
+      if (!posForm.contactNumber || posForm.contactNumber.trim().length === 0) {
+        errors.contactNumber = "Contact number is required.";
       }
+    }
+
+    if (posForm.contactNumber && !/^\d{10}$/.test(posForm.contactNumber)) {
+      errors.contactNumber = "Invalid Phone Number: Must be 10 digits.";
     }
 
     // 2. Room Number Validation
     if (posForm.roomNumber || posForm.orderType === 'Room') {
       const rNum = Number(posForm.roomNumber);
       if (!posForm.roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
-        alert("CRITICAL ERROR: Invalid Room Number! Only rooms 1 to 10 are allowed.");
-        toast.error('Access Denied: Only rooms 1-10 are available in Hotel Janro.');
+        alert(`CRITICAL ERROR: Invalid Room Number! Only rooms 1 to 10 are allowed.`);
+        toast.error(`Access Denied: Only rooms 1-10 are available in ${settings.hotelName}.`);
         return;
       }
     }
 
-    // 3. Table Number Validation
-    if (posForm.orderType === 'Dine-in' && !posForm.tableNumber) {
-      alert("Error: Please assign a table number.");
-      toast.error('Please assign a table number');
+    // Contextual Validation
+    if (posForm.orderType === 'Dine-in') {
+      if (!posForm.tableNumber) errors.tableNumber = "Table is required.";
+    } else if (posForm.orderType === 'Room') {
+      if (!posForm.roomNumber) errors.roomNumber = "Room is required.";
+    } else if (posForm.orderType === 'Delivery') {
+      if (!posForm.deliveryAddress) errors.deliveryAddress = "Address is missing.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      toast.error("Required fields are missing or invalid");
       return;
     }
 
-    // 4. Delivery Address Validation
-    if (posForm.orderType === 'Delivery' && !posForm.deliveryAddress) {
-      alert("Error: Delivery address is required.");
-      toast.error('Delivery address is required');
-      return;
-    }
 
-    console.log("POS: Validation Passed. Sending to Backend...");
-    const payload = {
-      orderType: posForm.orderType,
-      items: cart.map(i => ({ 
-        menuItemId: i.menuItemId, 
-        quantity: i.quantity,
-        portion: i.portion || ""
-      })),
-      discount: discountValue,
-      ...(posForm.orderType === 'Dine-in' && { tableNumber: posForm.tableNumber }),
-      ...(posForm.orderType === 'Room' && { roomNumber: posForm.roomNumber }),
-      ...(posForm.orderType === 'Delivery' && { 
-        deliveryAddress: posForm.deliveryAddress, 
-        contactNumber: posForm.contactNumber,
-        coordinates: posForm.coordinates
-      }),
-      serviceCharge,
-      deliveryFee,
-      subtotal,
-      totalAmount: grandTotal
-    };
-
+    setSavingPosOrder(true);
     try {
-      setSavingPosOrder(true);
-      // If amount received is enough, set as Paid automatically
       const receivedNum = Number(amountReceived || 0);
-      const isPaid = receivedNum >= grandTotal && receivedNum > 0;
-      const finalPayload = { 
-        ...payload, 
+      const isPaid = isPaidToggle || (receivedNum >= grandTotal && grandTotal > 0) || (grandTotal === 0);
+
+      const payload = {
+        orderType: posForm.orderType,
+        items: cart.map(i => ({
+          menuItemId: i.menuItemId,
+          name: i.name,
+          quantity: i.quantity,
+          portion: i.portion || "",
+          price: i.price
+        })),
+        discount: discountValue,
+        customerName: posForm.customerName || "Walk-in Guest",
+        tableNumber: posForm.tableNumber,
+        roomNumber: posForm.roomNumber,
+        deliveryAddress: posForm.deliveryAddress,
+        contactNumber: posForm.contactNumber,
+        coordinates: posForm.coordinates,
+        serviceCharge,
+        deliveryFee,
+        subtotal,
+        totalAmount: grandTotal,
         paymentStatus: isPaid ? 'Paid' : 'Unpaid',
         amountReceived: receivedNum,
         balance: balance
       };
 
-      const response = await apiFetch('/orders', { method: 'POST', body: JSON.stringify(finalPayload) });
-      toast.success('Order processed successfully!');
-      
-      if (response && response._id) {
-        handlePrintReceipt(response);
-      }
+      const response = await apiFetch('/orders', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      if (!response?._id) throw new Error("Failed to create order");
+
+      toast.success(`Order #${response._id.slice(-6).toUpperCase()} placed!`);
+      handlePrintReceipt(response);
 
       setCart([]);
-      setPosForm({ ...posForm, customerName: '', discount: '0', tableNumber: '', roomNumber: '', deliveryAddress: '', contactNumber: '', coordinates: null });
       setAmountReceived('');
-      await refreshData();
+      setIsPaidToggle(false);
+      setPosForm(prev => ({
+        ...prev,
+        discount: '0'
+      }));
+      await loadOrders();
     } catch (e) {
-      toast.error(e.message);
-    } finally {
-      setSavingPosOrder(false);
+      toast.error('Order Placement Failed', {
+        description: e.message || "Something went wrong while connecting to the server.",
+        duration: 5000,
+      });
     }
+    finally { setSavingPosOrder(false); }
   };
 
   const handlePrintReceipt = (order) => {
-    const subtotalAmount = order.items.reduce((s, i) => s + (i.price * i.quantity), 0);
-    const printWindow = window.open('', '_blank', 'width=400,height=700');
-    const itemsHtml = order.items.map(item => `
-      <div class="item-row">
-        <span>${item.quantity} x ${item.name}</span>
-        <span>Rs ${item.price.toLocaleString()}</span>
-      </div>
-    `).join('');
+    // Basic safety check
+    if (!order) return toast.error("No order data provided");
 
-    let qrHtml = '';
-    if (order.orderType === 'Delivery' && order.coordinates) {
-      const mapsUrl = `https://www.google.com/maps?q=${order.coordinates.lat},${order.coordinates.lng}`;
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(mapsUrl)}`;
-      qrHtml = `
-        <div style="text-align: center; margin-top: 25px; padding-top: 25px; border-top: 2px dashed #CBD5E1;">
-          <div style="font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #0F172A; margin-bottom: 12px;">Delivery Location</div>
-          <img src="${qrUrl}" alt="Location QR Code" style="width: 120px; height: 120px; border-radius: 8px; border: 2px solid #0F172A; padding: 4px;" />
-          <div style="font-size: 10px; font-weight: 700; color: #64748B; margin-top: 8px;">Scan for Google Maps Navigation</div>
-        </div>
-      `;
+    // Find related unpaid orders to combine into a single bill if it's a table/room order
+    let relatedOrders = [order];
+    if (order.paymentStatus === 'Unpaid' && (order.tableNumber || order.roomNumber)) {
+      relatedOrders = (orders || []).filter(o => 
+        o.paymentStatus === 'Unpaid' && 
+        ((order.tableNumber && o.tableNumber === order.tableNumber) || 
+         (order.roomNumber && o.roomNumber === order.roomNumber))
+      );
     }
 
-    const hotelLogo = `
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto;">
-        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
-        <path d="M9 22v-4h6v4"></path>
-        <path d="M8 6h.01"></path>
-        <path d="M16 6h.01"></path>
-        <path d="M12 6h.01"></path>
-        <path d="M12 10h.01"></path>
-        <path d="M12 14h.01"></path>
-        <path d="M16 10h.01"></path>
-        <path d="M16 14h.01"></path>
-        <path d="M8 10h.01"></path>
-        <path d="M8 14h.01"></path>
-      </svg>
+    const combinedItems = relatedOrders.flatMap(o => o.items);
+    const combinedSubtotal = relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0);
+    const combinedServiceCharge = relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0);
+    const combinedDeliveryFee = relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
+    const combinedDiscount = relatedOrders.reduce((s, o) => s + (o.discount || 0), 0);
+    const combinedTotalAmount = relatedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const totalQty = combinedItems.reduce((s, it) => s + it.quantity, 0);
+
+    // Calculate daily sequence number
+    const orderDate = new Date(order.createdAt).toLocaleDateString();
+    const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
+    const dailyNum = sameDayOrders.length - sameDayOrders.indexOf(order);
+    const dailySeqStr = dailyNum.toString().padStart(3, '0');
+
+    const printWindow = window.open('', '_blank', 'width=350,height=600');
+    if (!printWindow) return toast.error('Pop-up blocked!');
+
+    const itemsHtml = combinedItems.map(it => `
+      <tr>
+        <td style="padding: 2px 0;">${it.name}${it.portion ? ` (${it.portion})` : ''}</td>
+        <td style="text-align: center;">${it.quantity}</td>
+        <td style="text-align: right;">${((Number(it.price) || 0) * (Number(it.quantity) || 1)).toLocaleString()}</td>
+      </tr>
+    `).join('');
+
+    const qrHtml = `
+      <div style="text-align: center; margin-top: 10px;">
+        <div style="font-size: 8px; margin-bottom: 2px;">SCAN TO FEEDBACK</div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=JANRO-ORD-${order._id}" style="width:60px; height:60px; margin: 0 auto;" />
+      </div>
     `;
 
     printWindow.document.write(`
       <html>
         <head>
-          <title>Hotel Janro - Receipt #${order._id.slice(-8)}</title>
+          <title>${settings.hotelName} - Receipt #${order._id.slice(-8)}</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;600;700;900&display=swap');
-            body { font-family: 'Inter', sans-serif; padding: 30px; color: #0F172A; max-width: 400px; margin: 0 auto; }
-            .header { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #0F172A; padding-bottom: 20px; }
-            .logo { margin-bottom: 10px; display: flex; justify-content: center; }
-            .hotel-name { font-family: 'DM Serif Display', serif; font-size: 28px; font-weight: normal; letter-spacing: 1px; color: #0F172A; }
-            .hotel-details { font-size: 10px; color: #64748B; margin-top: 5px; line-height: 1.4; font-weight: 600; }
-            .receipt-title { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 4px; color: #0F172A; margin-top: 15px; padding: 5px 0; border-top: 1px dashed #CBD5E1; border-bottom: 1px dashed #CBD5E1; }
-            .info { margin-bottom: 25px; font-size: 11px; color: #475569; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-weight: 500; }
-            .info strong { color: #0F172A; font-weight: 900; text-transform: uppercase; font-size: 9px; letter-spacing: 1px; display: block; margin-bottom: 2px; }
-            .items { margin-bottom: 25px; }
-            .item-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; font-weight: 600; color: #1E293B; }
-            .item-row span:last-child { font-weight: 900; color: #0F172A; }
-            .totals { border-top: 2px solid #0F172A; padding-top: 15px; }
-            .total-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
-            .grand-total { font-size: 18px; font-weight: 900; color: #0F172A; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #CBD5E1; letter-spacing: 0; }
-            .footer { text-align: center; margin-top: 40px; font-size: 10px; color: #64748B; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; line-height: 1.6; }
+            @media print { @page { margin: 0; } body { margin: 0.2cm; } }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              font-size: 11px; 
+              line-height: 1.2; 
+              color: #000; 
+              width: 100%; 
+              max-width: 300px; 
+              margin: 0 auto;
+            }
+            .header { text-align: center; margin-bottom: 8px; }
+            .divider { border-top: 1px dashed #000; margin: 4px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            .total-row { font-weight: bold; font-size: 13px; }
+            .footer { text-align: center; margin-top: 10px; font-size: 9px; }
+            .badge { display: inline-block; padding: 2px 4px; border: 1px solid #000; font-weight: bold; }
           </style>
         </head>
         <body>
           <div class="header">
-            <div class="logo">${hotelLogo}</div>
-            <div class="hotel-name">HOTEL JANRO</div>
+            <div class="logo">${settings.hotelLogo || ''}</div>
+            <div class="hotel-name">${settings.hotelName.toUpperCase()}</div>
             <div class="hotel-details">
-              Main Street, Kamburupitiya, Matara, Sri Lanka<br>
-              Tel: +94 41 229 2234 | Web: www.hoteljanro.com<br>
+              ${settings.address}<br>
+              Tel: ${settings.phone} | Web: ${settings.website}<br>
               VAT Reg No: 123456789-0000
             </div>
             <div class="receipt-title">Official Receipt</div>
           </div>
-          <div class="info">
-            <div><strong>Order ID</strong>#${order._id.slice(-8)}</div>
-            <div style="text-align: right;"><strong>Date</strong>${new Date(order.createdAt).toLocaleDateString()} ${new Date(order.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
-            <div><strong>Type</strong>${order.orderType}</div>
-            <div style="text-align: right;"><strong>Customer</strong>${order.customerName || 'Guest'}</div>
-            ${order.tableNumber ? `<div><strong>Table</strong>${order.tableNumber}</div>` : ''}
-            ${order.roomNumber ? `<div><strong>Room</strong>${order.roomNumber}</div>` : ''}
-            ${order.contactNumber ? `<div style="grid-column: 1 / -1;"><strong>Contact Number</strong>${order.contactNumber}</div>` : ''}
-            ${order.deliveryAddress ? `<div style="grid-column: 1 / -1;"><strong>Delivery Address</strong>${order.deliveryAddress}</div>` : ''}
+          <div class="divider"></div>
+          <div style="text-align: center; margin-bottom: 5px;">
+            <div style="font-size: 16px; font-weight: bold; border: 2px solid #000; display: inline-block; padding: 4px 10px;">ORDER #${dailySeqStr}</div>
           </div>
-          <div class="items">
-            ${itemsHtml}
+          <div class="divider"></div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>ID: #${(order?._id || "").slice(-6).toUpperCase()}</span>
+            <span>${order?.createdAt ? new Date(order.createdAt).toLocaleDateString() : ""}</span>
           </div>
-          <div class="totals">
-            <div class="total-row"><span>Subtotal</span><span>Rs ${subtotalAmount.toLocaleString()}</span></div>
-            ${order.serviceCharge > 0 ? `<div class="total-row"><span>Service Charge (10%)</span><span>Rs ${order.serviceCharge.toLocaleString()}</span></div>` : ''}
-            ${order.deliveryFee > 0 ? `<div class="total-row"><span>Delivery Fee</span><span>Rs ${order.deliveryFee.toLocaleString()}</span></div>` : ''}
-            <div class="total-row"><span>Discount</span><span>-Rs ${(order.discount || 0).toLocaleString()}</span></div>
-            <div class="total-row grand-total"><span>Grand Total</span><span>Rs ${order.totalAmount.toLocaleString()}</span></div>
-            ${order.amountReceived > 0 ? `
-              <div class="total-row" style="margin-top: 15px;"><span>Amount Received</span><span style="color: #10B981;">Rs ${order.amountReceived.toLocaleString()}</span></div>
-              <div class="total-row"><span>Change Given</span><span>Rs ${(order.balance || 0).toLocaleString()}</span></div>
+          <div style="display:flex; justify-content:space-between;">
+             <span>Time: ${order?.createdAt ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</span>
+             <span class="badge">${(order?.orderType || "").toUpperCase()}</span>
+          </div>
+          ${order?.tableNumber ? `<div>Table: ${order.tableNumber}</div>` : ''}
+          ${order?.roomNumber ? `<div>Room: ${order.roomNumber}</div>` : ''}
+          ${order?.customerName ? `<div>Guest: ${order.customerName}</div>` : ''}
+          ${order?.contactNumber ? `<div>Phone: ${order.contactNumber}</div>` : ''}
+          ${order?.deliveryAddress ? `<div>Address: ${order.deliveryAddress}</div>` : ''}
+          
+          <div class="divider"></div>
+          <table>
+            <thead>
+              <tr style="border-bottom: 1px dashed #000;">
+                <th style="text-align: left;">ITEM</th>
+                <th style="width: 30px;">QTY</th>
+                <th style="text-align: right; width: 70px;">PRICE</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          <div class="divider"></div>
+          
+          <div style="text-align: right; space-y: 2px;">
+            <div>Items Count: ${totalQty}</div>
+            <div>Subtotal Sum: Rs ${(combinedSubtotal || 0).toLocaleString()}</div>
+            ${combinedServiceCharge > 0 ? `<div>Service (10%): Rs ${combinedServiceCharge.toLocaleString()}</div>` : ''}
+            ${combinedDeliveryFee > 0 ? `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>` : ''}
+            ${combinedDiscount > 0 ? `<div>Discount: -Rs ${combinedDiscount.toLocaleString()}</div>` : ''}
+            <div class="divider"></div>
+            <div class="total-row">NET TOTAL: Rs ${(combinedTotalAmount || 0).toLocaleString()}</div>
+            <div class="divider"></div>
+            ${(order?.amountReceived || 0) > 0 ? `
+              <div>Cash Paid: Rs ${(order?.amountReceived || 0).toLocaleString()}</div>
+              <div style="font-weight:bold;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
             ` : ''}
           </div>
+
           ${qrHtml}
+
           <div class="footer">
-            Thank you for choosing Hotel Janro<br>Visit again for a premium experience
+            Thank you for choosing ${settings.hotelName}<br>Visit again for a premium experience
           </div>
+          
           <script>
-            window.onload = () => {
-              setTimeout(() => {
-                window.print();
-                setTimeout(() => window.close(), 500);
-              }, 500);
-            };
+            setTimeout(function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+              // Fallback for browsers that don't support onafterprint well
+              setTimeout(function() { window.close(); }, 2000);
+            }, 500);
           </script>
         </body>
       </html>
@@ -400,515 +499,541 @@ export function AdminPOS() {
     printWindow.document.close();
   };
 
+  // Status & Payment Updates
   const updateOrderStatus = async (orderId, orderStatus) => {
     await apiFetch(`/orders/${orderId}`, { method: 'PUT', body: JSON.stringify({ orderStatus }) });
     await loadOrders();
   };
 
-  const updatePaymentStatus = async (orderId, updates) => {
+  const updatePaymentStatus = async (orderIdOrIds, updates) => {
+    const ids = Array.isArray(orderIdOrIds) ? orderIdOrIds : [orderIdOrIds];
     try {
-      await apiFetch(`/orders/${orderId}`, { method: 'PUT', body: JSON.stringify(updates) });
-      toast.success(`Payment updated successfully`);
+      await Promise.all(ids.map(id => 
+        apiFetch(`/orders/${id}`, { method: 'PUT', body: JSON.stringify(updates) })
+      ));
       setSettlingOrderId(null);
       setSettleAmount('');
+      toast.success(`${ids.length > 1 ? 'Orders' : 'Order'} settled successfully!`);
       await loadOrders();
     } catch (e) {
-      toast.error(e.message);
+      toast.error("Failed to settle order(s)");
     }
   };
 
+  const today = new Date().toLocaleDateString();
+  const todayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === today);
   const activeOrdersCount = orders.filter(o => o.orderStatus === 'Pending' || o.orderStatus === 'Preparing').length;
-  const totalRevenue = orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const todayRevenue = todayOrders.filter(o => o.paymentStatus === 'Paid').reduce((s, o) => s + (o.totalAmount || 0), 0);
 
+  // Main Interface Render
   return (
-    <div className="space-y-8">
-      {/* Premium Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="space-y-4">
+      {/* Small Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {[
-          { label: 'Today\'s Orders', value: orders.length, icon: ShoppingCart, color: 'blue' },
+          { label: 'Today Orders', value: todayOrders.length, icon: ShoppingCart, color: 'blue' },
           { label: 'Active Kitchen', value: activeOrdersCount, icon: Clock, color: 'amber' },
-          { label: 'Net Revenue', value: formatCurrency(totalRevenue), icon: DollarSign, color: 'emerald' }
+          { label: 'Net Revenue', value: formatCurrency(todayRevenue), icon: Gem, color: 'emerald' }
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 group hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-500 bg-${stat.color}-50 text-${stat.color}-600`}>
-              <stat.icon className="w-8 h-8" />
+          <div key={i} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-${stat.color}-50 text-${stat.color}-600`}>
+              <stat.icon className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
-              <h3 className="text-3xl font-black text-slate-900">{stat.value}</h3>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
+              <h3 className="text-sm font-black text-slate-900 mt-1">{stat.value}</h3>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-[480px_minmax(0,1fr)]">
-        {/* Luxury POS Panel */}
-        <div className="flex flex-col gap-8">
-          <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-white border border-white/5">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-[80px] -mr-32 -mt-32" />
-            
-            <div className="relative z-10 space-y-8">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Digital <span className="text-[#D4AF37]">Checkout</span></h3>
-                <Receipt className="w-6 h-6 text-[#D4AF37]" />
+      <div className="grid gap-4 xl:grid-cols-[550px_1fr] 2xl:grid-cols-[650px_1fr]">
+        {/* Digital Checkout */}
+        <div className="bg-[#0F172A] p-4 rounded-[2rem] shadow-xl text-white relative overflow-hidden flex flex-col gap-4">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/10 rounded-full blur-3xl -mr-16 -mt-16" />
+
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Order <span className="text-[#D4AF37]">Billing</span></h3>
+              <Receipt className="w-4 h-4 text-[#D4AF37]" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Type</label>
+                <select value={posForm.orderType} onChange={e => setPosForm({ ...posForm, orderType: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none">
+                  {['Dine-in', 'Room', 'Delivery', 'Take-away'].map(t => <option key={t} value={t} className="text-black">{t}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Guest Name</label>
+                <input 
+                  type="text" 
+                  placeholder="Kasun Tharaka" 
+                  value={posForm.customerName} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === "" || /^[a-zA-Z\s.]+$/.test(val)) {
+                      setPosForm({ ...posForm, customerName: val });
+                      clearError('customerName');
+                    }
+                  }} 
+                  className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
+                />
+                {validationErrors.customerName && <p className="text-[9px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.customerName}</p>}
               </div>
 
-              <div className="space-y-6">
-                {/* Order Configuration */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Type</label>
+              {posForm.orderType === 'Dine-in' && (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Table</label>
                     <select 
-                      value={posForm.orderType} 
-                      onChange={e => setPosForm({...posForm, orderType: e.target.value})} 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-[#D4AF37]/50 outline-none transition-all"
+                      value={posForm.tableNumber} 
+                      onChange={e => { setPosForm({ ...posForm, tableNumber: e.target.value }); clearError('tableNumber'); }} 
+                      className={`w-full bg-white/5 border ${validationErrors.tableNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
                     >
-                      <option className="text-slate-900" value="Dine-in">Dine-in</option>
-                      <option className="text-slate-900" value="Room">Room Service</option>
-                      <option className="text-slate-900" value="Delivery">Delivery</option>
-                      <option className="text-slate-900" value="Take-away">Take-away</option>
+                      <option value="" className="bg-slate-900 text-white">Select Table</option>
+                      {[...Array(15)].map((_, i) => <option key={i} value={`T-${i + 1}`} className="bg-slate-900 text-white">Table {i + 1}</option>)}
                     </select>
+                    {validationErrors.tableNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.tableNumber}</p>}
                   </div>
-                                {/* Dynamic Info Fields */}
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2 col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Customer Name</label>
-                      <input 
-                        type="text" 
-                        placeholder="Guest Name (Optional)" 
-                        value={posForm.customerName} 
-                        onChange={e => setPosForm({...posForm, customerName: e.target.value})} 
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all"
-                      />
-                    </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                    <input 
+                      type="tel" 
+                      placeholder="07XXXXXXXX" 
+                      value={posForm.contactNumber} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === "" || /^\d{0,10}$/.test(val)) {
+                          setPosForm({ ...posForm, contactNumber: val });
+                          clearError('contactNumber');
+                        }
+                      }} 
+                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
+                    />
+                    {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+                  </div>
+                </>
+              )}
 
-                    {posForm.orderType === 'Dine-in' && (
-                      <div className="space-y-2 col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Assign Table</label>
-                        <select 
-                          value={posForm.tableNumber} 
-                          onChange={e => setPosForm({...posForm, tableNumber: e.target.value})} 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all text-white appearance-none cursor-pointer"
-                        >
-                          <option value="" className="bg-[#0F172A]">Select Table</option>
-                          {[...Array(15)].map((_, i) => {
-                            const t = `T-${(i + 1).toString().padStart(2, '0')}`;
-                            return <option key={t} value={t} className="bg-[#0F172A]">{t}</option>
-                          })}
-                        </select>
-                      </div>
-                    )}
+              {posForm.orderType === 'Room' && (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Room</label>
+                    <select 
+                      value={posForm.roomNumber} 
+                      onChange={e => { setPosForm({ ...posForm, roomNumber: e.target.value }); clearError('roomNumber'); }} 
+                      className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
+                    >
+                      <option value="" className="bg-slate-900 text-white">Select Room</option>
+                      {[...Array(10)].map((_, i) => <option key={i} value={`${101 + i}`} className="bg-slate-900 text-white">Room {101 + i}</option>)}
+                    </select>
+                    {validationErrors.roomNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.roomNumber}</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                    <input 
+                      type="tel" 
+                      placeholder="07XXXXXXXX" 
+                      value={posForm.contactNumber} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === "" || /^\d{0,10}$/.test(val)) {
+                          setPosForm({ ...posForm, contactNumber: val });
+                          clearError('contactNumber');
+                        }
+                      }} 
+                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
+                    />
+                    {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+                  </div>
+                </>
+              )}
 
-                    {posForm.orderType === 'Room' && (
-                      <div className="space-y-2 col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Assign Room</label>
-                        <select 
-                          value={posForm.roomNumber} 
-                          onChange={e => setPosForm({...posForm, roomNumber: e.target.value})} 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all text-white appearance-none cursor-pointer"
-                        >
-                          <option value="" className="bg-[#0F172A]">Select Room</option>
-                          {[...Array(10)].map((_, i) => {
-                            const r = `R-${(i + 1).toString().padStart(2, '0')}`;
-                            return <option key={r} value={r} className="bg-[#0F172A]">{r}</option>
-                          })}
-                        </select>
-                      </div>
-                    )}
+              {posForm.orderType === 'Delivery' && (
+                <>
+                  <div className="space-y-1 col-span-2">
+                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Address</label>
+                    <input
+                      type="text"
+                      placeholder="123 Main Street, Dompe"
+                      value={posForm.deliveryAddress}
+                      onChange={e => { setPosForm({ ...posForm, deliveryAddress: e.target.value }); clearError('deliveryAddress'); }}
+                      onBlur={(e) => autoGeocode(e.target.value)}
+                      className={`w-full bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                    />
+                    {validationErrors.deliveryAddress && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.deliveryAddress}</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Fee (Rs)</label>
+                    <input 
+                      type="number" 
+                      placeholder="0.00" 
+                      value={posForm.deliveryFee} 
+                      onChange={e => setPosForm({ ...posForm, deliveryFee: Number(e.target.value) })} 
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black" 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                    <input 
+                      type="tel" 
+                      placeholder="07XXXXXXXX" 
+                      value={posForm.contactNumber} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === "" || /^\d{0,10}$/.test(val)) {
+                          setPosForm({ ...posForm, contactNumber: val });
+                          clearError('contactNumber');
+                        }
+                      }} 
+                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
+                    />
+                    {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+                  </div>
+                </>
+              )}
 
-                    {posForm.orderType === 'Delivery' && (
-                      <div className="space-y-2 col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Delivery Address</label>
-                        <textarea 
-                          placeholder="Full address for delivery" 
-                          value={posForm.deliveryAddress} 
-                          onChange={e => setPosForm({...posForm, deliveryAddress: e.target.value})} 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all h-20 resize-none"
-                        />
-                      </div>
-                    )}
+              {posForm.orderType === 'Take-away' && (
+                <div className="space-y-1 col-span-2">
+                  <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Number</label>
+                  <input 
+                    type="tel" 
+                    placeholder="0771234567" 
+                    value={posForm.contactNumber} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d{0,10}$/.test(val)) {
+                        setPosForm({ ...posForm, contactNumber: val });
+                        clearError('contactNumber');
+                      }
+                    }} 
+                    className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`} 
+                  />
+                  {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+                </div>
+              )}
+            </div>
 
-                    {(posForm.orderType === 'Delivery' || posForm.orderType === 'Take-away') && (
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Contact Number</label>
-                        <input 
-                          type="tel" 
-                          maxLength="10"
-                          placeholder="07x xxxxxxx" 
-                          value={posForm.contactNumber} 
-                          onChange={e => setPosForm({...posForm, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all"
-                        />
-                      </div>
-                    )}
+            {/* Menu Selection */}
+            <div className="space-y-2 bg-white/5 p-3 rounded-2xl border border-white/5">
+              <div className="flex gap-2">
+                <select value={selectedPosMenuItemId} onChange={e => setSelectedPosMenuItemId(e.target.value)} className="flex-1 bg-white text-black rounded-lg px-2 py-1.5 text-[11px] font-bold outline-none">
+                  <option value="">Select dish...</option>
+                  {menuItems.map(item => <option key={item._id} value={item._id}>{item.name}</option>)}
+                </select>
+                <input type="number" min="1" value={selectedPosQuantity} onChange={e => setSelectedPosQuantity(e.target.value)} className="w-10 bg-white/10 border border-white/10 rounded-xl text-center text-xs outline-none" />
+                <button onClick={addPosItem} className="bg-[#D4AF37] text-[#0F172A] px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest">Add</button>
+              </div>
+              {selectedPosMenuItemId && menuItems.find(i => i._id === selectedPosMenuItemId)?.hasPortions && (
+                <div className="flex gap-2">
+                  {['Full', 'Half'].map(p => (
+                    <button key={p} onClick={() => setSelectedPortion(p)} className={`flex-1 py-1 rounded-lg text-[8px] font-black uppercase border transition-all ${selectedPortion === p ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A]' : 'bg-white/5 border-white/10 text-white'}`}>
+                      {p} Portion
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-                    {posForm.orderType === 'Delivery' && (
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">GPS Location</label>
-                        <button 
-                          onClick={handleGetLocation}
-                          disabled={isGettingLocation}
-                          className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-                            posForm.coordinates ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {isGettingLocation ? 'Locating...' : posForm.coordinates ? 'Location Set' : 'Get Location'}
-                        </button>
-                      </div>
-                    )}
+            {/* Cart Preview */}
+            <div className="max-h-[120px] overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
+              {cart.map(item => (
+                <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-1.5 rounded-xl border border-white/5 text-[10px]">
+                  <div><span className="font-bold">{item.name}</span> {item.portion && <span className="text-[#D4AF37] text-[8px] ml-1">({item.portion})</span>}</div>
+                  <div className="flex items-center gap-3">
+                    <span>{item.quantity}x {formatCurrency(item.price)}</span>
+                    <button onClick={() => setCart(c => c.filter(i => i.cartItemId !== item.cartItemId))} className="text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                {/* Item Selection */}
-                <div className="space-y-3">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Select Cuisine</label>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex gap-3">
-                      <select 
-                        value={selectedPosMenuItemId} 
-                        onChange={e => {
-                          setSelectedPosMenuItemId(e.target.value);
-                          setSelectedPortion('Full');
-                        }} 
-                        className="flex-1 bg-white border-none rounded-2xl px-5 py-4 text-sm text-slate-900 font-bold focus:ring-4 focus:ring-[#D4AF37]/30 outline-none shadow-xl"
-                      >
-                        <option value="">Select a dish...</option>
-                        {menuItems.map(item => (
-                          <option key={item._id} value={item._id} disabled={!item.isAvailable}>
-                            {item.name} {item.hasPortions ? '(Multi-price)' : `(${formatCurrency(item.price)})`}
-                          </option>
-                        ))}
-                      </select>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        value={selectedPosQuantity} 
-                        onChange={e => setSelectedPosQuantity(e.target.value)} 
-                        className="w-20 bg-white/10 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-sm outline-none focus:border-[#D4AF37]"
-                      />
-                    </div>
+            {/* Fees & Totals Section */}
+            <div className="pt-3 border-t border-white/10 space-y-2">
+              <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-400">
+                {serviceCharge > 0 && <div className="flex justify-between col-span-2"><span>Service Charge (10%)</span><span className="text-[#D4AF37] font-bold">+{formatCurrency(serviceCharge)}</span></div>}
+                {deliveryFee > 0 && <div className="flex justify-between col-span-2"><span>Delivery Fee (Dist: {distance.toFixed(1)}km)</span><span className="text-blue-400 font-bold">+{formatCurrency(deliveryFee)}</span></div>}
+              </div>
 
-                    {selectedPosMenuItemId && menuItems.find(i => i._id === selectedPosMenuItemId)?.hasPortions && (
-                      <div className="flex gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                        {['Full', 'Half'].map(p => {
-                          const item = menuItems.find(i => i._id === selectedPosMenuItemId);
-                          const pPrice = item.portions.find(x => x.portionType === p)?.price;
-                          return (
-                            <button
-                              key={p}
-                              type="button"
-                              onClick={() => setSelectedPortion(p)}
-                              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-                                selectedPortion === p ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A]' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
-                              }`}
-                            >
-                              {p} ({formatCurrency(pPrice)})
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  <button 
-                    onClick={addPosItem} 
-                    className="w-full bg-[#D4AF37] text-[#0F172A] py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-[#D4AF37]/10"
-                  >
-                    Add to Bill
-                  </button>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Bill</span>
+                <span className="text-xl font-black text-[#D4AF37]">{formatCurrency(grandTotal)}</span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[7px] text-slate-500 uppercase tracking-widest">Discount</label>
+                  <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[7px] text-slate-500 uppercase tracking-widest">Received</label>
+                  <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white" />
+                </div>
+                <div className="flex flex-col justify-center items-center gap-1">
+                  <label className="text-[7px] text-slate-500 uppercase tracking-widest">Paid</label>
+                  <input type="checkbox" checked={isPaidToggle} onChange={e => setIsPaidToggle(e.target.checked)} className="w-4 h-4 accent-[#D4AF37] cursor-pointer" />
+                </div>
+                <div className="text-right">
+                  <label className="text-[7px] text-slate-500 uppercase tracking-widest">Balance</label>
+                  <p className="text-sm font-black text-emerald-400">{formatCurrency(balance)}</p>
                 </div>
               </div>
 
-              {/* Cart Preview - Glassmorphism */}
-              <div className="pt-8 border-t border-white/10 space-y-4">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Current Items</span>
-                  <span className="text-[10px] font-bold">{cart.length} items</span>
-                </div>
-                <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-                  {cart.length === 0 ? (
-                    <div className="py-12 text-center bg-white/5 rounded-3xl border border-white/5 border-dashed">
-                      <Utensils className="w-8 h-8 text-white/10 mx-auto mb-2" />
-                      <p className="text-xs text-slate-500">Awaiting selection...</p>
-                    </div>
-                  ) : (
-                    cart.map(item => (
-                      <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors">
-                        <div>
-                          <p className="text-sm font-bold">{item.name} {item.portion ? `(${item.portion})` : ''}</p>
-                          <p className="text-[10px] text-[#D4AF37] font-bold">{item.quantity} × {formatCurrency(item.price)}</p>
-                        </div>
-                        <button onClick={() => setCart(c => c.filter(i => i.cartItemId !== item.cartItemId))} className="p-2 text-rose-400 hover:bg-rose-400/10 rounded-xl transition-colors">
-                          <Trash2 className="w-4 h-4"/>
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Totals */}
-              <div className="pt-8 border-t border-white/10 space-y-3">
-                <div className="flex justify-between text-sm text-slate-400"><span>Subtotal</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
-                {serviceCharge > 0 && (
-                  <div className="flex justify-between text-sm text-[#D4AF37] font-bold italic">
-                    <span>Service Charge (10%)</span>
-                    <span>+{formatCurrency(serviceCharge)}</span>
-                  </div>
-                )}
-
-                {deliveryFee > 0 && (
-                  <div className="flex justify-between text-sm text-blue-400 font-bold italic">
-                    <span>Delivery Fee (Dist: {distance.toFixed(1)}km)</span>
-                    <span>+{formatCurrency(deliveryFee)}</span>
-                  </div>
-                )}
-
-                {distance > 0 && distance <= 1 && posForm.orderType === 'Delivery' && (
-                  <div className="flex justify-between text-sm text-emerald-400 font-bold italic">
-                    <span>Delivery Distance ({distance.toFixed(1)}km)</span>
-                    <span>FREE</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center pt-4">
-                  <span className="text-lg font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Grand Total</span>
-                  <span className="text-3xl font-black text-[#D4AF37] tracking-tighter">{formatCurrency(grandTotal)}</span>
-                </div>
-                {/* Payment & Balance Section */}
-                <div className="pt-8 border-t border-white/10 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest ml-1">Amount Received</label>
-                      <div className="relative">
-                        <input 
-                          type="number" 
-                          placeholder="0.00" 
-                          value={amountReceived} 
-                          onChange={e => setAmountReceived(e.target.value)} 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-[#D4AF37] transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2 text-right">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">Change / Balance</label>
-                      <div className="py-4 pr-1">
-                        <span className={`text-2xl font-black tracking-tighter ${balance > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
-                          {formatCurrency(balance)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handlePlaceOrder} 
-                  disabled={cart.length === 0 || savingPosOrder} 
-                  className="w-full bg-white text-[#0F172A] py-5 rounded-3xl font-black text-sm uppercase tracking-[0.2em] mt-6 shadow-2xl hover:bg-slate-100 disabled:opacity-30 transition-all flex items-center justify-center gap-3"
-                >
-                  {savingPosOrder ? <div className="w-5 h-5 border-2 border-[#0F172A]/20 border-t-[#0F172A] rounded-full animate-spin" /> : <CreditCard className="w-5 h-5" />}
-                  {savingPosOrder ? 'Authenticating...' : 'Confirm Order & Print'}
-                </button>
-              </div>
+              <button onClick={handlePlaceOrder} disabled={savingPosOrder} className="w-full bg-[#D4AF37] text-[#0F172A] py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg">
+                {savingPosOrder ? 'Saving Order...' : 'Confirm & Print'}
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Live Orders Monitoring - Modern Card */}
-        <div className="bg-white rounded-[3.5rem] shadow-sm border border-slate-100 flex flex-col overflow-hidden">
-          <div className="p-10 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <h3 className="text-3xl font-normal text-slate-900" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-blue-600">Sync</span></h3>
-              <p className="text-sm text-slate-400 mt-1 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Real-time order monitoring</p>
-            </div>
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-              <input type="text" placeholder="Filter orders..." className="bg-slate-50 border-none rounded-2xl pl-12 pr-6 py-3 text-sm outline-none focus:ring-4 focus:ring-blue-500/5 min-w-[240px]" />
+        {/* Kitchen Sync Monitor */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col overflow-hidden shadow-sm">
+          <div className="p-4 border-b border-slate-50 flex items-center justify-between">
+            <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-blue-600">Sync</span></h3>
+            <div className="flex items-center gap-4">
+              {/* Status Legend */}
+              <div className="hidden sm:flex items-center gap-3 text-[7px] font-black uppercase tracking-widest border-r border-slate-100 pr-4">
+                <div className="flex items-center gap-1.5 text-amber-600">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" /> 
+                  Pending
+                </div>
+                <div className="flex items-center gap-1.5 text-blue-600">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" /> 
+                  Preparing
+                </div>
+                <div className="flex items-center gap-1.5 text-emerald-600">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" /> 
+                  Done
+                </div>
+                <div className="flex items-center gap-1.5 text-rose-600">
+                  <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" /> 
+                  Cancel
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> 
+                Live {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 p-10 overflow-y-auto max-h-[800px] custom-scrollbar space-y-6">
-            {loading ? (
-              <div className="py-20 text-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin mx-auto" /></div>
-            ) : orders.length === 0 ? (
-              <div className="py-20 text-center opacity-30">
-                <History className="w-16 h-16 mx-auto mb-4" />
-                <p className="text-xl font-bold">No orders recorded</p>
-              </div>
-            ) : (
-              orders.map(order => (
-                <div key={order._id} className="group p-8 rounded-[2.5rem] border border-slate-100 hover:border-blue-200 transition-all duration-500 bg-white hover:shadow-2xl hover:shadow-blue-500/5">
-                  <div className="flex flex-col lg:flex-row justify-between gap-8">
-                    <div className="space-y-4 flex-1">
-                      <div className="flex items-center gap-4">
-                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                          order.orderStatus === 'Completed' ? 'bg-emerald-50 text-emerald-600' :
-                          order.orderStatus === 'Preparing' ? 'bg-blue-50 text-blue-600' :
-                          order.orderStatus === 'Pending' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-500'
-                        }`}>
-                          {order.orderStatus}
-                        </div>
-                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                          order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
-                        }`}>
-                          {order.paymentStatus}
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">Ref: #{order._id.slice(-8)}</span>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                          {order.orderType === 'Dine-in' ? `Table ${order.tableNumber}` : 
-                           order.orderType === 'Room' ? `Room ${order.roomNumber}` : 
-                           order.orderType === 'Take-away' ? 'Take-away Order' : 'Delivery Service'}
-                          <ChevronRight className="w-4 h-4 text-slate-300" />
-                        </h4>
-                        <div className="flex flex-col gap-1 mt-1">
-                          <p className="text-xs text-slate-400">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
-                          
-                          {/* Customer Details Section */}
-                          <div className="mt-3 flex flex-wrap gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <div className="flex items-center gap-2">
-                              <User className="w-3.5 h-3.5 text-blue-500" />
-                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">
-                                Placed By: <span className="text-blue-600 ml-1">{order.customerName || 'Guest'}</span>
-                              </span>
-                            </div>
-                            {(order.contactNumber || order.orderType === 'Delivery') && (
-                              <div className="flex items-center gap-2">
-                                <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">
-                                  Contact: <span className="text-emerald-600 ml-1">{order.contactNumber || 'N/A'}</span>
-                                </span>
-                              </div>
-                            )}
-                          </div>
+          <div className="flex-1 p-3 overflow-y-auto max-h-[75vh] custom-scrollbar space-y-4">
+            {orders.map((order, idx) => {
+              // Calculate daily sequence number
+              const orderDate = new Date(order.createdAt).toLocaleDateString();
+              const today = new Date().toLocaleDateString();
 
-                          {order.orderType === 'Delivery' && (
-                            <div className="flex flex-col gap-1 mt-3">
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Address: {order.deliveryAddress}</p>
-                              {order.coordinates && (
-                                <a 
-                                  href={`https://www.google.com/maps?q=${order.coordinates.lat},${order.coordinates.lng}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:underline flex items-center gap-1 mt-1"
-                                >
-                                  View GPS Location on Google Maps
-                                </a>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+              // Filter orders from the same day as this order, then find its relative index
+              const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
+              // Since orders are newest first, we count from the end of the sameDayOrders list
+              const dailySequenceNum = sameDayOrders.length - sameDayOrders.indexOf(order);
 
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {order.items.map((i, idx) => (
-                          <div key={idx} className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                            <span className="w-5 h-5 bg-white rounded-md flex items-center justify-center text-[10px] font-black text-slate-900 border border-slate-200">{i.quantity}</span>
-                            <span className="text-xs font-bold text-slate-700">{i.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+              const statusStyles =
+                order.orderStatus === 'Completed' ? { border: 'border-emerald-500/30', hover: 'hover:border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-500', borderLight: 'border-emerald-100' } :
+                  order.orderStatus === 'Preparing' ? { border: 'border-blue-500/30', hover: 'hover:border-blue-500', bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-500', borderLight: 'border-blue-100' } :
+                    order.orderStatus === 'Cancelled' ? { border: 'border-rose-500/30', hover: 'hover:border-rose-500', bg: 'bg-rose-50', text: 'text-rose-600', dot: 'bg-rose-500', borderLight: 'border-rose-100' } :
+                      { border: 'border-amber-500/30', hover: 'hover:border-amber-500', bg: 'bg-amber-50', text: 'text-amber-600', dot: 'bg-amber-500', borderLight: 'border-amber-100' };
 
-                    <div className="flex flex-col items-end justify-between min-w-[180px]">
+              return (
+                <div key={order._id} className={`relative group p-5 rounded-[2rem] border-2 bg-white shadow-[0_10px_30px_-15px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_40px_-20px_rgba(15,23,42,0.1)] transition-all duration-500 ${statusStyles.border} ${statusStyles.hover}`}>
+                  <div className={`absolute left-0 top-1/4 bottom-1/4 w-1.5 rounded-r-full ${statusStyles.dot} shadow-[0_0_15px_${statusStyles.dot}]`} />
+
+                  <div className="pl-3 space-y-4">
+                    <div className="flex justify-between items-center text-[10px]">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-black ${statusStyles.bg} ${statusStyles.text} px-3 py-1 rounded-full border ${statusStyles.borderLight} uppercase tracking-widest text-[8px]`}>
+                          Order {dailySequenceNum.toString().padStart(3, '0')}
+                        </span>
+                        <span className="text-[7px] font-bold text-slate-300 uppercase tracking-widest">#{order._id.slice(-4).toUpperCase()}</span>
+                      </div>
                       <div className="text-right">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
-                        <p className="text-3xl font-black text-slate-900 tracking-tighter">{formatCurrency(order.totalAmount)}</p>
-                      </div>
-                      
-                      <div className="flex flex-col gap-2 mt-6">
-                        {order.paymentStatus === 'Unpaid' && (
-                          <div className="flex flex-col gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            {settlingOrderId === order._id ? (
-                              <div className="space-y-3">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Process Payment</span>
-                                  <button onClick={() => setSettlingOrderId(null)} className="text-[10px] text-rose-500 font-bold hover:underline">Cancel</button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div className="space-y-1">
-                                    <label className="text-[9px] font-bold text-slate-400 uppercase">Received</label>
-                                    <input 
-                                      type="number" 
-                                      placeholder="0.00"
-                                      value={settleAmount}
-                                      onChange={(e) => setSettleAmount(e.target.value)}
-                                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-[#D4AF37]"
-                                    />
-                                  </div>
-                                  <div className="space-y-1 text-right">
-                                    <label className="text-[9px] font-bold text-slate-400 uppercase">Balance</label>
-                                    <div className="py-2 text-sm font-black text-emerald-600">
-                                      {formatCurrency(Math.max(Number(settleAmount || 0) - order.totalAmount, 0))}
-                                    </div>
-                                  </div>
-                                </div>
-                                <button 
-                                  onClick={() => updatePaymentStatus(order._id, { 
-                                    paymentStatus: 'Paid', 
-                                    amountReceived: Number(settleAmount), 
-                                    balance: Math.max(Number(settleAmount || 0) - order.totalAmount, 0)
-                                  })}
-                                  disabled={Number(settleAmount || 0) < order.totalAmount}
-                                  className="w-full py-2.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100 disabled:opacity-30"
-                                >
-                                  Complete Payment
-                                </button>
-                              </div>
-                            ) : (
-                              <button 
-                                onClick={() => setSettlingOrderId(order._id)}
-                                className="w-full py-2.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100"
-                              >
-                                Settle Payment
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        
-                        {order.paymentStatus === 'Paid' && order.amountReceived > 0 && (
-                          <div className="flex flex-col gap-1 p-3 bg-emerald-50 rounded-2xl border border-emerald-100/50">
-                             <div className="flex justify-between text-[9px] font-bold text-emerald-600 uppercase tracking-widest">
-                               <span>Received</span>
-                               <span>{formatCurrency(order.amountReceived)}</span>
-                             </div>
-                             <div className="flex justify-between text-[9px] font-bold text-emerald-400 uppercase tracking-widest">
-                               <span>Change</span>
-                               <span>{formatCurrency(order.balance)}</span>
-                             </div>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => handlePrintReceipt(order)}
-                            className="p-2.5 bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all border border-slate-100"
-                            title="Print Receipt"
-                          >
-                            <Receipt className="w-4 h-4" />
-                          </button>
-                          <select 
-                            value={order.orderStatus} 
-                            onChange={e => updateOrderStatus(order._id, e.target.value)} 
-                            className="appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-4 focus:ring-blue-500/10 cursor-pointer flex-1"
-                          >
-                            {['Pending', 'Preparing', 'Completed', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                          {order.orderStatus === 'Completed' ? (
-                            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0"><CheckCircle className="w-5 h-5" /></div>
-                          ) : (
-                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center animate-pulse shrink-0"><Clock className="w-5 h-5" /></div>
-                          )}
-                        </div>
+                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString('en-GB')}</p>
+                        <p className="text-[9px] text-slate-900 font-black tracking-widest">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                       </div>
                     </div>
+
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                          {order.orderType === 'Dine-in' ? `Table ${order.tableNumber}` :
+                           order.orderType === 'Room' ? `Room ${order.roomNumber}` : order.orderType}
+                        </h4>
+                        <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+                          <User className="w-3 h-3 text-[#D4AF37]" />
+                          {order.customerName || 'Boutique Guest'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-[7px] font-black uppercase px-2.5 py-1 rounded-full ${order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-white' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                          {order.paymentStatus}
+                        </span>
+                        <p className="text-xl font-black text-[#0F172A] mt-2 leading-none" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                          {formatCurrency(order.totalAmount)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
+                      {order.items.map((it, idx) => (
+                        <div key={idx} className="flex items-center gap-2 bg-slate-50/80 px-3 py-1.5 rounded-xl border border-slate-100 text-[9px] font-black text-slate-700">
+                          <span className="text-[#D4AF37] font-black text-[10px]">{it.quantity}x</span> 
+                          <span className="uppercase tracking-wider">{it.name}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2 pt-2 border-t border-slate-50">
+                      <select value={order.orderStatus} onChange={e => updateOrderStatus(order._id, e.target.value)} className="flex-1 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none focus:ring-4 focus:ring-blue-500/5 cursor-pointer">
+                        {['Pending', 'Preparing', 'Completed', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <button
+                        onClick={() => handlePrintReceipt(order)}
+                        className="px-2.5 py-1.5 bg-slate-50 text-slate-500 hover:text-blue-600 rounded-lg border border-slate-100 flex items-center gap-1.5 transition-all"
+                        title="Print Bill"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Bill</span>
+                      </button>
+                      {order.paymentStatus === 'Unpaid' && (
+                        <button 
+                          onClick={() => { 
+                            const related = orders.filter(o => 
+                              o.paymentStatus === 'Unpaid' && 
+                              ((order.tableNumber && o.tableNumber === order.tableNumber) || 
+                               (order.roomNumber && o.roomNumber === order.roomNumber))
+                            );
+                            const total = related.reduce((s, o) => s + o.totalAmount, 0);
+                            setSettlingOrderId(order._id); 
+                            setSettleAmount(total); 
+                          }} 
+                          className="px-3 py-1 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-lg"
+                        >
+                          Settle
+                        </button>
+                      )}
+                    </div>
+
+                    {settlingOrderId === order._id && (() => {
+                      const relatedOrders = orders.filter(o => 
+                        o.paymentStatus === 'Unpaid' && 
+                        ((order.tableNumber && o.tableNumber === order.tableNumber) || 
+                         (order.roomNumber && o.roomNumber === order.roomNumber))
+                      );
+                      const combinedTotal = relatedOrders.reduce((s, o) => s + o.totalAmount, 0);
+                      const isMultiple = relatedOrders.length > 1;
+
+                      return (
+                        <div className="mt-2 p-4 bg-slate-900 rounded-[1.5rem] space-y-3 border border-white/10 shadow-2xl animate-in zoom-in-95 duration-300">
+                          <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                            <span className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
+                              <Banknote className="w-3 h-3" /> {isMultiple ? `Settle All (${relatedOrders.length} Orders)` : 'Process Payment'}
+                            </span>
+                            <button onClick={() => { setSettlingOrderId(null); setValidationErrors({}); }} className="hover:rotate-90 transition-transform">
+                              <X className="w-4 h-4 text-rose-400" />
+                            </button>
+                          </div>
+
+                          {isMultiple && (
+                            <div className="bg-white/5 rounded-xl p-2 border border-[#D4AF37]/20">
+                              <p className="text-[7px] font-black text-[#D4AF37] uppercase tracking-widest mb-1">Items for {order.tableNumber ? `Table ${order.tableNumber}` : `Room ${order.roomNumber}`}</p>
+                              <div className="flex flex-wrap gap-1">
+                                {relatedOrders.flatMap(o => o.items).map((it, idx) => (
+                                  <span key={idx} className="text-[8px] text-white/60 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">{it.quantity}x {it.name}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-3 items-end">
+                            <div className="space-y-1.5">
+                              <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Cash Received</label>
+                              <div className="flex items-center gap-2">
+                                <input 
+                                  type="number" 
+                                  autoFocus
+                                  value={settleAmount} 
+                                  onChange={e => { setSettleAmount(e.target.value); clearError('settleAmount'); }} 
+                                  className={`flex-1 bg-white/5 border ${validationErrors.settleAmount ? 'border-rose-500' : 'border-white/10'} rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#D4AF37] font-black`} 
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            </div>
+                            <div className="bg-white/5 rounded-xl p-2 text-right border border-white/5">
+                              <label className="block text-[7px] font-bold text-slate-500 uppercase tracking-widest mb-1">Change / Balance</label>
+                              <div className="text-sm font-black text-emerald-400">
+                                {formatCurrency(Math.max(Number(settleAmount || 0) - combinedTotal, 0))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5 px-2 py-2 bg-white/5 rounded-xl border border-white/5">
+                            <div className="flex justify-between text-[9px] text-slate-400 uppercase tracking-widest font-bold">
+                              <span>Subtotal Sum</span>
+                              <span>{formatCurrency(relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0))}</span>
+                            </div>
+                            <div className="flex justify-between text-[9px] text-[#D4AF37] uppercase tracking-widest font-bold">
+                              <span>Total Service Charge (10%)</span>
+                              <span>{formatCurrency(relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0))}</span>
+                            </div>
+                            <div className="flex items-center gap-2 pt-1 border-t border-white/5 mt-1">
+                              <input type="checkbox" id="forcePaid" checked={isPaidToggle} onChange={e => setIsPaidToggle(e.target.checked)} className="accent-[#D4AF37]" />
+                              <label htmlFor="forcePaid" className="text-[7px] text-slate-400 uppercase tracking-widest cursor-pointer">Exact Payment / Paid via Card</label>
+                            </div>
+                            {relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0) > 0 && (
+                              <div className="flex justify-between text-[9px] text-blue-400 uppercase tracking-widest font-bold">
+                                <span>Total Delivery Fee</span>
+                                <span>{formatCurrency(relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0))}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex justify-between items-center px-1">
+                            <p className="text-[10px] font-black text-white uppercase tracking-widest">Net Total: <span className="text-[#D4AF37] ml-2">{formatCurrency(combinedTotal)}</span></p>
+                            {validationErrors.settleAmount && (
+                              <p className="text-[8px] text-rose-500 font-bold uppercase animate-pulse">
+                                {validationErrors.settleAmount}
+                              </p>
+                            )}
+                          </div>
+
+                          <button 
+                            onClick={() => {
+                              const amount = Number(settleAmount);
+                              if (!isPaidToggle) {
+                                if (!settleAmount || amount <= 0) {
+                                  setValidationErrors({ settleAmount: "Please enter cash amount" });
+                                  return;
+                                }
+                                if (amount < combinedTotal) {
+                                  setValidationErrors({ settleAmount: `Insufficient: Need Rs ${combinedTotal.toLocaleString()}` });
+                                  return;
+                                }
+                              }
+                              
+                              updatePaymentStatus(relatedOrders.map(o => o._id), { 
+                                paymentStatus: 'Paid', 
+                                amountReceived: isPaidToggle && amount === 0 ? combinedTotal : amount, 
+                                balance: isPaidToggle && amount === 0 ? 0 : Math.max(amount - combinedTotal, 0),
+                                orderStatus: 'Completed'
+                              });
+                            }} 
+                            className="w-full py-3 bg-[#D4AF37] text-[#0F172A] text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white transition-all shadow-lg active:scale-95"
+                          >
+                            Complete Settlement
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
-              ))
-            )}
+              );
+            })}
           </div>
         </div>
       </div>
+      <Toaster position="top-right" expand={true} richColors />
     </div>
   );
 }

@@ -17,7 +17,7 @@ import {
   X,
   Edit2
 } from "lucide-react";
-import { apiFetch } from "../../../api";
+import { apiFetch, getImageUrl } from "../../../api.js";
 import "./CustomerDashboard.css";
 
 export function MyBookings() {
@@ -40,9 +40,52 @@ export function MyBookings() {
         apiFetch("/bookings/my"),
         apiFetch("/wedding/my-bookings")
       ]);
+
+      const mappedRooms = (roomsRes?.data || []).map((item) => {
+        const checkInDate = new Date(item.checkInDate);
+        const checkOutDate = new Date(item.checkOutDate);
+        const nights = Number.isNaN(checkInDate.getTime()) || Number.isNaN(checkOutDate.getTime())
+          ? item.nights || 1
+          : Math.max(1, Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+        return {
+          ...item,
+          id: item._id,
+          roomName: item.room?.name || "Refined Luxury Suite",
+          checkInDate: item.checkInDate,
+          checkOutDate: item.checkOutDate,
+          checkIn: checkInDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          checkOut: checkOutDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          status: item.status || item.bookingStatus || "pending",
+          amount: item.totalPrice || item.totalAmount || item.amount || 0,
+          nights,
+          image: item.room?.images?.[0]
+            ? getImageUrl(item.room.images[0])
+            : "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&q=80&w=400"
+        };
+      });
+
+      const mappedWeddings = (weddingsRes?.data || []).map((item) => {
+        const eventDate = new Date(item.eventDate);
+
+        return {
+          ...item,
+          id: item._id,
+          hallName: item.hallId?.hallName || item.eventType || "Grand Ballroom",
+          eventDate: item.eventDate,
+          eventDateLabel: eventDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          package: item.cateringPackage || "Custom Package",
+          status: item.bookingStatus || item.status || "pending",
+          amount: item.totalAmount || item.amount || 0,
+          image: item.hallId?.images?.[0]
+            ? getImageUrl(item.hallId.images[0])
+            : "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=400"
+        };
+      });
+
       setBookings({
-        rooms: roomsRes?.data || [],
-        weddings: weddingsRes?.data || []
+        rooms: mappedRooms,
+        weddings: mappedWeddings
       });
     } catch (error) {
       console.error("Error fetching my bookings:", error);
@@ -99,6 +142,7 @@ export function MyBookings() {
       pending: "bg-amber-100 text-amber-700 border-amber-200",
       confirmed: "bg-green-100 text-green-700 border-green-200",
       cancelled: "bg-red-100 text-red-700 border-red-200",
+    rejected: "bg-rose-100 text-rose-700 border-rose-200",
     };
     const s = String(status || 'pending').toLowerCase();
     return (
@@ -130,7 +174,7 @@ export function MyBookings() {
     },
     {
       label: "Events Planned",
-      value: String(bookings.weddings.length),
+      value: String(bookings.weddings.filter(w => w.status !== 'cancelled' && w.status !== 'rejected').length).padStart(2, '0'),
       note: "Grand Celebrations",
       Icon: Heart,
       card: "bg-rose-50 border-rose-200",
@@ -213,99 +257,102 @@ export function MyBookings() {
                 <div className="p-20 text-center text-slate-300 italic">No reservations found in this category</div>
               ) : (
                 currentData.map((item) => {
-                  const checkInDateObj = activeTab === "rooms" ? new Date(item.checkInDate) : new Date(item.eventDate);
+                    const isRoomBooking = activeTab === "rooms";
+                    const id = item.id || item._id;
+                    const bookingStatus = String(item.status || item.bookingStatus || "pending").toLowerCase();
+                    const checkInDateObj = isRoomBooking ? new Date(item.checkInDate) : new Date(item.eventDate);
                   const diffTime = checkInDateObj.getTime() - Date.now();
                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                  const canModify = diffDays >= 3 && item.status !== 'cancelled';
+                    const canModify = isRoomBooking && diffDays >= 3 && bookingStatus !== 'cancelled';
+                    const title = isRoomBooking ? (item.roomName || item.room?.name || "Premium Room") : (item.hallName || item.hallId?.hallName || "Exquisite Venue");
+                    const subtitle = isRoomBooking
+                      ? `In: ${new Date(item.checkInDate).toLocaleDateString()} (${item.checkInType || 'Day'})`
+                      : `Event: ${new Date(item.eventDate).toLocaleDateString()}`;
+                    const durationLabel = isRoomBooking
+                      ? `Out: ${new Date(item.checkOutDate).toLocaleDateString()} (${item.checkOutType || 'Night'})`
+                      : `Package: ${item.package || item.cateringPackage || 'Custom'}`;
+                    const amount = Number(item.amount || item.totalPrice || item.totalAmount || 0);
+                    const image = item.image || (isRoomBooking
+                      ? "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&q=80&w=400"
+                      : "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=400");
 
-                  const id = item._id;
-                  const title = activeTab === "rooms" ? (item.room?.name || "Premium Room") : (item.hallId?.hallName || "Exquisite Venue");
-                  const subtitle = activeTab === "rooms" ? `In: ${new Date(item.checkInDate).toLocaleDateString()} (${item.checkInType || 'Day'})` : `Event: ${new Date(item.eventDate).toLocaleDateString()}`;
-                  const durationLabel = activeTab === "rooms" ? `Out: ${new Date(item.checkOutDate).toLocaleDateString()} (${item.checkOutType || 'Night'})` : `Package: ${item.cateringPackage || 'Custom'}`;
-                  const amount = activeTab === "rooms" ? (item.totalPrice || 0) : (item.totalAmount || 0);
-                  const image = activeTab === "rooms" 
-                    ? (item.room?.image || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&q=80&w=400") 
-                    : "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=400";
-
-                  return (
-                    <div key={id} className="p-8 flex flex-col md:flex-row md:items-center gap-8 group hover:bg-slate-50/50 transition-all duration-500">
-                      {/* Image Box */}
-                      <div className="w-full md:w-48 h-32 rounded-3xl overflow-hidden shadow-lg border border-white relative">
-                        <img src={image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Resort" />
-                        <div className="absolute top-3 left-3">
-                           {getStatusBadge(activeTab === "rooms" ? item.status : item.bookingStatus)}
-                        </div>
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 space-y-4">
-                        <div>
-                          <p className="text-[#D4AF37] text-[10px] font-black uppercase tracking-[0.3em] mb-1">Elite Reservation</p>
-                          <h3 className="text-2xl font-bold text-slate-900">
-                            {title}
-                          </h3>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">REF: #{id}</p>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-x-10 gap-y-3">
-                          <div className="flex items-center gap-3">
-                            <Calendar className="w-4 h-4 text-[#D4AF37]" />
-                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                              {subtitle}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Clock className="w-4 h-4 text-[#D4AF37]" />
-                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                              {durationLabel}
-                            </span>
+                    return (
+                      <div key={id} className="p-8 flex flex-col md:flex-row md:items-center gap-8 group hover:bg-slate-50/50 transition-all duration-500">
+                        <div className="w-full md:w-48 h-32 rounded-3xl overflow-hidden shadow-lg border border-white relative">
+                          <img src={image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Resort" />
+                          <div className="absolute top-3 left-3">
+                            {getStatusBadge(bookingStatus)}
                           </div>
                         </div>
-                      </div>
 
-                      {/* Price & Actions */}
-                      <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-6 pt-6 md:pt-0 border-t md:border-t-0 border-slate-100">
-                        <div className="text-left md:text-right">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
-                          <p className="text-2xl font-black text-slate-900">Rs. {amount.toLocaleString()}</p>
+                        <div className="flex-1 space-y-4">
+                          <div>
+                            <p className="text-[#D4AF37] text-[10px] font-black uppercase tracking-[0.3em] mb-1">Elite Reservation</p>
+                            <h3 className="text-2xl font-bold text-slate-900">
+                              {title}
+                            </h3>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                              REF: #{String(id).length === 24 ? String(id).slice(-8).toUpperCase() : String(id)}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-10 gap-y-3">
+                            <div className="flex items-center gap-3">
+                              <Calendar className="w-4 h-4 text-[#D4AF37]" />
+                              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                {subtitle}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Clock className="w-4 h-4 text-[#D4AF37]" />
+                              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                {durationLabel}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                           {activeTab === "rooms" && (
-                             <>
-                               {canModify ? (
-                                 <>
-                                   <button 
-                                     onClick={() => handleOpenEditModal(item)}
-                                     className="p-3 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
-                                     title="Edit Booking"
-                                   >
+
+                        <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-6 pt-6 md:pt-0 border-t md:border-t-0 border-slate-100">
+                          <div className="text-left md:text-right">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
+                            <p className="text-2xl font-black text-slate-900">Rs. {amount.toLocaleString()}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {isRoomBooking ? (
+                              <>
+                                {canModify ? (
+                                  <>
+                                    <button
+                                      onClick={() => handleOpenEditModal(item)}
+                                      className="p-3 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                                      title="Edit Booking"
+                                    >
                                       <Edit2 className="h-5 w-5" />
-                                   </button>
-                                   <button 
-                                     onClick={() => handleCancelBooking(item._id)}
-                                     className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                                     title="Cancel Booking"
-                                   >
+                                    </button>
+                                    <button
+                                      onClick={() => handleCancelBooking(item._id || item.id)}
+                                      className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                      title="Cancel Booking"
+                                    >
                                       <Trash2 className="h-5 w-5" />
-                                   </button>
-                                 </>
-                               ) : (
-                                 <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                                   {item.status === 'cancelled' ? 'Cancelled' : 'Locked (Starts < 3 Days)'}
-                                 </span>
-                               )}
-                             </>
-                           )}
-                           {activeTab === "weddings" && (
-                             <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                               Contact Concierge to modify
-                             </span>
-                           )}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                                    {bookingStatus === 'cancelled' ? 'Cancelled' : 'Locked (Starts < 3 Days)'}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                                Contact Concierge to modify
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })
               )}
             </div>
           </article>
