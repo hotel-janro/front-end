@@ -6,6 +6,33 @@ import { Button } from "../common/Button.jsx";
 import { ImageWithFallback } from "../common/ImageWithFallback.jsx";
 import { useSettings } from "../../context/SettingsContext";
 
+const getRoomOptionPrice = (roomName, isAc, stayMode) => {
+  const norm = (roomName || '').toLowerCase().replace(/[^a-z]/g, '');
+  const isFamily = norm.includes('family');
+  const isHoneymoon = norm.includes('honeymoon') || norm.includes('wedding');
+
+  if (isFamily) {
+    if (isAc) {
+      return stayMode === 'onlyNight' ? 6750 : 8750;
+    } else {
+      return stayMode === 'onlyNight' ? 5500 : 6750;
+    }
+  } else if (isHoneymoon) {
+    return 9500;
+  } else {
+    // Standard Room
+    if (isAc) {
+      if (stayMode === 'onlyDay') return 6000;
+      if (stayMode === 'onlyNight') return 5500;
+      return 8500; // 24 hours
+    } else {
+      if (stayMode === 'onlyDay') return 4000;
+      if (stayMode === 'onlyNight') return 4500;
+      return 7500; // 24 hours
+    }
+  }
+};
+
 const HONEYMOON_DECORATION_ITEMS = [
   { name: "Rose petals on bed", price: 2500 },
   { name: "Flower bouquet", price: 3000 },
@@ -14,7 +41,7 @@ const HONEYMOON_DECORATION_ITEMS = [
   { name: "Chocolate gift box", price: 2500 }
 ];
 
-export function RoomCard({ room, onBook, isLoggedIn = false }) {
+export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }) {
   const navigate = useNavigate();
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -30,13 +57,27 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
   const isStandardRoom = (room.name || "").toLowerCase().includes("standard");
   const isFamilySuite = (room.name || "").toLowerCase().includes("family");
   const isHoneymoonSuite = (room.name || "").toLowerCase().includes("honeymoon");
+
+  // AC/Non-AC variant selector (only for merged Standard Room cards)
+  const hasAcVariants = !!acVariants && (acVariants.ac || acVariants.nonAc);
+  const defaultAcType = acVariants?.ac ? "ac" : "nonAc";
+  const [selectedAcType, setSelectedAcType] = useState(defaultAcType);
+  const activeVariantRoom = hasAcVariants
+    ? (selectedAcType === "ac" ? acVariants.ac : acVariants.nonAc) || room
+    : room;
+
+  const isAc = hasAcVariants
+    ? selectedAcType === "ac"
+    : !(activeVariantRoom.name || "").toLowerCase().includes("non");
+  const displayRoomPrice = getRoomOptionPrice(activeVariantRoom.name, isAc, stayMode);
+
   const [selectedGuests, setSelectedGuests] = useState(1);
   const [selectedDecorations, setSelectedDecorations] = useState([]);
   const guests = (isStandardRoom || isFamilySuite)
     ? selectedGuests
     : isHoneymoonSuite ? 2 : (room.defaultGuests ?? 1);
   const { settings } = useSettings();
-  const formattedPrice = Number(room.price || 0).toLocaleString("en-LK");
+  const formattedPrice = Number(displayRoomPrice || 0).toLocaleString("en-LK");
   const todayStr = new Date().toISOString().split("T")[0];
 
   const getNextDay = (dateStr) => {
@@ -69,7 +110,7 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
   };
 
   const slots = calculateSlots();
-  const grandTotal = (Number(room.price || 0) * slots) + decorationTotal;
+  const grandTotal = (Number(displayRoomPrice || 0) * slots) + decorationTotal;
 
   const handleSubmitBooking = () => {
     if (!fullName || fullName.trim() === "") {
@@ -99,8 +140,8 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
     }
 
     onBook({
-      room,
-      roomId: room._id || room.id,
+      room: activeVariantRoom,
+      roomId: activeVariantRoom._id || activeVariantRoom.id,
       checkIn,
       checkOut,
       checkInType,
@@ -112,7 +153,11 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
       fullName,
       email,
       phone,
-      specialRequests,
+      specialRequests: activeVariantRoom._isVirtualNonAc
+        ? (specialRequests ? `${specialRequests} (Requested Room Option: Non-AC Room)` : "(Requested Room Option: Non-AC Room)")
+        : (activeVariantRoom._isVirtualAc
+            ? (specialRequests ? `${specialRequests} (Requested Room Option: AC Room)` : "(Requested Room Option: AC Room)")
+            : specialRequests),
       decorationItems: isHoneymoonSuite && isLoggedIn ? selectedDecorations : []
     });
   };
@@ -157,14 +202,15 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
           {settings.currency.symbol} {formattedPrice}
         </div>
         <div className="absolute top-4 left-4 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-[#0F172A] shadow-sm">
-          {room.availableRooms ?? 0} {Number(room.availableRooms) === 1 ? "room" : "rooms"} available
+          {activeVariantRoom.availableRooms ?? 0} {Number(activeVariantRoom.availableRooms) === 1 ? "room" : "rooms"} available
         </div>
       </div>
       <div className="p-6">
         <h3 className="text-[#0F172A] mb-2" style={{ fontFamily: "DM Serif Display, serif" }}>
           {room.name}
         </h3>
-        <p className="text-gray-500 text-sm mb-4">{room.description}</p>
+
+        <p className="text-gray-500 text-sm mb-4">{activeVariantRoom.description || room.description}</p>
 
         {!showBookingForm ? (
           <Button
@@ -177,6 +223,42 @@ export function RoomCard({ room, onBook, isLoggedIn = false }) {
         ) : (
           <>
             <div className="space-y-3 mb-4">
+
+              {/* AC / Non-AC selector — first field inside booking form */}
+              {hasAcVariants && (
+                <div>
+                  <label className="text-xs text-gray-500 block mb-2 font-semibold uppercase tracking-wider">Room Type</label>
+                  <div className="flex gap-2">
+                    {acVariants.ac && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAcType("ac")}
+                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all duration-200 ${
+                          selectedAcType === "ac"
+                            ? "bg-[#0F172A] text-white border-[#0F172A] shadow-sm"
+                            : "bg-white text-gray-500 border-gray-200 hover:border-[#D4AF37] hover:text-[#D4AF37]"
+                        }`}
+                      >
+                        ❄️ AC Room
+                      </button>
+                    )}
+                    {acVariants.nonAc && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAcType("nonAc")}
+                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all duration-200 ${
+                          selectedAcType === "nonAc"
+                            ? "bg-[#0F172A] text-white border-[#0F172A] shadow-sm"
+                            : "bg-white text-gray-500 border-gray-200 hover:border-[#D4AF37] hover:text-[#D4AF37]"
+                        }`}
+                      >
+                        🌀 Non-AC Room
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Full Name</label>
                 <input

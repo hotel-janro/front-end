@@ -114,11 +114,11 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
     ).length;
   };
 
-  // ENSURE ALL TYPES ARE SHOWN IN THE TABLE
-  const uniqueTypes = [...new Set(rooms.map(r => r.name).filter(Boolean))];
+  // Only show ACTIVE rooms in the inventory table
+  const activeRooms = rooms.filter(r => r.isActive !== false);
+  const uniqueTypes = [...new Set(activeRooms.map(r => r.name).filter(Boolean))];
   const aggregatedRooms = uniqueTypes.map(typeName => {
-    // Case-insensitive search to be more robust
-    const backendRoomsOfType = rooms.filter(r => r.name === typeName);
+    const backendRoomsOfType = activeRooms.filter(r => r.name === typeName);
     const bookedCount = getBookedCount(typeName);
     
     if (backendRoomsOfType.length > 0) {
@@ -136,7 +136,7 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
     return null;
   }).filter(Boolean);
 
-  const filteredRooms = aggregatedRooms.filter(room => 
+  const filteredRooms = aggregatedRooms.filter(room =>
     (room.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (room.description || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
