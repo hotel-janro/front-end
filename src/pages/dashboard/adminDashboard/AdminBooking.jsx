@@ -170,15 +170,35 @@ export function AdminBookings() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-xs space-y-1">
-                      <div className="flex items-center gap-1 text-emerald-600 font-semibold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        IN: {new Date(booking.checkInDate).toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center gap-1 text-rose-600 font-semibold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                        OUT: {new Date(booking.checkOutDate).toLocaleDateString()}
-                      </div>
+                    <div className="space-y-1.5">
+                      {new Date(booking.checkInDate).toLocaleDateString() === new Date(booking.checkOutDate).toLocaleDateString() && 
+                       booking.checkInType === booking.checkOutType ? (
+                        <div className="flex flex-col items-start gap-1">
+                          <div className="text-slate-900 font-bold text-[11px]">
+                            {new Date(booking.checkInDate).toLocaleDateString()}
+                          </div>
+                          <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-wider ${
+                            booking.checkInType === 'Day' 
+                              ? 'bg-orange-50 text-orange-700 border-orange-200' 
+                              : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                          }`}>
+                            ONLY {booking.checkInType}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-400">IN:</span>
+                            <span className="text-[11px] font-bold text-slate-900">{new Date(booking.checkInDate).toLocaleDateString()}</span>
+                            <span className="px-1.5 py-0.5 bg-emerald-50 text-[9px] text-emerald-700 border border-emerald-100 rounded font-bold uppercase">{booking.checkInType || 'Day'}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-400">OUT:</span>
+                            <span className="text-[11px] font-bold text-slate-900">{new Date(booking.checkOutDate).toLocaleDateString()}</span>
+                            <span className="px-1.5 py-0.5 bg-rose-50 text-[9px] text-rose-700 border border-rose-100 rounded font-bold uppercase">{booking.checkOutType || 'Night'}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">

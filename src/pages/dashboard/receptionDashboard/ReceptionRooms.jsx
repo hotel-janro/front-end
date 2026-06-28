@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { 
   Bed, 
   Plus, 
@@ -25,6 +24,7 @@ import {
 import { useSettings } from '../../../context/SettingsContext.jsx';
 import { apiFetch } from '../../../api';
 import '../adminDashboard/AdminRooms.css';
+import { Rooms } from '../../website/Rooms.jsx';
 
 const ROOM_TYPES = {
   'Standard Room': {
@@ -53,9 +53,9 @@ const BASE_COUNTS = {
   'Honeymoon Suite': 2
 };
 
-export function ReceptionRooms() {
+export function ReceptionRooms({ isLoggedIn, onBook }) {
   const { settings } = useSettings();
-  const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'bookings'
+  const [activeTab, setActiveTab] = useState('book'); // 'book', 'manage' or 'bookings'
   const [rooms, setRooms] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,12 +84,55 @@ export function ReceptionRooms() {
         apiFetch('/rooms/admin/list'),
         apiFetch('/bookings')
       ]);
-      setRooms(roomsRes.data || []);
-      setBookings(bookingsRes.data || []);
+      setRooms(roomsRes?.data || []);
+      setBookings(bookingsRes?.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) return;
+    
+    try {
+      await apiFetch(`/bookings/${bookingId}`, {
+        method: 'DELETE'
+      });
+      fetchData(); // Refresh bookings list
+    } catch (error) {
+      alert('Error deleting booking: ' + error.message);
+    }
+  };
+
+  const handleRemoveOneRoom = async (room) => {
+    if (!room || room.isPlaceholder || room.availableRooms <= 0) return;
+    
+    if (!window.confirm("Are you sure you want to delete this specific room? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      // Fetch the live DB document first to get accurate totalRooms
+      const liveRes = await apiFetch(`/rooms/admin/list`);
+      const liveRooms = liveRes.data || [];
+      const liveRoom = liveRooms.find(r => r._id === room._id);
+      
+      const currentAvailable = liveRoom ? liveRoom.availableRooms : room.availableRooms;
+      const currentTotal = liveRoom ? (liveRoom.totalRooms ?? currentAvailable) : (room.totalRooms ?? room.availableRooms);
+      
+      // Send only clean database fields — never spread aggregated UI objects
+      await apiFetch(`/rooms/${room._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ 
+          availableRooms: Math.max(0, currentAvailable - 1),
+          totalRooms: Math.max(0, currentTotal - 1)
+        })
+      });
+      fetchData();
+    } catch (error) {
+      alert('Error removing room: ' + error.message);
     }
   };
 
@@ -101,50 +144,44 @@ export function ReceptionRooms() {
     ).length;
   };
 
-  // ENSURE ALL TYPES ARE SHOWN IN THE TABLE
-  const aggregatedRooms = Object.keys(ROOM_TYPES).map(typeName => {
-    // Case-insensitive search to be more robust
-    const backendRoomsOfType = rooms.filter(r => r.name?.toLowerCase() === typeName.toLowerCase());
-    const typeDetails = ROOM_TYPES[typeName];
+  // Only show ACTIVE rooms in the inventory table
+  const activeRooms = rooms.filter(r => r.isActive !== false);
+  const uniqueTypes = [...new Set(activeRooms.map(r => r.name).filter(Boolean))];
+  const aggregatedRooms = uniqueTypes.map(typeName => {
+    const backendRoomsOfType = activeRooms.filter(r => r.name === typeName);
     const bookedCount = getBookedCount(typeName);
     
     if (backendRoomsOfType.length > 0) {
       const dbAvailable = backendRoomsOfType.reduce((sum, r) => sum + (r.availableRooms || 0), 0);
+      const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms || 1), 0);
       const firstRoom = backendRoomsOfType[0];
       return {
         ...firstRoom,
         availableRooms: dbAvailable,
+        totalRooms: dbTotal,
         bookedCount,
         isPlaceholder: false
       };
     }
+    return null;
+  }).filter(Boolean);
 
-    return {
-      _id: `placeholder-${typeName}`,
-      name: typeName,
-      price: typeDetails.price,
-      description: typeDetails.description,
-      availableRooms: 0,
-      bookedCount,
-      defaultGuests: typeDetails.defaultGuests,
-      isActive: true,
-      isPlaceholder: true
-    };
-  });
-
-  const filteredRooms = aggregatedRooms.filter(room => 
+  const filteredRooms = aggregatedRooms.filter(room =>
     (room.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (room.description || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredBookings = bookings.filter(booking => {
-    const nameMatch = (booking.fullName || booking.guestName || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const roomMatch = booking.room && (booking.room.name || '').toLowerCase().includes(searchTerm.toLowerCase());
-    return nameMatch || roomMatch;
+    const fullName = booking.fullName || booking.guestName || '';
+    const roomName = booking.room?.name || '';
+    return fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           roomName.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
-  const totalUnits = Object.values(BASE_COUNTS).reduce((a, b) => a + b, 0) + rooms.reduce((acc, room) => acc + (room.availableRooms || 0), 0);
-  const activeBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in').length;
+  const totalUnits = 10;
+  const activeBookings = bookings.filter(b =>
+    !['cancelled', 'rejected', 'checked-out'].includes(String(b.status || '').toLowerCase())
+  ).length;
 
   const getStatusBadge = (status) => {
     if (!status) return <span className="admin-rooms__status-badge admin-rooms__status-badge--maintenance">Unknown</span>;
@@ -168,22 +205,6 @@ export function ReceptionRooms() {
             <p className="text-slate-300 mt-2 max-w-2xl">
               View live hotel stock, track active reservations, and manage guest bookings from one clean dashboard.
             </p>
-            <div className="flex flex-wrap gap-3 mt-5">
-              <Link
-                to="/reception/bookings"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
-              >
-                <Calendar className="w-4 h-4 text-[#D4AF37]" />
-                View Bookings
-              </Link>
-              <Link
-                to="/reception/wedding"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
-              >
-                <Heart className="w-4 h-4 text-[#D4AF37]" />
-                Wedding Events
-              </Link>
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
@@ -246,6 +267,12 @@ export function ReceptionRooms() {
       <div className="admin-rooms__panel">
         <div className="admin-rooms__tab-container">
           <button 
+            className={`admin-rooms__tab ${activeTab === 'book' ? 'admin-rooms__tab--active' : ''}`}
+            onClick={() => setActiveTab('book')}
+          >
+            Book a Room
+          </button>
+          <button 
             className={`admin-rooms__tab ${activeTab === 'manage' ? 'admin-rooms__tab--active' : ''}`}
             onClick={() => setActiveTab('manage')}
           >
@@ -260,23 +287,29 @@ export function ReceptionRooms() {
         </div>
 
         {/* Search & Filters */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder={activeTab === 'manage' ? "Search rooms by type..." : "Search bookings by guest..."}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        {activeTab !== 'book' && (
+          <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder={activeTab === 'manage' ? "Search rooms by type..." : "Search bookings by guest..."}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Content */}
         <div className="admin-rooms__table-container">
           {loading ? (
             <div className="p-12 text-center text-slate-500">Loading...</div>
+          ) : activeTab === 'book' ? (
+            <div className="p-6 bg-[#F8FAFC]">
+              <Rooms onBook={onBook} isLoggedIn={isLoggedIn} hideHeader={true} />
+            </div>
           ) : activeTab === 'manage' ? (
             <table className="admin-rooms__table">
               <thead>
@@ -289,11 +322,9 @@ export function ReceptionRooms() {
               </thead>
               <tbody>
                 {filteredRooms.map(room => {
-                  const baseCount = BASE_COUNTS[room.name] || 0;
-                  const addedCount = room.availableRooms || 0;
+                  const totalInStock = room.totalRooms || 0;
+                  const freeCount = room.availableRooms || 0;
                   const bookedCount = room.bookedCount || 0;
-                  const totalInStock = baseCount + addedCount + bookedCount;
-                  const freeCount = baseCount + addedCount;
                   const isExpanded = expandedTypes.has(room.name);
 
                   return (
@@ -383,32 +414,84 @@ export function ReceptionRooms() {
                   <th>Guests</th>
                   <th>Status</th>
                   <th>Total Amount</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredBookings.map(booking => (
-                  <tr key={booking._id || Math.random()}>
+                  <tr key={booking._id}>
                     <td>
                       <div className="flex flex-col">
-                        <span className="font-semibold text-slate-900">{booking.fullName || booking.guestName || 'Unknown'}</span>
-                        <span className="text-xs text-slate-500">{booking.email || 'No email'}</span>
+                        <span className="font-semibold text-slate-900">{booking.fullName}</span>
+                        <span className="text-xs text-slate-500">{booking.email}</span>
                       </div>
                     </td>
-                    <td>{booking.room?.name || 'N/A'}</td>
                     <td>
-                      <div className="flex flex-col text-xs">
-                        <span className="font-medium text-blue-600">IN: {booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString() : 'N/A'}</span>
-                        <span className="font-medium text-red-600">OUT: {booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : 'N/A'}</span>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{booking.room?.name || 'N/A'}</span>
+                        {booking.decorationItems && booking.decorationItems.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {booking.decorationItems.map((item, idx) => (
+                              <span 
+                                key={idx} 
+                                className="text-[9px] px-1.5 py-0.5 bg-pink-50 text-pink-600 border border-pink-100 rounded-md font-bold uppercase tracking-wider"
+                              >
+                                {item}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </td>
-                    <td>{booking.guests || 1}</td>
+                    <td>
+                      <div className="flex flex-col gap-1.5">
+                        {new Date(booking.checkInDate).toLocaleDateString() === new Date(booking.checkOutDate).toLocaleDateString() && 
+                         booking.checkInType === booking.checkOutType ? (
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="font-bold text-slate-900 text-[11px]">
+                              {new Date(booking.checkInDate).toLocaleDateString()}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-tighter ${
+                              booking.checkInType === 'Day' 
+                                ? 'bg-orange-50 text-orange-600 border-orange-100' 
+                                : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                            }`}>
+                              ONLY {booking.checkInType}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-slate-400">IN:</span>
+                              <span className="text-[11px] font-bold text-slate-900">{new Date(booking.checkInDate).toLocaleDateString()}</span>
+                              <span className="px-1 py-0.5 bg-blue-50 text-[9px] text-blue-600 border border-blue-100 rounded font-bold uppercase">{booking.checkInType || 'Day'}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-slate-400">OUT:</span>
+                              <span className="text-[11px] font-bold text-slate-900">{new Date(booking.checkOutDate).toLocaleDateString()}</span>
+                              <span className="px-1 py-0.5 bg-red-50 text-[9px] text-red-600 border border-red-100 rounded font-bold uppercase">{booking.checkOutType || 'Night'}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td>{booking.guests}</td>
                     <td>{getStatusBadge(booking.status)}</td>
-                    <td><span className="font-bold text-slate-900">Rs. {(booking.totalPrice || booking.totalAmount || 0).toLocaleString()}</span></td>
+                    <td><span className="font-bold text-slate-900">Rs. {booking.totalPrice.toLocaleString()}</span></td>
+                    <td className="text-right">
+                      <button 
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        title="Delete Booking"
+                        onClick={() => handleDeleteBooking(booking._id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filteredBookings.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="p-8 text-center text-slate-500">No bookings found.</td>
+                    <td colSpan="7" className="p-8 text-center text-slate-500">No bookings found.</td>
                   </tr>
                 )}
               </tbody>

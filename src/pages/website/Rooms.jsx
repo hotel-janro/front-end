@@ -3,122 +3,196 @@ import React, { useState, useEffect } from "react";
 import { RoomCard } from "../../components/website/RoomCard.jsx";
 import { apiFetch } from "../../api";
 
-const ORIGINAL_DESIGN = [
-  {
-    _id: "standard",
-    name: "Standard Room",
-    price: 5000,
-    description: "Comfortable and elegant, our Standard Room features a king-size bed, work desk, and modern amenities for a pleasant stay.",
-    availableRooms: 6,
-    amenities: ["King-size bed", "Work desk", "WiFi", "AC", "TV"],
-    image: "https://images.unsplash.com/photo-1759223198981-661cadbbff36?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBob3RlbCUyMHN1aXRlJTIwYmVkcm9vbXxlbnwxfHx8fDE3NzI0NDEzMjN8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  },
-  {
-    _id: "family",
-    name: "Family Suite",
-    price: 10000,
-    description: " Designed for families, featuring Twin & Double Beds, a play area, kid-friendly amenities and Balcony,perfect for a relaxing stay ",
-    availableRooms: 2,
-    amenities: ["Two bedrooms", "Play area", "Kid-friendly amenities", "Connecting rooms", "WiFi", "AC"],
-    image: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-  },
-  {
-    _id: "honeymoon",
-    name: "Honeymoon Suite",
-    price: 7500,
-    description: "Experience luxury and romance in our Honeymoon Suite, specially Designed for couples to enjoy a comfortable and memorable stay with elegant interiors and relaxing facilities. ",
-    availableRooms: 2,
-    amenities: ["Private pool", "Candlelit dining", "Rose petal turndown", "Couples spa", "WiFi", "AC"],
-    image: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-  },
-];
+// Flexible name helpers — strips all non-letters and lowercases before comparing
+// so "A/C Room", "AC Room", "A C Room" all match "acroom"
+const normalizeRoomName = (name) =>
+  (name || "").toLowerCase().replace(/[^a-z]/g, "");
 
-export function Rooms({ onBook, isLoggedIn = false }) {
-  const [rooms, setRooms] = useState(ORIGINAL_DESIGN);
+// Standard Room variants
+const isAcRoomName     = (name) => normalizeRoomName(name) === "acroom";
+const isNonAcRoomName  = (name) => normalizeRoomName(name) === "nonacroom";
+const isStdRoomName    = (name) => normalizeRoomName(name) === "standardroom";
+
+// Family Room variants  — matches "Family Room AC", "Family AC Room", "Family Room Non-AC" etc.
+const isFamilyAcName   = (name) => {
+  const n = normalizeRoomName(name);
+  return n.includes("family") && n.includes("ac") && !n.includes("nonac") && !n.includes("nonfamily");
+};
+const isFamilyNonAcName = (name) => {
+  const n = normalizeRoomName(name);
+  return n.includes("family") && (n.includes("nonac") || (n.includes("non") && n.includes("ac")));
+};
+const isFamilyRoomName = (name) => {
+  const n = normalizeRoomName(name);
+  return n === "familyroom" || n === "familysuite";
+};
+
+const isPhotoLocName   = (name) => normalizeRoomName(name) === "photolocation";
+
+// Is this room a variant that should be hidden (merged into a parent card)?
+const isHiddenVariant = (name) =>
+  isAcRoomName(name) || isNonAcRoomName(name) ||
+  isStdRoomName(name) ||
+  isFamilyAcName(name) || isFamilyNonAcName(name) ||
+  isFamilyRoomName(name);
+
+export function Rooms({ onBook, isLoggedIn = false, hideHeader = false }) {
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const syncCounts = async () => {
+    const fetchRooms = async () => {
       try {
         const response = await apiFetch("/rooms");
-        if (response.success && response.data && response.data.length > 0) {
-          // Update ONLY the counts in our original design
-          const updatedRooms = ORIGINAL_DESIGN.map(designRoom => {
-            // Find all backend entries matching this room type by name
-            const backendRoomsOfType = response.data.filter(r =>
-              r.name?.toLowerCase().trim() === designRoom.name?.toLowerCase().trim()
-            );
-
-            // Get the first backend room to use its real MongoDB _id
-            const firstBackendRoom = backendRoomsOfType[0];
-
-            // Use backend availability if available, otherwise fall back to design default
-            const backendAvailable = backendRoomsOfType.reduce((sum, r) => sum + (r.availableRooms || 0), 0);
-
-            return {
-              ...designRoom,
-              _id: firstBackendRoom?._id || designRoom._id,
-              price: firstBackendRoom?.price || designRoom.price,
-              amenities: firstBackendRoom?.amenities || designRoom.amenities,
-              availableRooms: firstBackendRoom ? backendAvailable : designRoom.availableRooms
-            };
-          });
-          setRooms(updatedRooms);
+        if (response.success && response?.data) {
+          // Remove photo location entries
+          const filtered = (response.data || []).filter(
+            (r) => !isPhotoLocName(r.name)
+          );
+          setRooms(filtered);
         }
       } catch (error) {
-        console.error("Using default counts due to fetch error:", error);
+        console.error("Error fetching rooms:", error);
+      } finally {
+        setLoading(false);
       }
     };
-    syncCounts();
+    fetchRooms();
   }, []);
+
+  // Build display list: merge AC + Non-AC into single cards per room type
+  const buildDisplayRooms = () => {
+    // Standard Room variants
+    const acRoom    = rooms.find((r) => isAcRoomName(r.name));
+    const nonAcRoom = rooms.find((r) => isNonAcRoomName(r.name));
+    const stdRoom   = rooms.find((r) => isStdRoomName(r.name));
+
+    // Family Room variants
+    const familyAcRoom    = rooms.find((r) => isFamilyAcName(r.name));
+    const familyNonAcRoom = rooms.find((r) => isFamilyNonAcName(r.name));
+    const plainFamilyRoom = rooms.find((r) => isFamilyRoomName(r.name));
+
+    const display = [];
+
+    // --- Standard Room card ---
+    if (acRoom || nonAcRoom) {
+      const base = acRoom || nonAcRoom;
+      display.push({
+        ...base,
+        name: "Standard Room",
+        _isMergedStandard: true,
+        _acVariants: { ac: acRoom || null, nonAc: nonAcRoom || null },
+      });
+    } else if (stdRoom) {
+      const acRoomVirtual = {
+        ...stdRoom,
+        _isVirtualAc: true
+      };
+      const nonAcRoomVirtual = {
+        ...stdRoom,
+        price: Math.max(0, stdRoom.price - 1000), // AC premium is 1000 LKR (8500 vs 7500)
+        _isVirtualNonAc: true
+      };
+      display.push({
+        ...stdRoom,
+        name: "Standard Room",
+        _isMergedStandard: true,
+        _acVariants: { ac: acRoomVirtual, nonAc: nonAcRoomVirtual },
+      });
+    }
+
+    // --- Family Room card ---
+    if (familyAcRoom || familyNonAcRoom) {
+      const base = familyAcRoom || familyNonAcRoom;
+      display.push({
+        ...base,
+        name: "Family Room",
+        _isMergedStandard: true,
+        _acVariants: { ac: familyAcRoom || null, nonAc: familyNonAcRoom || null },
+      });
+    } else if (plainFamilyRoom) {
+      const acRoomVirtual = {
+        ...plainFamilyRoom,
+        _isVirtualAc: true
+      };
+      const nonAcRoomVirtual = {
+        ...plainFamilyRoom,
+        price: Math.max(0, plainFamilyRoom.price - 2000), // AC premium is 2000 LKR
+        _isVirtualNonAc: true
+      };
+      display.push({
+        ...plainFamilyRoom,
+        name: "Family Room",
+        _isMergedStandard: true,
+        _acVariants: { ac: acRoomVirtual, nonAc: nonAcRoomVirtual },
+      });
+    }
+
+    // Append all other rooms (Honeymoon Suite, etc.) — skip all merged variants
+    rooms.forEach((r) => {
+      if (!isHiddenVariant(r.name)) {
+        display.push(r);
+      }
+    });
+
+    // Sort by preferred order
+    display.sort((a, b) => {
+      const getPreferredIndex = (name) => {
+        if (name === "Standard Room") return 0;
+        if (name === "Family Suite" || name === "Family Room") return 1;
+        if (name === "Honeymoon Suite" || name === "Wedding Couple Suite") return 2;
+        return 99;
+      };
+      const ia = getPreferredIndex(a.name);
+      const ib = getPreferredIndex(b.name);
+      return ia - ib;
+    });
+
+    return display;
+  };
 
   const handleRoomBook = (bookingData) => {
     const roomId = bookingData?.room?._id;
-    if (!roomId) {
-      onBook?.(bookingData);
-      return;
-    }
+    if (!roomId) { onBook?.(bookingData); return; }
 
     const selectedRoom = rooms.find((room) => room._id === roomId);
-    if (!selectedRoom) {
-      onBook?.(bookingData);
-      return;
-    }
+    if (!selectedRoom) { onBook?.(bookingData); return; }
 
     if (selectedRoom.availableRooms <= 0) {
       alert("Sorry, this room type is fully booked.");
       return;
     }
 
-    const updatedRoom = {
-      ...selectedRoom,
-      availableRooms: selectedRoom.availableRooms - 1,
-    };
-
-    setRooms((prevRooms) =>
-      prevRooms.map((room) => (room._id === roomId ? updatedRoom : room))
-    );
-
-    onBook?.({
-      ...bookingData,
-      room: updatedRoom,
-    });
+    const updatedRoom = { ...selectedRoom, availableRooms: selectedRoom.availableRooms - 1 };
+    setRooms((prev) => prev.map((r) => (r._id === roomId ? updatedRoom : r)));
+    onBook?.({ ...bookingData, room: updatedRoom });
   };
+
+  const displayRooms = buildDisplayRooms();
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      <div className="bg-[#0F172A] py-20 text-center">
-        <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Accommodations</p>
-        <h1 className="text-4xl md:text-5xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-          Rooms & Suites
-        </h1>
-        <p className="text-gray-400 mt-4 max-w-xl mx-auto">
-          Choose from our collection of elegantly appointed rooms and suites, each designed for ultimate comfort.
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="bg-[#0F172A] py-20 text-center">
+          <p className="text-[#D4AF37] tracking-[0.3em] uppercase text-sm mb-3">Accommodations</p>
+          <h1 className="text-4xl md:text-5xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Rooms &amp; Suites
+          </h1>
+          <p className="text-gray-400 mt-4 max-w-xl mx-auto">
+            Choose from our collection of elegantly appointed rooms and suites, each designed for ultimate comfort.
+          </p>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {rooms.map((room) => (
-            <RoomCard key={room._id} room={room} onBook={handleRoomBook} isLoggedIn={isLoggedIn} />
+          {displayRooms.map((room) => (
+            <RoomCard
+              key={room._id}
+              room={room}
+              acVariants={room._isMergedStandard ? room._acVariants : null}
+              onBook={handleRoomBook}
+              isLoggedIn={isLoggedIn}
+            />
           ))}
         </div>
       </div>
