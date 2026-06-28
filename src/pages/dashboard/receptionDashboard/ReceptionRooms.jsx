@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { 
   Bed, 
   Plus, 
@@ -179,8 +178,10 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
            roomName.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
-  const totalUnits = Object.values(BASE_COUNTS).reduce((a, b) => a + b, 0) + rooms.reduce((acc, room) => acc + (room.availableRooms || 0), 0);
-  const activeBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in').length;
+  const totalUnits = 10;
+  const activeBookings = bookings.filter(b =>
+    !['cancelled', 'rejected', 'checked-out'].includes(String(b.status || '').toLowerCase())
+  ).length;
 
   const getStatusBadge = (status) => {
     if (!status) return <span className="admin-rooms__status-badge admin-rooms__status-badge--maintenance">Unknown</span>;
@@ -204,22 +205,6 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
             <p className="text-slate-300 mt-2 max-w-2xl">
               View live hotel stock, track active reservations, and manage guest bookings from one clean dashboard.
             </p>
-            <div className="flex flex-wrap gap-3 mt-5">
-              <Link
-                to="/reception/bookings"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
-              >
-                <Calendar className="w-4 h-4 text-[#D4AF37]" />
-                View Bookings
-              </Link>
-              <Link
-                to="/reception/wedding"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-white"
-              >
-                <Heart className="w-4 h-4 text-[#D4AF37]" />
-                Wedding Events
-              </Link>
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
