@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, UserPlus, Users as UsersIcon, Briefcase, DollarSign, X } from 'lucide-react';
-import { staffMembers } from '../../../data/newMockData.js';
 import { useSettings } from '../../../context/SettingsContext.jsx';
+import { apiFetch } from '../../../api';
 import './AdminStaff.css';
 const calculateDuration = (start, end) => {
   if (!start || !end) return 0;
@@ -14,7 +14,7 @@ const calculateDuration = (start, end) => {
 
 export function AdminStaff() {
   const { settings } = useSettings();
-  const [staffList, setStaffList] = useState(staffMembers);
+  const [staffList, setStaffList] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -48,21 +48,10 @@ export function AdminStaff() {
   useEffect(() => {
     const fetchStaff = async () => {
       try {
-        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        const token = localStorage.getItem('janro_token');
-
-        const res = await fetch(`${API_BASE}/api/auth/users`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }
-        });
-
-        const data = await res.json();
-        if (res.ok && data.success && data.data) {
+        const data = await apiFetch('/auth/users');
+        if (data.success && data.data) {
           // Filter to show only staff/non-customer users
-          const staffRoles = ['staff', 'manager', 'receptionist', 'chef', 'waiter', 'housekeeping', 'security', 'maintenance'];
+          const staffRoles = ['staff', 'manager', 'receptionist', 'chef', 'waiter', 'housekeeping', 'security', 'maintenance', 'cashier'];
           const filteredStaff = data.data.filter((u) => staffRoles.includes(u.role?.toLowerCase()));
           
           // Map API data to match frontend format with id field
@@ -89,11 +78,10 @@ export function AdminStaff() {
             additionalHours: u.additionalHours || 0
           }));
 
-          setStaffList(formattedStaff.length > 0 ? formattedStaff : staffMembers);
+          setStaffList(formattedStaff);
         }
       } catch (err) {
         console.error('Failed to fetch staff:', err);
-        // Keep mock data as fallback
       }
     };
 
@@ -210,9 +198,6 @@ export function AdminStaff() {
       return;
     }
 
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const token = localStorage.getItem('janro_token');
-
     // If this staff doesn't have an _id (mocked), update locally
     if (!editStaff._id) {
       setStaffList((prev) => prev.map((s) => (s.id === editStaff.id ? { ...s, ...editStaff } : s)));
@@ -243,17 +228,12 @@ export function AdminStaff() {
         additionalHours: Number(editStaff.additionalHours) || 0
       };
 
-      const res = await fetch(`${API_BASE}/api/auth/users/${editStaff._id}`, {
+      const data = await apiFetch(`/auth/users/${editStaff._id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
         body: JSON.stringify(body)
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Update failed');
+      if (!data.success) throw new Error(data.message || 'Update failed');
 
       const updated = data.data;
       setStaffList((prev) => prev.map((s) => (s._id === updated._id || s.id === editStaff.id ? { ...s, ...{
@@ -280,8 +260,6 @@ export function AdminStaff() {
   };
 
   const handleToggleStatus = async (staff) => {
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const token = localStorage.getItem('janro_token');
     const newStatus = staff.status === 'Active' ? 'Inactive' : 'Active';
 
     if (!staff._id) {
@@ -290,16 +268,11 @@ export function AdminStaff() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/users/${staff._id}`, {
+      const data = await apiFetch(`/auth/users/${staff._id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
         body: JSON.stringify({ status: newStatus })
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Status update failed');
+      if (!data.success) throw new Error(data.message || 'Status update failed');
 
       setStaffList((prev) => prev.map((s) => (s._id === staff._id ? { ...s, status: newStatus } : s)));
     } catch (err) {
@@ -309,8 +282,6 @@ export function AdminStaff() {
 
   const handleDeleteStaff = async (staff) => {
     if (!confirm(`Delete ${staff.name}? This action cannot be undone.`)) return;
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const token = localStorage.getItem('janro_token');
 
     if (!staff._id) {
       setStaffList((prev) => prev.filter((s) => s.id !== staff.id));
@@ -318,15 +289,10 @@ export function AdminStaff() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/users/${staff._id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
+      const data = await apiFetch(`/auth/users/${staff._id}`, {
+        method: 'DELETE'
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Delete failed');
+      if (!data.success) throw new Error(data.message || 'Delete failed');
 
       setStaffList((prev) => prev.filter((s) => s._id !== staff._id));
     } catch (err) {
@@ -358,8 +324,6 @@ export function AdminStaff() {
         return;
       }
     }
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const token = localStorage.getItem('janro_token');
 
     (async () => {
       try {
@@ -385,17 +349,12 @@ export function AdminStaff() {
           additionalHours: Number(newStaff.additionalHours) || 0
         };
 
-        const res = await fetch(`${API_BASE}/api/auth/users`, {
+        const data = await apiFetch('/auth/users', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
           body: JSON.stringify(body)
         });
 
-        const data = await res.json();
-        if (!res.ok || !data.success) {
+        if (!data.success) {
           throw new Error(data.message || 'Failed to add staff');
         }
 

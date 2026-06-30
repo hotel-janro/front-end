@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { Dumbbell, CreditCard, Users, DollarSign, Plus, Search, Trash2, Download, Check, X, Edit, Calendar, UserPlus } from 'lucide-react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { Dumbbell, CreditCard, Users, DollarSign, Plus, Search, Trash2, Download, Check, X, Edit, Calendar, UserPlus, QrCode, ShieldCheck, ShieldAlert, Clock, ArrowRight, Camera, Play } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -33,7 +33,7 @@ export function AdminGym() {
   const { settings } = useSettings();
   
   // Navigation tab
-  const [activeTab, setActiveTab] = useState('passes'); // 'passes' or 'members'
+  const [activeTab, setActiveTab] = useState('passes'); // 'passes', 'members', or 'gate'
   
   // State for Passes
   const [passes, setPasses] = useState([]);
@@ -60,6 +60,16 @@ export function AdminGym() {
   const [editMemberId, setEditMemberId] = useState(null);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [regStep, setRegStep] = useState(1);
+
+  // State for Entrance Gate / QR Scanner
+  const [attendance, setAttendance] = useState([]);
+  const [qrInput, setQrInput] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
+  const [attendanceFetchError, setAttendanceFetchError] = useState('');
+  const [cameraActive, setCameraActive] = useState(true);
+  const scanInputRef = useRef(null);
 
   // Fetch Passes
   const fetchPasses = async () => {
@@ -99,10 +109,90 @@ export function AdminGym() {
     }
   };
 
+  // Fetch Attendance Logs
+  const fetchAttendance = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/gym/attendance`);
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Failed to load attendance');
+      setAttendance(result.attendance || []);
+      setAttendanceFetchError('');
+    } catch (error) {
+      setAttendanceFetchError(error.message || 'Could not load attendance logs');
+    } finally {
+      setIsAttendanceLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchPasses();
     fetchMembers();
+    fetchAttendance();
   }, []);
+
+  // Refocus scan input when gate tab is activated
+  useEffect(() => {
+    if (activeTab === 'gate' && scanInputRef.current) {
+      scanInputRef.current.focus();
+    }
+  }, [activeTab]);
+
+  // Audio feedback for scan results
+  const playVerificationSound = (isSuccess) => {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      const audioCtx = new AudioContextClass();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      if (isSuccess) {
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.12);
+      } else {
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(130, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.18, audioCtx.currentTime);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.35);
+      }
+    } catch (e) {
+      console.warn('Audio Context blocked', e);
+    }
+  };
+
+  const handleScanSubmit = async (event) => {
+    if (event) event.preventDefault();
+    if (!qrInput.trim()) return;
+    setIsVerifying(true);
+    setScanResult(null);
+    try {
+      const response = await fetch(`${API_BASE}/api/gym/verify-scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qrCodeKey: qrInput.trim() })
+      });
+      const result = await response.json();
+      const isSuccess = response.ok && result.success;
+      playVerificationSound(isSuccess);
+      setScanResult({ success: isSuccess, message: result.message || 'Verification failed.' });
+      if (isSuccess) {
+        setAttendance((prev) => [result.attendance, ...prev]);
+        setTimeout(() => setScanResult(null), 4000);
+      }
+      setQrInput('');
+      setTimeout(() => { if (scanInputRef.current) scanInputRef.current.focus(); }, 50);
+    } catch (error) {
+      playVerificationSound(false);
+      setScanResult({ success: false, message: error.message || 'Network connection failed.' });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   // Passes Handlers
   const handleFormChange = (event) => {
@@ -409,6 +499,23 @@ export function AdminGym() {
           <Users className="w-5 h-5" />
           Gym Members Registry ({members.length})
         </button>
+
+        <button
+          onClick={() => setActiveTab('gate')}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'gate' 
+              ? 'border-emerald-500 text-emerald-700' 
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <QrCode className="w-5 h-5" />
+          Entrance Gate
+          {attendance.filter(l => new Date(l.checkInTime).toDateString() === new Date().toDateString()).length > 0 && (
+            <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {attendance.filter(l => new Date(l.checkInTime).toDateString() === new Date().toDateString()).length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* RENDER PASSES TAB */}
@@ -707,6 +814,184 @@ export function AdminGym() {
               {!isMembersLoading && filteredMembers.length === 0 && (
                 <div className="py-12 text-center text-slate-400 font-medium">No registered gym users found.</div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ENTRANCE GATE TAB */}
+      {activeTab === 'gate' && (
+        <div className="space-y-6">
+          {/* Stats row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                <Users className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-medium">Visited Today</p>
+                <h3 className="text-2xl font-bold text-slate-800">
+                  {attendance.filter(l => new Date(l.checkInTime).toDateString() === new Date().toDateString()).length}
+                </h3>
+              </div>
+            </div>
+            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-medium">Total Check-ins</p>
+                <h3 className="text-2xl font-bold text-slate-800">{attendance.length}</h3>
+              </div>
+            </div>
+            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                <Dumbbell className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-medium">Active Passes</p>
+                <h3 className="text-2xl font-bold text-slate-800">{passes.filter(p => p.status === 'Active').length}</h3>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Scanner Console */}
+            <div className="lg:col-span-7 flex flex-col gap-6">
+              {/* Camera viewfinder */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between aspect-video group">
+                {cameraActive && (
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent animate-pulse pointer-events-none" />
+                )}
+                <div className="flex justify-between items-center z-10">
+                  <span className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-white">
+                    <span className={`w-2 h-2 rounded-full ${cameraActive ? 'bg-emerald-500 animate-ping' : 'bg-red-500'}`} />
+                    {cameraActive ? 'CAMERA ACTIVE' : 'CAMERA STANDBY'}
+                  </span>
+                  <button
+                    onClick={() => setCameraActive(!cameraActive)}
+                    className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl text-slate-300 transition-colors"
+                    title="Toggle Viewfinder"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex flex-col items-center justify-center py-6 flex-grow z-10">
+                  {cameraActive ? (
+                    <div className="w-44 h-44 border-2 border-dashed border-[#D4AF37] rounded-3xl flex items-center justify-center relative animate-pulse">
+                      <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#D4AF37] rounded-tl" />
+                      <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#D4AF37] rounded-tr" />
+                      <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#D4AF37] rounded-bl" />
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#D4AF37] rounded-br" />
+                      <div className="w-full h-0.5 bg-[#D4AF37]/80 absolute top-1/2 left-0 shadow-lg shadow-[#D4AF37]/50" style={{ transform: 'translateY(-50%)' }} />
+                      <QrCode className="w-16 h-16 text-[#D4AF37]/45" />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-slate-500 py-10">
+                      <Play className="w-10 h-10 text-slate-600" />
+                      <p className="text-xs font-semibold">Camera is in Standby Mode</p>
+                    </div>
+                  )}
+                </div>
+                <div className="text-center z-10">
+                  <p className="text-xs font-semibold text-slate-400">Position QR Code in scanner box for automatic entry check-in</p>
+                </div>
+              </div>
+
+              {/* Manual / Laser Scan Form */}
+              <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm space-y-4">
+                <h3 className="text-sm font-bold text-slate-700">Laser Scanner / Manual Code Entry</h3>
+                <form onSubmit={handleScanSubmit} className="flex gap-3">
+                  <div className="relative flex-1">
+                    <QrCode className="absolute top-1/2 left-3 w-5 h-5 text-slate-400 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      ref={scanInputRef}
+                      placeholder="Scan pass Barcode/QR or enter Key..."
+                      value={qrInput}
+                      onChange={(e) => setQrInput(e.target.value)}
+                      disabled={isVerifying}
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm font-semibold tracking-wider text-slate-800"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isVerifying}
+                    className="px-6 py-3 bg-[#0F172A] hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition-colors flex items-center gap-1 shadow-md"
+                  >
+                    {isVerifying ? 'Checking...' : <><span>Verify</span><ArrowRight className="w-4 h-4" /></>}
+                  </button>
+                </form>
+              </div>
+
+              {/* Scan Result */}
+              {scanResult && (
+                <div className={`p-6 rounded-2xl border transition-all ${
+                  scanResult.success
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-lg shadow-emerald-500/10'
+                    : 'bg-red-50 border-red-200 text-red-800 shadow-lg shadow-red-500/10'
+                }`}>
+                  <div className="flex items-start gap-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                      scanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                    }`}>
+                      {scanResult.success ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold uppercase tracking-wider">
+                        {scanResult.success ? 'Access Granted' : 'Access Denied'}
+                      </h3>
+                      <p className="text-sm font-semibold mt-1 text-slate-700">{scanResult.message}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {attendanceFetchError && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold">
+                  {attendanceFetchError}
+                </div>
+              )}
+            </div>
+
+            {/* Attendance Log */}
+            <div className="lg:col-span-5">
+              <div className="bg-white border border-slate-100 rounded-3xl shadow-sm flex flex-col h-full overflow-hidden min-h-[480px]">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <h3 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-[#D4AF37]" />
+                    Recent Check-Ins Today
+                  </h3>
+                  <span className="text-[10px] bg-slate-200/80 px-2 py-1 rounded text-slate-600 font-bold uppercase tracking-wider">Live Log</span>
+                </div>
+                <div className="divide-y divide-slate-100 flex-1 overflow-y-auto">
+                  {attendance.map((log) => (
+                    <div key={log._id} className="p-4 hover:bg-slate-50/30 transition-colors flex justify-between items-center gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
+                          <Dumbbell className="w-4 h-4 text-slate-500" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-800">{log.guestName}</h4>
+                          <p className="text-[10px] text-slate-400 font-semibold uppercase mt-0.5 tracking-wider">{log.passType}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-bold text-slate-600 block">{log.roomNumber ? `Room ${log.roomNumber}` : 'Walk-in'}</span>
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">
+                          {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {isAttendanceLoading && (
+                    <div className="py-12 text-center text-slate-500 text-xs font-medium">Loading activity...</div>
+                  )}
+                  {!isAttendanceLoading && attendance.length === 0 && (
+                    <div className="py-12 text-center text-slate-400 text-xs font-medium">No check-ins registered today.</div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
