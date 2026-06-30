@@ -238,11 +238,16 @@ function AppInner() {
         </div>
     );
 }
+import { Toaster } from "sonner";
+
 export default function App() {
-    return (<SettingsProvider>
+    return (
+      <SettingsProvider>
         <BrowserRouter>
           <ScrollToTop />
           <AppInner />
+          <Toaster position="top-right" richColors />
         </BrowserRouter>
-      </SettingsProvider>);
+      </SettingsProvider>
+    );
 }
