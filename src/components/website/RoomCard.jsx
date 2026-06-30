@@ -18,7 +18,9 @@ const getRoomOptionPrice = (roomName, isAc, stayMode) => {
       return stayMode === 'onlyNight' ? 5500 : 6750;
     }
   } else if (isHoneymoon) {
-    return 9500;
+    if (stayMode === 'onlyDay') return 9500;
+    if (stayMode === 'onlyNight') return 14000;
+    return 17000;
   } else {
     // Standard Room
     if (isAc) {
@@ -56,7 +58,8 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
   const [stayMode, setStayMode] = useState("onlyDay"); // onlyDay, onlyNight, custom
   const isStandardRoom = (room.name || "").toLowerCase().includes("standard");
   const isFamilySuite = (room.name || "").toLowerCase().includes("family");
-  const isHoneymoonSuite = (room.name || "").toLowerCase().includes("honeymoon");
+  const isHoneymoonSuite = (room.name || "").toLowerCase().includes("honeymoon") || (room.name || "").toLowerCase().includes("wedding couple");
+  const hideCheckoutFields = isHoneymoonSuite;
 
   // AC/Non-AC variant selector (only for merged Standard Room cards)
   const hasAcVariants = !!acVariants && (acVariants.ac || acVariants.nonAc);
@@ -69,7 +72,58 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
   const isAc = hasAcVariants
     ? selectedAcType === "ac"
     : !(activeVariantRoom.name || "").toLowerCase().includes("non");
-  const displayRoomPrice = getRoomOptionPrice(activeVariantRoom.name, isAc, stayMode);
+
+  // Determine indexes for validation and slots calculation
+  const getStartIndex = () => {
+    if (!checkIn) return 0;
+    const start = new Date(checkIn);
+    return (Math.floor(start.getTime() / (1000 * 60 * 60 * 24)) * 2) + (checkInType === "Night" ? 1 : 0);
+  };
+
+  const getEndIndex = () => {
+    if (!checkOut) return 0;
+    const end = new Date(checkOut);
+    return (Math.floor(end.getTime() / (1000 * 60 * 60 * 24)) * 2) + (checkOutType === "Night" ? -1 : 0);
+  };
+
+  const startIndex = getStartIndex();
+  const endIndex = getEndIndex();
+  const isDateRangeInvalid = stayMode === "custom" && checkIn && checkOut && (endIndex < startIndex);
+
+  const calculateSlots = () => {
+    if (!checkIn || !checkOut) return 1;
+    if (isHoneymoonSuite) return 1;
+    // Single-period stays are always exactly 1 slot
+    if (stayMode === "onlyDay" || stayMode === "onlyNight") return 1;
+    // Custom multi-day calculation
+    return Math.max(1, endIndex - startIndex + 1);
+  };
+
+  // When stayMode is custom: initially, if checkIn/checkOut is not set or range is invalid,
+  // we display ONLY DAY price, and slots = 1.
+  // Otherwise, we calculate custom price and calculate correct slots.
+  const hasSelectedAllCustomDates = stayMode === "custom" && checkIn && checkOut && !isDateRangeInvalid;
+
+  const getCalculatedStayMode = () => {
+    if (stayMode === "custom" && hasSelectedAllCustomDates) {
+      const calculatedSlots = calculateSlots();
+      if (calculatedSlots === 1) {
+        if (checkInType === "Night" && checkOutType === "Night") {
+          return "onlyNight";
+        } else {
+          return "onlyDay";
+        }
+      }
+      return "custom";
+    }
+    return "onlyDay";
+  };
+
+  const displayRoomPrice = getRoomOptionPrice(
+    activeVariantRoom.name,
+    isAc,
+    stayMode === "custom" ? getCalculatedStayMode() : stayMode
+  );
 
   const [selectedGuests, setSelectedGuests] = useState(1);
   const [selectedDecorations, setSelectedDecorations] = useState([]);
@@ -77,7 +131,7 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
     ? selectedGuests
     : isHoneymoonSuite ? 2 : (room.defaultGuests ?? 1);
   const { settings } = useSettings();
-  const formattedPrice = Number(displayRoomPrice || 0).toLocaleString("en-LK");
+  const formattedPrice = Number(getRoomOptionPrice(activeVariantRoom.name, isAc, "custom") || 0).toLocaleString("en-LK");
   const todayStr = new Date().toISOString().split("T")[0];
 
   const getNextDay = (dateStr) => {
@@ -97,20 +151,10 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
     return sum + (item ? item.price : 0);
   }, 0);
 
-  const calculateSlots = () => {
-    if (!checkIn || !checkOut) return 1;
-    // Single-period stays are always exactly 1 slot
-    if (stayMode === "onlyDay" || stayMode === "onlyNight") return 1;
-    // Custom multi-day calculation
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    const startIndex = (Math.floor(start.getTime() / (1000 * 60 * 60 * 24)) * 2) + (checkInType === "Night" ? 1 : 0);
-    const endIndex = (Math.floor(end.getTime() / (1000 * 60 * 60 * 24)) * 2) + (checkOutType === "Night" ? 1 : 0);
-    return Math.max(1, endIndex - startIndex + 1);
-  };
-
-  const slots = calculateSlots();
-  const grandTotal = (Number(displayRoomPrice || 0) * slots) + decorationTotal;
+  const slots = hasSelectedAllCustomDates ? calculateSlots() : 1;
+  const grandTotal = isHoneymoonSuite
+    ? (Number(getRoomOptionPrice(activeVariantRoom.name, isAc, "custom") || 0) + decorationTotal)
+    : (Number(displayRoomPrice || 0) * slots) + decorationTotal;
 
   const handleSubmitBooking = () => {
     if (!fullName || fullName.trim() === "") {
@@ -125,8 +169,12 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
       alert("Please select a check-in date.");
       return;
     }
-    if (!checkOut) {
+    if (!hideCheckoutFields && !checkOut) {
       alert("Please select a check-out date.");
+      return;
+    }
+    if (isDateRangeInvalid) {
+      alert("Check-out date/time cannot be before check-in date/time.");
       return;
     }
     if (!phone || phone.trim() === "") {
@@ -143,12 +191,12 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
       room: activeVariantRoom,
       roomId: activeVariantRoom._id || activeVariantRoom.id,
       checkIn,
-      checkOut,
+      checkOut: hideCheckoutFields ? (checkIn || todayStr) : checkOut,
       checkInType,
-      checkOutType,
+      checkOutType: hideCheckoutFields ? checkInType : checkOutType,
       stayMode,
       checkInDate: checkIn,
-      checkOutDate: checkOut,
+      checkOutDate: hideCheckoutFields ? (checkIn || todayStr) : checkOut,
       guests,
       fullName,
       email,
@@ -307,11 +355,20 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                   onChange={(e) => {
                     const newDate = e.target.value;
                     setCheckIn(newDate);
-                    // Auto-sync check-out when not in custom mode
+                    if (hideCheckoutFields) {
+                      setCheckOut(newDate);
+                    }
                     if (stayMode === "onlyDay") {
                       setCheckOut(newDate);
                     } else if (stayMode === "onlyNight") {
                       setCheckOut(getNextDay(newDate));
+                    } else if (stayMode === "custom") {
+                      if (!checkOut || checkOut < newDate) {
+                        setCheckOut(newDate);
+                      }
+                      if (checkOut === newDate || !checkOut || checkOut < newDate) {
+                        setCheckOutType("Day");
+                      }
                     }
                   }}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
@@ -331,8 +388,10 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                     }}
                     className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center ${stayMode === "onlyDay" ? "bg-white text-[#D4AF37] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                   >
-                    <span>ONLY DAY</span>
-                    <span className="text-[8px] opacity-75">9AM - 4PM</span>
+                    <span>{isHoneymoonSuite ? "ROOM ONLY" : "ONLY DAY"}</span>
+                    <span className="text-[8px] opacity-75 mt-0.5">
+                      {isHoneymoonSuite ? "Rs. 9,500" : "9AM - 4PM"}
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -344,8 +403,10 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                     }}
                     className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center ${stayMode === "onlyNight" ? "bg-white text-[#D4AF37] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                   >
-                    <span>ONLY NIGHT</span>
-                    <span className="text-[8px] opacity-75">6PM - 8AM</span>
+                    <span>{isHoneymoonSuite ? "HALF BOARD" : "ONLY NIGHT"}</span>
+                    <span className="text-[8px] opacity-75 mt-0.5">
+                      {isHoneymoonSuite ? "Rs. 14,000" : "6PM - 8AM"}
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -354,37 +415,57 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                       setCheckInType("Day");
                       setCheckOutType("Night");
                     }}
-                    className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center ${stayMode === "custom" ? "bg-white text-[#D4AF37] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                    className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center justify-center ${stayMode === "custom" ? "bg-white text-[#D4AF37] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                   >
-                    <span>CUSTOM</span>
-                    <span className="text-[8px] opacity-75">Multi-day</span>
+                    <span>{isHoneymoonSuite ? "FULL BOARD" : "CUSTOM"}</span>
+                    {isHoneymoonSuite && (
+                      <span className="text-[8px] opacity-75 mt-0.5">Rs. 17,000</span>
+                    )}
                   </button>
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                  <Calendar className="w-3 h-3" /> Check-out Date {stayMode === "custom" && <span className="text-red-500">*</span>}
-                </label>
-                <input
-                  type="date"
-                  value={checkOut}
-                  min={checkIn || todayStr}
-                  readOnly={stayMode !== "custom"}
-                  onChange={(e) => {
-                    if (stayMode === "custom") {
-                      setCheckOut(e.target.value);
-                    }
-                  }}
-                  className={`w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none ${
-                    stayMode !== "custom"
-                      ? "bg-gray-50 text-gray-400 cursor-not-allowed"
-                      : "bg-[#F8FAFC] focus:border-[#D4AF37]"
-                  }`}
-                />
-              </div>
+              {hideCheckoutFields ? (
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1 font-semibold">Check-in Time</label>
+                  <select
+                    value={checkInType}
+                    onChange={(e) => setCheckInType(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
+                  >
+                    <option value="Day">Day (9AM)</option>
+                    <option value="Night">Night (6PM)</option>
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                    <Calendar className="w-3 h-3" /> Check-out Date {stayMode === "custom" && <span className="text-red-500">*</span>}
+                  </label>
+                  <input
+                    type="date"
+                    value={checkOut}
+                    min={checkIn || todayStr}
+                    readOnly={stayMode !== "custom"}
+                    onChange={(e) => {
+                      if (stayMode === "custom") {
+                        const newOutDate = e.target.value;
+                        setCheckOut(newOutDate);
+                        if (newOutDate === checkIn) {
+                          setCheckOutType("Day");
+                        }
+                      }
+                    }}
+                    className={`w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none ${
+                      stayMode !== "custom"
+                        ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                        : "bg-[#F8FAFC] focus:border-[#D4AF37]"
+                    }`}
+                  />
+                </div>
+              )}
 
-              {stayMode === "custom" && (
+              {!hideCheckoutFields && stayMode === "custom" && (
                 <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1 duration-300">
                   <div>
                     <label className="text-xs text-gray-500 block mb-1 font-semibold">Check-in</label>
@@ -405,9 +486,17 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
                     >
                       <option value="Day">Day (4PM)</option>
-                      <option value="Night">Night (8AM)</option>
+                      {checkOut !== checkIn && (
+                        <option value="Night">Night (8AM)</option>
+                      )}
                     </select>
                   </div>
+                </div>
+              )}
+
+              {isDateRangeInvalid && (
+                <div className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2.5 animate-in fade-in duration-300">
+                  ⚠️ Check-out date/time cannot be before check-in date/time.
                 </div>
               )}
 

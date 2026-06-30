@@ -171,7 +171,12 @@ export function AdminBookings() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="space-y-1.5">
-                      {new Date(booking.checkInDate).toLocaleDateString() === new Date(booking.checkOutDate).toLocaleDateString() && 
+                      {new Date(booking.checkInDate) > new Date(booking.checkOutDate) || 
+                       (booking.startIndex !== undefined && booking.endIndex !== undefined && booking.endIndex < booking.startIndex) ? (
+                        <span className="inline-flex items-center justify-center px-2 py-1 bg-red-100 text-[10px] text-red-700 border border-red-200 rounded font-black uppercase tracking-wider">
+                          ⚠️ INVALID DATES
+                        </span>
+                      ) : new Date(booking.checkInDate).toLocaleDateString() === new Date(booking.checkOutDate).toLocaleDateString() && 
                        booking.checkInType === booking.checkOutType ? (
                         <div className="flex flex-col items-start gap-1">
                           <div className="text-slate-900 font-bold text-[11px]">

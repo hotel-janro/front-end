@@ -141,7 +141,8 @@ export function Rooms({ onBook, isLoggedIn = false, hideHeader = false }) {
         if (name === "Standard Room") return 0;
         if (name === "Family Suite" || name === "Family Room") return 1;
         if (name === "Honeymoon Suite" || name === "Wedding Couple Suite") return 2;
-        return 99;
+        // Custom room types created by admin fall here, sorted alphabetically
+        return 100;
       };
       const ia = getPreferredIndex(a.name);
       const ib = getPreferredIndex(b.name);
