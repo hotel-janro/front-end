@@ -1,5 +1,5 @@
 /* AdminRooms.jsx */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Bed, 
   Plus, 
@@ -19,9 +19,11 @@ import {
   PlusCircle,
   Home,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ImagePlus,
+  Layers
 } from 'lucide-react';
-import { apiFetch } from '../../../api';
+import { apiFetch, API_HOST } from '../../../api';
 import './AdminRooms.css';
 
 export function AdminRooms() {
@@ -33,6 +35,22 @@ export function AdminRooms() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [expandedTypes, setExpandedTypes] = useState(new Set());
+
+  // New Room Type modal state
+  const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
+  const [newTypeForm, setNewTypeForm] = useState({
+    name: '',
+    description: '',
+    price: '',
+    initialRooms: 1,
+    defaultGuests: 2,
+    amenities: '',
+    image: ''
+  });
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [newTypeSubmitting, setNewTypeSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
   
   const toggleExpand = (typeName) => {
     const newExpanded = new Set(expandedTypes);
@@ -101,6 +119,26 @@ export function AdminRooms() {
     }
   };
 
+  const hiddenRoomTypes = new Set([
+    'family suite',
+    'honeymoon suite',
+    'a/c room',
+    'ac room',
+    'non a/c room',
+    'non ac room',
+    'photo location'
+  ]);
+
+  const roomTypeOptions = [
+    'Standard Room',
+    'Family Suite',
+    'Honeymoon Suite',
+    ...new Set(rooms.map(r => r.name))
+  ].filter((type, index, array) => {
+    const normalized = String(type || '').trim().toLowerCase();
+    return !hiddenRoomTypes.has(normalized) && array.indexOf(type) === index;
+  });
+
   const handleOpenModal = (room = null, preSelectedType = '') => {
     if (room) {
       setEditingRoom(room);
@@ -133,6 +171,73 @@ export function AdminRooms() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingRoom(null);
+  };
+
+  // ── New Room Type handlers ──────────────────────────────────────────
+  const handleOpenNewTypeModal = () => {
+    setNewTypeForm({ name: '', description: '', price: '', initialRooms: 1, defaultGuests: 2, amenities: '', image: '' });
+    setImagePreview(null);
+    setIsNewTypeModalOpen(true);
+  };
+
+  const handleCloseNewTypeModal = () => {
+    setIsNewTypeModalOpen(false);
+    setImagePreview(null);
+  };
+
+  const handleImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Show local preview immediately
+    setImagePreview(URL.createObjectURL(file));
+    // Upload to server
+    setImageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await apiFetch('/upload', { method: 'POST', body: fd });
+      if (res.success && res.url) {
+        setNewTypeForm(prev => ({ ...prev, image: res.url }));
+      }
+    } catch (err) {
+      alert('Image upload failed: ' + err.message);
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleNewTypeSubmit = async (e) => {
+    e.preventDefault();
+    const trimmedName = (newTypeForm.name || '').trim();
+    if (!trimmedName) { alert('Please enter a room type name.'); return; }
+    if (!newTypeForm.price || Number(newTypeForm.price) <= 0) { alert('Please enter a valid price.'); return; }
+    // Prevent duplicate type names
+    const duplicate = rooms.find(r => r.name.toLowerCase() === trimmedName.toLowerCase());
+    if (duplicate) { alert(`A room type named "${trimmedName}" already exists. Use the existing "Create Room" button to add more units.`); return; }
+
+    setNewTypeSubmitting(true);
+    try {
+      const count = Math.max(1, Number(newTypeForm.initialRooms) || 1);
+      const amenitiesArr = (newTypeForm.amenities || '').split(',').map(s => s.trim()).filter(Boolean);
+      const payload = {
+        name: trimmedName,
+        description: newTypeForm.description || '',
+        price: Number(newTypeForm.price),
+        availableRooms: count,
+        totalRooms: count,
+        defaultGuests: Number(newTypeForm.defaultGuests) || 2,
+        amenities: amenitiesArr,
+        image: newTypeForm.image || '',
+        isActive: true
+      };
+      await apiFetch('/rooms', { method: 'POST', body: JSON.stringify(payload) });
+      handleCloseNewTypeModal();
+      fetchData();
+    } catch (err) {
+      alert('Error creating room type: ' + err.message);
+    } finally {
+      setNewTypeSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -250,6 +355,18 @@ export function AdminRooms() {
     }
   };
 
+  const handleUpdateBookingStatus = async (bookingId, status) => {
+    try {
+      await apiFetch(`/bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      });
+      fetchData(); // Refresh bookings list
+    } catch (error) {
+      alert(`Error updating booking status to ${status}: ` + error.message);
+    }
+  };
+
   // Count active bookings per room type
   const getBookedCount = (typeName) => {
     return bookings.filter(b => 
@@ -311,10 +428,19 @@ export function AdminRooms() {
           <h1 className="text-3xl font-bold text-slate-900">Room Management</h1>
           <p className="text-slate-500">Add rooms to your inventory. The count below shows your total hotel stock (Base + Added).</p>
         </div>
-        <button className="admin-rooms__action-button" onClick={() => handleOpenModal()}>
-          <Plus className="w-5 h-5" />
-          <span>Create Room</span>
-        </button>
+        <div className="flex flex-wrap gap-3 items-center">
+          <button
+            className="admin-rooms__action-button"
+            onClick={handleOpenNewTypeModal}
+          >
+            <Layers className="w-5 h-5" />
+            <span>Create Room Type</span>
+          </button>
+          <button className="admin-rooms__action-button" onClick={() => handleOpenModal()}>
+            <Plus className="w-5 h-5" />
+            <span>Create Room</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -559,8 +685,13 @@ export function AdminRooms() {
                     </td>
                     <td>
                       <div className="flex flex-col gap-1.5">
-                        {new Date(booking.checkInDate).toLocaleDateString() === new Date(booking.checkOutDate).toLocaleDateString() && 
-                         booking.checkInType === booking.checkOutType ? (
+                        {new Date(booking.checkInDate) > new Date(booking.checkOutDate) || 
+                         (booking.startIndex !== undefined && booking.endIndex !== undefined && booking.endIndex < booking.startIndex) ? (
+                          <span className="inline-flex items-center justify-center px-2 py-1 bg-red-100 text-[10px] text-red-700 border border-red-200 rounded font-black uppercase tracking-wider">
+                            ⚠️ INVALID DATES
+                          </span>
+                        ) : new Date(booking.checkInDate).toLocaleDateString() === new Date(booking.checkOutDate).toLocaleDateString() && 
+                          booking.checkInType === booking.checkOutType ? (
                           <div className="flex flex-col items-start gap-1">
                             <span className="font-bold text-slate-900 text-[11px]">
                               {new Date(booking.checkInDate).toLocaleDateString()}
@@ -593,13 +724,33 @@ export function AdminRooms() {
                     <td>{getStatusBadge(booking.status)}</td>
                     <td><span className="font-bold text-slate-900">Rs. {booking.totalPrice.toLocaleString()}</span></td>
                     <td className="text-right">
-                      <button 
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                        title="Delete Booking"
-                        onClick={() => handleDeleteBooking(booking._id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {(!booking.status || booking.status === 'pending') && (
+                          <>
+                            <button
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                              title="Confirm Booking"
+                              onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                            <button
+                              className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-md transition-colors"
+                              title="Reject Booking"
+                              onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        <button 
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          title="Delete Booking"
+                          onClick={() => handleDeleteBooking(booking._id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -637,7 +788,7 @@ export function AdminRooms() {
                       onChange={(e) => handleTypeChange(e.target.value)}
                     >
                       <option value="">-- Select Room Type --</option>
-                      {['Standard Room', 'Family Suite', 'Honeymoon Suite', ...new Set(rooms.map(r => r.name))].filter((v, i, a) => a.indexOf(v) === i).map(type => (
+                      {roomTypeOptions.map(type => (
                         <option key={type} value={type}>{type}</option>
                       ))}
                     </select>
@@ -706,6 +857,179 @@ export function AdminRooms() {
                 <button type="button" className="admin-rooms__btn admin-rooms__btn--secondary" onClick={handleCloseModal}>Cancel</button>
                 <button type="submit" className="admin-rooms__btn admin-rooms__btn--primary">
                   {editingRoom ? 'Save Changes' : 'Create Room (+1)'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Create New Room Type Modal ──────────────────────────────── */}
+      {isNewTypeModalOpen && (
+        <div className="admin-rooms__modal-overlay">
+          <div className="admin-rooms__modal" style={{ maxWidth: '560px' }}>
+            <div className="admin-rooms__modal-header" style={{ background: 'linear-gradient(135deg,#2563eb,#1d4ed8)' }}>
+              <div>
+                <h2 className="admin-rooms__modal-title" style={{ color: '#fff' }}>Create New Room Type</h2>
+                <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '12px', marginTop: '2px' }}>Define a brand-new room category. It will appear on the booking page automatically.</p>
+              </div>
+              <button className="admin-rooms__modal-close" style={{ color: '#fff' }} onClick={handleCloseNewTypeModal}>
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleNewTypeSubmit}>
+              <div className="admin-rooms__modal-body">
+
+                {/* Image Upload */}
+                <div className="admin-rooms__form-group admin-rooms__form-group--full" style={{ marginBottom: '16px' }}>
+                  <label className="admin-rooms__label">Room Photo</label>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: '2px dashed #c4b5fd',
+                      borderRadius: '14px',
+                      background: imagePreview ? 'transparent' : '#faf5ff',
+                      minHeight: '160px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      position: 'relative',
+                      transition: 'border-color 0.2s'
+                    }}
+                  >
+                    {imagePreview ? (
+                      <img
+                        src={imagePreview}
+                        alt="preview"
+                        style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '12px' }}
+                      />
+                    ) : (
+                      <div style={{ textAlign: 'center', color: '#7c3aed' }}>
+                        <ImagePlus style={{ width: '36px', height: '36px', margin: '0 auto 8px' }} />
+                        <p style={{ fontWeight: '600', fontSize: '14px' }}>Click to upload room photo</p>
+                        <p style={{ fontSize: '11px', color: '#a78bfa', marginTop: '4px' }}>JPG, PNG, WEBP — recommended 800×600px</p>
+                      </div>
+                    )}
+                    {imageUploading && (
+                      <div style={{
+                        position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.8)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '13px', color: '#7c3aed', fontWeight: '600'
+                      }}>
+                        Uploading…
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleImageFileChange}
+                  />
+                  {imagePreview && (
+                    <button
+                      type="button"
+                      onClick={() => { setImagePreview(null); setNewTypeForm(p => ({ ...p, image: '' })); }}
+                      style={{ fontSize: '11px', color: '#ef4444', marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    >
+                      Remove photo
+                    </button>
+                  )}
+                </div>
+
+                <div className="admin-rooms__form-grid">
+                  {/* Room Type Name */}
+                  <div className="admin-rooms__form-group admin-rooms__form-group--full">
+                    <label className="admin-rooms__label">Room Type Name <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input
+                      type="text"
+                      className="admin-rooms__input"
+                      placeholder="e.g. Deluxe Suite, Penthouse Room…"
+                      required
+                      value={newTypeForm.name}
+                      onChange={e => setNewTypeForm(p => ({ ...p, name: e.target.value }))}
+                    />
+                    <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>This exact name will appear on the booking page.</p>
+                  </div>
+
+                  {/* Price */}
+                  <div className="admin-rooms__form-group">
+                    <label className="admin-rooms__label">Price per Night (Rs.) <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input
+                      type="number"
+                      className="admin-rooms__input"
+                      placeholder="e.g. 12000"
+                      required
+                      min="0"
+                      value={newTypeForm.price}
+                      onChange={e => setNewTypeForm(p => ({ ...p, price: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Max Guests */}
+                  <div className="admin-rooms__form-group">
+                    <label className="admin-rooms__label">Max Guests <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input
+                      type="number"
+                      className="admin-rooms__input"
+                      required
+                      min="1"
+                      value={newTypeForm.defaultGuests}
+                      onChange={e => setNewTypeForm(p => ({ ...p, defaultGuests: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Initial Room Count */}
+                  <div className="admin-rooms__form-group">
+                    <label className="admin-rooms__label">Initial Room Count <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input
+                      type="number"
+                      className="admin-rooms__input"
+                      required
+                      min="1"
+                      value={newTypeForm.initialRooms}
+                      onChange={e => setNewTypeForm(p => ({ ...p, initialRooms: e.target.value }))}
+                    />
+                    <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Number of rooms of this type to add to inventory.</p>
+                  </div>
+
+                  {/* Description */}
+                  <div className="admin-rooms__form-group admin-rooms__form-group--full">
+                    <label className="admin-rooms__label">Description</label>
+                    <textarea
+                      className="admin-rooms__textarea"
+                      rows="3"
+                      placeholder="Describe this room type — features, atmosphere, highlights…"
+                      value={newTypeForm.description}
+                      onChange={e => setNewTypeForm(p => ({ ...p, description: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Amenities */}
+                  <div className="admin-rooms__form-group admin-rooms__form-group--full">
+                    <label className="admin-rooms__label">Amenities</label>
+                    <input
+                      type="text"
+                      className="admin-rooms__input"
+                      placeholder="WiFi, AC, TV, Mini Bar, Jacuzzi …  (comma-separated)"
+                      value={newTypeForm.amenities}
+                      onChange={e => setNewTypeForm(p => ({ ...p, amenities: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="admin-rooms__modal-footer">
+                <button type="button" className="admin-rooms__btn admin-rooms__btn--secondary" onClick={handleCloseNewTypeModal}>Cancel</button>
+                <button
+                  type="submit"
+                  className="admin-rooms__btn admin-rooms__btn--primary"
+                  disabled={newTypeSubmitting || imageUploading}
+                  style={{ opacity: (newTypeSubmitting || imageUploading) ? 0.7 : 1 }}
+                >
+                  {newTypeSubmitting ? 'Creating…' : '✦ Create Room Type'}
                 </button>
               </div>
             </form>

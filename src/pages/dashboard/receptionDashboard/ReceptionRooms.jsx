@@ -106,6 +106,18 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
     }
   };
 
+  const handleUpdateBookingStatus = async (bookingId, status) => {
+    try {
+      await apiFetch(`/bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      });
+      fetchData(); // Refresh bookings list
+    } catch (error) {
+      alert(`Error updating booking status to ${status}: ` + error.message);
+    }
+  };
+
   const handleRemoveOneRoom = async (room) => {
     if (!room || room.isPlaceholder || room.availableRooms <= 0) return;
     
@@ -166,6 +178,11 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
     return null;
   }).filter(Boolean);
 
+  const totalUnits = aggregatedRooms.reduce(
+    (sum, room) => sum + (Number(room.totalRooms) || 0),
+    0
+  );
+
   const filteredRooms = aggregatedRooms.filter(room =>
     (room.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (room.description || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -178,7 +195,6 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
            roomName.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
-  const totalUnits = 10;
   const activeBookings = bookings.filter(b =>
     !['cancelled', 'rejected', 'checked-out'].includes(String(b.status || '').toLowerCase())
   ).length;
@@ -209,7 +225,7 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
 
           <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
             <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Total Types</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Room Type</p>
               <p className="mt-2 text-2xl font-semibold text-white">{aggregatedRooms.length}</p>
             </div>
             <div className="rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-4 py-3 backdrop-blur-sm">
@@ -219,10 +235,6 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
             <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
               <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Total Units</p>
               <p className="mt-2 text-2xl font-semibold text-white">{totalUnits}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Room Types</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{Object.keys(ROOM_TYPES).length}</p>
             </div>
           </div>
         </div>
@@ -235,7 +247,7 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
             <Bed className="admin-rooms__stat-icon" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Total Types</p>
+            <p className="text-sm font-medium text-slate-500">Room Type</p>
             <h3 className="text-2xl font-bold text-slate-900">{aggregatedRooms.length}</h3>
           </div>
         </div>
@@ -445,8 +457,13 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                     </td>
                     <td>
                       <div className="flex flex-col gap-1.5">
-                        {new Date(booking.checkInDate).toLocaleDateString() === new Date(booking.checkOutDate).toLocaleDateString() && 
-                         booking.checkInType === booking.checkOutType ? (
+                        {new Date(booking.checkInDate) > new Date(booking.checkOutDate) || 
+                         (booking.startIndex !== undefined && booking.endIndex !== undefined && booking.endIndex < booking.startIndex) ? (
+                          <span className="inline-flex items-center justify-center px-2 py-1 bg-red-100 text-[10px] text-red-700 border border-red-200 rounded font-black uppercase tracking-wider">
+                            ⚠️ INVALID DATES
+                          </span>
+                        ) : new Date(booking.checkInDate).toLocaleDateString() === new Date(booking.checkOutDate).toLocaleDateString() && 
+                          booking.checkInType === booking.checkOutType ? (
                           <div className="flex flex-col items-start gap-1">
                             <span className="font-bold text-slate-900 text-[11px]">
                               {new Date(booking.checkInDate).toLocaleDateString()}
@@ -479,13 +496,33 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                     <td>{getStatusBadge(booking.status)}</td>
                     <td><span className="font-bold text-slate-900">Rs. {booking.totalPrice.toLocaleString()}</span></td>
                     <td className="text-right">
-                      <button 
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                        title="Delete Booking"
-                        onClick={() => handleDeleteBooking(booking._id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {(!booking.status || booking.status === 'pending') && (
+                          <>
+                            <button
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                              title="Confirm Booking"
+                              onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                            <button
+                              className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-md transition-colors"
+                              title="Reject Booking"
+                              onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        <button 
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          title="Delete Booking"
+                          onClick={() => handleDeleteBooking(booking._id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
