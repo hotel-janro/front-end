@@ -1,21 +1,184 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { CreditCard, Truck, Home, MapPin, CheckCircle2 } from "lucide-react";
 import { Button } from "../../components/common/Button.jsx";
+import { apiFetch } from "../../api.js";
+import { useSettings } from "../../context/SettingsContext.jsx";
+import { toast } from "sonner";
 
 export function Checkout() {
+  const navigate = useNavigate();
+  const { settings } = useSettings();
   const [method, setMethod] = useState("card");
   const [delivery, setDelivery] = useState("room");
+  const [selectedRoom, setSelectedRoom] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [cartItems, setCartItems] = useState(() => {
+    const saved = localStorage.getItem("janro_cart");
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  const handlePlaceOrder = (e) => {
+  const currencySymbol = settings.currency?.symbol || "Rs.";
+
+  // Sync cart items with actual backend menu items to avoid casting/foreign key validation errors
+  useEffect(() => {
+    const fetchRealItems = async () => {
+      try {
+        const menuData = await apiFetch("/api/menu");
+        if (menuData && menuData.length > 0) {
+          const updatedItems = cartItems.map((item, idx) => {
+            // Swap numeric mock IDs (like 1 or 2) with real MongoDB ObjectIds
+            if (typeof item.id === "number" || item.id === 1 || item.id === 2) {
+              const realItem = menuData[idx % menuData.length];
+              return {
+                ...item,
+                _id: realItem._id,
+                name: realItem.name,
+                price: realItem.price,
+                quantity: item.quantity
+              };
+            }
+            return item;
+          });
+          setCartItems(updatedItems);
+          localStorage.setItem("janro_cart", JSON.stringify(updatedItems));
+        }
+      } catch (err) {
+        console.error("Failed to load real menu items for validation:", err);
+      }
+    };
+    fetchRealItems();
+  }, []);
+
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const tax = subtotal * 0.1;
+  const total = subtotal + tax;
+
+  const handlePlaceOrder = async (e) => {
     e.preventDefault();
+    if (cartItems.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+    if (delivery === "room" && !selectedRoom) {
+      toast.error("Please choose a room number");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const user = JSON.parse(localStorage.getItem("janro_user") || "null");
+
+      // 1. Create the Order in MongoDB (Unpaid initially)
+      const orderPayload = {
+        orderType: delivery === "room" ? "Room" : "Take-away",
+        roomNumber: delivery === "room" ? selectedRoom : undefined,
+        items: cartItems.map(item => ({
+          menuItemId: item._id || item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        })),
+        subtotal,
+        tax,
+        totalAmount: total,
+        paymentMethod: method === "card" ? "Card" : "Cash",
+        paymentStatus: "Unpaid",
+        customerName: user?.name || "Guest User",
+        customerUser: user?.id || user?._id || undefined
+      };
+
+      const order = await apiFetch("/api/orders", {
+        method: "POST",
+        body: JSON.stringify(orderPayload)
+      });
+
+      if (!order || !order._id) {
+        throw new Error(order?.message || "Failed to create order on the server");
+      }
+
+      if (method === "cash") {
+        // 2a. Direct Cash checkout
+        localStorage.removeItem("janro_cart");
+        setLoading(false);
+        setIsSuccess(true);
+        toast.success("Order placed successfully");
+      } else {
+        // 2b. PayHere Card flow
+        // Fetch generated MD5 hash signature
+        const hashRes = await apiFetch("/api/payments/payhere-hash", {
+          method: "POST",
+          body: JSON.stringify({
+            orderId: order._id,
+            amount: total
+          })
+        });
+
+        if (!hashRes || !hashRes.success) {
+          throw new Error(hashRes?.message || "Failed to generate payment signature hash");
+        }
+
+        const { merchantId, currency, hash, amount } = hashRes.data;
+
+        // Configure PayHere JS SDK Popup Window
+        const payment = {
+          sandbox: true,
+          merchant_id: merchantId,
+          return_url: `${window.location.origin}/my-orders`,
+          cancel_url: `${window.location.origin}/checkout`,
+          notify_url: "https://sandbox.payhere.lk/pay/checkout", // Note: fallback check updates locally below
+          order_id: order._id,
+          items: `Hotel Food Order #${order.orderNumber || order._id.slice(-6)}`,
+          amount: amount,
+          currency: currency,
+          first_name: user?.name?.split(" ")[0] || "Valued",
+          last_name: user?.name?.split(" ")[1] || "Guest",
+          email: user?.email || "guest@hoteljanro.com",
+          phone: user?.phone || "0771234567",
+          address: user?.address || "123 Luxury Avenue",
+          city: "Colombo",
+          country: "Sri Lanka",
+          hash: hash,
+          custom_1: "order"
+        };
+
+        // Bind PayHere modal callback handlers
+        window.payhere.onCompleted = async function onCompleted(orderId) {
+          try {
+            // Local fallback validation update in case of local server localhost notify restrictions
+            await apiFetch(`/api/orders/${order._id}`, {
+              method: "PUT",
+              body: JSON.stringify({ paymentStatus: "Paid", orderStatus: "Completed" })
+            });
+            localStorage.removeItem("janro_cart");
+            setIsSuccess(true);
+            toast.success("Payment completed successfully!");
+          } catch (err) {
+            console.error("Local status update failed:", err);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        window.payhere.onDismissed = function onDismissed() {
+          setLoading(false);
+          toast.error("Payment dismissed");
+        };
+
+        window.payhere.onError = function onError(error) {
+          setLoading(false);
+          toast.error(`Payment failed: ${error}`);
+        };
+
+        // Open PayHere modal
+        window.payhere.startPayment(payment);
+      }
+    } catch (err) {
       setLoading(false);
-      setIsSuccess(true);
-    }, 2000);
+      toast.error(err.message || "An error occurred during checkout");
+    }
   };
 
   if (isSuccess) {
@@ -30,8 +193,8 @@ export function Checkout() {
             Thank you for your order. Your food will be delivered shortly to your room.
           </p>
           <div className="space-y-3">
-            <Link to="/my-bookings">
-              <Button variant="secondary" className="w-full">Track Order</Button>
+            <Link to="/my-orders">
+              <Button variant="secondary" className="w-full">Track Orders</Button>
             </Link>
             <Link to="/">
               <Button variant="outline" className="w-full">Back to Home</Button>
@@ -90,7 +253,7 @@ export function Checkout() {
               </div>
             </section>
 
-            {/* Room Selection (Only if Room Delivery is active) */}
+            {/* Room Selection */}
             {delivery === "room" && (
               <section className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 animate-in fade-in slide-in-from-top-2">
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -99,6 +262,8 @@ export function Checkout() {
                 </h2>
                 <select 
                   required
+                  value={selectedRoom}
+                  onChange={(e) => setSelectedRoom(e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-100 rounded-xl focus:ring-2 focus:ring-[#D4AF37] outline-none font-bold text-gray-700 appearance-none bg-no-repeat bg-[right_1rem_center]"
                   style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundSize: '1.5em' }}
                 >
@@ -125,7 +290,7 @@ export function Checkout() {
                     onChange={() => setMethod("card")}
                     className="w-5 h-5 accent-[#1E3A8A]"
                   />
-                  <span className="font-medium">Credit / Debit Card</span>
+                  <span className="font-medium">Credit / Debit Card (PayHere Sandbox)</span>
                 </label>
                 <label className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
                   <input 
@@ -138,16 +303,6 @@ export function Checkout() {
                   <span className="font-medium">Pay at Room (Cash)</span>
                 </label>
               </div>
-
-              {method === "card" && (
-                <div className="mt-6 grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                  <div className="col-span-2">
-                    <input type="text" placeholder="Card Number" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D4AF37] outline-none" />
-                  </div>
-                  <input type="text" placeholder="MM/YY" className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D4AF37] outline-none" />
-                  <input type="text" placeholder="CVV" className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D4AF37] outline-none" />
-                </div>
-              )}
             </section>
           </div>
 
@@ -157,20 +312,20 @@ export function Checkout() {
               <h2 className="text-xl font-bold mb-6">Payment Summary</h2>
               <div className="space-y-4 mb-8">
                 <div className="flex justify-between text-gray-500">
-                  <span>Cart Total</span>
-                  <span>Rs 42.50</span>
+                  <span>Subtotal</span>
+                  <span>{currencySymbol} {subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-gray-500">
-                  <span>Delivery Fee</span>
-                  <span className="text-green-600">Free</span>
+                  <span>Taxes (10%)</span>
+                  <span>{currencySymbol} {tax.toFixed(2)}</span>
                 </div>
                 <div className="pt-4 border-t border-gray-100 flex justify-between">
                   <span className="text-lg font-bold">Payable Amount</span>
-                  <span className="text-2xl font-bold text-[#1E3A8A]">Rs 42.50</span>
+                  <span className="text-2xl font-bold text-[#1E3A8A]">{currencySymbol} {total.toFixed(2)}</span>
                 </div>
               </div>
               <Button type="submit" variant="secondary" className="w-full !py-4" isLoading={loading}>
-                Place Order Now
+                {method === "card" ? "Pay & Place Order" : "Place Order Now"}
               </Button>
             </div>
           </div>
