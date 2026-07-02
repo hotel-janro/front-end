@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Calendar, TrendingUp, DollarSign, BarChart3, Loader } from 'lucide-react';
+import { FileText, Download, Calendar, TrendingUp, DollarSign, BarChart3, Loader, Mail } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 
@@ -15,6 +15,8 @@ export function AdminReports() {
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportEmail, setExportEmail] = useState('');
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -41,7 +43,9 @@ export function AdminReports() {
     fetchReports();
   }, [dateRange]);
 
-  const handleExport = async () => {
+  const handleExport = async (e) => {
+    if (e) e.preventDefault();
+    
     try {
       setIsExporting(true);
       const token = localStorage.getItem('janro_token') || localStorage.getItem('token');
@@ -50,12 +54,17 @@ export function AdminReports() {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
+        },
+        body: JSON.stringify({
+          dateRange,
+          email: exportEmail
+        })
       });
       const data = await res.json();
       
       if (res.ok && data.success) {
         alert(data.message || 'Report exported successfully!');
+        setShowExportModal(false);
       } else {
         throw new Error(data.message || 'Failed to export report');
       }
@@ -113,7 +122,10 @@ export function AdminReports() {
           </p>
         </div>
         <button 
-          onClick={handleExport}
+          onClick={() => {
+            setExportEmail(localStorage.getItem('janro_user') ? JSON.parse(localStorage.getItem('janro_user')).email : '');
+            setShowExportModal(true);
+          }}
           disabled={isExporting}
           className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap disabled:opacity-70 disabled:cursor-not-allowed"
         >
@@ -279,6 +291,62 @@ export function AdminReports() {
           </table>
         </div>
       </div>
+      )}
+      {/* Export Email Modal to selected mail */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-6 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900">Export Business Report</h3>
+              </div>
+              <p className="text-sm text-gray-500">
+                Enter the recipient's email address to send the <strong>{dateRange}</strong> report.
+              </p>
+            </div>
+            
+            <form onSubmit={handleExport} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Recipient Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="e.g. manager@hoteljanro.com"
+                    value={exportEmail}
+                    onChange={(e) => setExportEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  />
+                </div>
+                <p className="text-[11px] text-gray-400 mt-2">
+                  * A professional HTML report will be sent immediately to this address.
+                </p>
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isExporting}
+                  className="flex-1 px-4 py-2.5 bg-[#0F172A] text-white rounded-xl font-medium hover:bg-[#1E293B] transition-all shadow-lg shadow-gray-200 disabled:opacity-70 flex items-center justify-center gap-2"
+                >
+                  {isExporting ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  {isExporting ? 'Sending...' : 'Send Report'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

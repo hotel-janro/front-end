@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Calendar, Users, DollarSign, Plus, Search, X, Edit, Trash2, Upload, ImageIcon, Loader2 } from 'lucide-react';
+import { Heart, Calendar, Users, DollarSign, Plus, Search, X, Edit, Trash2, Upload, ImageIcon, Loader2, Eye, Info } from 'lucide-react';
 import { apiFetch, getImageUrl } from '../../../api';
 
 export function AdminWedding() {
@@ -13,12 +13,16 @@ export function AdminWedding() {
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingBooking, setViewingBooking] = useState(null);
   const [formData, setFormData] = useState({
     customerName: '',
     customerPhone: '',
     customerEmail: '',
     groomName: '',
+    groomPhone: '',
     brideName: '',
+    bridePhone: '',
     eventDate: '',
     startTime: '09:00',
     endTime: '16:00',
@@ -58,7 +62,9 @@ export function AdminWedding() {
       customerPhone: booking.customerPhone || '',
       customerEmail: booking.customerEmail || '',
       groomName: booking.groomName || '',
+      groomPhone: booking.groomPhone || '',
       brideName: booking.brideName || '',
+      bridePhone: booking.bridePhone || '',
       eventDate: booking.eventDate ? booking.eventDate.split('T')[0] : '',
       startTime: booking.startTime || '09:00',
       endTime: booking.endTime || '16:00',
@@ -93,6 +99,7 @@ export function AdminWedding() {
   const [editingHallId, setEditingHallId] = useState(null);
   const [hallFormData, setHallFormData] = useState({
     hallName: '',
+    description: '',
     capacity: '',
     price: '',
     type: 'Hall',
@@ -100,10 +107,7 @@ export function AdminWedding() {
     image: ''
   });
 
-  // Edit Guest Count State
-  const [showGuestModal, setShowGuestModal] = useState(false);
-  const [editingBooking, setEditingBooking] = useState(null);
-  const [newGuestCount, setNewGuestCount] = useState('');
+
 
   // Image Upload State
   const fileInputRef = React.useRef(null);
@@ -310,7 +314,7 @@ export function AdminWedding() {
       subtotal += servicePrices[s] || 0;
     });
 
-    // --- Extra Hour Calculation ---
+    // Extra Hour Calculation
     if (formData.startTime && formData.endTime) {
       const calculateDuration = (start, end) => {
         const [sH, sM] = start.split(':').map(Number);
@@ -376,22 +380,31 @@ export function AdminWedding() {
   const handleSubmitBooking = async (e) => {
     e.preventDefault();
     
-    // --- FRONTEND VALIDATIONS ---
-    // 1. Phone Number Validation
+    // Phone Number Validation
     const cleanPhone = formData.customerPhone.replace(/\s+/g, '');
     if (!/^(0\d{9}|\+94\d{9})$/.test(cleanPhone)) {
       alert("Invalid Phone Number. Please enter a valid 10-digit Sri Lankan number (e.g., 0712345678).");
       return;
     }
 
-    // 2. NIC Validation (9 digits + V/X OR 12 digits)
+    // Couple Phone Validation
+    if (formData.groomPhone && !/^(0\d{9}|\+94\d{9})$/.test(formData.groomPhone.replace(/\s+/g, ''))) {
+      alert("Invalid Groom's Phone Number.");
+      return;
+    }
+    if (formData.bridePhone && !/^(0\d{9}|\+94\d{9})$/.test(formData.bridePhone.replace(/\s+/g, ''))) {
+      alert("Invalid Bride's Phone Number.");
+      return;
+    }
+
+    // NIC Validation
     const cleanNIC = formData.customerNIC.replace(/\s+/g, '').toUpperCase();
     if (!/^(\d{9}[VX]|\d{12})$/.test(cleanNIC)) {
       alert("Invalid NIC Number. Please enter a valid Sri Lankan NIC.");
       return;
     }
 
-    // 3. Time Validation
+    // Time Validation
     if (formData.startTime && formData.endTime) {
       const startParts = formData.startTime.split(':');
       const endParts = formData.endTime.split(':');
@@ -409,7 +422,6 @@ export function AdminWedding() {
          }
       }
     }
-    // --- END VALIDATIONS ---
 
     try {
       const url = editingId ? `/wedding/bookings/${editingId}` : '/wedding/bookings';
@@ -425,7 +437,7 @@ export function AdminWedding() {
         setEditingId(null);
         setFormData({
           customerName: '', customerPhone: '', customerEmail: '',
-          groomName: '', brideName: '',
+          groomName: '', groomPhone: '', brideName: '', bridePhone: '',
           eventDate: '', startTime: '09:00', endTime: '16:00', eventType: 'Wedding',
           guestCount: '', hallId: '', cateringPackage: 'Silver',
           selectedMeals: [], optionalServices: [], specialRequests: '', 
@@ -475,22 +487,6 @@ export function AdminWedding() {
     }
   };
 
-  const handleUpdateGuestCount = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await apiFetch(`/wedding/bookings/${editingBooking._id}/guest-count`, {
-        method: 'PUT',
-        body: JSON.stringify({ guestCount: Number(newGuestCount) })
-      });
-      if (res.success) {
-        alert("Guest count updated successfully!");
-        setShowGuestModal(false);
-        fetchData();
-      }
-    } catch (error) {
-      alert(error.message);
-    }
-  };
 
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch = booking.customerName?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -538,7 +534,7 @@ export function AdminWedding() {
             <button 
               onClick={() => {
                 setEditingHallId(null);
-                setHallFormData({ hallName: '', capacity: '', price: '', type: 'Hall', status: 'available', image: '' });
+                setHallFormData({ hallName: '', description: '', capacity: '', price: '', type: 'Hall', status: 'available', image: '' });
                 setShowHallModal(true);
               }}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D4AF37] text-[#0F172A] rounded-xl hover:bg-[#B8962D] transition-colors shadow-lg shadow-[#D4AF37]/20 font-bold"
@@ -553,7 +549,7 @@ export function AdminWedding() {
                 setEditingId(null);
                 setFormData({
                   customerName: '', customerPhone: '', customerEmail: '',
-                  groomName: '', brideName: '',
+                  groomName: '', groomPhone: '', brideName: '', bridePhone: '',
                   eventDate: '', startTime: '09:00', endTime: '16:00', eventType: 'Wedding',
                   guestCount: '', hallId: '', cateringPackage: 'Silver',
                   selectedMeals: [], optionalServices: [], specialRequests: '', 
@@ -709,6 +705,15 @@ export function AdminWedding() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-2">
+                          <button 
+                            onClick={() => {
+                              setViewingBooking(booking);
+                              setShowViewModal(true);
+                            }} 
+                            className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors font-semibold flex items-center gap-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> View
+                          </button>
                           {booking.bookingStatus === 'pending' && (
                             <>
                               <button onClick={() => handleStatusChange(booking._id, 'confirmed')} className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-200 transition-colors font-semibold">Confirm</button>
@@ -756,10 +761,28 @@ export function AdminWedding() {
                         <h3 className="font-semibold text-slate-900 text-xl" style={{ fontFamily: "DM Serif Display, serif" }}>{hall.hallName}</h3>
                         <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${getHallStatusColor(hall.status)}`}>{hall.status}</span>
                       </div>
-                      <div className="space-y-3 mb-6">
+                      <div className="space-y-3 mb-4">
                         <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 p-2.5 rounded-xl"><Users className="w-4 h-4 text-[#D4AF37]" />Capacity: {hall.capacity} guests</div>
                         <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 p-2.5 rounded-xl"><DollarSign className="w-4 h-4 text-[#D4AF37]" />Rs. {hall.price?.toLocaleString()} base price</div>
                       </div>
+                      {hall.description && (
+                        <details className="mb-4 group">
+                          <summary className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-500 hover:text-[#D4AF37] transition-colors select-none">
+                            <Info className="w-3.5 h-3.5" />
+                            <span>View Venue Details</span>
+                          </summary>
+                          <div className="mt-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <ul className="space-y-2">
+                              {hall.description.split(/[.,]|\band\b/i).map(p => p.trim()).filter(p => p.length > 5).map((point, idx) => (
+                                <li key={idx} className="text-xs text-slate-600 flex items-start gap-2">
+                                  <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full mt-1.5 shrink-0" />
+                                  <span className="leading-relaxed">{point.charAt(0).toUpperCase() + point.slice(1)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </details>
+                      )}
                       <div className="flex gap-2">
                         <button 
                           type="button"
@@ -767,6 +790,7 @@ export function AdminWedding() {
                             setEditingHallId(hall._id);
                             setHallFormData({
                               hallName: hall.hallName,
+                              description: hall.description || '',
                               capacity: hall.capacity,
                              price: hall.price,
                               type: hall.type || 'Hall',
@@ -812,7 +836,7 @@ export function AdminWedding() {
         )}
       </div>
 
-      {/* NEW BOOKING MODAL (MULTI-STEP) */}
+      {/* NEW BOOKING MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl border border-white/20 overflow-hidden flex flex-col max-h-[90vh]">
@@ -949,13 +973,25 @@ export function AdminWedding() {
                             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                               <Heart className="w-4 h-4 text-[#D4AF37]" /> The Happy Couple
                             </h4>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Groom's Name</label>
-                              <input type="text" value={formData.groomName} onChange={e => setFormData({...formData, groomName: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="Groom's Full Name" />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Groom's Name</label>
+                                <input type="text" value={formData.groomName} onChange={e => setFormData({...formData, groomName: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="Groom's Full Name" />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Groom's Phone</label>
+                                <input type="tel" value={formData.groomPhone} onChange={e => setFormData({...formData, groomPhone: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="07X XXX XXXX" />
+                              </div>
                             </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Bride's Name</label>
-                              <input type="text" value={formData.brideName} onChange={e => setFormData({...formData, brideName: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="Bride's Full Name" />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Bride's Name</label>
+                                <input type="text" value={formData.brideName} onChange={e => setFormData({...formData, brideName: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="Bride's Full Name" />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Bride's Phone</label>
+                                <input type="tel" value={formData.bridePhone} onChange={e => setFormData({...formData, bridePhone: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="07X XXX XXXX" />
+                              </div>
                             </div>
                           </>
                         ) : (
@@ -1223,7 +1259,13 @@ export function AdminWedding() {
                           <div>
                             <p className="text-[#D4AF37] text-[10px] font-black uppercase tracking-[0.2em] mb-2">Booking Summary</p>
                             <p className="text-white/70">{formData.bookingCategory}: {formData.customerName}</p>
-                            <p className="text-white/70 text-xs">{formData.eventDate} ({formData.timeSlot})</p>
+                            {formData.bookingCategory === 'Wedding' && (
+                              <div className="mt-2 space-y-1">
+                                <p className="text-white/70 text-xs">Groom: {formData.groomName || 'N/A'} {formData.groomPhone && `(${formData.groomPhone})`}</p>
+                                <p className="text-white/70 text-xs">Bride: {formData.brideName || 'N/A'} {formData.bridePhone && `(${formData.bridePhone})`}</p>
+                              </div>
+                            )}
+                            <p className="text-white/70 text-xs mt-2">{formData.eventDate} ({formData.timeSlot})</p>
                             <p className="text-white/70 text-xs">{formData.guestCount} Guests in {halls.find(h => h._id === formData.hallId)?.hallName}</p>
                             
                             <div className="mt-4 pt-4 border-t border-white/5 space-y-1">
@@ -1420,6 +1462,16 @@ export function AdminWedding() {
                   </div>
                 </div>
                 
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Description</label>
+                  <textarea 
+                    value={hallFormData.description} 
+                    onChange={e => setHallFormData({...hallFormData, description: e.target.value})} 
+                    rows="3"
+                    className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] focus:bg-white outline-none transition-all font-medium text-slate-700 text-sm" 
+                    placeholder="e.g. Fully air-conditioned with LED lighting, wireless sound system, and dedicated bridal stage." 
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Venue Type *</label>
@@ -1564,53 +1616,166 @@ export function AdminWedding() {
         </div>
       )}
 
-      {/* GUEST COUNT MODAL */}
-      {showGuestModal && editingBooking && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md border border-white/20 overflow-hidden">
-            <div className="bg-[#0F172A] text-white p-6 flex justify-between items-center relative overflow-hidden">
-              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/20 rounded-l-full blur-2xl" />
-              <div className="relative z-10">
-                <h2 className="text-xl font-semibold" style={{ fontFamily: "DM Serif Display, serif" }}>Update Guest Count</h2>
-                <p className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-widest mt-1">Guest Finalization</p>
+      {/* VIEW BOOKING MODAL */}
+      {showViewModal && viewingBooking && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4" onClick={() => setShowViewModal(false)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl border border-white/20 overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#0F172A] text-white p-6 md:p-8 flex justify-between items-center relative shrink-0">
+              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/20 rounded-l-full blur-3xl" />
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="w-12 h-12 bg-[#D4AF37] rounded-xl flex items-center justify-center">
+                  <Eye className="w-6 h-6 text-[#0F172A]" />
+                </div>
+                <div>
+                  <h2 className="text-2xl" style={{ fontFamily: "DM Serif Display, serif" }}>Booking Details</h2>
+                  <p className="text-[#D4AF37] text-[10px] uppercase tracking-[0.2em] font-bold mt-1">Ref: {viewingBooking._id}</p>
+                </div>
               </div>
-              <button onClick={() => setShowGuestModal(false)} className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
+              <button onClick={() => setShowViewModal(false)} className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
+            
+            <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar bg-slate-50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                {/* Left Column */}
+                <div className="space-y-6">
+                  {/* Status Badges */}
+                  <div className="flex gap-2">
+                    <span className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl border ${getStatusColor(viewingBooking.bookingStatus)}`}>
+                      {viewingBooking.bookingStatus}
+                    </span>
+                    <span className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl border ${
+                      viewingBooking.paymentStatus === 'Fully Paid' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                      viewingBooking.paymentStatus === 'Partially Paid' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                      'bg-yellow-100 text-yellow-800 border-yellow-200'
+                    }`}>
+                      {viewingBooking.paymentStatus || 'Pending'}
+                    </span>
+                  </div>
 
-            <form onSubmit={handleUpdateGuestCount} className="p-8">
-              <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-xs text-slate-500 font-medium mb-1">Current Count: <span className="font-bold text-slate-900">{editingBooking.guestCount} Guests</span></p>
-                <p className="text-[10px] text-slate-400">Updating this will automatically recalculate the total amount based on the selected package/meals.</p>
-              </div>
+                  {/* Customer Info */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Users className="w-4 h-4 text-[#D4AF37]" /> Customer Information</h3>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">Name:</span> <span className="font-bold text-slate-900">{viewingBooking.customerName}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">Phone:</span> <span className="font-bold text-slate-900">{viewingBooking.customerPhone}</span></div>
+                      {viewingBooking.customerEmail && <div className="flex justify-between"><span className="text-slate-500 font-medium">Email:</span> <span className="font-bold text-slate-900">{viewingBooking.customerEmail}</span></div>}
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">NIC:</span> <span className="font-bold text-slate-900">{viewingBooking.customerNIC || 'N/A'}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">Address:</span> <span className="font-bold text-slate-900 text-right w-1/2">{viewingBooking.customerAddress || 'N/A'}</span></div>
+                    </div>
+                  </div>
 
-              <div className="mb-6">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">New Guest Count *</label>
-                <div className="relative">
-                  <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input 
-                    autoFocus
-                    required 
-                    type="number" 
-                    min="1"
-                    value={newGuestCount} 
-                    onChange={e => setNewGuestCount(e.target.value)} 
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] focus:bg-white outline-none transition-all text-lg font-bold"
-                  />
+                  {/* Couple Info */}
+                  {viewingBooking.bookingCategory === 'Wedding' && (
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Heart className="w-4 h-4 text-[#D4AF37]" /> The Happy Couple</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Groom</p>
+                          <p className="text-sm font-bold text-slate-900">{viewingBooking.groomName || 'N/A'} {viewingBooking.groomPhone ? `(${viewingBooking.groomPhone})` : ''}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Bride</p>
+                          <p className="text-sm font-bold text-slate-900">{viewingBooking.brideName || 'N/A'} {viewingBooking.bridePhone ? `(${viewingBooking.bridePhone})` : ''}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Event Info */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Calendar className="w-4 h-4 text-[#D4AF37]" /> Event Details</h3>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">Type:</span> <span className="font-bold text-slate-900">{viewingBooking.eventType} ({viewingBooking.bookingCategory})</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">Date:</span> <span className="font-bold text-[#0F172A]">{new Date(viewingBooking.eventDate).toLocaleDateString()}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">Time:</span> <span className="font-bold text-slate-900">{viewingBooking.startTime} - {viewingBooking.endTime} ({viewingBooking.timeSlot})</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">Venue Pref:</span> <span className="font-bold text-slate-900">{viewingBooking.venuePreference}</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-6">
+                  {/* Hall & Catering */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 text-center">Venue & Catering</h3>
+                    <div className="p-4 bg-slate-50 rounded-xl mb-4 text-center">
+                      <p className="text-lg font-bold text-[#0F172A]" style={{ fontFamily: "DM Serif Display, serif" }}>{viewingBooking.hallId?.hallName || 'Unknown Hall'}</p>
+                      <p className="text-sm font-bold text-[#D4AF37] mt-1">{viewingBooking.guestCount} Guests</p>
+                    </div>
+                    
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">Package:</span> <span className="font-bold text-slate-900">{viewingBooking.cateringPackage}</span></div>
+                      {viewingBooking.cateringPackage === 'Custom' && (
+                        <div className="flex justify-between"><span className="text-slate-500 font-medium">Custom Price:</span> <span className="font-bold text-slate-900">Rs. {viewingBooking.customPackagePrice?.toLocaleString()}</span></div>
+                      )}
+                      {viewingBooking.selectedMeals && viewingBooking.selectedMeals.length > 0 && (
+                        <div className="flex justify-between"><span className="text-slate-500 font-medium">Meals:</span> <span className="font-bold text-slate-900">{viewingBooking.selectedMeals.join(', ')}</span></div>
+                      )}
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">Seating:</span> <span className="font-bold text-slate-900">{viewingBooking.seatingStyle}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-medium">Corkage Included:</span> <span className="font-bold text-slate-900">{viewingBooking.corkageIncluded ? 'Yes' : 'No'}</span></div>
+                    </div>
+                  </div>
+
+                  {/* Extras */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Extras & Notes</h3>
+                    
+                    {viewingBooking.optionalServices && viewingBooking.optionalServices.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">Optional Services</p>
+                        <div className="flex flex-wrap gap-2">
+                          {viewingBooking.optionalServices.map(s => (
+                            <span key={s} className="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded-md font-medium">{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {viewingBooking.complimentaryItems && viewingBooking.complimentaryItems.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">Complimentary Items</p>
+                        <div className="flex flex-wrap gap-2">
+                          {viewingBooking.complimentaryItems.map(s => (
+                            <span key={s} className="px-2 py-1 bg-[#D4AF37]/10 text-[#B8962D] border border-[#D4AF37]/20 text-xs rounded-md font-bold">{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {viewingBooking.specialRequests && (
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">Special Requests</p>
+                        <p className="text-sm text-slate-700 italic bg-slate-50 p-3 rounded-xl border border-slate-100">"{viewingBooking.specialRequests}"</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Financials */}
+                  <div className="bg-[#0F172A] p-6 rounded-2xl text-white relative overflow-hidden shadow-xl">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                      <DollarSign className="w-20 h-20 text-[#D4AF37]" />
+                    </div>
+                    <h3 className="text-xs font-black text-[#D4AF37] uppercase tracking-widest mb-4 relative z-10">Financial Summary</h3>
+                    
+                    <div className="space-y-2 text-sm relative z-10">
+                      <div className="flex justify-between text-white/70"><span>Total Amount:</span> <span>Rs. {viewingBooking.totalAmount?.toLocaleString() || 0}</span></div>
+                      <div className="flex justify-between text-emerald-400"><span>Advance Paid:</span> <span>Rs. {viewingBooking.advancePaid?.toLocaleString() || 0}</span></div>
+                      <div className="pt-3 mt-3 border-t border-white/10 flex justify-between font-bold text-lg">
+                        <span className="text-white">Balance Due:</span> 
+                        <span className="text-[#D4AF37]">Rs. {Math.max(0, (viewingBooking.totalAmount || 0) - (viewingBooking.advancePaid || 0)).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <button 
-                type="submit"
-                className="w-full py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-[0.98]"
-              >
-                Update & Recalculate
-              </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
+
       {/* MENU DETAILS MODAL */}
       {showMenuModal && selectedMenuPkg && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4" onClick={() => setShowMenuModal(false)}>

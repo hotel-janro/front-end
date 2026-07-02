@@ -1,4 +1,4 @@
-// AppRoutes.jsx - Application Routes (Pure JavaScript)
+// AppRoutes.jsx - Application Routes 
 import React from "react";
 import { apiFetch } from "../api";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
@@ -23,6 +23,7 @@ import { AdminPOS } from "../pages/dashboard/adminDashboard/AdminPos.jsx";
 import { AdminReports } from "../pages/dashboard/adminDashboard/AdminReports.jsx";
 import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayemnts.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
+import { AdminGym } from "../pages/dashboard/adminDashboard/AdminGym.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
 import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.jsx";
 import { AdminBookings } from "../pages/dashboard/adminDashboard/AdminBooking.jsx";
@@ -32,6 +33,7 @@ import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory
 
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
+import { ReceptionGym } from "../pages/dashboard/receptionDashboard/ReceptionGym.jsx";
 import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
 import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionRooms.jsx";
 import { ReceptionWedding } from "../pages/dashboard/receptionDashboard/ReceptionWedding.jsx";
@@ -44,9 +46,8 @@ import { CashierProfile } from "../pages/dashboard/cashierDashboard/CashierProfi
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
-import { VerifyOTP } from "../pages/website/VerifyOTP.jsx";
 
-export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
+export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onGoogleLogin }) {
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
   const isReception = user?.role === "reception" || user?.role === "receptionist";
@@ -75,7 +76,8 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
             specialRequests: data.specialRequests || "",
             decorationItems: data.decorationItems || [],
             checkInType: data.checkInType || 'Day',
-            checkOutType: data.checkOutType || 'Night'
+            checkOutType: data.checkOutType || 'Night',
+            stayMode: data.stayMode || 'custom'
           })
         });
 
@@ -117,17 +119,16 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       <Route path="/contact" element={<Contact />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/checkout" element={<Checkout />} />
-      <Route path="/verify-email" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <VerifyOTP onLogin={onLogin} />} />
       <Route path="/forgot-password" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ForgotPassword />} />
       <Route path="/reset-password/:token" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ResetPassword />} />
 
       <Route
         path="/login"
-        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Login onLogin={onLogin} />}
+        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Login onLogin={onLogin} onGoogleLogin={onGoogleLogin} />}
       />
       <Route
         path="/register"
-        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Register onRegister={onRegister} />}
+        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Register onRegister={onRegister} onGoogleLogin={onGoogleLogin} />}
       />
 
       {/* Customer Management Routes (Website Style) */}
@@ -144,6 +145,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="rooms" element={<AdminRooms />} />
         <Route path="bookings" element={<AdminBookings />} />
         <Route path="pool" element={<AdminPool />} />
+        <Route path="gym" element={<AdminGym />} />
         <Route path="staff" element={<AdminStaff />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="guests" element={<AdminGuests />} />
@@ -160,10 +162,11 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<ReceptionDashboard />} />
-        <Route path="rooms" element={<ReceptionRooms />} />
+        <Route path="rooms" element={<ReceptionRooms isLoggedIn={isLoggedIn} onBook={protectedBook} />} />
         <Route path="wedding" element={<ReceptionWedding />} />
         <Route path="bookings" element={<ReceptionBookings />} />
         <Route path="pool" element={<ReceptionPool />} />
+        <Route path="gym" element={<ReceptionGym />} />
       </Route>
 
       <Route

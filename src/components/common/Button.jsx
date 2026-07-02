@@ -20,7 +20,8 @@ export const Button = ({
     secondary: "bg-[#0F172A] text-white border border-white/10 hover:border-[#D4AF37] hover:text-[#D4AF37] shadow-xl",
     outline: "bg-transparent border border-slate-200 text-slate-600 hover:border-[#0F172A] hover:text-[#0F172A]",
     ghost: "bg-transparent text-slate-400 hover:bg-slate-50 hover:text-slate-900",
-    danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-lg shadow-rose-500/20"
+    danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-lg shadow-rose-500/20",
+    white: "bg-white text-[#0F172A] hover:bg-[#D4AF37]/10 hover:text-[#0F172A] border border-slate-100 shadow-md"
   };
 
   return (

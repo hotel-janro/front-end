@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSettings } from '../../../context/SettingsContext.jsx';
 import {
   Calendar,
   Search,
@@ -19,6 +20,7 @@ import {
 import { bookings } from '../../../data/mockData.js';
 
 export function ReceptionBookings() {
+  const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [selectedBooking, setSelectedBooking] = useState(null);

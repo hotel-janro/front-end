@@ -1,4 +1,4 @@
-// Sidebar.jsx - Admin Dashboard Sidebar Navigation
+// Sidebar.jsx -   Admin Dashboard Sidebar Navigation bar
 import { Link } from "react-router-dom";
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -17,6 +17,8 @@ import {
   LogOut,
   Crown,
   Boxes,
+  UserCircle,
+  Dumbbell
 } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext";
 
@@ -29,6 +31,7 @@ const adminItems = [
   { label: "Wedding & Events", icon: Heart, path: "/admin/events" },
   { label: "Restaurant", icon: UtensilsCrossed, path: "/admin/restaurant" },
   { label: "Pool", icon: Waves, path: "/admin/pool" },
+  { label: "Gym", icon: Dumbbell, path: "/admin/gym" },
   { label: "Inventory", icon: Boxes, path: "/admin/inventory" },
   { label: "Users & Staff", icon: Users, path: "/admin/staff" },
   { label: "Reports", icon: BarChart3, path: "/admin/reports" },
@@ -101,24 +104,26 @@ export function Sidebar({ user, onLogout }) {
       {/* User Profile */}
       <div className="p-3 border-t border-[#1E293B] bg-[#0B1324]">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#D4AF37] rounded-full flex items-center justify-center text-[10px] font-black text-[#0F172A] shrink-0">
-            {user?.name
-              ? user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2)
-              : "JA"}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-black text-white truncate uppercase tracking-tighter">
-              {user?.name || "John Admin"}
-            </p>
-            <p className="text-[9px] text-slate-500 truncate capitalize font-bold">
-              {user?.role || "Hotel Manager"}
-            </p>
-          </div>
+          <Link to={isCustomer ? "/my-bookings/profile" : "/admin/settings"} className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 bg-[#D4AF37] rounded-full flex items-center justify-center text-[10px] font-black text-[#0F172A] shrink-0">
+              {user?.name
+                ? user.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)
+                : "JA"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-black text-white truncate uppercase tracking-tighter">
+                {user?.name || "John Admin"}
+              </p>
+              <p className="text-[9px] text-slate-500 truncate capitalize font-bold">
+                {user?.role || "Hotel Manager"}
+              </p>
+            </div>
+          </Link>
           <button
             onClick={handleLogout}
             className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-all active:scale-90"
