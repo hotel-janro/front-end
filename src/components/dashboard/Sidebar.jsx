@@ -104,46 +104,26 @@ export function Sidebar({ user, onLogout }) {
       {/* User Profile */}
       <div className="p-3 border-t border-[#1E293B] bg-[#0B1324]">
         <div className="flex items-center gap-3">
-<<<<<<< HEAD
-          <div className="w-8 h-8 bg-[#D4AF37] rounded-full flex items-center justify-center text-[10px] font-black text-[#0F172A] shrink-0">
-            {user?.name
-              ? user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2)
-              : "JA"}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-black text-white truncate uppercase tracking-tighter">
-              {user?.name || "John Admin"}
-            </p>
-            <p className="text-[9px] text-slate-500 truncate capitalize font-bold">
-              {user?.role || "Hotel Manager"}
-            </p>
-          </div>
-=======
-          <Link to="/admin/settings" className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 bg-[#D4AF37] rounded-full flex items-center justify-center text-sm font-bold text-[#0F172A]">
+          <Link to={isCustomer ? "/my-bookings/profile" : "/admin/settings"} className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 bg-[#D4AF37] rounded-full flex items-center justify-center text-[10px] font-black text-[#0F172A] shrink-0">
               {user?.name
                 ? user.name
                     .split(" ")
                     .map((n) => n[0])
                     .join("")
                     .toUpperCase()
+                    .slice(0, 2)
                 : "JA"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">
+              <p className="text-[11px] font-black text-white truncate uppercase tracking-tighter">
                 {user?.name || "John Admin"}
               </p>
-              <p className="text-xs text-slate-400 truncate capitalize">
+              <p className="text-[9px] text-slate-500 truncate capitalize font-bold">
                 {user?.role || "Hotel Manager"}
               </p>
             </div>
           </Link>
->>>>>>> edb44e2740fcb3c9675d4c44778a683fa754eeb4
           <button
             onClick={handleLogout}
             className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-all active:scale-90"
