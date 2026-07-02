@@ -54,25 +54,50 @@ function AppInner() {
         setAuthChecked(true);
     }, []);
 
+    // Inactivity logout for staff roles (admin, receptionist, cashier, staff) - PCI-DSS Compliant
+    useEffect(() => {
+        if (!isLoggedIn || !user) return;
+
+        const isStaff = ['admin', 'reception', 'receptionist', 'cashier', 'staff'].includes(
+            user.role?.toLowerCase().trim()
+        );
+
+        if (!isStaff) return;
+
+        // Inactivity timeout: 15 minutes (900000 ms)
+        const TIMEOUT = 15 * 60 * 1000;
+        let timeoutId;
+
+        const resetTimer = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                alert("Logged out due to 15 minutes of inactivity for security.");
+                handleLogout();
+            }, TIMEOUT);
+        };
+
+        // Events to monitor user activity
+        const events = ['mousemove', 'keypress', 'mousedown', 'scroll', 'click', 'touchstart'];
+        
+        // Start monitoring
+        resetTimer();
+
+        events.forEach(event => {
+            window.addEventListener(event, resetTimer);
+        });
+
+        // Cleanup on unmount or when dependencies change
+        return () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            events.forEach(event => {
+                window.removeEventListener(event, resetTimer);
+            });
+        };
+    }, [isLoggedIn, user]);
+
     const handleLogin = async (credentials) => {
         const { email, password } = credentials;
-        if (!password) {
-            const demoUser = normalizeUser(credentials);
-            setUser(demoUser);
-            setIsLoggedIn(true);
-            localStorage.setItem("janro_user", JSON.stringify(demoUser));
-            localStorage.removeItem("janro_token");
-            navigate(
-                    demoUser.role === "admin"
-                        ? "/admin"
-                        : (demoUser.role === "reception" || demoUser.role === "receptionist")
-                        ? "/reception"
-                        : demoUser.role === "cashier"
-                        ? "/cashier"
-                        : "/"
-            );
-            return;
-        }
+
 
         const response = await fetch(`${API_BASE}/api/auth/login`, {
             method: "POST",
@@ -106,10 +131,6 @@ function AppInner() {
                     : "/"
             );
         } catch (error) {
-            if (error.data?.requireVerification) {
-                navigate("/verify-email", { state: { email: credentials.email.trim() } });
-                return;
-            }
             throw error;
         }
     };
@@ -131,10 +152,6 @@ function AppInner() {
 
         try {
             const result = await parseApiError(response, "Registration failed");
-            if (result.requireVerification) {
-                navigate("/verify-email", { state: { email: email.trim() } });
-                return;
-            }
 
             const { token, refreshToken, ...userData } = result.data || {};
             if (token && refreshToken) {
@@ -155,10 +172,43 @@ function AppInner() {
                 );
             }
         } catch (error) {
-            if (error.data?.requireVerification) {
-                navigate("/verify-email", { state: { email: email.trim() } });
-                return;
-            }
+            throw error;
+        }
+    };
+
+    const handleGoogleLogin = async (googleCredential) => {
+        const response = await fetch(`${API_BASE}/api/auth/google`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ credential: googleCredential })
+        });
+
+        try {
+            const result = await parseApiError(response, "Google sign in failed");
+
+            const { token, refreshToken, ...apiUserData } = result.data;
+
+            const nextUser = normalizeUser(apiUserData);
+
+            localStorage.setItem("janro_token", token);
+            localStorage.setItem("janro_refresh_token", refreshToken);
+
+            localStorage.setItem("janro_user", JSON.stringify(nextUser));
+
+            setUser(nextUser);
+            setIsLoggedIn(true);
+            navigate(
+                nextUser.role === "admin"
+                    ? "/admin"
+                    : (nextUser.role === "reception" || nextUser.role === "receptionist")
+                    ? "/reception"
+                    : nextUser.role === "cashier"
+                    ? "/cashier"
+                    : "/"
+            );
+        } catch (error) {
             throw error;
         }
     };
@@ -182,17 +232,22 @@ function AppInner() {
         <div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
             {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout} authChecked={authChecked}/>}
             <main className="flex-1">
-                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout}/>
+                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout} onGoogleLogin={handleGoogleLogin}/>
             </main>
             {!isDashboardRoute && <Footer />}
         </div>
     );
 }
+import { Toaster } from "sonner";
+
 export default function App() {
-    return (<SettingsProvider>
+    return (
+      <SettingsProvider>
         <BrowserRouter>
           <ScrollToTop />
           <AppInner />
+          <Toaster position="top-right" richColors />
         </BrowserRouter>
-      </SettingsProvider>);
+      </SettingsProvider>
+    );
 }

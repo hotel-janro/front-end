@@ -1,83 +1,57 @@
-// Events.jsx - Wedding & Events Page (Pure JavaScript)
+// Events.jsx - Wedding & Events Page (Dynamic)
 import React, { useEffect, useMemo, useState } from "react";
 import { useSettings } from "../../context/SettingsContext.jsx";
-
+import { apiFetch } from "../../api.js";
 import { EventCard } from "../../components/website/EventCard.jsx";
 import { CustomCalendar } from "../../components/common/CustomCalendar.jsx";
-import { Calendar, Hotel, Heart, MapPin, Users, Sparkles, X, CheckCircle, Info, ChevronRight } from "lucide-react";
-
-const HALLS = [
-  {
-    id: 1,
-    type: "hall",
-    name: "Royal Grand Hall",
-    capacity: 450,
-    price: 15000,
-    location: "Main Building, Level 2",
-    description: "Our magnificent Grand Ballroom is perfect for lavish weddings and gala events with crystal chandeliers and marble floors.",
-    image: "https://images.unsplash.com/photo-1759519238029-689e99c6d19e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBiYWxscm9vbSUyMHdlZGRpbmclMjB2ZW51ZXxlbnwxfHx8fDE3NzI0ODIyNzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
-  },
-  {
-    id: 2,
-    type: "hall",
-    name: "Garden Celebration Hall",
-    capacity: 300,
-    price: 10000,
-    location: "Garden Wing, Ground Level",
-    description: "Elegant indoor-outdoor style venue surrounded by landscaped gardens, ideal for receptions and wedding ceremonies.",
-    image: "https://images.unsplash.com/photo-1764471444363-e6dc0f9773bc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb25mZXJlbmNlJTIwaGFsbCUyMGNvcnBvcmF0ZSUyMGV2ZW50fGVufDF8fHx8MTc3MjQ4MjI2N3ww&ixlib=rb-4.1.0&q=80&w=1080",
-  },
-  {
-    id: 3,
-    type: "hall",
-    name: "Pearl Banquet Hall",
-    capacity: 200,
-    price: 8000,
-    location: "East Wing, Level 1",
-    description: "A stylish medium-sized banquet hall designed for intimate weddings, engagement functions, and private events.",
-    image: "https://images.unsplash.com/photo-1762216444919-043cf813e4de?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYXJkZW4lMjBwYXJ0eSUyMG91dGRvb3IlMjBldmVudCUyMHZlbnVlfGVufDF8fHx8MTc3MjQ4MjI3MHww&ixlib=rb-4.1.0&q=80&w=1080",
-  },
-];
-
-const AREAS = [
-  {
-    id: 4,
-    type: "area",
-    name: "Golden Sunset Lawn",
-    capacity: 600,
-    price: 12000,
-    location: "West Side Gardens",
-    description: "Breathtaking outdoor lawn with a scenic view of the horizon, perfect for large wedding ceremonies and sunset receptions.",
-    image: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1080",
-  },
-  {
-    id: 5,
-    type: "area",
-    name: "Emerald Pool Terrace",
-    capacity: 150,
-    price: 9000,
-    location: "Poolside Level",
-    description: "A chic poolside terrace offering a sophisticated atmosphere for cocktail parties, engagement dinners, and small events.",
-    image: "https://images.unsplash.com/photo-1566733971257-826502945d58?auto=format&fit=crop&q=80&w=1080",
-  },
-  {
-    id: 6,
-    type: "area",
-    name: "Starlight Rooftop",
-    capacity: 100,
-    price: 11000,
-    location: "Executive Tower, Top Floor",
-    description: "An exclusive rooftop venue with panoramic city views, ideal for modern weddings and private corporate celebrations.",
-    image: "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80&w=1080",
-  },
-];
+import { Calendar, Hotel, Heart, MapPin, Users, Sparkles, X, CheckCircle, Info, ChevronRight, Loader2 } from "lucide-react";
 
 export function Events() {
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState("halls");
+  const [hallsList, setHallsList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    const fetchHalls = async () => {
+      try {
+        const response = await apiFetch("/weddings/halls");
+        if (response.success && Array.isArray(response.data)) {
+          // Normalize hallName to name for frontend EventCard component mapping
+          const normalized = response.data.map(h => ({
+            ...h,
+            id: h._id,
+            name: h.hallName
+          }));
+          setHallsList(normalized);
+        }
+      } catch (error) {
+        console.error("Failed to fetch wedding halls:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHalls();
+  }, []);
 
-  const currentData = activeTab === "halls" ? HALLS : AREAS;
+  const currentData = useMemo(() => {
+    return hallsList.filter(hall => {
+      const type = (hall.type || "").toLowerCase();
+      if (activeTab === "halls") {
+        return type === "hall";
+      } else {
+        return type === "event area" || type === "area";
+      }
+    });
+  }, [hallsList, activeTab]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+        <Loader2 className="w-12 h-12 text-[#D4AF37] animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">

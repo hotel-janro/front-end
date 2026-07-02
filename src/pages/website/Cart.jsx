@@ -1,25 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, ChevronLeft } from "lucide-react";
 import { Button } from "../../components/common/Button.jsx";
 
 export function Cart() {
-  const [items, setItems] = useState([
-    {
-      id: 1,
-      name: "Truffle Risotto",
-      price: 24.50,
-      quantity: 1,
-      image: "https://images.unsplash.com/photo-1476124369491-e7addf5db371?q=80&w=200&h=200&fit=crop"
-    },
-    {
-      id: 2,
-      name: "Signature Cocktails (Pair)",
-      price: 18.00,
-      quantity: 1,
-      image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?q=80&w=200&h=200&fit=crop"
-    }
-  ]);
+  const [items, setItems] = useState(() => {
+    const saved = localStorage.getItem("janro_cart");
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 1,
+        name: "Truffle Risotto",
+        price: 2450.00, // Format in LKR
+        quantity: 1,
+        image: "https://images.unsplash.com/photo-1476124369491-e7addf5db371?q=80&w=200&h=200&fit=crop"
+      },
+      {
+        id: 2,
+        name: "Signature Cocktails (Pair)",
+        price: 1800.00, // Format in LKR
+        quantity: 1,
+        image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?q=80&w=200&h=200&fit=crop"
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("janro_cart", JSON.stringify(items));
+  }, [items]);
 
   const updateQuantity = (id, delta) => {
     setItems(items.map(item => {
