@@ -241,27 +241,15 @@ function AppInner() {
         </div>
     );
 }
-import { Toaster } from "sonner";
-
 export default function App() {
-<<<<<<< HEAD
-    return (<SettingsProvider>
-        <SocketProvider>
-          <BrowserRouter>
-            <ScrollToTop />
-            <AppInner />
-          </BrowserRouter>
-        </SocketProvider>
-      </SettingsProvider>);
-=======
     return (
-      <SettingsProvider>
-        <BrowserRouter>
-          <ScrollToTop />
-          <AppInner />
-          <Toaster position="top-right" richColors />
-        </BrowserRouter>
-      </SettingsProvider>
+        <SettingsProvider>
+            <SocketProvider>
+                <BrowserRouter>
+                    <ScrollToTop />
+                    <AppInner />
+                </BrowserRouter>
+            </SocketProvider>
+        </SettingsProvider>
     );
->>>>>>> edb44e2740fcb3c9675d4c44778a683fa754eeb4
 }
