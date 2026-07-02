@@ -1066,8 +1066,8 @@ export function AdminGym() {
                   }} 
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                 >
-                  <option value="Day Pass">One-Day Gym Pass (Rs. 1,000) [Anonymous]</option>
-                  <option value="Monthly Member">Monthly Membership (Rs. 8,000) [Enforced Registry]</option>
+                  <option value="Day Pass">One-Day Gym Pass (Rs. 1,000)</option>
+                  <option value="Monthly Member">Monthly Membership (Rs. 8,000)</option>
                 </select>
               </div>
 
@@ -1127,7 +1127,7 @@ export function AdminGym() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-600 ml-1">Contact Email Address (Optional)</label>
+                    <label className="text-xs font-semibold text-slate-600 ml-1">Contact Email Address </label>
                     <input 
                       type="email" 
                       name="guestEmail" 
