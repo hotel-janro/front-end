@@ -15,7 +15,7 @@ export function Events() {
   useEffect(() => {
     const fetchHalls = async () => {
       try {
-        const response = await apiFetch("/weddings/halls");
+        const response = await apiFetch("/wedding/halls");
         if (response.success && Array.isArray(response.data)) {
           // Normalize hallName to name for frontend EventCard component mapping
           const normalized = response.data.map(h => ({

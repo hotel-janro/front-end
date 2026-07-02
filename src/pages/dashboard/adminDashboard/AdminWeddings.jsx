@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Calendar, Users, DollarSign, Plus, Search, X, Edit, Trash2, Upload, ImageIcon, Loader2, Eye, Info } from 'lucide-react';
+import { Heart, Calendar, Users, DollarSign, Plus, Search, X, Edit, Trash2, Upload, ImageIcon, Loader2, Eye, Info, Phone, Mail, MapPin, User, Clock, CheckCircle } from 'lucide-react';
 import { apiFetch, getImageUrl } from '../../../api';
 
 export function AdminWedding() {
@@ -29,7 +29,7 @@ export function AdminWedding() {
     eventType: 'Wedding',
     guestCount: '',
     hallId: '',
-    cateringPackage: 'Silver',
+    cateringPackage: '100 Pax Package',
     customPackagePrice: '',
     customPackageNotes: '',
     selectedMeals: [],
@@ -71,7 +71,7 @@ export function AdminWedding() {
       eventType: booking.eventType || 'Wedding',
       guestCount: booking.guestCount || '',
       hallId: booking.hallId?._id || booking.hallId || '',
-      cateringPackage: booking.cateringPackage || 'Silver',
+      cateringPackage: booking.cateringPackage || (booking.bookingCategory === 'Wedding' ? '100 Pax Package' : 'Menu I'),
       customPackagePrice: booking.customPackagePrice || '',
       customPackageNotes: booking.customPackageNotes || '',
       selectedMeals: booking.selectedMeals || [],
@@ -122,41 +122,74 @@ export function AdminWedding() {
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [selectedMenuPkg, setSelectedMenuPkg] = useState(null);
 
-  const packageDetails = {
-    Silver: {
-      price: 2500,
-      highlights: ['2 Meats', '3 Desserts', 'Standard Buffet'],
+  const weddingFullMenu = {
+    WelcomeDrinks: ['Orange Juice', 'Mango juice', 'MixFruit juice'],
+    Appetizers: ['Salad Corner: Tomato, Onion or Green Chilli Salad / Cucamba Card With Salad / Mix Vegetable Salad / Salada Kola', 'Soup: Chicken Soup / Vegetable Soup / Egg Soup'],
+    MainCourse: ['Rice: Steam basmathi Rice / Yellow Rice / Chiken Fride Rice / Vegetable Noodles', 'Chicken: Chicken Red Curry / Chilli Chicken / Spicy Chicken Badum / Chicken kuruma', 'Fish: Fish Talapath / Fish Red Curry (Talapath) / Fish Peppered Curry (Moldivan Style) / Fish Ambultiyal / Fish Masala', 'Vegetables: Tempered Potato & Potato Curry / Brinjall Capcicum & Tomato Moju Or Pahi / Tempered Dhal Or Dhal Fry Indian Style / Garlice Green Beans / Temperd Mushroom With kunisso / Cashew (Green Peas Curry)', 'Condiments Platter: DRY FISH / Sinhala Achcharu / Mango Chutney / Chilli Paste / Tomato Sauce / Papadam Dry Chilly'],
+    LiveStations: ['Poruwa & Seti Back', 'Oil Lamp Decorated', 'Entrance Arch', 'Beautiful Location Photos', 'Table Decoration', 'Cake Baskets', 'Registration table / Cake Table / Milk Rice Table', '(Led) Dancing Floor', 'Two A/C Rooms for Dressing', 'Astaka', 'Jayamangala', 'Piliganeem', 'West Natum', 'Kirikala or Champagine'],
+    Desserts: ['Cream Orange Caramal', 'Watalappam', 'Fresh Fruits Salad', 'Fresh Fruites Cuts (papaya Pineple,Banana ) Water Melan', 'Rainbow Jelly ( Red & Green)', 'CUSTARD PUDDING']
+  };
+
+  const weddingPackageDetails = {
+    '100 Pax Package': {
+      price: 4750,
+      highlights: ['Poruwa & Seti Back, Dancing Floor, A/C Rooms, Astaka', 'Welcome Drink, Rice, Chicken, Fish, Vegetables, Desserts', 'Free Bites: Chicken, Sausages 2kg, Kadala 2kg'],
+      fullMenu: weddingFullMenu
+    },
+    '150 Pax Package': {
+      price: 4450,
+      highlights: ['Poruwa & Seti Back, Dancing Floor, A/C Rooms, Astaka', 'Welcome Drink, Rice, Chicken, Fish, Vegetables, Desserts', 'Free Bites (15kg): Chicken 5kg, Sausages 4kg, Kadala 3kg, Hot Butter Mushroom 3kg'],
+      fullMenu: weddingFullMenu
+    },
+    '200 Pax Package': {
+      price: 3850,
+      highlights: ['Poruwa & Seti Back, Dancing Floor, A/C Rooms, Astaka', 'Welcome Drink, Rice, Chicken, Fish, Vegetables, Desserts', 'Free Bites: Chicken 7kg, Sausages 4kg, Kadala 4kg'],
+      fullMenu: weddingFullMenu
+    },
+    '250 Pax Package': {
+      price: 3750,
+      highlights: ['Poruwa & Seti Back, Dancing Floor, A/C Rooms, Astaka', 'Welcome Drink, Rice, Chicken, Fish, Vegetables, Desserts', 'Free Bites (18kg): Chicken 10kg, Sausages 4kg, Kadala 4kg'],
+      fullMenu: weddingFullMenu
+    }
+  };
+
+  const eventPackageDetails = {
+    'Lunch With Pool': {
+      price: 2415,
+      highlights: ['Egg Rice', 'Devilled Chicken', 'Vegetable Chopsy', 'Hot Butter Mushroom', 'Yoghurt & Chilly Paste'],
       fullMenu: {
-        WelcomeDrinks: ['1 Standard Option (Fruit Juice / Iced Coffee)'],
+        WelcomeDrinks: ['None'],
         Appetizers: ['None'],
-        MainCourse: ['2 Rice/Noodles', '2 Meats (Chicken, Fish)', '3-4 Vegetables & Salads'],
+        MainCourse: ['Egg Rice', 'Devilled Chicken', 'Vegetable Chopsy', 'Hot Butter mushroom', 'Chilly Paste'],
         LiveStations: ['None'],
-        Desserts: ['3 Options (Ice Cream, Watalappan, Fruits)']
+        Desserts: ['Yoghurt']
       }
     },
-    Gold: {
-      price: 4000,
-      highlights: ['3 Meats', '5 Desserts', '1 Live Station'],
+    'Menu I': {
+      price: 2900,
+      highlights: ['Chicken Curry', 'Fish Ambultiyal', 'Brinjall Moju', 'Dessert (Ice Cream & Jelly)'],
       fullMenu: {
-        WelcomeDrinks: ['2 Options (Mocktail, Iced Coffee)'],
-        Appetizers: ['1 Soup', '2 Appetizers'],
-        MainCourse: ['3-4 Rice/Noodles/Pasta', '3 Meats (Chicken, Fish, Pork/Beef/Cuttlefish)', '5-6 Vegetables & Salads'],
-        LiveStations: ['1 Live Action Station (e.g. Hopper or Pasta)'],
-        Desserts: ['5 Options (Cakes, Puddings, Fruits)']
+        WelcomeDrinks: ['Welcome Drink'],
+        Appetizers: ['Vegetable Salad'],
+        MainCourse: ['Vegetable Rice', 'White Rice', 'Chicken Curry', 'Fish Ambultiyal', 'Dhal Curry', 'Brinjall Moju', 'Dry Fish', 'Dry chilli Kankun'],
+        LiveStations: ['None'],
+        Desserts: ['Ice Cream', 'Jelly']
       }
     },
-    Platinum: {
-      price: 6500,
-      highlights: ['5 Premium Meats', '7 Desserts', '2 Live Stations'],
+    'Menu II': {
+      price: 2750,
+      highlights: ['Chilli Chicken', 'Devilled Fish', 'Hot Butter Mushroom', 'Dessert (Ice Cream & Jelly)'],
       fullMenu: {
-        WelcomeDrinks: ['3 Premium Options (Fresh Juices, Mocktails)'],
-        Appetizers: ['2 Soups', 'Passed around Appetizers'],
-        MainCourse: ['5+ Rice/Noodles (Biryani, Nasi Goreng)', '4-5 Premium Meats (Duck, Prawns, Mutton)', 'Extensive Salad Bar & Hot Vegetables'],
-        LiveStations: ['2-3 Live Action Stations (Mongolian, Sushi, Carvery)'],
-        Desserts: ['7+ Premium Options (Chocolate Fountain, French Pastries)']
+        WelcomeDrinks: ['Welcome Drink'],
+        Appetizers: ['None'],
+        MainCourse: ['Vegetable Rice', 'Egg Noodles', 'Chilli Chicken', 'Devilled Fish', 'Vegetable Chopsy', 'Hot Butter Mushroom', 'Dry chilli Kankun'],
+        LiveStations: ['None'],
+        Desserts: ['Ice Cream', 'Jelly']
       }
     }
   };
+
+  const packageDetails = formData.bookingCategory === 'Wedding' ? weddingPackageDetails : eventPackageDetails;
   const mealPrices = {
     'Breakfast': 800,
     'Lunch': 1500,
@@ -202,6 +235,22 @@ export function AdminWedding() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (formData.bookingCategory === 'Wedding' && formData.hallId && formData.cateringPackage !== 'Custom') {
+      const selectedHall = halls.find(h => h._id === formData.hallId);
+      if (selectedHall) {
+        const maxCapacity = selectedHall.capacity;
+        const match = formData.cateringPackage.match(/(\d+)/);
+        if (match) {
+          const packagePax = parseInt(match[0], 10);
+          if (packagePax > maxCapacity) {
+            setFormData(prev => ({ ...prev, cateringPackage: '100 Pax Package' }));
+          }
+        }
+      }
+    }
+  }, [formData.hallId, formData.bookingCategory, formData.cateringPackage, halls]);
 
   const fetchData = async () => {
     try {
@@ -439,7 +488,7 @@ export function AdminWedding() {
           customerName: '', customerPhone: '', customerEmail: '',
           groomName: '', groomPhone: '', brideName: '', bridePhone: '',
           eventDate: '', startTime: '09:00', endTime: '16:00', eventType: 'Wedding',
-          guestCount: '', hallId: '', cateringPackage: 'Silver',
+          guestCount: '', hallId: '', cateringPackage: '100 Pax Package',
           selectedMeals: [], optionalServices: [], specialRequests: '', 
           advancePaid: '', bookingCategory: 'Wedding', venuePreference: 'Indoor', timeSlot: 'Day',
           seatingStyle: 'Round Tables', dietaryNotes: '', corkageIncluded: false,
@@ -551,7 +600,7 @@ export function AdminWedding() {
                   customerName: '', customerPhone: '', customerEmail: '',
                   groomName: '', groomPhone: '', brideName: '', bridePhone: '',
                   eventDate: '', startTime: '09:00', endTime: '16:00', eventType: 'Wedding',
-                  guestCount: '', hallId: '', cateringPackage: 'Silver',
+                  guestCount: '', hallId: '', cateringPackage: '100 Pax Package',
                   selectedMeals: [], optionalServices: [], specialRequests: '', 
                   advancePaid: '', bookingCategory: 'Wedding', venuePreference: 'Indoor', timeSlot: 'Day',
                   seatingStyle: 'Round Tables', dietaryNotes: '', corkageIncluded: false,
@@ -894,7 +943,7 @@ export function AdminWedding() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
                       <button
-                        onClick={() => { setFormData({...formData, bookingCategory: 'Wedding'}); setCurrentStep(1); }}
+                        onClick={() => { setFormData({...formData, bookingCategory: 'Wedding', cateringPackage: '100 Pax Package'}); setCurrentStep(1); }}
                         className="group relative bg-[#0F172A] p-6 rounded-[2rem] border-2 border-slate-800 hover:border-[#D4AF37] hover:shadow-2xl hover:shadow-[#D4AF37]/20 transition-all text-left overflow-hidden"
                       >
                         <div className="absolute right-[-10%] top-[-10%] p-8 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -914,7 +963,7 @@ export function AdminWedding() {
                       </button>
 
                       <button
-                        onClick={() => { setFormData({...formData, bookingCategory: 'Event'}); setCurrentStep(1); }}
+                        onClick={() => { setFormData({...formData, bookingCategory: 'Event', cateringPackage: 'Menu I'}); setCurrentStep(1); }}
                         className="group relative bg-[#0F172A] p-6 rounded-[2rem] border-2 border-slate-800 hover:border-[#D4AF37] hover:shadow-2xl hover:shadow-[#D4AF37]/20 transition-all text-left overflow-hidden"
                       >
                         <div className="absolute right-[-10%] top-[-10%] p-8 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -937,93 +986,135 @@ export function AdminWedding() {
                 )}
 
                 {currentStep === 1 && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="space-y-4">
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                          <Users className="w-4 h-4 text-[#D4AF37]" /> Primary Contact
+                      <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
+                        <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-3">
+                          <Users className="w-4 h-4 text-[#D4AF37]" /> Primary Contact Info
                         </h4>
+                        
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Customer Name *</label>
-                          <input required type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="Mr. John Doe" />
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Customer Name *</label>
+                          <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                              <User className="w-4 h-4" />
+                            </div>
+                            <input required type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-semibold text-sm" placeholder="Mr. John Doe" />
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Phone Number *</label>
-                          <input required type="tel" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="+94 7X XXX XXXX" />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Email Address</label>
-                          <input type="email" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="john@example.com" />
-                        </div>
-                        <div className="grid grid-cols-1 gap-4">
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Customer NIC *</label>
-                            <input required type="text" value={formData.customerNIC} onChange={e => setFormData({...formData, customerNIC: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="XXXX-XXXX-XXXX" />
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Phone Number *</label>
+                            <div className="relative">
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                <Phone className="w-4 h-4" />
+                              </div>
+                              <input required type="tel" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-semibold text-sm" placeholder="+94 7X XXX XXXX" />
+                            </div>
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Permanent Address *</label>
-                            <textarea required value={formData.customerAddress} onChange={e => setFormData({...formData, customerAddress: e.target.value})} rows="2" className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="Current Billing Address" />
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Customer NIC *</label>
+                            <div className="relative">
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                <Info className="w-4 h-4" />
+                              </div>
+                              <input required type="text" value={formData.customerNIC} onChange={e => setFormData({...formData, customerNIC: e.target.value})} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-semibold text-sm" placeholder="XXXX-XXXX-XXXX" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Email Address</label>
+                          <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                              <Mail className="w-4 h-4" />
+                            </div>
+                            <input type="email" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-semibold text-sm" placeholder="john@example.com" />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Permanent Address *</label>
+                          <div className="relative">
+                            <div className="absolute left-4 top-4 text-slate-400">
+                              <MapPin className="w-4 h-4" />
+                            </div>
+                            <textarea required value={formData.customerAddress} onChange={e => setFormData({...formData, customerAddress: e.target.value})} rows="2" className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-semibold text-sm" placeholder="Current Billing Address" />
                           </div>
                         </div>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
                         {formData.bookingCategory === 'Wedding' ? (
                           <>
-                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-3">
                               <Heart className="w-4 h-4 text-[#D4AF37]" /> The Happy Couple
                             </h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Groom's Name</label>
-                                <input type="text" value={formData.groomName} onChange={e => setFormData({...formData, groomName: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="Groom's Full Name" />
+                            <div className="space-y-4">
+                              <div className="p-4 bg-white rounded-2xl border border-slate-200/60 space-y-3">
+                                <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider block">Groom Details</span>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div className="relative">
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><User className="w-3.5 h-3.5" /></div>
+                                    <input type="text" value={formData.groomName} onChange={e => setFormData({...formData, groomName: e.target.value})} className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:border-[#D4AF37] outline-none transition-all text-xs font-semibold" placeholder="Name" />
+                                  </div>
+                                  <div className="relative">
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Phone className="w-3.5 h-3.5" /></div>
+                                    <input type="tel" value={formData.groomPhone} onChange={e => setFormData({...formData, groomPhone: e.target.value})} className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:border-[#D4AF37] outline-none transition-all text-xs font-semibold" placeholder="Phone" />
+                                  </div>
+                                </div>
                               </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Groom's Phone</label>
-                                <input type="tel" value={formData.groomPhone} onChange={e => setFormData({...formData, groomPhone: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="07X XXX XXXX" />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Bride's Name</label>
-                                <input type="text" value={formData.brideName} onChange={e => setFormData({...formData, brideName: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="Bride's Full Name" />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Bride's Phone</label>
-                                <input type="tel" value={formData.bridePhone} onChange={e => setFormData({...formData, bridePhone: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-semibold" placeholder="07X XXX XXXX" />
+                              
+                              <div className="p-4 bg-white rounded-2xl border border-slate-200/60 space-y-3">
+                                <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider block">Bride Details</span>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div className="relative">
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><User className="w-3.5 h-3.5" /></div>
+                                    <input type="text" value={formData.brideName} onChange={e => setFormData({...formData, brideName: e.target.value})} className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:border-[#D4AF37] outline-none transition-all text-xs font-semibold" placeholder="Name" />
+                                  </div>
+                                  <div className="relative">
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Phone className="w-3.5 h-3.5" /></div>
+                                    <input type="tel" value={formData.bridePhone} onChange={e => setFormData({...formData, bridePhone: e.target.value})} className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:border-[#D4AF37] outline-none transition-all text-xs font-semibold" placeholder="Phone" />
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </>
                         ) : (
                           <>
-                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-3">
                               <Calendar className="w-4 h-4 text-[#D4AF37]" /> Event Details
                             </h4>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Event Type *</label>
-                              <select required value={formData.eventType} onChange={e => setFormData({...formData, eventType: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-bold">
-                                {['Wedding Reception', 'Homecoming', 'Engagement Ceremony', 'Birthday Celebration', 'Anniversary Party', 'Puberty Ceremony', 'Corporate Meeting / Seminar', 'Conference / Workshop', 'Company Annual Party', 'Product Launch', 'Graduation Ceremony', 'School / Alumni Reunion', 'Musical Show / Concert', 'Other'].map(type => (
-                                  <option key={type} value={type}>{type}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Venue Preference</label>
-                              <div className="flex gap-4">
-                                {['Indoor', 'Outdoor'].map(pref => (
-                                  <button key={pref} onClick={() => setFormData({...formData, venuePreference: pref})} type="button" className={`flex-1 py-3.5 rounded-2xl border-2 font-bold transition-all ${formData.venuePreference === pref ? 'border-[#0F172A] bg-[#0F172A] text-white shadow-lg' : 'border-slate-100 text-slate-400 hover:border-slate-200'}`}>
-                                    {pref}
-                                  </button>
-                                ))}
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Event Type *</label>
+                                <select required value={formData.eventType} onChange={e => setFormData({...formData, eventType: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-sm">
+                                  {['Wedding Reception', 'Homecoming', 'Engagement Ceremony', 'Birthday Celebration', 'Anniversary Party', 'Puberty Ceremony', 'Corporate Meeting / Seminar', 'Conference / Workshop', 'Company Annual Party', 'Product Launch', 'Graduation Ceremony', 'School / Alumni Reunion', 'Musical Show / Concert', 'Other'].map(type => (
+                                    <option key={type} value={type}>{type}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Venue Preference</label>
+                                <div className="flex gap-4">
+                                  {['Indoor', 'Outdoor'].map(pref => (
+                                    <button key={pref} onClick={() => setFormData({...formData, venuePreference: pref})} type="button" className={`flex-1 py-3 rounded-xl border-2 font-bold transition-all text-xs uppercase tracking-wider ${formData.venuePreference === pref ? 'border-[#0F172A] bg-[#0F172A] text-white shadow-lg' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>
+                                      {pref}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           </>
                         )}
-                        <div className="pt-2">
-                          <div className="p-4 bg-[#D4AF37]/5 rounded-2xl border border-[#D4AF37]/20">
-                            <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest mb-1">Selected Path</p>
-                            <p className="text-xs font-bold text-slate-700">{formData.bookingCategory} Booking</p>
-                            <button onClick={() => setCurrentStep(0)} className="text-[10px] font-black text-slate-400 uppercase hover:text-red-500 transition-colors mt-2 underline">Change Type</button>
+                        <div className="pt-4">
+                          <div className="p-4 bg-[#D4AF37]/5 rounded-2xl border border-[#D4AF37]/20 flex justify-between items-center">
+                            <div>
+                              <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest mb-0.5">Booking Path</p>
+                              <p className="text-xs font-bold text-slate-700">{formData.bookingCategory} Booking</p>
+                            </div>
+                            <button onClick={() => setCurrentStep(0)} className="text-[10px] font-black text-slate-400 uppercase hover:text-red-500 transition-colors underline">Change Type</button>
                           </div>
                         </div>
                       </div>
@@ -1032,13 +1123,15 @@ export function AdminWedding() {
                 )}
 
                 {currentStep === 2 && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="space-y-6">
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Venue Details</h4>
+                      <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
+                        <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-3">
+                          <Users className="w-4 h-4 text-[#D4AF37]" /> Venue Details
+                        </h4>
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Select Hall / Area *</label>
-                          <select required value={formData.hallId} onChange={e => setFormData({...formData, hallId: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-bold">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Select Hall / Area *</label>
+                          <select required value={formData.hallId} onChange={e => setFormData({...formData, hallId: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-sm">
                             <option value="">Choose a Venue</option>
                             {halls
                               .filter(hall => formData.bookingCategory === 'Wedding' ? hall.type === 'Hall' : hall.type === 'Event Area')
@@ -1048,19 +1141,24 @@ export function AdminWedding() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Guest Count *</label>
-                            <input required type="number" value={formData.guestCount} onChange={e => setFormData({...formData, guestCount: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-bold" />
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Guest Count *</label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                <Users className="w-3.5 h-3.5" />
+                              </div>
+                              <input required type="number" value={formData.guestCount} onChange={e => setFormData({...formData, guestCount: e.target.value})} className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-[#D4AF37] outline-none transition-all text-xs font-bold" />
+                            </div>
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Seating Style</label>
-                            <select value={formData.seatingStyle} onChange={e => setFormData({...formData, seatingStyle: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-bold">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Seating Style</label>
+                            <select value={formData.seatingStyle} onChange={e => setFormData({...formData, seatingStyle: e.target.value})} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:border-[#D4AF37] outline-none transition-all text-xs font-bold">
                               {['Round Tables', 'Theater', 'U-Shape', 'Classroom', 'Cocktail'].map(style => <option key={style} value={style}>{style}</option>)}
                             </select>
                           </div>
                         </div>
                         {formData.bookingCategory === 'Wedding' && (
-                          <div className="p-5 bg-slate-50 rounded-[2rem] border-2 border-slate-100">
-                            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Ceremony & Event Milestones</h5>
+                          <div className="p-4 bg-white rounded-2xl border border-slate-200/60">
+                            <h5 className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider mb-3">Ceremony & Event Milestones</h5>
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold text-slate-600">Main Ceremony</span>
@@ -1079,28 +1177,48 @@ export function AdminWedding() {
                         )}
                       </div>
 
-                      <div className="space-y-6">
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Schedule</h4>
+                      <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
+                        <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-3">
+                          <Calendar className="w-4 h-4 text-[#D4AF37]" /> Schedule Details
+                        </h4>
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Event Date *</label>
-                          <input required type="date" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-bold" />
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Event Date *</label>
+                          <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                              <Calendar className="w-4 h-4" />
+                            </div>
+                            <input required type="date" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-sm" />
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Start Time *</label>
-                            <input required type="time" value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-bold" />
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Start Time *</label>
+                            <div className="relative">
+                              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                                <Clock className="w-4 h-4" />
+                              </div>
+                              <input required type="time" value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} className="w-full pl-10 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-xs" />
+                            </div>
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">End Time *</label>
-                            <input required type="time" value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-bold" />
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">End Time *</label>
+                            <div className="relative">
+                              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                                <Clock className="w-4 h-4" />
+                              </div>
+                              <input required type="time" value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} className="w-full pl-10 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-xs" />
+                            </div>
                           </div>
                         </div>
-                        <div className="flex gap-4">
-                          {['Day', 'Night'].map(slot => (
-                            <button key={slot} onClick={() => setFormData({...formData, timeSlot: slot})} type="button" className={`flex-1 py-3.5 rounded-2xl border-2 font-bold transition-all ${formData.timeSlot === slot ? 'border-[#D4AF37] bg-[#D4AF37]/5 text-[#D4AF37]' : 'border-slate-100 text-slate-400'}`}>
-                              {slot} Time
-                            </button>
-                          ))}
+                        <div className="pt-2">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Time Slot</label>
+                          <div className="flex gap-4">
+                            {['Day', 'Night'].map(slot => (
+                              <button key={slot} onClick={() => setFormData({...formData, timeSlot: slot})} type="button" className={`flex-1 py-3 rounded-xl border-2 font-bold transition-all text-xs uppercase tracking-wider ${formData.timeSlot === slot ? 'border-[#0F172A] bg-[#0F172A] text-white shadow-lg' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>
+                                {slot} Time
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1108,137 +1226,128 @@ export function AdminWedding() {
                 )}
 
                 {currentStep === 3 && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="space-y-6">
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Catering Selection</h4>
-                        {formData.bookingCategory === 'Wedding' ? (
-                          <div className="space-y-4">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Wedding Package</label>
-                            {Object.keys(packageDetails).map(pkg => (
-                              <div key={pkg} className={`w-full rounded-2xl border-2 transition-all ${formData.cateringPackage === pkg ? 'border-[#0F172A] bg-slate-50 shadow-md' : 'border-slate-100 hover:border-slate-200'}`}>
-                                <div className="flex justify-between items-start p-4 cursor-pointer" onClick={() => setFormData({...formData, cateringPackage: pkg})}>
-                                  <div className="flex-1">
-                                    <span className={`font-bold block ${formData.cateringPackage === pkg ? 'text-slate-900' : 'text-slate-500'}`}>{pkg} Package</span>
-                                    <span className="text-[10px] text-[#D4AF37] font-bold block mb-3">Rs. {packageDetails[pkg].price.toLocaleString()} per plate</span>
-                                    <ul className="text-[10px] text-slate-500 space-y-1.5">
-                                      {packageDetails[pkg].highlights.map((highlight, idx) => (
-                                        <li key={idx} className="flex items-center gap-1.5">
-                                          <div className="w-1 h-1 bg-slate-300 rounded-full" /> {highlight}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                  <div className="flex flex-col items-end justify-between h-full">
-                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors mb-4 ${formData.cateringPackage === pkg ? 'bg-[#D4AF37] text-[#0F172A]' : 'bg-slate-100 text-transparent border border-slate-200'}`}>
-                                      <Plus className="w-3 h-3" />
-                                    </div>
-                                    <button 
-                                      type="button" 
-                                      onClick={(e) => { e.stopPropagation(); setSelectedMenuPkg(pkg); setShowMenuModal(true); }}
-                                      className="text-[10px] font-bold text-[#0F172A] underline hover:text-[#D4AF37] transition-colors mt-auto"
-                                    >
-                                      View Menu
-                                    </button>
-                                  </div>
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-6">
+                      <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-widest flex items-center gap-2 border-b border-slate-200/60 pb-3">
+                        <Heart className="w-4 h-4 text-[#D4AF37]" /> Catering Package Selection
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Object.keys(packageDetails)
+                          .filter(pkg => {
+                            if (formData.bookingCategory !== 'Wedding') return true;
+                            const selectedHall = halls.find(h => h._id === formData.hallId);
+                            const maxCapacity = selectedHall ? selectedHall.capacity : 9999;
+                            const match = pkg.match(/(\d+)/);
+                            if (!match) return true;
+                            return parseInt(match[0], 10) <= maxCapacity;
+                          })
+                          .map(pkg => (
+                          <div 
+                            key={pkg} 
+                            onClick={() => setFormData({...formData, cateringPackage: pkg})}
+                            className={`group relative rounded-2xl border-2 p-5 cursor-pointer transition-all flex flex-col justify-between ${
+                              formData.cateringPackage === pkg 
+                                ? 'border-[#0F172A] bg-white shadow-xl shadow-slate-900/5 scale-[1.02]' 
+                                : 'border-slate-200/60 bg-white hover:border-slate-300'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex justify-between items-start mb-3">
+                                <div>
+                                  <span className={`font-bold text-sm block ${formData.cateringPackage === pkg ? 'text-slate-900' : 'text-slate-600'}`}>{pkg}</span>
+                                  <span className="text-[11px] text-[#D4AF37] font-black block mt-0.5">Rs. {packageDetails[pkg].price.toLocaleString()} / plate</span>
+                                </div>
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                                  formData.cateringPackage === pkg ? 'bg-[#D4AF37] text-[#0F172A]' : 'bg-slate-100 text-transparent border border-slate-200'
+                                }`}>
+                                  <Plus className="w-3.5 h-3.5" />
                                 </div>
                               </div>
-                            ))}
+                              <ul className="text-[10px] text-slate-500 space-y-1.5 mb-4">
+                                {packageDetails[pkg].highlights.map((highlight, idx) => (
+                                  <li key={idx} className="flex items-start gap-1.5 leading-relaxed">
+                                    <span className="text-[#D4AF37] font-bold mt-0.5">•</span>
+                                    <span>{highlight}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <button 
+                              type="button" 
+                              onClick={(e) => { e.stopPropagation(); setSelectedMenuPkg(pkg); setShowMenuModal(true); }}
+                              className="text-[10px] font-bold text-[#0F172A] underline hover:text-[#D4AF37] transition-colors mt-auto self-start"
+                            >
+                              View Full Menu
+                            </button>
+                          </div>
+                        ))}
 
-                            <div className={`w-full rounded-2xl border-2 transition-all ${formData.cateringPackage === 'Custom' ? 'border-[#D4AF37] bg-[#D4AF37]/5 shadow-md' : 'border-slate-100 hover:border-[#D4AF37]/30'}`}>
-                              <div className="flex justify-between items-start p-4 cursor-pointer" onClick={() => setFormData({...formData, cateringPackage: 'Custom'})}>
-                                <div className="flex-1">
-                                  <span className={`font-bold block ${formData.cateringPackage === 'Custom' ? 'text-[#0F172A]' : 'text-slate-500'}`}>Custom Package</span>
-                                  <span className="text-[10px] text-slate-500 block mb-1">Tailor-made menu for specific requirements.</span>
-                                </div>
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${formData.cateringPackage === 'Custom' ? 'bg-[#D4AF37] text-[#0F172A]' : 'bg-slate-100 text-transparent border border-slate-200'}`}>
-                                  <Plus className="w-3 h-3" />
-                                </div>
+                        <div 
+                          onClick={() => setFormData({...formData, cateringPackage: 'Custom'})}
+                          className={`rounded-2xl border-2 p-5 cursor-pointer transition-all flex flex-col justify-between ${
+                            formData.cateringPackage === 'Custom' 
+                              ? 'border-[#D4AF37] bg-white shadow-xl shadow-[#D4AF37]/5 scale-[1.02]' 
+                              : 'border-slate-200/60 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <span className={`font-bold text-sm block ${formData.cateringPackage === 'Custom' ? 'text-[#0F172A]' : 'text-slate-600'}`}>Custom Package</span>
+                                <span className="text-[10px] text-slate-400 block mt-0.5">Tailor-made menu for specific requirements.</span>
                               </div>
-                              
-                              {formData.cateringPackage === 'Custom' && (
-                                <div className="p-4 border-t border-[#D4AF37]/20 bg-white/50 rounded-b-2xl space-y-4">
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Agreed Price Per Plate *</label>
-                                    <input 
-                                      type="number" 
-                                      required
-                                      value={formData.customPackagePrice}
-                                      onChange={e => setFormData({...formData, customPackagePrice: e.target.value})}
-                                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none text-sm font-bold"
-                                      placeholder="Rs. 3800"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Menu Notes / Details</label>
-                                    <textarea 
-                                      rows="2"
-                                      value={formData.customPackageNotes}
-                                      onChange={e => setFormData({...formData, customPackageNotes: e.target.value})}
-                                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none text-xs"
-                                      placeholder="e.g. Gold package with Mutton instead of Pork."
-                                    />
-                                  </div>
-                                </div>
-                              )}
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                                formData.cateringPackage === 'Custom' ? 'bg-[#D4AF37] text-[#0F172A]' : 'bg-slate-100 text-transparent border border-slate-200'
+                              }`}>
+                                <Plus className="w-3.5 h-3.5" />
+                              </div>
                             </div>
                           </div>
-                        ) : (
-                          <div className="grid grid-cols-2 gap-4">
-                            {Object.keys(mealPrices).map(meal => (
-                              <button key={meal} type="button" onClick={() => setFormData(prev => ({...prev, selectedMeals: prev.selectedMeals.includes(meal) ? prev.selectedMeals.filter(m => m !== meal) : [...prev.selectedMeals, meal]}))} className={`p-4 rounded-2xl border-2 transition-all ${formData.selectedMeals.includes(meal) ? 'border-[#0F172A] bg-slate-50' : 'border-slate-100 text-slate-400'}`}>
-                                <span className="text-xs font-bold block mb-1">{meal}</span>
-                                <span className="text-[10px] font-bold text-[#D4AF37]">Rs. {mealPrices[meal].toLocaleString()}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        <div className="pt-4">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Dietary Notes / Corkage</label>
-                          <textarea value={formData.dietaryNotes} onChange={e => setFormData({...formData, dietaryNotes: e.target.value})} rows="3" placeholder="Vegetarian counts, Allergies, Special requests..." className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] outline-none transition-all font-medium text-sm"></textarea>
-                          <label className="mt-4 flex items-center gap-3 cursor-pointer p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 hover:border-[#D4AF37]/30 transition-all">
-                            <input type="checkbox" checked={formData.corkageIncluded} onChange={e => setFormData({...formData, corkageIncluded: e.target.checked})} className="w-5 h-5 rounded-lg accent-[#0F172A]" />
-                            <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">Corkage Included (Liquor allowed)</span>
-                          </label>
+                          
+                          {formData.cateringPackage === 'Custom' && (
+                            <div className="mt-3 space-y-3 pt-3 border-t border-[#D4AF37]/20">
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Agreed Price Per Plate *</label>
+                                <input 
+                                  type="number" 
+                                  required
+                                  value={formData.customPackagePrice}
+                                  onChange={e => setFormData({...formData, customPackagePrice: e.target.value})}
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:border-[#D4AF37] outline-none text-xs font-bold"
+                                  placeholder="Rs. 3800"
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Menu Notes / Details</label>
+                                <textarea 
+                                  rows="2"
+                                  value={formData.customPackageNotes}
+                                  onChange={e => setFormData({...formData, customPackageNotes: e.target.value})}
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:border-[#D4AF37] outline-none text-[10px]"
+                                  placeholder="e.g. Special menu with specific modifications."
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      <div className="space-y-6">
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Optional Services</h4>
-                        <div className="grid grid-cols-1 gap-3">
-                          {Object.keys(formData.bookingCategory === 'Wedding' ? weddingServicePrices : eventServicePrices).map(service => (
-                            <label key={service} className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${formData.optionalServices.includes(service) ? 'border-[#0F172A] bg-slate-50' : 'border-slate-100 hover:border-slate-200'}`}>
-                              <div className="flex items-center gap-3">
-                                <input type="checkbox" checked={formData.optionalServices.includes(service)} onChange={() => handleServiceToggle(service)} className="w-5 h-5 rounded-lg accent-[#0F172A]" />
-                                <div>
-                                  <p className="text-xs font-bold text-slate-900 uppercase tracking-widest">{service}</p>
-                                  <p className="text-[10px] text-[#D4AF37] font-bold">Rs. {(formData.bookingCategory === 'Wedding' ? weddingServicePrices[service] : eventServicePrices[service]).toLocaleString()}</p>
-                                </div>
-                              </div>
-                            </label>
-                          ))}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-200/60">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Dietary Notes / Corkage</label>
+                          <textarea value={formData.dietaryNotes} onChange={e => setFormData({...formData, dietaryNotes: e.target.value})} rows="3" placeholder="Vegetarian counts, Allergies, Special requests..." className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-medium text-xs resize-none"></textarea>
                         </div>
-
-                        <div className="pt-6 border-t border-slate-100">
-                          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Complimentary Items</h4>
-                          <div className="grid grid-cols-1 gap-2">
-                            {(formData.bookingCategory === 'Wedding' ? weddingComplimentaryOptions : eventComplimentaryOptions).map(option => (
-                              <label key={option} className="flex items-center gap-3 cursor-pointer p-3 bg-white border border-slate-100 rounded-xl hover:border-[#D4AF37]/30 transition-all">
-                                <input 
-                                  type="checkbox" 
-                                  checked={formData.complimentaryItems.includes(option)}
-                                  onChange={() => {
-                                    const items = formData.complimentaryItems.includes(option)
-                                      ? formData.complimentaryItems.filter(i => i !== option)
-                                      : [...formData.complimentaryItems, option];
-                                    setFormData({...formData, complimentaryItems: items});
-                                  }}
-                                  className="w-4 h-4 rounded accent-[#0F172A]"
-                                />
-                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{option}</span>
-                              </label>
-                            ))}
-                          </div>
+                        <div className="flex flex-col justify-center">
+                          <label className="flex items-center gap-3 cursor-pointer p-4 bg-white rounded-2xl border border-slate-200/60 hover:border-[#D4AF37]/30 transition-all">
+                            <input type="checkbox" checked={formData.corkageIncluded} onChange={e => setFormData({...formData, corkageIncluded: e.target.checked})} className="w-5 h-5 rounded-lg accent-[#0F172A]" />
+                            <div>
+                              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">Corkage Included</span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">Allow customer to bring their own liquor.</span>
+                            </div>
+                          </label>
                         </div>
                       </div>
                     </div>
@@ -1246,45 +1355,46 @@ export function AdminWedding() {
                 )}
 
                 {currentStep === 4 && (
-                  <div className="space-y-8 animate-in fade-in zoom-in-95">
-                    <div className="bg-[#0F172A] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl">
-                      <div className="absolute top-0 right-0 p-8">
-                        <DollarSign className="w-24 h-24 text-[#D4AF37] opacity-10" />
+                  <div className="space-y-6 animate-in fade-in zoom-in-95">
+                    <div className="bg-[#0F172A] rounded-[2rem] p-6 text-white relative overflow-hidden shadow-2xl border border-slate-800">
+                      <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <DollarSign className="w-24 h-24 text-[#D4AF37]" />
                       </div>
-                      <div className="relative z-10">
-                        <h3 className="text-4xl font-semibold mb-6" style={{ fontFamily: "DM Serif Display, serif" }}>
-                          Rs. {calculateTotal().toLocaleString()}
-                        </h3>
-                        <div className="grid grid-cols-2 gap-8 text-sm border-t border-white/10 pt-6">
+                      <div className="relative z-10 space-y-4">
+                        <div className="flex justify-between items-start border-b border-white/10 pb-4">
                           <div>
-                            <p className="text-[#D4AF37] text-[10px] font-black uppercase tracking-[0.2em] mb-2">Booking Summary</p>
-                            <p className="text-white/70">{formData.bookingCategory}: {formData.customerName}</p>
-                            {formData.bookingCategory === 'Wedding' && (
-                              <div className="mt-2 space-y-1">
-                                <p className="text-white/70 text-xs">Groom: {formData.groomName || 'N/A'} {formData.groomPhone && `(${formData.groomPhone})`}</p>
-                                <p className="text-white/70 text-xs">Bride: {formData.brideName || 'N/A'} {formData.bridePhone && `(${formData.bridePhone})`}</p>
-                              </div>
-                            )}
-                            <p className="text-white/70 text-xs mt-2">{formData.eventDate} ({formData.timeSlot})</p>
-                            <p className="text-white/70 text-xs">{formData.guestCount} Guests in {halls.find(h => h._id === formData.hallId)?.hallName}</p>
-                            
-                            <div className="mt-4 pt-4 border-t border-white/5 space-y-1">
-                              <div className="flex justify-between text-[10px] text-white/40 uppercase font-bold tracking-widest">
-                                <span>Gross Subtotal</span>
-                                <span>Rs. {calculateSubtotal().toLocaleString()}</span>
-                              </div>
-                              {formData.discountPercentage > 0 && (
-                                <div className="flex justify-between text-[10px] text-[#D4AF37] uppercase font-bold tracking-widest">
-                                  <span>Offer Discount ({formData.discountPercentage}%)</span>
-                                  <span>- Rs. {(calculateSubtotal() * Number(formData.discountPercentage) / 100).toLocaleString()}</span>
-                                </div>
+                            <p className="text-[#D4AF37] text-[10px] font-black uppercase tracking-[0.2em] mb-1">Booking Invoice</p>
+                            <h3 className="text-xl font-bold text-white">{formData.customerName}</h3>
+                            <p className="text-white/60 text-xs mt-1">{formData.customerPhone}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white/40 text-[10px] font-bold uppercase tracking-wider">Estimated Total</p>
+                            <h3 className="text-2xl font-black text-[#D4AF37] mt-0.5">Rs. {calculateTotal().toLocaleString()}</h3>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs pt-2">
+                          <div className="space-y-2">
+                            <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider block">Details</span>
+                            <div className="space-y-1.5 text-white/70">
+                              <p><span className="font-semibold text-white/90">Type:</span> {formData.bookingCategory} Booking ({formData.eventType})</p>
+                              {formData.bookingCategory === 'Wedding' && (
+                                <>
+                                  <p><span className="font-semibold text-white/90">Groom:</span> {formData.groomName || 'N/A'}</p>
+                                  <p><span className="font-semibold text-white/90">Bride:</span> {formData.brideName || 'N/A'}</p>
+                                </>
                               )}
+                              <p><span className="font-semibold text-white/90">Date & Slot:</span> {formData.eventDate} ({formData.timeSlot} Time)</p>
+                              <p><span className="font-semibold text-white/90">Venue:</span> {halls.find(h => h._id === formData.hallId)?.hallName} ({formData.guestCount} Guests)</p>
+                              <p><span className="font-semibold text-white/90">Package:</span> {formData.cateringPackage}</p>
                             </div>
                           </div>
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+
+                          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-4">
+                            <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider block">Pricing & Payment</span>
+                            <div className="grid grid-cols-2 gap-3">
                               <div>
-                                <label className="block text-[10px] font-bold text-white/50 uppercase mb-2">Discount (%)</label>
+                                <label className="block text-[9px] font-bold text-white/50 uppercase mb-1">Discount (%)</label>
                                 <div className="relative">
                                   <input 
                                     type="text" 
@@ -1295,42 +1405,54 @@ export function AdminWedding() {
                                         setFormData({...formData, discountPercentage: val});
                                       }
                                     }} 
-                                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl focus:border-[#D4AF37] outline-none text-white font-bold pr-8" 
+                                    className="w-full px-3 py-1.5 bg-white/10 border border-white/10 rounded-lg focus:border-[#D4AF37] outline-none text-white font-bold text-xs pr-7" 
                                     placeholder="0" 
                                   />
-                                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#D4AF37] pointer-events-none">%</div>
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-[#D4AF37] pointer-events-none">%</div>
                                 </div>
                               </div>
                               <div>
-                                <label className="block text-[10px] font-bold text-white/50 uppercase mb-2">Advance (20% Min) *</label>
-                                <input required type="number" min={calculateTotal() * 0.2} value={formData.advancePaid} onChange={e => setFormData({...formData, advancePaid: e.target.value})} className="w-full px-4 py-2 bg-white/10 border border-[#D4AF37]/50 rounded-xl focus:border-[#D4AF37] outline-none text-white font-bold" />
+                                <label className="block text-[9px] font-bold text-white/50 uppercase mb-1">Advance (20% Min) *</label>
+                                <input required type="number" min={calculateTotal() * 0.2} value={formData.advancePaid} onChange={e => setFormData({...formData, advancePaid: e.target.value})} className="w-full px-3 py-1.5 bg-white/10 border border-[#D4AF37]/50 rounded-lg focus:border-[#D4AF37] outline-none text-white font-bold text-xs" />
                               </div>
                             </div>
-                            <p className="text-[10px] text-white/40 italic text-right">Remaining Balance: Rs. {Math.max(0, calculateTotal() - (Number(formData.advancePaid) || 0)).toLocaleString()}</p>
+
+                            <div className="border-t border-white/10 pt-3 space-y-1.5 text-[11px]">
+                              <div className="flex justify-between text-white/60">
+                                <span>Gross Subtotal:</span>
+                                <span>Rs. {calculateSubtotal().toLocaleString()}</span>
+                              </div>
+                              {formData.discountPercentage > 0 && (
+                                <div className="flex justify-between text-[#D4AF37] font-semibold">
+                                  <span>Discount ({formData.discountPercentage}%):</span>
+                                  <span>- Rs. {(calculateSubtotal() * Number(formData.discountPercentage) / 100).toLocaleString()}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between text-white/90 font-bold border-t border-white/5 pt-1.5">
+                                <span>Net Total:</span>
+                                <span className="text-[#D4AF37]">Rs. {calculateTotal().toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between text-emerald-400 font-bold">
+                                <span>Advance Paid:</span>
+                                <span>Rs. {Number(formData.advancePaid || 0).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between text-red-400 font-bold border-t border-white/5 pt-1.5">
+                                <span>Balance Due:</span>
+                                <span>Rs. {Math.max(0, calculateTotal() - (Number(formData.advancePaid) || 0)).toLocaleString()}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100">
-                        <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Complimentary Items</h5>
-                        {formData.complimentaryItems.length > 0 ? (
-                          <ul className="space-y-2">
-                            {formData.complimentaryItems.map(item => (
-                              <li key={item} className="text-xs font-bold text-green-600 flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 bg-green-500 rounded-full" /> {item}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-xs text-slate-400 italic">No complimentary items selected</p>
-                        )}
-                      </div>
-                      <div className="bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100">
-                        <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Special Requests</h5>
-                        <p className="text-sm text-slate-600 italic">"{formData.specialRequests || 'No special requests provided'}"</p>
-                      </div>
+
+                    <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200/60 space-y-2">
+                      <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Special Requests & Dietary Notes</h5>
+                      <p className="text-xs text-slate-600 italic">
+                        {formData.specialRequests || formData.dietaryNotes 
+                          ? `"${[formData.specialRequests, formData.dietaryNotes].filter(Boolean).join(' | ')}"` 
+                          : 'No special requests or dietary notes provided'}
+                      </p>
                     </div>
                   </div>
                 )}
