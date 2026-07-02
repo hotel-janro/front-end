@@ -21,8 +21,10 @@ import {
   X,
   Truck,
   Printer,
-  Banknote
+  Banknote,
+  TrendingUp
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast, Toaster } from 'sonner';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 import { useSocket } from '../../../context/SocketContext.jsx';
@@ -35,6 +37,12 @@ export function AdminPOS() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [validationErrors, setValidationErrors] = useState({});
+
+  // Luxury Tabbed POS States
+  const [activeTab, setActiveTab] = useState('terminal'); // 'terminal', 'kitchen', 'analytics'
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [menuSearch, setMenuSearch] = useState('');
+  const [portionModalItem, setPortionModalItem] = useState(null);
 
   const clearError = (field) => {
     if (validationErrors[field]) {
@@ -588,187 +596,294 @@ export function AdminPOS() {
     }
   };
 
+  const popularityData = useMemo(() => {
+    const counts = {};
+    orders.forEach(order => {
+      if (order.orderStatus === 'Cancelled') return;
+      (order.items || []).forEach(item => {
+        const name = item.name;
+        counts[name] = (counts[name] || 0) + (item.quantity || 0);
+      });
+    });
+
+    return Object.entries(counts)
+      .map(([name, sales]) => ({ name, sales }))
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, 5);
+  }, [orders]);
+
+  const categories = useMemo(() => {
+    const cats = new Set(menuItems.map(item => item.category).filter(Boolean));
+    return ['All', ...Array.from(cats)];
+  }, [menuItems]);
+
+  const filteredMenuItems = useMemo(() => {
+    return menuItems.filter(item => {
+      const matchCategory = selectedCategory === 'All' || item.category === selectedCategory;
+      const matchSearch = item.name.toLowerCase().includes(menuSearch.toLowerCase());
+      return matchCategory && matchSearch;
+    });
+  }, [menuItems, selectedCategory, menuSearch]);
+
+  const handleAddVisualItem = (menuItem, portion = 'Full', quantity = 1) => {
+    if (!menuItem.isAvailable) {
+      toast.warning(`${menuItem.name} is currently unavailable!`);
+      return;
+    }
+    const price = menuItem.hasPortions
+      ? menuItem.portions.find(p => p.portionType === portion)?.price
+      : menuItem.price;
+
+    setCart((prev) => {
+      const cartItemId = `${menuItem._id}-${menuItem.hasPortions ? portion : 'single'}`;
+      const existing = prev.find((i) => i.cartItemId === cartItemId);
+      if (existing) {
+        return prev.map((i) => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + quantity } : i);
+      }
+      return [...prev, {
+        cartItemId, menuItemId: menuItem._id, name: menuItem.name,
+        portion: menuItem.hasPortions ? portion : '', price: price, quantity
+      }];
+    });
+    toast.success(`Added ${menuItem.name} (${portion}) to cart!`);
+  };
+
   const today = new Date().toLocaleDateString();
   const todayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === today);
   const activeOrdersCount = orders.filter(o => o.orderStatus === 'Pending' || o.orderStatus === 'Preparing').length;
   const todayRevenue = todayOrders.filter(o => o.paymentStatus === 'Paid').reduce((s, o) => s + (o.totalAmount || 0), 0);
 
-  // Main Interface Render
-  return (
-    <div className="space-y-4">
-      {/* Small Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {[
-          { label: 'Today Orders', value: todayOrders.length, icon: ShoppingCart, color: 'blue' },
-          { label: 'Active Kitchen', value: activeOrdersCount, icon: Clock, color: 'amber' },
-          { label: 'Net Revenue', value: formatCurrency(todayRevenue), icon: Gem, color: 'emerald' }
-        ].map((stat, i) => (
-          <div key={i} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-${stat.color}-50 text-${stat.color}-600`}>
-              <stat.icon className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
-              <h3 className="text-sm font-black text-slate-900 mt-1">{stat.value}</h3>
-            </div>
+  // Helper sub-render functions for clean tabs layout
+  const renderHeader = () => (
+    <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-white/5">
+      <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-[#D4AF37]/5 rounded-full blur-[60px] -mr-16 -mt-16" />
+      
+      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 text-[#D4AF37] text-[9px] font-black uppercase tracking-[0.3em] mb-2">
+            <Zap className="w-3 h-3 animate-pulse" /> Luxury POS System
           </div>
-        ))}
+          <h2 className="text-2xl text-white font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Culinary <span className="text-[#D4AF37]">POS Hub</span>
+          </h2>
+        </div>
+
+        <div className="flex p-1 bg-slate-950 rounded-xl border border-white/10 shadow-lg">
+          {[
+            { id: 'terminal', label: 'Cashier Terminal', icon: ShoppingCart },
+            { id: 'kitchen', label: 'Kitchen Sync', icon: Clock },
+            { id: 'analytics', label: 'Sales Trends', icon: TrendingUp },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${
+                activeTab === tab.id
+                  ? 'bg-[#D4AF37] text-[#0F172A] shadow-md shadow-[#D4AF37]/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <tab.icon className="w-3.5 h-3.5" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStats = () => (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {[
+        { label: 'Today Orders', value: todayOrders.length, icon: ShoppingCart, color: 'blue' },
+        { label: 'Active Kitchen', value: activeOrdersCount, icon: Clock, color: 'amber' },
+        { label: 'Net Revenue', value: formatCurrency(todayRevenue), icon: Gem, color: 'emerald' }
+      ].map((stat, i) => (
+        <div key={i} className="bg-[#0F172A] p-3 rounded-xl shadow-sm border border-white/5 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-900 text-[#D4AF37] border border-white/5">
+            <stat.icon className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
+            <h3 className="text-sm font-black text-white mt-1">{stat.value}</h3>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderTerminal = () => (
+    <div className="grid gap-6 xl:grid-cols-[1fr_450px] 2xl:grid-cols-[1fr_500px]">
+      {/* Left Column: Culinary Grid */}
+      <div className="space-y-4">
+        {/* Search & Categories */}
+        <div className="bg-[#0F172A] p-4 rounded-[2rem] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search dishes..."
+              value={menuSearch}
+              onChange={e => setMenuSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-white/5 text-white placeholder:text-slate-500 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/20 transition-all"
+            />
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto py-1 no-scrollbar">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-300 border ${
+                  selectedCategory === cat
+                    ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/15'
+                    : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-950 hover:text-white'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Grid of Dishes */}
+        {filteredMenuItems.length === 0 ? (
+          <div className="bg-[#0F172A] py-20 text-center rounded-[2rem] border border-white/5">
+            <Utensils className="w-12 h-12 mx-auto text-slate-500 mb-3 animate-pulse" />
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">No Dishes Found</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredMenuItems.map(item => (
+              <div
+                key={item._id}
+                className={`bg-slate-900 rounded-[2rem] border border-white/5 overflow-hidden shadow-md hover:shadow-xl hover:border-[#D4AF37]/30 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between ${
+                  !item.isAvailable ? 'opacity-65' : ''
+                }`}
+              >
+                <div className="relative h-32 bg-slate-950/20 overflow-hidden">
+                  {item.image ? (
+                    <img
+                       src={getImageUrl(item.image)}
+                       alt={item.name}
+                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-600">
+                      <Utensils className="w-8 h-8" />
+                    </div>
+                  )}
+                  {!item.isAvailable && (
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
+                      <span className="text-[10px] font-black text-white uppercase tracking-widest bg-rose-500 px-2.5 py-1 rounded-md">Sold Out</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="p-4 flex-1 flex flex-col justify-between gap-3 text-white">
+                  <div>
+                    <span className="text-[8px] font-black text-[#D4AF37] uppercase tracking-wider bg-[#D4AF37]/5 px-2 py-0.5 rounded-md border border-[#D4AF37]/10">
+                      {item.category}
+                    </span>
+                    <h4 className="font-bold text-white text-xs mt-1.5 leading-snug">{item.name}</h4>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                    <div>
+                      {item.hasPortions ? (
+                        <div className="text-[8px] font-bold text-slate-400">Portions</div>
+                      ) : (
+                        <div className="text-xs font-black text-[#D4AF37]">{formatCurrency(item.price)}</div>
+                      )}
+                    </div>
+                    
+                    <div>
+                      {item.hasPortions ? (
+                        <div className="flex gap-1">
+                          {item.portions.map(p => (
+                            <button
+                              key={p.portionType}
+                              disabled={!item.isAvailable}
+                              onClick={() => handleAddVisualItem(item, p.portionType)}
+                              className="px-2 py-1 bg-slate-950 hover:bg-[#D4AF37] hover:text-[#0F172A] border border-white/5 text-slate-300 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all duration-300"
+                              title={`Add ${p.portionType} (${formatCurrency(p.price)})`}
+                            >
+                              {p.portionType[0]}: {formatCurrency(p.price).replace('Rs ', '').split('.')[0]}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <button
+                          disabled={!item.isAvailable}
+                          onClick={() => handleAddVisualItem(item, 'Full')}
+                          className="px-3 py-1.5 bg-[#D4AF37] text-[#0F172A] hover:bg-white hover:text-[#0F172A] rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-300 shadow-sm"
+                        >
+                          Add +
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[550px_1fr] 2xl:grid-cols-[650px_1fr]">
-        {/* Billing and Cart Section */}
-        <div className="bg-[#0F172A] p-4 rounded-[2rem] shadow-xl text-white relative overflow-hidden flex flex-col gap-4">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/10 rounded-full blur-3xl -mr-16 -mt-16" />
+      {/* Right Column: Checkout Cart */}
+      <div className="bg-[#0F172A] p-5 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden flex flex-col gap-4">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/10 rounded-full blur-3xl -mr-16 -mt-16" />
 
-          <div className="relative z-10 space-y-3">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
-              <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Order <span className="text-[#D4AF37]">Billing</span></h3>
-              <Receipt className="w-4 h-4 text-[#D4AF37]" />
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Order <span className="text-[#D4AF37]">Checkout</span></h3>
+            <Receipt className="w-4 h-4 text-[#D4AF37]" />
+          </div>
+
+          {/* Checkout Form */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Type</label>
+              <select value={posForm.orderType} onChange={e => setPosForm({ ...posForm, orderType: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none">
+                {['Dine-in', 'Room', 'Delivery', 'Take-away'].map(t => <option key={t} value={t} className="text-black">{t}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Guest Name</label>
+              <input
+                type="text"
+                placeholder="Kasun Tharaka"
+                value={posForm.customerName}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === "" || /^[a-zA-Z\s.]+$/.test(val)) {
+                    setPosForm({ ...posForm, customerName: val });
+                    clearError('customerName');
+                  }
+                }}
+                className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+              />
+              {validationErrors.customerName && <p className="text-[9px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.customerName}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Type</label>
-                <select value={posForm.orderType} onChange={e => setPosForm({ ...posForm, orderType: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none">
-                  {['Dine-in', 'Room', 'Delivery', 'Take-away'].map(t => <option key={t} value={t} className="text-black">{t}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Guest Name</label>
-                <input
-                  type="text"
-                  placeholder="Kasun Tharaka"
-                  value={posForm.customerName}
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val === "" || /^[a-zA-Z\s.]+$/.test(val)) {
-                      setPosForm({ ...posForm, customerName: val });
-                      clearError('customerName');
-                    }
-                  }}
-                  className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
-                />
-                {validationErrors.customerName && <p className="text-[9px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.customerName}</p>}
-              </div>
-
-              {posForm.orderType === 'Dine-in' && (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Table</label>
-                    <select
-                      value={posForm.tableNumber}
-                      onChange={e => { setPosForm({ ...posForm, tableNumber: e.target.value }); clearError('tableNumber'); }}
-                      className={`w-full bg-white/5 border ${validationErrors.tableNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
-                    >
-                      <option value="" className="bg-slate-900 text-white">Select Table</option>
-                      {[...Array(15)].map((_, i) => <option key={i} value={`T-${i + 1}`} className="bg-slate-900 text-white">Table {i + 1}</option>)}
-                    </select>
-                    {validationErrors.tableNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.tableNumber}</p>}
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
-                    <input
-                      type="tel"
-                      placeholder="07XXXXXXXX"
-                      value={posForm.contactNumber}
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val === "" || /^\d{0,10}$/.test(val)) {
-                          setPosForm({ ...posForm, contactNumber: val });
-                          clearError('contactNumber');
-                        }
-                      }}
-                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
-                    />
-                    {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
-                  </div>
-                </>
-              )}
-
-              {posForm.orderType === 'Room' && (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Room</label>
-                    <select
-                      value={posForm.roomNumber}
-                      onChange={e => { setPosForm({ ...posForm, roomNumber: e.target.value }); clearError('roomNumber'); }}
-                      className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
-                    >
-                      <option value="" className="bg-slate-900 text-white">Select Room</option>
-                      {[...Array(10)].map((_, i) => <option key={i} value={`${i + 1}`} className="bg-slate-900 text-white">Room {i + 1}</option>)}
-                    </select>
-                    {validationErrors.roomNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.roomNumber}</p>}
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
-                    <input
-                      type="tel"
-                      placeholder="07XXXXXXXX"
-                      value={posForm.contactNumber}
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val === "" || /^\d{0,10}$/.test(val)) {
-                          setPosForm({ ...posForm, contactNumber: val });
-                          clearError('contactNumber');
-                        }
-                      }}
-                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
-                    />
-                    {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
-                  </div>
-                </>
-              )}
-
-              {posForm.orderType === 'Delivery' && (
-                <>
-                  <div className="space-y-1 col-span-2">
-                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Address</label>
-                    <input
-                      type="text"
-                      placeholder="123 Main Street, Dompe"
-                      value={posForm.deliveryAddress}
-                      onChange={e => { setPosForm({ ...posForm, deliveryAddress: e.target.value }); clearError('deliveryAddress'); }}
-                      onBlur={(e) => autoGeocode(e.target.value)}
-                      className={`w-full bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
-                    />
-                    {validationErrors.deliveryAddress && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.deliveryAddress}</p>}
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Fee (Rs)</label>
-                    <input
-                      type="number"
-                      placeholder="0.00"
-                      value={posForm.deliveryFee}
-                      onChange={e => setPosForm({ ...posForm, deliveryFee: Number(e.target.value) })}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
-                    <input
-                      type="tel"
-                      placeholder="07XXXXXXXX"
-                      value={posForm.contactNumber}
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val === "" || /^\d{0,10}$/.test(val)) {
-                          setPosForm({ ...posForm, contactNumber: val });
-                          clearError('contactNumber');
-                        }
-                      }}
-                      className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
-                    />
-                    {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
-                  </div>
-                </>
-              )}
-
-              {posForm.orderType === 'Take-away' && (
-                <div className="space-y-1 col-span-2">
-                  <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Number</label>
+            {posForm.orderType === 'Dine-in' && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Table</label>
+                  <select
+                    value={posForm.tableNumber}
+                    onChange={e => { setPosForm({ ...posForm, tableNumber: e.target.value }); clearError('tableNumber'); }}
+                    className={`w-full bg-white/5 border ${validationErrors.tableNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
+                  >
+                    <option value="" className="bg-slate-900 text-white">Select Table</option>
+                    {[...Array(15)].map((_, i) => <option key={i} value={`T-${i + 1}`} className="bg-slate-900 text-white">Table {i + 1}</option>)}
+                  </select>
+                  {validationErrors.tableNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.tableNumber}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
                   <input
                     type="tel"
-                    placeholder="0771234567"
+                    placeholder="07XXXXXXXX"
                     value={posForm.contactNumber}
                     onChange={e => {
                       const val = e.target.value;
@@ -781,339 +896,396 @@ export function AdminPOS() {
                   />
                   {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
                 </div>
-              )}
-            </div>
+              </>
+            )}
 
-            {/* Menu Selection */}
-            <div className="space-y-2 bg-white/5 p-3 rounded-2xl border border-white/5">
-              <div className="flex gap-2">
-                <select value={selectedPosMenuItemId} onChange={e => setSelectedPosMenuItemId(e.target.value)} className="flex-1 bg-white text-black rounded-lg px-2 py-1.5 text-[11px] font-bold outline-none">
-                  <option value="">Select dish...</option>
-                  {menuItems.map(item => (
-                    <option key={item._id} value={item._id} className={!item.isAvailable ? "text-slate-400" : "text-black"}>
-                      {item.name} {!item.isAvailable ? '(OFF)' : ''}
-                    </option>
-                  ))}
-                </select>
-                <input type="number" min="1" value={selectedPosQuantity} onChange={e => setSelectedPosQuantity(e.target.value)} className="w-10 bg-white/10 border border-white/10 rounded-xl text-center text-xs outline-none" />
-                <button onClick={addPosItem} className="bg-[#D4AF37] text-[#0F172A] px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest">Add</button>
-              </div>
-              {selectedPosMenuItemId && menuItems.find(i => i._id === selectedPosMenuItemId)?.hasPortions && (
-                <div className="flex gap-2">
-                  {['Full', 'Half'].map(p => (
-                    <button key={p} onClick={() => setSelectedPortion(p)} className={`flex-1 py-1 rounded-lg text-[8px] font-black uppercase border transition-all ${selectedPortion === p ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A]' : 'bg-white/5 border-white/10 text-white'}`}>
-                      {p} Portion
-                    </button>
-                  ))}
+            {posForm.orderType === 'Room' && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Room</label>
+                  <select
+                    value={posForm.roomNumber}
+                    onChange={e => { setPosForm({ ...posForm, roomNumber: e.target.value }); clearError('roomNumber'); }}
+                    className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
+                  >
+                    <option value="" className="bg-slate-900 text-white">Select Room</option>
+                    {[...Array(10)].map((_, i) => <option key={i} value={`${i + 1}`} className="bg-slate-900 text-white">Room {i + 1}</option>)}
+                  </select>
+                  {validationErrors.roomNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.roomNumber}</p>}
                 </div>
-              )}
-            </div>
+                <div className="space-y-1">
+                  <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                  <input
+                    type="tel"
+                    placeholder="07XXXXXXXX"
+                    value={posForm.contactNumber}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d{0,10}$/.test(val)) {
+                        setPosForm({ ...posForm, contactNumber: val });
+                        clearError('contactNumber');
+                      }
+                    }}
+                    className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  />
+                  {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+                </div>
+              </>
+            )}
 
-            {/* Cart Preview */}
-            <div className="max-h-[120px] overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
-              {cart.map(item => (
-                <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-1.5 rounded-xl border border-white/5 text-[10px]">
+            {posForm.orderType === 'Delivery' && (
+              <>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Address</label>
+                  <input
+                    type="text"
+                    placeholder="123 Main Street, Dompe"
+                    value={posForm.deliveryAddress}
+                    onChange={e => { setPosForm({ ...posForm, deliveryAddress: e.target.value }); clearError('deliveryAddress'); }}
+                    onBlur={(e) => autoGeocode(e.target.value)}
+                    className={`w-full bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  />
+                  {validationErrors.deliveryAddress && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.deliveryAddress}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Fee (Rs)</label>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={posForm.deliveryFee}
+                    onChange={e => setPosForm({ ...posForm, deliveryFee: Number(e.target.value) })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                  <input
+                    type="tel"
+                    placeholder="07XXXXXXXX"
+                    value={posForm.contactNumber}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d{0,10}$/.test(val)) {
+                        setPosForm({ ...posForm, contactNumber: val });
+                        clearError('contactNumber');
+                      }
+                    }}
+                    className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  />
+                  {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+                </div>
+              </>
+            )}
+
+            {posForm.orderType === 'Take-away' && (
+              <div className="space-y-1 col-span-2">
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Number</label>
+                <input
+                  type="tel"
+                  placeholder="0771234567"
+                  value={posForm.contactNumber}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d{0,10}$/.test(val)) {
+                      setPosForm({ ...posForm, contactNumber: val });
+                      clearError('contactNumber');
+                    }
+                  }}
+                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                />
+                {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Cart Items */}
+          <div className="max-h-[220px] overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
+            {cart.length === 0 ? (
+              <div className="py-8 text-center text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                Cart is empty. Click a dish to add.
+              </div>
+            ) : (
+              cart.map(item => (
+                <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5 text-[10px]">
                   <div><span className="font-bold">{item.name}</span> {item.portion && <span className="text-[#D4AF37] text-[8px] ml-1">({item.portion})</span>}</div>
                   <div className="flex items-center gap-3">
                     <span>{item.quantity}x {formatCurrency(item.price)}</span>
                     <button onClick={() => setCart(c => c.filter(i => i.cartItemId !== item.cartItemId))} className="text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {/* Fees & Totals Section */}
-            <div className="pt-3 border-t border-white/10 space-y-2">
-              <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-400">
-                {serviceCharge > 0 && <div className="flex justify-between col-span-2"><span>Service Charge (10%)</span><span className="text-[#D4AF37] font-bold">+{formatCurrency(serviceCharge)}</span></div>}
-                {deliveryFee > 0 && <div className="flex justify-between col-span-2"><span>Delivery Fee (Dist: {distance.toFixed(1)}km)</span><span className="text-blue-400 font-bold">+{formatCurrency(deliveryFee)}</span></div>}
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Bill</span>
-                <span className="text-xl font-black text-[#D4AF37]">{formatCurrency(grandTotal)}</span>
-              </div>
-
-              <div className="grid grid-cols-4 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[7px] text-slate-500 uppercase tracking-widest">Discount</label>
-                  <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[7px] text-slate-500 uppercase tracking-widest">Received</label>
-                  <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white" />
-                </div>
-                <div className="flex flex-col justify-center items-center gap-1">
-                  <label className="text-[7px] text-slate-500 uppercase tracking-widest">Paid</label>
-                  <input type="checkbox" checked={isPaidToggle} onChange={e => setIsPaidToggle(e.target.checked)} className="w-4 h-4 accent-[#D4AF37] cursor-pointer" />
-                </div>
-                <div className="text-right">
-                  <label className="text-[7px] text-slate-500 uppercase tracking-widest">Balance</label>
-                  <p className="text-sm font-black text-emerald-400">{formatCurrency(balance)}</p>
-                </div>
-              </div>
-
-              <button onClick={handlePlaceOrder} disabled={savingPosOrder} className="w-full bg-[#D4AF37] text-[#0F172A] py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all shadow-lg">
-                {savingPosOrder ? 'Saving Order...' : 'Confirm & Print'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Kitchen Status Monitor */}
-        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-slate-50 flex items-center justify-between">
-            <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-blue-600">Sync</span></h3>
-            <div className="flex items-center gap-4">
-              {/* Status Legend */}
-              <div className="hidden sm:flex items-center gap-3 text-[7px] font-black uppercase tracking-widest border-r border-slate-100 pr-4">
-                <div className="flex items-center gap-1.5 text-amber-600">
-                  <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                  Pending
-                </div>
-                <div className="flex items-center gap-1.5 text-blue-600">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                  Preparing
-                </div>
-                <div className="flex items-center gap-1.5 text-emerald-600">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                  Done
-                </div>
-                <div className="flex items-center gap-1.5 text-rose-600">
-                  <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
-                  Cancel
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase tracking-widest">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </div>
-            </div>
+              ))
+            )}
           </div>
 
-          <div className="flex-1 p-3 overflow-y-auto max-h-[75vh] custom-scrollbar space-y-4">
-            {orders.map((order, idx) => {
-              // Calculate daily sequence number
-              const orderDate = new Date(order.createdAt).toLocaleDateString();
-              const today = new Date().toLocaleDateString();
+          {/* Totals & Settlement */}
+          <div className="pt-3 border-t border-white/10 space-y-2">
+            <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-400">
+              {serviceCharge > 0 && <div className="flex justify-between col-span-2"><span>Service Charge (10%)</span><span className="text-[#D4AF37] font-bold">+{formatCurrency(serviceCharge)}</span></div>}
+              {deliveryFee > 0 && <div className="flex justify-between col-span-2"><span>Delivery Fee (Dist: {distance.toFixed(1)}km)</span><span className="text-blue-400 font-bold">+{formatCurrency(deliveryFee)}</span></div>}
+            </div>
 
-              // Filter orders from the same day as this order, then find its relative index
-              const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
-              // Since orders are newest first, we count from the end of the sameDayOrders list
-              const dailySequenceNum = sameDayOrders.length - sameDayOrders.indexOf(order);
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Bill</span>
+              <span className="text-xl font-black text-[#D4AF37]">{formatCurrency(grandTotal)}</span>
+            </div>
 
-              const statusStyles =
-                order.orderStatus === 'Completed' ? { border: 'border-emerald-500/30', hover: 'hover:border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-500', borderLight: 'border-emerald-100' } :
-                  order.orderStatus === 'Preparing' ? { border: 'border-blue-500/30', hover: 'hover:border-blue-500', bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-500', borderLight: 'border-blue-100' } :
-                    order.orderStatus === 'Cancelled' ? { border: 'border-rose-500/30', hover: 'hover:border-rose-500', bg: 'bg-rose-50', text: 'text-rose-600', dot: 'bg-rose-500', borderLight: 'border-rose-100' } :
-                      { border: 'border-amber-500/30', hover: 'hover:border-amber-500', bg: 'bg-amber-50', text: 'text-amber-600', dot: 'bg-amber-500', borderLight: 'border-amber-100' };
+            <div className="grid grid-cols-4 gap-2">
+              <div className="space-y-1">
+                <label className="text-[7px] text-slate-500 uppercase tracking-widest">Discount</label>
+                <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white font-bold" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[7px] text-slate-500 uppercase tracking-widest">Received</label>
+                <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white font-bold" />
+              </div>
+              <div className="flex flex-col justify-center items-center gap-1">
+                <label className="text-[7px] text-slate-500 uppercase tracking-widest">Paid</label>
+                <input type="checkbox" checked={isPaidToggle} onChange={e => setIsPaidToggle(e.target.checked)} className="w-4 h-4 accent-[#D4AF37] cursor-pointer" />
+              </div>
+              <div className="text-right">
+                <label className="text-[7px] text-slate-500 uppercase tracking-widest">Balance</label>
+                <p className="text-sm font-black text-emerald-400">{formatCurrency(balance)}</p>
+              </div>
+            </div>
 
-              return (
-                <div key={order._id} className={`relative group p-5 rounded-[2rem] border-2 bg-white shadow-[0_10px_30px_-15px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_40px_-20px_rgba(15,23,42,0.1)] transition-all duration-500 ${statusStyles.border} ${statusStyles.hover}`}>
-                  <div className={`absolute left-0 top-1/4 bottom-1/4 w-1.5 rounded-r-full ${statusStyles.dot} shadow-[0_0_15px_${statusStyles.dot}]`} />
-
-                  <div className="pl-3 space-y-4">
-                    <div className="flex justify-between items-center text-[10px]">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-black ${statusStyles.bg} ${statusStyles.text} px-3 py-1 rounded-full border ${statusStyles.borderLight} uppercase tracking-widest text-[8px]`}>
-                          Order {dailySequenceNum.toString().padStart(3, '0')}
-                        </span>
-                        <span className="text-[7px] font-bold text-slate-300 uppercase tracking-widest">#{order._id.slice(-4).toUpperCase()}</span>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString('en-GB')}</p>
-                        <p className="text-[9px] text-slate-900 font-black tracking-widest">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">
-                          {order.orderType === 'Dine-in' ? `Table ${order.tableNumber}` :
-                            order.orderType === 'Room' ? `Room ${order.roomNumber}` : order.orderType}
-                        </h4>
-                        <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
-                          <User className="w-3 h-3 text-[#D4AF37]" />
-                          {order.customerName || 'Boutique Guest'}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className={`text-[7px] font-black uppercase px-2.5 py-1 rounded-full ${order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-white' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
-                          {order.paymentStatus}
-                        </span>
-                        <p className="text-xl font-black text-[#0F172A] mt-2 leading-none" style={{ fontFamily: 'DM Serif Display, serif' }}>
-                          {formatCurrency(order.totalAmount)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
-                      {order.items.map((it, idx) => (
-                        <div key={idx} className="flex items-center gap-2 bg-slate-50/80 px-3 py-1.5 rounded-xl border border-slate-100 text-[9px] font-black text-slate-700">
-                          <span className="text-[#D4AF37] font-black text-[10px]">{it.quantity}x</span>
-                          <span className="uppercase tracking-wider">{it.name}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex gap-2 pt-2 border-t border-slate-50">
-                      <select value={order.orderStatus} onChange={e => updateOrderStatus(order._id, e.target.value)} className="flex-1 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none focus:ring-4 focus:ring-blue-500/5 cursor-pointer">
-                        {['Pending', 'Preparing', 'Completed', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <button
-                        onClick={() => handlePrintReceipt(order)}
-                        className="px-2.5 py-1.5 bg-slate-50 text-slate-500 hover:text-blue-600 rounded-lg border border-slate-100 flex items-center gap-1.5 transition-all"
-                        title="Print Bill"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Bill</span>
-                      </button>
-                      {order.paymentStatus === 'Unpaid' && (
-                        <button
-                          onClick={() => {
-                            const related = orders.filter(o =>
-                              o.paymentStatus === 'Unpaid' &&
-                              ((order.tableNumber && o.tableNumber === order.tableNumber) ||
-                                (order.roomNumber && o.roomNumber === order.roomNumber))
-                            );
-                            const total = related.reduce((s, o) => s + o.totalAmount, 0);
-                            setSettlingOrderId(order._id);
-                            setSettleAmount(total);
-                          }}
-                          className="px-3 py-1 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-lg"
-                        >
-                          Settle
-                        </button>
-                      )}
-                    </div>
-
-                    {settlingOrderId === order._id && (() => {
-                      const relatedOrders = orders.filter(o =>
-                        o.paymentStatus === 'Unpaid' &&
-                        ((order.tableNumber && o.tableNumber === order.tableNumber) ||
-                          (order.roomNumber && o.roomNumber === order.roomNumber))
-                      );
-                      const combinedTotal = relatedOrders.reduce((s, o) => s + o.totalAmount, 0);
-                      const isMultiple = relatedOrders.length > 1;
-
-                      return (
-                        <div className="mt-2 p-4 bg-slate-900 rounded-[1.5rem] space-y-3 border border-white/10 shadow-2xl animate-in zoom-in-95 duration-300">
-                          <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                            <span className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
-                              <Banknote className="w-3 h-3" /> {isMultiple ? `Settle All (${relatedOrders.length} Orders)` : 'Process Payment'}
-                            </span>
-                            <button onClick={() => { setSettlingOrderId(null); setValidationErrors({}); }} className="hover:rotate-90 transition-transform">
-                              <X className="w-4 h-4 text-rose-400" />
-                            </button>
-                          </div>
-
-                          {isMultiple && (
-                            <div className="bg-white/5 rounded-2xl p-3 border border-white/5 space-y-3">
-                              <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Order Stream Details</p>
-                              {relatedOrders.map((o, oIdx) => (
-                                <div key={oIdx} className="space-y-1.5">
-                                  <div className="flex justify-between items-center border-b border-white/5 pb-1">
-                                    <span className="text-[8px] font-black text-[#D4AF37] uppercase tracking-widest">{new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} Order</span>
-                                    <span className="text-[8px] font-bold text-white/60">{formatCurrency(o.totalAmount)}</span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {(o.items || []).map((it, itIdx) => (
-                                      <span key={itIdx} className="text-[7px] text-white/40 bg-white/5 px-1.5 py-0.5 rounded border border-white/5 uppercase">{it.quantity}x {it.name}</span>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="grid grid-cols-2 gap-3 items-end">
-                            <div className="space-y-1.5">
-                              <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Cash Received</label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  autoFocus
-                                  value={settleAmount}
-                                  onChange={e => { setSettleAmount(e.target.value); clearError('settleAmount'); }}
-                                  className={`flex-1 bg-white/5 border ${validationErrors.settleAmount ? 'border-rose-500' : 'border-white/10'} rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
-                                  placeholder="0.00"
-                                />
-                              </div>
-                            </div>
-                            <div className="bg-white/5 rounded-xl p-2 text-right border border-white/5">
-                              <label className="block text-[7px] font-bold text-slate-500 uppercase tracking-widest mb-1">Change / Balance</label>
-                              <div className="text-sm font-black text-emerald-400">
-                                {formatCurrency(Math.max(Number(settleAmount || 0) - combinedTotal, 0))}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-1.5 px-2 py-2 bg-white/5 rounded-xl border border-white/5">
-                            <div className="flex justify-between text-[9px] text-slate-400 uppercase tracking-widest font-bold">
-                              <span>Subtotal Sum</span>
-                              <span>{formatCurrency(relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0))}</span>
-                            </div>
-                            <div className="flex justify-between text-[9px] text-[#D4AF37] uppercase tracking-widest font-bold">
-                              <span>Total Service Charge (10%)</span>
-                              <span>{formatCurrency(relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0))}</span>
-                            </div>
-                            <div className="flex items-center gap-2 pt-1 border-t border-white/5 mt-1">
-                              <input type="checkbox" id="forcePaid" checked={isPaidToggle} onChange={e => setIsPaidToggle(e.target.checked)} className="accent-[#D4AF37]" />
-                              <label htmlFor="forcePaid" className="text-[7px] text-slate-400 uppercase tracking-widest cursor-pointer">Exact Payment / Paid via Card</label>
-                            </div>
-                            {relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0) > 0 && (
-                              <div className="flex justify-between text-[9px] text-blue-400 uppercase tracking-widest font-bold">
-                                <span>Total Delivery Fee</span>
-                                <span>{formatCurrency(relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0))}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex justify-between items-center px-1">
-                            <p className="text-[10px] font-black text-white uppercase tracking-widest">Net Total: <span className="text-[#D4AF37] ml-2">{formatCurrency(combinedTotal)}</span></p>
-                            {validationErrors.settleAmount && (
-                              <p className="text-[8px] text-rose-500 font-bold uppercase animate-pulse">
-                                {validationErrors.settleAmount}
-                              </p>
-                            )}
-                          </div>
-
-                          <button
-                            onClick={() => {
-                              const amount = Number(settleAmount);
-                              if (!isPaidToggle) {
-                                if (!settleAmount || amount <= 0) {
-                                  setValidationErrors({ settleAmount: "Please enter cash amount" });
-                                  return;
-                                }
-                                if (amount < combinedTotal) {
-                                  setValidationErrors({ settleAmount: `Insufficient: Need Rs ${combinedTotal.toLocaleString()}` });
-                                  return;
-                                }
-                              }
-
-                              updatePaymentStatus(relatedOrders.map(o => o._id), {
-                                paymentStatus: 'Paid',
-                                amountReceived: isPaidToggle && amount === 0 ? combinedTotal : amount,
-                                balance: isPaidToggle && amount === 0 ? 0 : Math.max(amount - combinedTotal, 0),
-                                orderStatus: 'Completed'
-                              });
-                            }}
-                            className="w-full py-3 bg-[#D4AF37] text-[#0F172A] text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white transition-all shadow-lg active:scale-95"
-                          >
-                            Complete Settlement
-                          </button>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-              );
-            })}
+            <button onClick={handlePlaceOrder} disabled={savingPosOrder} className="w-full bg-[#D4AF37] text-[#0F172A] py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white transition-all shadow-lg active:scale-95">
+              {savingPosOrder ? 'Saving Order...' : 'Confirm & Print'}
+            </button>
           </div>
         </div>
       </div>
-      <Toaster position="top-right" expand={true} richColors />
+    </div>
+  );
+
+  const renderKitchen = () => (
+    <div className="bg-[#0F172A] rounded-[2rem] border border-white/5 flex flex-col overflow-hidden shadow-sm p-6">
+      <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+        <h3 className="text-md font-bold text-white" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-[#D4AF37]">Sync Monitor</span></h3>
+        <div className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Live {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </div>
+      </div>
+
+      {orders.length === 0 ? (
+        <div className="py-24 text-center text-slate-500 uppercase tracking-widest font-bold text-xs opacity-45">No Incoming Orders</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {orders.map((order, idx) => {
+            const orderDate = new Date(order.createdAt).toLocaleDateString();
+            const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
+            const dailySequenceNum = sameDayOrders.length - sameDayOrders.indexOf(order);
+
+            const statusStyles =
+              order.orderStatus === 'Completed' ? { border: 'border-emerald-500/20', hover: 'hover:border-emerald-500/60', bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-500', borderLight: 'border-emerald-500/20' } :
+                order.orderStatus === 'Preparing' ? { border: 'border-blue-500/20', hover: 'hover:border-blue-500/60', bg: 'bg-blue-505/10', text: 'text-blue-400', dot: 'bg-blue-500', borderLight: 'border-blue-500/20' } :
+                  order.orderStatus === 'Cancelled' ? { border: 'border-rose-500/20', hover: 'hover:border-rose-500/60', bg: 'bg-rose-505/10', text: 'text-rose-400', dot: 'bg-rose-500', borderLight: 'border-rose-500/20' } :
+                    { border: 'border-amber-500/20', hover: 'hover:border-amber-500/60', bg: 'bg-amber-505/10', text: 'text-amber-400', dot: 'bg-amber-500', borderLight: 'border-amber-500/20' };
+
+            return (
+              <div key={order._id} className={`relative group p-5 rounded-[2rem] border bg-slate-900 hover:bg-slate-950 transition-all duration-500 ${statusStyles.border} ${statusStyles.hover}`}>
+                <div className={`absolute left-0 top-1/4 bottom-1/4 w-1.5 rounded-r-full ${statusStyles.dot} shadow-[0_0_15px_${statusStyles.dot}]`} />
+
+                <div className="pl-3 space-y-4">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-black ${statusStyles.bg} ${statusStyles.text} px-3 py-1 rounded-full border ${statusStyles.borderLight} uppercase tracking-widest text-[8px]`}>
+                        Order {dailySequenceNum.toString().padStart(3, '0')}
+                      </span>
+                      <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">#{order._id.slice(-4).toUpperCase()}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString('en-GB')}</p>
+                      <p className="text-[9px] text-slate-300 font-black tracking-widest">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <h4 className="text-sm font-black text-white uppercase tracking-wider">
+                        {order.orderType === 'Dine-in' ? `Table ${order.tableNumber}` :
+                          order.orderType === 'Room' ? `Room ${order.roomNumber}` : order.orderType}
+                      </h4>
+                      <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                        <User className="w-3 h-3 text-[#D4AF37]" />
+                        {order.customerName || 'Boutique Guest'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-[7px] font-black uppercase px-2.5 py-1 rounded-full ${order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-white' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                        {order.paymentStatus}
+                      </span>
+                      <p className="text-lg font-black text-[#D4AF37] mt-2 leading-none" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                        {formatCurrency(order.totalAmount)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-3 border-t border-white/5">
+                    {order.items.map((it, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-slate-950/20 px-3 py-1.5 rounded-xl border border-white/5 text-[9px] font-black text-slate-300">
+                        <span className="text-[#D4AF37] font-black text-[10px]">{it.quantity}x</span>
+                        <span className="uppercase tracking-wider">{it.name}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-white/5">
+                    <select value={order.orderStatus} onChange={e => updateOrderStatus(order._id, e.target.value)} className="flex-1 bg-slate-950/40 border border-white/10 text-slate-300 rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none cursor-pointer">
+                      {['Pending', 'Preparing', 'Completed', 'Cancelled'].map(s => <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>)}
+                    </select>
+                    <button
+                      onClick={() => handlePrintReceipt(order)}
+                      className="px-2.5 py-1.5 bg-slate-950/40 text-slate-400 hover:text-[#D4AF37] rounded-lg border border-white/10 flex items-center gap-1.5 transition-all"
+                      title="Print Bill"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Bill</span>
+                    </button>
+                    {order.paymentStatus === 'Unpaid' && (
+                      <button
+                        onClick={() => {
+                          const related = orders.filter(o =>
+                            o.paymentStatus === 'Unpaid' &&
+                            ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+                              (order.roomNumber && o.roomNumber === order.roomNumber))
+                          );
+                          const total = related.reduce((s, o) => s + o.totalAmount, 0);
+                          setSettlingOrderId(order._id);
+                          setSettleAmount(total);
+                        }}
+                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase rounded-lg transition-all"
+                      >
+                        Settle
+                      </button>
+                    )}
+                  </div>
+
+                  {settlingOrderId === order._id && (() => {
+                    const relatedOrders = orders.filter(o =>
+                      o.paymentStatus === 'Unpaid' &&
+                      ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+                        (order.roomNumber && o.roomNumber === order.roomNumber))
+                    );
+                    const combinedTotal = relatedOrders.reduce((s, o) => s + o.totalAmount, 0);
+                    const isMultiple = relatedOrders.length > 1;
+
+                    return (
+                      <div className="mt-2 p-4 bg-slate-900 rounded-[1.5rem] space-y-3 border border-white/10 shadow-2xl animate-in zoom-in-95 duration-300">
+                        <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                          <span className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
+                            <Banknote className="w-3 h-3" /> {isMultiple ? `Settle All (${relatedOrders.length})` : 'Process Payment'}
+                          </span>
+                          <button onClick={() => { setSettlingOrderId(null); setValidationErrors({}); }} className="hover:rotate-90 transition-transform">
+                            <X className="w-4 h-4 text-rose-400" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 items-end">
+                          <div className="space-y-1.5">
+                            <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Cash Received</label>
+                            <input
+                              type="number"
+                              autoFocus
+                              value={settleAmount}
+                              onChange={e => { setSettleAmount(e.target.value); clearError('settleAmount'); }}
+                              className={`w-full bg-white/5 border ${validationErrors.settleAmount ? 'border-rose-500' : 'border-white/10'} rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-2 text-right border border-white/5">
+                            <label className="block text-[7px] font-bold text-slate-500 uppercase tracking-widest mb-1">Change</label>
+                            <div className="text-sm font-black text-emerald-400">
+                              {formatCurrency(Math.max(Number(settleAmount || 0) - combinedTotal, 0))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            const amount = Number(settleAmount);
+                            if (!isPaidToggle) {
+                              if (!settleAmount || amount <= 0) {
+                                setValidationErrors({ settleAmount: "Please enter cash amount" });
+                                return;
+                              }
+                              if (amount < combinedTotal) {
+                                setValidationErrors({ settleAmount: `Insufficient: Need Rs ${combinedTotal.toLocaleString()}` });
+                                return;
+                              }
+                            }
+
+                            updatePaymentStatus(relatedOrders.map(o => o._id), {
+                              paymentStatus: 'Paid',
+                              amountReceived: isPaidToggle && amount === 0 ? combinedTotal : amount,
+                              balance: isPaidToggle && amount === 0 ? 0 : Math.max(amount - combinedTotal, 0),
+                              orderStatus: 'Completed'
+                            });
+                          }}
+                          className="w-full py-3 bg-[#D4AF37] text-[#0F172A] text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-white transition-all shadow-lg active:scale-95"
+                        >
+                          Complete Settlement
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderAnalyticsTab = () => (
+    <div className="bg-[#0F172A] p-6 rounded-[2rem] border border-white/5 shadow-sm">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-md font-bold text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Dish <span className="text-[#D4AF37]">Popularity Trends</span>
+          </h3>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Top Selling Items in Restaurant & POS</p>
+        </div>
+        <TrendingUp className="w-5 h-5 text-[#D4AF37]" />
+      </div>
+      
+      {popularityData.length === 0 ? (
+        <div className="py-12 text-center opacity-30">
+          <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-slate-400" />
+          <p className="text-xs font-bold uppercase tracking-wider">No Sales Data Available</p>
+        </div>
+      ) : (
+        <div className="w-full h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={popularityData}
+              layout="vertical"
+              margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={false} />
+              <XAxis type="number" stroke="#94A3B8" fontSize={9} tickLine={false} axisLine={false} />
+              <YAxis type="category" dataKey="name" stroke="#94A3B8" fontSize={9} tickLine={false} axisLine={false} width={80} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '10px' }}
+                cursor={{ fill: 'rgba(212, 175, 55, 0.05)' }}
+              />
+              <Bar dataKey="sales" fill="#D4AF37" radius={[0, 8, 8, 0]} barSize={16} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+
+  // Main Interface Render
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {renderHeader()}
+      {renderStats()}
+      {activeTab === 'terminal' && renderTerminal()}
+      {activeTab === 'kitchen' && renderKitchen()}
+      {activeTab === 'analytics' && renderAnalyticsTab()}
     </div>
   );
 }

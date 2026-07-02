@@ -10,7 +10,13 @@ import {
   User,
   CreditCard,
   FileText,
-  RefreshCcw
+  RefreshCcw,
+  Utensils,
+  Truck,
+  ShoppingBag,
+  Bed,
+  ListFilter,
+  ChevronDown
 } from 'lucide-react';
 import { apiFetch } from '../../../api.js';
 import { useSettings } from '../../../context/SettingsContext.jsx';
@@ -19,6 +25,8 @@ import { useSettings } from '../../../context/SettingsContext.jsx';
 export function CashierReceipts() {
   const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('All');
+  const [dateFilter, setDateFilter] = useState('All');
 
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -71,11 +79,33 @@ export function CashierReceipts() {
       };
     });
 
-  const filtered = receipts.filter((r) =>
-    (r.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = receipts.filter((r) => {
+    const matchesSearch = (r.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = filterType === 'All' || r.type === filterType;
+    const matchesDate = (() => {
+      if (dateFilter === 'All') return true;
+      const issuedDate = new Date(r.issuedAt);
+      const now = new Date();
+      if (dateFilter === 'Today') {
+        return issuedDate.toDateString() === now.toDateString();
+      }
+      if (dateFilter === 'Week') {
+        const diffTime = Math.abs(now - issuedDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      }
+      if (dateFilter === 'Month') {
+        return issuedDate.getMonth() === now.getMonth() && issuedDate.getFullYear() === now.getFullYear();
+      }
+      if (dateFilter === 'Year') {
+        return issuedDate.getFullYear() === now.getFullYear();
+      }
+      return true;
+    })();
+    return matchesSearch && matchesType && matchesDate;
+  });
 
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
@@ -93,7 +123,7 @@ export function CashierReceipts() {
         <div className="flex flex-col items-end gap-1">
           <button
             onClick={loadOrders}
-            className="group flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl hover:bg-[#0F172A] hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
+            className="group flex items-center gap-3 px-6 py-3 bg-slate-900 border border-white/5 text-slate-300 rounded-2xl hover:bg-[#0F172A] hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
           >
             <RefreshCcw className={`w-4 h-4 group-hover:rotate-180 transition-transform duration-700 ${loading ? 'animate-spin text-[#D4AF37]' : ''}`} />
             Refresh Archive
@@ -105,16 +135,65 @@ export function CashierReceipts() {
       </div>
 
       {/* Search & Filter */}
-      <div className="bg-white/70 backdrop-blur-md rounded-[2.5rem] border border-white shadow-[0_10px_50px_-20px_rgba(0,0,0,0.05)] p-2">
-        <div className="relative group">
-          <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors" />
-          <input
-            type="text"
-            placeholder="Locate receipt by ID, guest name or order reference..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-14 pr-8 py-4 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-800 placeholder:text-slate-300"
-          />
+      <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+        <div className="w-full lg:flex-1 bg-[#0F172A] rounded-[2.5rem] border border-white/5 shadow-[0_10px_50px_-20px_rgba(0,0,0,0.05)] p-2">
+          <div className="relative group">
+            <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#D4AF37] transition-colors" />
+            <input
+              type="text"
+              placeholder="Locate receipt by ID, guest name or order reference..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-14 pr-8 py-4 bg-transparent border-none focus:ring-0 text-sm font-bold text-white placeholder:text-slate-500"
+            />
+          </div>
+        </div>
+
+        {/* Filters Group (Category Tabs + Date Dropdown) */}
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
+          {/* Category/Type Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { label: 'All', value: 'All', icon: ListFilter },
+              { label: 'Dine-in', value: 'Dine-in', icon: Utensils },
+              { label: 'Room Service', value: 'Room', icon: Bed },
+              { label: 'Delivery', value: 'Delivery', icon: Truck },
+              { label: 'Take-away', value: 'Take-away', icon: ShoppingBag },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = filterType === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setFilterType(tab.value)}
+                  className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all duration-300 ${
+                    isActive
+                      ? 'bg-[#D4AF37] text-[#0F172A] border-[#D4AF37] shadow-[0_10px_20px_rgba(212,175,55,0.15)] scale-[1.02]'
+                      : 'bg-slate-900 text-slate-400 border-white/5 hover:bg-slate-950 hover:text-white'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#0F172A]' : 'text-slate-500'}`} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Date Filter Dropdown */}
+          <div className="relative group/select">
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="pl-6 pr-10 py-3 bg-slate-900 border border-white/5 rounded-2xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-wider text-slate-400 cursor-pointer appearance-none min-w-[140px] text-center hover:bg-slate-950 hover:text-white transition-all"
+            >
+              <option value="All">All Time</option>
+              <option value="Today">Today</option>
+              <option value="Week">This Week</option>
+              <option value="Month">This Month</option>
+              <option value="Year">This Year</option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
+          </div>
         </div>
       </div>
 
@@ -122,30 +201,30 @@ export function CashierReceipts() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         {loading && orders.length === 0 ? (
           <div className="col-span-full py-40 text-center">
-            <div className="w-16 h-16 border-4 border-slate-100 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6" />
+            <div className="w-16 h-16 border-4 border-slate-700 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6" />
             <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[10px]">Curating your boutique records...</p>
           </div>
         ) : filtered.map((receipt) => (
-          <div key={receipt.orderId} className="group bg-white rounded-[2.5rem] border-2 border-slate-50 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_30px_70px_-20px_rgba(212,175,55,0.15)] hover:border-[#D4AF37]/30 transition-all duration-700 overflow-hidden relative">
+          <div key={receipt.orderId} className="group bg-[#0F172A] rounded-[2.5rem] border border-white/5 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_30px_70px_-20px_rgba(212,175,55,0.15)] hover:border-[#D4AF37]/30 transition-all duration-700 overflow-hidden relative">
             {/* Luxury Card Header */}
-            <div className="px-8 py-7 bg-gradient-to-br from-slate-50/50 to-white border-b border-slate-50 relative">
+            <div className="px-8 py-7 bg-slate-950/20 border-b border-white/5 relative">
               <div className="absolute top-0 left-0 w-2 h-full bg-[#D4AF37] opacity-0 group-hover:opacity-100 transition-all duration-500 shadow-[0_0_15px_rgba(212,175,55,0.5)]" />
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center group-hover:rotate-[15deg] group-hover:border-[#D4AF37] transition-all duration-500">
+                  <div className="w-12 h-12 bg-slate-900 rounded-2xl shadow-sm border border-white/10 flex items-center justify-center group-hover:rotate-[15deg] group-hover:border-[#D4AF37] transition-all duration-500">
                     <Gem className="w-6 h-6 text-[#D4AF37]" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{receipt.id}</p>
-                      <span className="px-2.5 py-0.5 bg-[#0F172A] text-[#D4AF37] text-[8px] font-black uppercase tracking-widest rounded-lg">
+                      <span className="px-2.5 py-0.5 bg-slate-950 text-[#D4AF37] text-[8px] font-black uppercase tracking-widest rounded-lg">
                         #{receipt.dailySequenceNum.toString().padStart(3, '0')}
                       </span>
                     </div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-widest">{receipt.orderNumber}</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase mt-1 tracking-widest">{receipt.orderNumber}</p>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   {receipt.status}
                 </span>
@@ -155,22 +234,22 @@ export function CashierReceipts() {
             {/* Luxury Card Body */}
             <div className="p-8 space-y-6">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-400 group-hover:bg-[#0F172A] group-hover:text-white transition-all duration-500">
+                <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center border border-white/10 text-[#D4AF37] group-hover:bg-[#D4AF37] group-hover:text-[#0F172A] transition-all duration-500">
                   <User className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Boutique Guest</p>
-                  <span className="text-xs font-black text-slate-900 uppercase tracking-wider">{receipt.customerName}</span>
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Boutique Guest</p>
+                  <span className="text-xs font-black text-white uppercase tracking-wider">{receipt.customerName}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-6 text-white">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 text-slate-400">
                     <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
                     <span className="text-[9px] font-black uppercase tracking-widest">Issued Date</span>
                   </div>
-                  <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">
+                  <p className="text-[10px] font-black text-white uppercase tracking-tight">
                     {new Date(receipt.issuedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </p>
                 </div>
@@ -179,28 +258,28 @@ export function CashierReceipts() {
                     <CreditCard className="w-3.5 h-3.5 text-[#D4AF37]" />
                     <span className="text-[9px] font-black uppercase tracking-widest">Channel</span>
                   </div>
-                  <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{receipt.paymentMethod}</p>
+                  <p className="text-[10px] font-black text-white uppercase tracking-tight">{receipt.paymentMethod}</p>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center justify-between">
+              <div className="p-4 bg-slate-950 rounded-2xl border border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Package className="w-4 h-4 text-[#D4AF37]" />
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{receipt.items.length} Items</span>
+                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{receipt.items.length} Items</span>
                 </div>
                 <span className="text-[9px] font-black text-[#D4AF37] uppercase bg-[#D4AF37]/5 px-3 py-1 rounded-full border border-[#D4AF37]/10">{receipt.type}</span>
               </div>
 
-              <div className="pt-6 border-t border-slate-50 flex items-center justify-between gap-4">
+              <div className="pt-6 border-t border-white/5 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 italic">Total Settled</p>
-                  <p className="text-2xl font-black text-[#0F172A]" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 italic">Total Settled</p>
+                  <p className="text-2xl font-black text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
                     {formatCurrency(receipt.total)}
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedReceipt(receipt)}
-                  className="w-14 h-14 bg-[#0F172A] text-[#D4AF37] rounded-2xl shadow-xl hover:bg-white hover:text-[#0F172A] border-2 border-transparent hover:border-[#0F172A] transition-all duration-500 flex items-center justify-center group/btn"
+                  className="w-14 h-14 bg-[#D4AF37] text-[#0F172A] rounded-2xl shadow-xl hover:bg-white hover:text-[#0F172A] border-2 border-transparent hover:border-[#0F172A] transition-all duration-500 flex items-center justify-center group/btn"
                 >
                   <Eye className="w-6 h-6 group-hover/btn:scale-110 transition-transform" />
                 </button>
@@ -210,10 +289,10 @@ export function CashierReceipts() {
         ))}
 
         {!loading && filtered.length === 0 && (
-          <div className="col-span-full py-48 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
-            <FileText className="w-16 h-16 text-slate-200 mx-auto mb-6" />
-            <h4 className="text-xl font-black text-slate-900 uppercase tracking-widest mb-2">No Records Found</h4>
-            <p className="text-slate-400 text-xs font-black uppercase tracking-[0.2em]">Adjust your filters or sync to refresh</p>
+          <div className="col-span-full py-48 text-center bg-slate-900 rounded-[3rem] border border-white/5">
+            <FileText className="w-16 h-16 text-slate-600 mx-auto mb-6" />
+            <h4 className="text-xl font-black text-white uppercase tracking-widest mb-2">No Records Found</h4>
+            <p className="text-slate-500 text-xs font-black uppercase tracking-[0.2em]">Adjust your filters or sync to refresh</p>
           </div>
         )}
       </div>

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FoodCard } from "../../components/website/FoodCard.jsx";
 import { ImageWithFallback } from "../../components/common/ImageWithFallback.jsx";
+import { MapPicker } from "../../components/common/MapPicker.jsx";
 import { ShoppingCart, X, Truck, Building2, Loader2, MapPin, Phone, History, UtensilsCrossed, Package, Star, Info, CheckCircle } from "lucide-react";
 import { apiFetch, API_HOST, getImageUrl } from "../../api.js";
 import { toast } from "sonner";
@@ -147,6 +148,19 @@ export function Restaurant({ onOrder, user }) {
         setCoordinates({ lat: parseFloat(lat), lng: parseFloat(lon) });
       }
     } catch (e) { /* Ignore */ }
+  };
+
+  const handleMapCoordinatesChange = async (coords) => {
+    setCoordinates(coords);
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}`);
+      const data = await response.json();
+      if (data && data.display_name) {
+        setDeliveryAddress(data.display_name);
+      }
+    } catch (e) {
+      console.error("Reverse geocoding failed on marker drag:", e);
+    }
   };
 
   const handleGetLocation = () => {
@@ -371,7 +385,7 @@ export function Restaurant({ onOrder, user }) {
             <div className="relative bg-white w-full max-w-5xl h-[85vh] rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-500 border border-white/10">
               
               {/* Order Summary */}
-              <div className="w-full md:w-[35%] bg-[#0F172A] flex flex-col border-r border-white/5">
+              <div className="w-full md:w-[35%] bg-[#0F172A] flex flex-col border-r border-white/5 max-h-[35vh] md:max-h-none">
                 <div className="px-6 py-6 border-b border-white/5">
                   <h2 className="text-xl text-white font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Your <span className="text-[#D4AF37]">Selection</span></h2>
                 </div>
@@ -432,7 +446,7 @@ export function Restaurant({ onOrder, user }) {
               </div>
 
               {/* Checkout Form */}
-              <div className="flex-1 bg-white flex flex-col h-full overflow-hidden">
+              <div className="flex-1 bg-white flex flex-col md:h-full overflow-hidden">
                 <div className="px-8 py-5 border-b border-slate-50 flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl text-slate-900 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Checkout <span className="text-[#D4AF37]">Details</span></h2>
@@ -442,7 +456,7 @@ export function Restaurant({ onOrder, user }) {
                   </button>
                 </div>
 
-                <div className="flex-1 px-8 py-6 space-y-5 overflow-hidden bg-slate-50/10">
+                <div className="flex-1 px-8 py-6 space-y-5 overflow-y-auto custom-scrollbar bg-slate-50/10">
                   {/* Step 1: Mode */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
@@ -589,6 +603,7 @@ export function Restaurant({ onOrder, user }) {
                               </span>
                             </button>
                           </div>
+                          <MapPicker coordinates={coordinates} onChange={handleMapCoordinatesChange} />
                           {coordinates && distance > 0 && (
                             <div className="mt-2 flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
                               <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Est. Distance</span>
