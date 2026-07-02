@@ -47,6 +47,7 @@ export function MyOrders() {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [ordersDateFilter, setOrdersDateFilter] = useState("All");
   const [receiptsDateFilter, setReceiptsDateFilter] = useState("All");
+  const [payingOrderId, setPayingOrderId] = useState(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30000);
@@ -116,6 +117,80 @@ export function MyOrders() {
       socket.off("orderDeleted");
     };
   }, [socket]);
+
+  const handlePayNow = async (order) => {
+    try {
+      setPayingOrderId(order._id);
+      
+      const hashRes = await apiFetch("/api/payments/payhere-hash", {
+        method: "POST",
+        body: JSON.stringify({
+          orderId: order._id,
+          amount: order.totalAmount
+        })
+      });
+
+      if (!hashRes || !hashRes.success) {
+        throw new Error(hashRes?.message || "Failed to generate payment signature hash");
+      }
+
+      const { merchantId, currency, hash, amount } = hashRes.data;
+      const user = JSON.parse(localStorage.getItem("janro_user") || "{}");
+
+      const payment = {
+        sandbox: true,
+        merchant_id: merchantId,
+        return_url: `${window.location.origin}/my-orders`,
+        cancel_url: `${window.location.origin}/my-orders`,
+        notify_url: "https://sandbox.payhere.lk/pay/checkout",
+        order_id: order._id,
+        items: `Hotel Food Order #${order.orderNumber || order._id.slice(-6)}`,
+        amount: amount,
+        currency: currency,
+        first_name: user?.name?.split(" ")[0] || "Valued",
+        last_name: user?.name?.split(" ")[1] || "Guest",
+        email: user?.email || "guest@hoteljanro.com",
+        phone: user?.phone || "0771234567",
+        address: user?.address || "123 Luxury Avenue",
+        city: "Colombo",
+        country: "Sri Lanka",
+        hash: hash,
+        custom_1: "order"
+      };
+
+      window.payhere.onCompleted = async function onCompleted(orderId) {
+        try {
+          await apiFetch(`/api/orders/${order._id}`, {
+            method: "PUT",
+            body: JSON.stringify({ paymentStatus: "Paid", orderStatus: "Completed" })
+          });
+          toast.success("Payment completed successfully!");
+          loadMyOrders();
+        } catch (err) {
+          console.error("Local status update failed:", err);
+          toast.error("Failed to update payment status locally.");
+        } finally {
+          setPayingOrderId(null);
+        }
+      };
+
+      window.payhere.onDismissed = function onDismissed() {
+        setPayingOrderId(null);
+        toast.error("Payment dismissed");
+      };
+
+      window.payhere.onError = function onError(error) {
+        setPayingOrderId(null);
+        toast.error(`Payment failed: ${error}`);
+      };
+
+      window.payhere.startPayment(payment);
+
+    } catch (err) {
+      setPayingOrderId(null);
+      toast.error(err.message || "An error occurred during payment");
+    }
+  };
 
   const loadMyOrders = async () => {
     try {
@@ -524,24 +599,89 @@ export function MyOrders() {
               </div>
             )}
 
-            {/* PAYMENTS TAB (Assigned to another dev) */}
-            {activeTab === "payments" && (
-              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden min-h-[400px] flex flex-col items-center justify-center p-12 text-center relative">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-50/50 via-transparent to-transparent opacity-50" />
-                <div className="relative z-10">
-                  <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-blue-100">
-                    <CreditCard className="w-10 h-10 text-blue-500" />
-                  </div>
-                  <h3 className="text-3xl text-slate-900 font-normal mb-4" style={{ fontFamily: "DM Serif Display, serif" }}>Payment Portal</h3>
-                  <p className="text-slate-500 max-w-md mx-auto leading-relaxed">
-                    The advanced payment integration section is currently being developed by our financial team. This secure gateway will be available shortly.
-                  </p>
-                  <div className="mt-8 inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Module Under Construction
+            {activeTab === "payments" && (() => {
+              const unpaidOrders = orders.filter(o => o.paymentStatus !== "Paid");
+              return (
+                <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden">
+                  <header className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner">
+                        <CreditCard className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl text-slate-900 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Pending Payments</h3>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Unsettled Transactions</p>
+                      </div>
+                    </div>
+                  </header>
+
+                  <div className="divide-y divide-slate-100">
+                    {unpaidOrders.length === 0 ? (
+                      <div className="p-20 text-center flex flex-col items-center">
+                        <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4" />
+                        <p className="text-slate-500 font-normal text-lg mb-2">No Pending Payments</p>
+                        <p className="text-slate-400 text-sm max-w-sm">All your orders have been settled in full. Thank you for choosing Hotel Janro!</p>
+                      </div>
+                    ) : (
+                      unpaidOrders.map((order) => (
+                        <div key={order._id} className="p-8 hover:bg-slate-50 transition-colors group">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 flex-wrap mb-3">
+                                <p className="text-sm font-black text-slate-900 tracking-wider">REF: #{order.orderNumber || order._id.slice(-8)}</p>
+                                <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-rose-50 text-rose-600 border-rose-200`}>
+                                  Unpaid
+                                </span>
+                              </div>
+
+                              <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 mt-4 group-hover:bg-white transition-colors">
+                                <div className="space-y-2">
+                                  {order.items.map((item, idx) => (
+                                    <div key={idx} className="flex items-center justify-between text-sm">
+                                      <span className="font-semibold text-slate-700">
+                                        {item.name} <span className="text-slate-400 font-medium">x{item.quantity}</span>
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4 mt-5 text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                                <span className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-lg">
+                                  <Clock className="w-3 h-3" /> {formatDate(order.createdAt)} • {formatTime(order.createdAt)}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="md:text-right border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 flex flex-col items-start md:items-end justify-center">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
+                              <p className="text-3xl font-black text-[#0F172A]">{formatMoney(order.totalAmount)}</p>
+                              <button
+                                onClick={() => handlePayNow(order)}
+                                disabled={payingOrderId === order._id}
+                                className="mt-4 flex items-center gap-2 px-6 py-3 bg-[#0F172A] text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all shadow-lg hover:shadow-[#D4AF37]/20 disabled:opacity-50"
+                              >
+                                {payingOrderId === order._id ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Processing...
+                                  </>
+                                ) : (
+                                  <>
+                                    Pay Now
+                                    <ChevronRight className="w-3 h-3" />
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* RECEIPTS TAB */}
             {activeTab === "receipts" && (
