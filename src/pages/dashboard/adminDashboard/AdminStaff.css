@@ -228,138 +228,162 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(2px);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
 }
 
 .admin-staff-modal-card {
-  width: min(100%, 780px);
-  max-height: 90vh;
-  overflow-y: auto;
+  width: min(100%, 800px);
+  max-height: 95vh;
+  overflow: hidden;
   background: #ffffff;
-  border-radius: 1rem;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 20px 35px rgba(15, 23, 42, 0.2);
-  padding: 1.25rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
 }
 
 .admin-staff-modal-header {
+  background: #0f172a;
+  color: #ffffff;
+  padding: 1.5rem;
+  border-top-left-radius: 2rem;
+  border-top-right-radius: 2rem;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  background-image: radial-gradient(circle at 100% 0%, rgba(212, 175, 55, 0.2) 0%, transparent 60%);
 }
 
 .admin-staff-modal-title {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
+  font-size: 1.5rem;
+  font-family: "DM Serif Display", serif;
+  color: #ffffff;
 }
 
 .admin-staff-modal-subtitle {
   margin: 0.25rem 0 0;
-  font-size: 0.875rem;
-  color: #6b7280;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #d4af37;
 }
 
 .admin-staff-close-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
   border: 0;
-  background: #f3f4f6;
-  color: #374151;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
 .admin-staff-close-button:hover {
-  background: #e5e7eb;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .admin-staff-modal-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
+  padding: 2rem;
+  overflow-y: auto;
 }
 
 .admin-staff-form-error {
   margin: 0;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #b91c1c;
   font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .admin-staff-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.875rem;
+  gap: 1.25rem;
 }
 
 .admin-staff-form-label {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #374151;
+  color: #475569;
+  margin-left: 0.25rem;
 }
 
 .admin-staff-form-input {
-  min-height: 2.625rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.625rem;
-  background: #ffffff;
-  color: #111827;
+  min-height: 2.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  color: #0f172a;
   font: inherit;
-  padding: 0.6rem 0.75rem;
+  padding: 0.625rem 1rem;
+  outline: none;
+  transition: all 0.2s ease;
 }
 
 .admin-staff-form-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.1);
 }
 
 .admin-staff-modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f1f5f9;
 }
 
 .admin-staff-secondary-button,
 .admin-staff-primary-button {
   border: 0;
-  border-radius: 0.625rem;
-  padding: 0.625rem 1rem;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .admin-staff-secondary-button {
-  background: #e5e7eb;
-  color: #1f2937;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #334155;
 }
 
 .admin-staff-secondary-button:hover {
-  background: #d1d5db;
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .admin-staff-primary-button {
-  background: #2563eb;
-  color: #ffffff;
+  background: #d4af37;
+  color: #0f172a;
+  box-shadow: 0 10px 15px -3px rgba(212, 175, 55, 0.2);
 }
 
 .admin-staff-primary-button:hover {
-  background: #1d4ed8;
+  background: #b8962d;
+  box-shadow: 0 10px 15px -3px rgba(184, 150, 45, 0.3);
 }
 
 @media (max-width: 768px) {
@@ -369,6 +393,7 @@
 
   .admin-staff-modal-actions {
     flex-direction: column-reverse;
+    gap: 0.5rem;
   }
 
   .admin-staff-secondary-button,

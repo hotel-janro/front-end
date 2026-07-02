@@ -9,7 +9,7 @@ export function DashboardLayout({ user, onLogout }) {
       <Sidebar user={user} onLogout={onLogout} />
       <main className="flex-1 min-w-0 ml-64" style={{ width: 'calc(100vw - 16rem)' }}>
         <div className="min-h-screen bg-gradient-to-b from-[#F8FAFC] via-white to-[#F8FAFC] p-6 md:p-8">
-          <Outlet />
+          <Outlet context={{ user, onLogout }} />
         </div>
       </main>
     </div>
