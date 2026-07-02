@@ -9,6 +9,7 @@ const defaultForm = {
   passType: 'Day Pass',
   guestName: '',
   guestPhone: '',
+  guestEmail: '',
   roomNumber: '',
   paymentStatus: 'Paid',
   validDays: '1',
@@ -60,6 +61,8 @@ export function AdminGym() {
   const [editMemberId, setEditMemberId] = useState(null);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [regStep, setRegStep] = useState(1);
+  const [isMemberQrModalOpen, setIsMemberQrModalOpen] = useState(false);
+  const [newMember, setNewMember] = useState(null);
 
   // State for Entrance Gate / QR Scanner
   const [attendance, setAttendance] = useState([]);
@@ -215,7 +218,8 @@ export function AdminGym() {
       setFormData((previous) => ({
         ...previous,
         guestName: selectedMember.name,
-        guestPhone: selectedMember.phone
+        guestPhone: selectedMember.phone,
+        guestEmail: selectedMember.email || ''
       }));
     }
   };
@@ -272,6 +276,7 @@ export function AdminGym() {
       passType: pass.passType,
       guestName: pass.guestName,
       guestPhone: pass.guestPhone,
+      guestEmail: pass.guestEmail || '',
       roomNumber: pass.roomNumber || '',
       paymentStatus: pass.paymentStatus,
       validDays: '0',
@@ -311,6 +316,13 @@ export function AdminGym() {
   const handleMemberSubmit = async (event) => {
     event.preventDefault();
     setMemberSubmitError('');
+
+    // Step 3 Validation: Emergency Name and Emergency Phone are required
+    if (!memberFormData.emergencyName || !memberFormData.emergencyPhone) {
+      setMemberSubmitError('Emergency Contact Name and Phone are required to complete registration!');
+      return;
+    }
+
     setIsMemberSubmitting(true);
 
     try {
@@ -334,8 +346,10 @@ export function AdminGym() {
 
       if (isEdit) {
         setMembers((prev) => prev.map((m) => m._id === editMemberId ? result.member : m));
+        alert('Gym member updated successfully!');
       } else {
         setMembers((prev) => [result.member, ...prev]);
+        alert('Gym member registered successfully!');
       }
 
       setIsMemberModalOpen(false);
@@ -1046,6 +1060,7 @@ export function AdminGym() {
                       passType: e.target.value,
                       guestName: '',
                       guestPhone: '',
+                      guestEmail: '',
                       validDays: e.target.value === 'Day Pass' ? '1' : '30'
                     }));
                   }} 
@@ -1075,6 +1090,7 @@ export function AdminGym() {
                     <div className="mt-3 p-3 bg-white border border-slate-100 rounded-xl text-xs space-y-1">
                       <div>👤 <span className="font-bold text-slate-700">Selected:</span> {formData.guestName}</div>
                       <div>📞 <span className="font-bold text-slate-700">Phone:</span> {formData.guestPhone}</div>
+                      {formData.guestEmail && <div>✉️ <span className="font-bold text-slate-700">Email:</span> {formData.guestEmail}</div>}
                       <div className="text-[10px] text-slate-400 mt-1 uppercase font-bold">Details fetched securely from members database.</div>
                     </div>
                   )}
@@ -1109,12 +1125,25 @@ export function AdminGym() {
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-600 ml-1">Contact Email Address (Optional)</label>
+                    <input 
+                      type="email" 
+                      name="guestEmail" 
+                      value={formData.guestEmail} 
+                      onChange={handleFormChange} 
+                      placeholder="e.g. guest@example.com" 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                    />
+                  </div>
                 </>
               ) : (
                 editId && (
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm">
                     <div className="font-semibold text-slate-800">Member: {formData.guestName}</div>
                     <div className="text-xs text-slate-500 mt-1">Phone: {formData.guestPhone}</div>
+                    {formData.guestEmail && <div className="text-xs text-slate-500 mt-1">Email: {formData.guestEmail}</div>}
                   </div>
                 )
               )}
@@ -1243,14 +1272,15 @@ export function AdminGym() {
             <form 
               onSubmit={(e) => {
                 e.preventDefault();
-                if (regStep < 3) {
-                  // If they press Enter early, increment step instead of submitting
-                  if (regStep === 1 && (!memberFormData.name || !memberFormData.phone)) return;
-                  setRegStep(prev => prev + 1);
-                  return;
+                if (regStep === 3) {
+                  handleMemberSubmit(e);
                 }
-                handleMemberSubmit(e);
-              }} 
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                }
+              }}
               className="p-8 overflow-y-auto space-y-5 flex-1"
             >
               {memberSubmitError && (
