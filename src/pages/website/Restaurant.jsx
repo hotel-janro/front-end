@@ -385,7 +385,7 @@ export function Restaurant({ onOrder, user }) {
             <div className="relative bg-white w-full max-w-5xl h-[85vh] rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-500 border border-white/10">
               
               {/* Order Summary */}
-              <div className="w-full md:w-[35%] bg-[#0F172A] flex flex-col border-r border-white/5 max-h-[35vh] md:max-h-none">
+              <div className="w-full md:w-[35%] bg-[#0F172A] flex flex-col border-r border-white/5">
                 <div className="px-6 py-6 border-b border-white/5">
                   <h2 className="text-xl text-white font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Your <span className="text-[#D4AF37]">Selection</span></h2>
                 </div>
@@ -446,7 +446,7 @@ export function Restaurant({ onOrder, user }) {
               </div>
 
               {/* Checkout Form */}
-              <div className="flex-1 bg-white flex flex-col md:h-full overflow-hidden">
+              <div className="flex-1 bg-white flex flex-col h-full overflow-hidden">
                 <div className="px-8 py-5 border-b border-slate-50 flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl text-slate-900 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Checkout <span className="text-[#D4AF37]">Details</span></h2>
@@ -456,7 +456,7 @@ export function Restaurant({ onOrder, user }) {
                   </button>
                 </div>
 
-                <div className="flex-1 px-8 py-6 space-y-5 overflow-y-auto custom-scrollbar bg-slate-50/10">
+                <div className="flex-1 px-8 py-6 space-y-5 overflow-hidden bg-slate-50/10">
                   {/* Step 1: Mode */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
