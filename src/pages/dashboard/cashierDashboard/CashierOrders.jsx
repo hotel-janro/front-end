@@ -610,7 +610,13 @@ export function CashierOrders() {
                       <div className="mt-6 flex gap-3">
                          {order.paymentStatus === 'Unpaid' ? (
                            <button 
-                             onClick={() => setSettlingOrder(order)}
+                             onClick={() => {
+                               if (order.orderStatus !== 'Completed') {
+                                 toast.error("Please mark the order as 'Completed' before settling the bill");
+                               } else {
+                                 setSettlingOrder(order);
+                               }
+                             }}
                              className="flex-1 py-4 bg-[#D4AF37] text-[#0F172A] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-white hover:text-[#0F172A] transition-all active:scale-95 flex items-center justify-center gap-2"
                            >
                              <Banknote className="w-4 h-4" />
@@ -653,11 +659,19 @@ export function CashierOrders() {
 
       {settlingOrder && (() => {
         // Find related unpaid orders
-        const relatedOrders = orders.filter(o => 
-          o.paymentStatus === 'Unpaid' && 
-          ((settlingOrder.tableNumber && o.tableNumber === settlingOrder.tableNumber) || 
-           (settlingOrder.roomNumber && o.roomNumber === settlingOrder.roomNumber))
-        );
+        let relatedOrders = [];
+        if (settlingOrder.tableNumber || settlingOrder.roomNumber) {
+          relatedOrders = orders.filter(o => 
+            o.paymentStatus === 'Unpaid' && 
+            ((settlingOrder.tableNumber && o.tableNumber === settlingOrder.tableNumber) || 
+             (settlingOrder.roomNumber && o.roomNumber === settlingOrder.roomNumber))
+          );
+          if (!relatedOrders.find(o => o._id === settlingOrder._id)) {
+            relatedOrders.push(settlingOrder);
+          }
+        } else {
+          relatedOrders = [settlingOrder];
+        }
         const combinedTotal = relatedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
         const isMultiple = relatedOrders.length > 1;
 
