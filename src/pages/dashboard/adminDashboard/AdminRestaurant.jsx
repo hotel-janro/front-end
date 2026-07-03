@@ -13,7 +13,9 @@ import {
   Star,
   Zap,
   Loader2,
-  X
+  X,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
 import { ImageWithFallback } from '../../../components/common/ImageWithFallback.jsx';
 import AddMenuItemForm from './AddMenuItemForm';
@@ -150,24 +152,30 @@ export function AdminRestaurant() {
           <div className="flex items-center justify-between gap-4">
             <div className="flex gap-3 flex-1 max-w-2xl">
               <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
                 <input
                   type="text"
                   placeholder="Search signature dishes..."
                   value={menuSearch}
                   onChange={(e) => setMenuSearch(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-slate-100 focus:border-[#D4AF37] transition-all outline-none text-xs font-bold text-slate-700"
+                  className="w-full pl-11 pr-4 py-3 bg-[#0F172A] border border-[#D4AF37]/30 text-white placeholder:text-slate-500 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all hover:border-[#D4AF37]/60"
                 />
               </div>
-              <select
-                value={menuCategory}
-                onChange={(e) => setMenuCategory(e.target.value)}
-                className="rounded-xl border border-slate-100 px-4 py-3 text-[11px] font-black uppercase tracking-widest bg-white outline-none focus:border-[#D4AF37] cursor-pointer"
-              >
-                {menuCategories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
+              <div className="relative min-w-[200px]">
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
+                <select
+                  value={menuCategory}
+                  onChange={(e) => setMenuCategory(e.target.value)}
+                  className="w-full appearance-none bg-[#0F172A] border border-[#D4AF37]/30 text-white rounded-xl pl-11 pr-10 py-3 text-[10px] font-black uppercase tracking-wider outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/50 transition-all hover:border-[#D4AF37]/60 cursor-pointer"
+                >
+                  {menuCategories.map((category) => (
+                    <option key={category} value={category} className="bg-[#0F172A] text-white font-semibold">
+                      {category}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37] pointer-events-none" />
+              </div>
             </div>
 
             <button

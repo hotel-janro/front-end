@@ -22,7 +22,9 @@ import {
   Truck,
   Printer,
   Banknote,
-  TrendingUp
+  TrendingUp,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast, Toaster } from 'sonner';
@@ -105,7 +107,7 @@ const [selectedCategory, setSelectedCategory] = useState('All');
 const [menuSearch, setMenuSearch] = useState('');
 const [portionModalItem, setPortionModalItem] = useState(null);
 const [currentPage, setCurrentPage] = useState(1);
-const itemsPerPage = 12;
+const itemsPerPage = 8;
 
 const clearError = (field) => {
   if (validationErrors[field]) {
@@ -862,30 +864,31 @@ const renderTerminal = () => (
     {/* Left Column: Culinary Grid */}
     <div className="flex-1 space-y-4 min-w-0 w-full">
       {/* Search & Categories (Sticky) */}
-      <div className="sticky top-0 z-20 bg-[#0F172A] p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <div className="sticky top-0 z-20 bg-[#0F172A] p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
           <input
             type="text"
             placeholder="Search dishes..."
             value={menuSearch}
             onChange={e => setMenuSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-white/5 text-white placeholder:text-slate-500 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/20 transition-all"
+            className="w-full pl-11 pr-4 py-3 bg-[#0F172A] border border-[#D4AF37]/30 text-white placeholder:text-slate-500 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all hover:border-[#D4AF37]/60"
           />
         </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto py-1 custom-scrollbar">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-300 border whitespace-nowrap ${selectedCategory === cat
-                ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/15'
-                : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="relative w-full sm:w-auto min-w-[200px]">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full appearance-none bg-[#0F172A] border border-[#D4AF37]/30 text-white rounded-xl pl-11 pr-10 py-3 text-[10px] font-black uppercase tracking-wider outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/50 transition-all hover:border-[#D4AF37]/60 cursor-pointer"
+          >
+            {categories.map(cat => (
+              <option key={cat} value={cat} className="bg-[#0F172A] text-white font-semibold">
+                {cat}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37] pointer-events-none" />
         </div>
       </div>
 
@@ -897,7 +900,7 @@ const renderTerminal = () => (
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
             {paginatedMenuItems.map(item => (
               <PosMenuItem key={item._id} item={item} handleAddVisualItem={handleAddVisualItem} />
             ))}
@@ -938,7 +941,7 @@ const renderTerminal = () => (
     </div>
 
     {/* Right Column: Checkout Cart */}
-    <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0 bg-[#0F172A] p-4 rounded-2xl shadow-lg border border-white/5 text-white flex flex-col sticky top-6 max-h-[calc(100vh-120px)] h-fit z-10">
+    <div className="w-full lg:w-[400px] xl:w-[480px] shrink-0 bg-[#0F172A] p-4 rounded-2xl shadow-lg border border-white/5 text-white flex flex-col sticky top-6 max-h-[calc(100vh-120px)] h-fit z-10">
       <div className="flex flex-col max-h-[calc(100vh-160px)] space-y-4 overflow-hidden">
         <div className="flex items-center justify-between border-b border-white/5 pb-2 shrink-0">
           <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Order <span className="text-[#D4AF37]">Checkout</span></h3>
@@ -1164,17 +1167,25 @@ const renderTerminal = () => (
 );
 
 const renderKitchen = () => (
-  <div className="bg-[#0F172A] rounded-[2rem] border border-white/5 flex flex-col overflow-hidden shadow-sm p-6">
-    <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-      <h3 className="text-md font-bold text-white" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-[#D4AF37]">Sync Monitor</span></h3>
-      <div className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+  <div className="bg-white rounded-[2rem] border border-slate-200 flex flex-col overflow-hidden shadow-sm p-6">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+        <h3 className="text-md font-bold text-slate-900 shrink-0" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-[#D4AF37]">Sync Monitor</span></h3>
+        <div className="flex flex-wrap items-center gap-3 text-[9px] font-black uppercase tracking-widest">
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" /><span className="text-amber-600">Pending</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" /><span className="text-blue-600">Preparing</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" /><span className="text-emerald-600">Completed</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" /><span className="text-rose-600">Cancelled</span></div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 text-[8px] text-slate-500 font-bold uppercase tracking-widest shrink-0">
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
         Live {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
       </div>
     </div>
 
     {orders.length === 0 ? (
-      <div className="py-24 text-center text-slate-500 uppercase tracking-widest font-bold text-xs opacity-45">No Incoming Orders</div>
+      <div className="py-24 text-center text-slate-400 uppercase tracking-widest font-bold text-xs opacity-80">No Incoming Orders</div>
     ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {orders.map((order, idx) => {
@@ -1184,12 +1195,12 @@ const renderKitchen = () => (
 
           const statusStyles =
             order.orderStatus === 'Completed' ? { border: 'border-emerald-500/20', hover: 'hover:border-emerald-500/60', bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-500', borderLight: 'border-emerald-500/20' } :
-              order.orderStatus === 'Preparing' ? { border: 'border-blue-500/20', hover: 'hover:border-blue-500/60', bg: 'bg-blue-505/10', text: 'text-blue-400', dot: 'bg-blue-500', borderLight: 'border-blue-500/20' } :
-                order.orderStatus === 'Cancelled' ? { border: 'border-rose-500/20', hover: 'hover:border-rose-500/60', bg: 'bg-rose-505/10', text: 'text-rose-400', dot: 'bg-rose-500', borderLight: 'border-rose-500/20' } :
-                  { border: 'border-amber-500/20', hover: 'hover:border-amber-500/60', bg: 'bg-amber-505/10', text: 'text-amber-400', dot: 'bg-amber-500', borderLight: 'border-amber-500/20' };
+              order.orderStatus === 'Preparing' ? { border: 'border-blue-500/20', hover: 'hover:border-blue-500/60', bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-500', borderLight: 'border-blue-500/20' } :
+                order.orderStatus === 'Cancelled' ? { border: 'border-rose-500/20', hover: 'hover:border-rose-500/60', bg: 'bg-rose-500/10', text: 'text-rose-400', dot: 'bg-rose-500', borderLight: 'border-rose-500/20' } :
+                  { border: 'border-amber-500/20', hover: 'hover:border-amber-500/60', bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-500', borderLight: 'border-amber-500/20' };
 
           return (
-            <div key={order._id} className={`relative group p-5 rounded-[2rem] border bg-slate-900 hover:bg-slate-950 transition-all duration-500 ${statusStyles.border} ${statusStyles.hover}`}>
+            <div key={order._id} className={`relative group p-5 rounded-[2rem] border bg-slate-900 hover:bg-slate-950 transition-all duration-500 shadow-md ${statusStyles.border} ${statusStyles.hover}`}>
               <div className={`absolute left-0 top-1/4 bottom-1/4 w-1.5 rounded-r-full ${statusStyles.dot} shadow-[0_0_15px_${statusStyles.dot}]`} />
 
               <div className="pl-3 space-y-4">

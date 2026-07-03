@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { FoodCard } from "../../components/website/FoodCard.jsx";
 import { ImageWithFallback } from "../../components/common/ImageWithFallback.jsx";
 import { MapPicker } from "../../components/common/MapPicker.jsx";
-import { ShoppingCart, X, Truck, Building2, Loader2, MapPin, Phone, History, UtensilsCrossed, Package, Star, Info, CheckCircle, Search } from "lucide-react";
+import { ShoppingCart, X, Truck, Building2, Loader2, MapPin, Phone, History, UtensilsCrossed, Package, Star, Info, CheckCircle, Search, Filter, ChevronDown } from "lucide-react";
 import { apiFetch, API_HOST, getImageUrl } from "../../api.js";
 import { toast } from "sonner";
 import { useSettings } from "../../context/SettingsContext.jsx";
@@ -119,6 +119,11 @@ export function Restaurant({ onOrder, user }) {
   }, [filteredItems, currentPage, itemsPerPage]);
 
   const addToCart = (item) => {
+    if (!user) {
+      toast.error("Please log in to add items to your cart.");
+      navigate("/login");
+      return;
+    }
     setCart((prev) => {
       const cartItemId = `${item._id}-${item.portion || 'single'}`;
       const existing = prev.find((c) => c.cartItemId === cartItemId);
@@ -367,32 +372,36 @@ export function Restaurant({ onOrder, user }) {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Search Bar */}
-        <div className="max-w-md mx-auto mb-8 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search for your favorite dishes..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm text-sm font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all text-slate-800"
-          />
-        </div>
-
-        {/* Categories */}
-        <div className="flex flex-wrap justify-center gap-2 mb-10">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`flex items-center gap-2.5 px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer whitespace-nowrap ${activeCategory === cat
-                  ? "bg-[#0F172A] text-[#D4AF37] shadow-lg shadow-[#0F172A]/20"
-                  : "text-gray-400 hover:text-[#0F172A] hover:bg-gray-50"
-                }`}
+        {/* Search & Categories */}
+        <div className="max-w-4xl mx-auto mb-10 flex flex-col md:flex-row gap-4 px-2">
+          {/* Search Box */}
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+            <input
+              type="text"
+              placeholder="Search for your favorite dishes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3.5 bg-[#0F172A] border border-[#D4AF37]/30 rounded-2xl shadow-md text-sm font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all text-white placeholder:text-gray-400 hover:border-[#D4AF37]/60"
+            />
+          </div>
+          
+          {/* Category Dropdown */}
+          <div className="relative w-full md:w-64">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+            <select
+              value={activeCategory}
+              onChange={(e) => setActiveCategory(e.target.value)}
+              className="w-full pl-12 pr-10 py-3.5 bg-[#0F172A] border border-[#D4AF37]/30 rounded-2xl shadow-md text-sm font-bold uppercase tracking-widest outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all text-white appearance-none cursor-pointer hover:border-[#D4AF37]/60"
             >
-              {cat}
-            </button>
-          ))}
+              {categories.map((cat) => (
+                <option key={cat} value={cat} className="bg-[#0F172A] text-white font-semibold">
+                  {cat}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37] pointer-events-none" />
+          </div>
         </div>
 
         {/* Menu Grid */}
