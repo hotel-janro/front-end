@@ -162,27 +162,7 @@ export function CashierOrders() {
   const handlePrintReceipt = (order) => {
     if (!order) return toast.error("No order data provided");
 
-    // Find related orders to combine into a single bill if it's a table/room order
-    let relatedOrders = [order];
-    if (order.tableNumber || order.roomNumber) {
-      if (order.paymentStatus === 'Unpaid') {
-        relatedOrders = (orders || []).filter(o =>
-          o.paymentStatus === 'Unpaid' &&
-          ((order.tableNumber && o.tableNumber === order.tableNumber) ||
-            (order.roomNumber && o.roomNumber === order.roomNumber))
-        );
-      } else if (order.paymentStatus === 'Paid') {
-        // Find other paid for the same table/room that were likely settled together
-        const orderTime = new Date(order.updatedAt || order.createdAt).getTime();
-        relatedOrders = (orders || []).filter(o =>
-          o.paymentStatus === 'Paid' &&
-          ((order.tableNumber && o.tableNumber === order.tableNumber) ||
-            (order.roomNumber && o.roomNumber === order.roomNumber)) &&
-          Math.abs(new Date(o.updatedAt || o.createdAt).getTime() - orderTime) < 10000
-        );
-      }
-    }
-
+    const relatedOrders = [order];
     const combinedItems = relatedOrders.flatMap(o => o.items || []);
     const combinedSubtotal = relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0);
     const combinedServiceCharge = relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0);
@@ -282,7 +262,7 @@ export function CashierOrders() {
               <div>Cash Paid: Rs ${(order?.amountReceived || 0).toLocaleString()}</div>
               <div style="font-weight:bold; font-size: 13px;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
             ` : `
-              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending / Group Settle</div>
+              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending</div>
             `}
           </div>
           <div class="footer">
@@ -658,22 +638,9 @@ export function CashierOrders() {
       </div>
 
       {settlingOrder && (() => {
-        // Find related unpaid orders
-        let relatedOrders = [];
-        if (settlingOrder.tableNumber || settlingOrder.roomNumber) {
-          relatedOrders = orders.filter(o => 
-            o.paymentStatus === 'Unpaid' && 
-            ((settlingOrder.tableNumber && o.tableNumber === settlingOrder.tableNumber) || 
-             (settlingOrder.roomNumber && o.roomNumber === settlingOrder.roomNumber))
-          );
-          if (!relatedOrders.find(o => o._id === settlingOrder._id)) {
-            relatedOrders.push(settlingOrder);
-          }
-        } else {
-          relatedOrders = [settlingOrder];
-        }
-        const combinedTotal = relatedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-        const isMultiple = relatedOrders.length > 1;
+        const relatedOrders = [settlingOrder];
+        const combinedTotal = settlingOrder.totalAmount || 0;
+        const isMultiple = false;
 
         return (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
