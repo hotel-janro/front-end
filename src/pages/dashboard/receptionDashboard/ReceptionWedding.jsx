@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Calendar, Users, DollarSign, Plus, Search, X } from 'lucide-react';
+import { Heart, Calendar, Users, DollarSign, Plus, Search, X, Phone, Mail, User, Clock, MapPin, Info } from 'lucide-react';
 import { apiFetch } from '../../../api';
 
 export function ReceptionWedding() {
@@ -22,8 +22,8 @@ export function ReceptionWedding() {
     endTime: '',
     eventType: 'Wedding',
     guestCount: '',
-    hallId: '',
-    cateringPackage: 'Silver',
+    corkageIncluded: false,
+    cateringPackage: '100 Pax Package',
     selectedMeals: [],
     optionalServices: [],
     specialRequests: '',
@@ -42,8 +42,50 @@ export function ReceptionWedding() {
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
   const [newGuestCount, setNewGuestCount] = useState('');
+  const [currentStep, setCurrentStep] = useState(1);
+  const weddingFullMenu = {
+    WelcomeDrinks: ['Orange Juice', 'Mango juice', 'MixFruit juice'],
+    Appetizers: ['Salad Corner: Tomato, Onion or Green Chilli Salad / Cucamba Card With Salad / Mix Vegetable Salad / Salada Kola', 'Soup: Chicken Soup / Vegetable Soup / Egg Soup'],
+    MainCourse: ['Rice: Steam basmathi Rice / Yellow Rice / Chiken Fride Rice / Vegetable Noodles', 'Chicken: Chicken Red Curry / Chilli Chicken / Spicy Chicken Badum / Chicken kuruma', 'Fish: Fish Talapath / Fish Red Curry (Talapath) / Fish Peppered Curry (Moldivan Style) / Fish Ambultiyal / Fish Masala', 'Vegetables: Tempered Potato & Potato Curry / Brinjall Capcicum & Tomato Moju Or Pahi / Tempered Dhal Or Dhal Fry Indian Style / Garlice Green Beans / Temperd Mushroom With kunisso / Cashew (Green Peas Curry)', 'Condiments Platter: DRY FISH / Sinhala Achcharu / Mango Chutney / Chilli Paste / Tomato Sauce / Papadam Dry Chilly'],
+    LiveStations: ['Poruwa & Seti Back', 'Oil Lamp Decorated', 'Entrance Arch', 'Beautiful Location Photos', 'Table Decoration', 'Cake Baskets', 'Registration table / Cake Table / Milk Rice Table', '(Led) Dancing Floor', 'Two A/C Rooms for Dressing', 'Astaka', 'Jayamangala', 'Piliganeem', 'West Natum', 'Kirikala or Champagine'],
+    Desserts: ['Cream Orange Caramal', 'Watalappam', 'Fresh Fruits Salad', 'Fresh Fruites Cuts (papaya Pineple,Banana ) Water Melan', 'Rainbow Jelly ( Red & Green)', 'CUSTARD PUDDING']
+  };
 
-  const packagePrices = { Silver: 2500, Gold: 4000, Platinum: 6500 };
+  const weddingPackageDetails = {
+    '100 Pax Package': {
+      price: 4750,
+      highlights: ['Poruwa & Seti Back, Dancing Floor, A/C Rooms, Astaka', 'Welcome Drink, Rice, Chicken, Fish, Vegetables, Desserts', 'Free Bites: Chicken, Sausages 2kg, Kadala 2kg'],
+      fullMenu: weddingFullMenu
+    },
+    '150 Pax Package': {
+      price: 4450,
+      highlights: ['Poruwa & Seti Back, Dancing Floor, A/C Rooms, Astaka', 'Welcome Drink, Rice, Chicken, Fish, Vegetables, Desserts', 'Free Bites (15kg): Chicken 5kg, Sausages 4kg, Kadala 3kg, Hot Butter Mushroom 3kg'],
+      fullMenu: weddingFullMenu
+    },
+    '200 Pax Package': {
+      price: 3850,
+      highlights: ['Poruwa & Seti Back, Dancing Floor, A/C Rooms, Astaka', 'Welcome Drink, Rice, Chicken, Fish, Vegetables, Desserts', 'Free Bites: Chicken 7kg, Sausages 4kg, Kadala 4kg'],
+      fullMenu: weddingFullMenu
+    },
+    '250 Pax Package': {
+      price: 3750,
+      highlights: ['Poruwa & Seti Back, Dancing Floor, A/C Rooms, Astaka', 'Welcome Drink, Rice, Chicken, Fish, Vegetables, Desserts', 'Free Bites (18kg): Chicken 10kg, Sausages 4kg, Kadala 4kg'],
+      fullMenu: weddingFullMenu
+    }
+  };
+  const weddingPackagePrices = {
+    '100 Pax Package': 4750,
+    '150 Pax Package': 4450,
+    '200 Pax Package': 3850,
+    '250 Pax Package': 3750
+  };
+
+  const eventPackagePrices = {
+    'Lunch With Pool': 2415,
+    'Menu I': 2900,
+    'Menu II': 2750
+  };
+  const packagePrices = formData.bookingCategory === 'Wedding' ? weddingPackagePrices : eventPackagePrices;
   const mealPrices = {
     'Breakfast': 800,
     'Lunch': 1500,
@@ -72,6 +114,22 @@ export function ReceptionWedding() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (formData.bookingCategory === 'Wedding' && formData.hallId && formData.cateringPackage !== 'Custom') {
+      const selectedHall = halls.find(h => h._id === formData.hallId);
+      if (selectedHall) {
+        const maxCapacity = selectedHall.capacity;
+        const match = formData.cateringPackage.match(/(\d+)/);
+        if (match) {
+          const packagePax = parseInt(match[0], 10);
+          if (packagePax > maxCapacity) {
+            setFormData(prev => ({ ...prev, cateringPackage: '100 Pax Package' }));
+          }
+        }
+      }
+    }
+  }, [formData.hallId, formData.bookingCategory, formData.cateringPackage, halls]);
 
   const fetchData = async () => {
     try {
@@ -201,7 +259,7 @@ export function ReceptionWedding() {
         total += extraHours * extraHourPrice;
       }
     }
-    // -------------------------
+    // ---
 
     return total;
   };
@@ -218,8 +276,8 @@ export function ReceptionWedding() {
         setShowModal(false);
         setFormData({
           customerName: '', customerPhone: '', customerEmail: '',
-          eventDate: '', startTime: '09:00', endTime: '16:00', eventType: 'Wedding',
-          guestCount: '', hallId: '', cateringPackage: 'Silver',
+          brideName: '', bridePhone: '', nekathTimes: '', seatingStyle: '', dietaryNotes: '', corkageIncluded: false,
+          guestCount: '', hallId: '', cateringPackage: '100 Pax Package',
           selectedMeals: [], optionalServices: [], specialRequests: '', 
           advancePaid: '', bookingCategory: 'Wedding', venuePreference: 'Indoor', timeSlot: 'Day'
         });
@@ -291,9 +349,8 @@ export function ReceptionWedding() {
         <button 
           onClick={() => {
             setFormData({
-              customerName: '', customerPhone: '', customerEmail: '',
-              eventDate: '', startTime: '09:00', endTime: '16:00', eventType: 'Wedding',
-              guestCount: '', hallId: '', cateringPackage: 'Silver',
+              groomName: '', groomPhone: '', brideName: '', bridePhone: '', nekathTimes: '', seatingStyle: '', dietaryNotes: '', corkageIncluded: false,
+              guestCount: '', hallId: '', cateringPackage: '100 Pax Package',
               selectedMeals: [], optionalServices: [], specialRequests: '', 
               advancePaid: '', bookingCategory: 'Wedding', venuePreference: 'Indoor', timeSlot: 'Day'
             });
@@ -533,7 +590,7 @@ export function ReceptionWedding() {
             </div>
             
             <form onSubmit={handleSubmitBooking} className="p-8 overflow-y-auto">
-              {/* Category & Location Selectors - Professional Segmented Style */}
+              
               <div className="flex flex-col sm:flex-row gap-6 mb-10 p-5 bg-slate-50 rounded-3xl border border-slate-100">
                 <div className="flex-1">
                   <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Booking Category</label>
@@ -542,7 +599,7 @@ export function ReceptionWedding() {
                       <button
                         key={cat}
                         type="button"
-                        onClick={() => setFormData({...formData, bookingCategory: cat, eventType: cat === 'Wedding' ? 'Wedding' : 'Birthday Party', venuePreference: 'Indoor', hallId: ''})}
+                        onClick={() => setFormData({...formData, bookingCategory: cat, cateringPackage: cat === 'Wedding' ? '100 Pax Package' : 'Menu I', eventType: cat === 'Wedding' ? 'Wedding' : 'Birthday Party', venuePreference: 'Indoor', hallId: ''})}
                         className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-300 ${formData.bookingCategory === cat ? 'bg-[#0F172A] text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
                       >
                         {cat}
@@ -592,37 +649,56 @@ export function ReceptionWedding() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Column 1 */}
                 <div className="space-y-6">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Customer Details</h3>
-                    <div className="space-y-4">
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
+                    <h3 className="text-xs font-black text-[#0F172A] uppercase tracking-widest border-b border-slate-200/60 pb-3 flex items-center gap-2">
+                      <User className="w-4 h-4 text-[#D4AF37]" /> Customer Details
+                    </h3>
+                    <div className="space-y-3">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Customer Name *</label>
-                        <input required type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Customer Name *</label>
+                        <div className="relative">
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <input required type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} className="w-full pl-11 pr-5 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-semibold text-xs" placeholder="Customer Name" />
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Phone *</label>
-                          <input required type="text" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Phone *</label>
+                          <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                              <Phone className="w-4 h-4" />
+                            </div>
+                            <input required type="tel" value={formData.customerPhone} onChange={e => setFormData({...formData, customerPhone: e.target.value})} className="w-full pl-11 pr-5 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-semibold text-xs" placeholder="+94 7X XXX XXXX" />
+                          </div>
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Email</label>
-                          <input type="email" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Email</label>
+                          <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                              <Mail className="w-4 h-4" />
+                            </div>
+                            <input type="email" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} className="w-full pl-11 pr-5 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-semibold text-xs" placeholder="john@example.com" />
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Event Details</h3>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
+                    <h3 className="text-xs font-black text-[#0F172A] uppercase tracking-widest border-b border-slate-200/60 pb-3 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-[#D4AF37]" /> Event & Venue
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {formData.bookingCategory === 'Event' && (
                           <div>
-                            <label className="block text-xs font-semibold text-slate-600 mb-1">Event Type *</label>
-                            <select required value={formData.eventType} onChange={e => setFormData({...formData, eventType: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Event Type *</label>
+                            <select required value={formData.eventType} onChange={e => setFormData({...formData, eventType: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none text-xs font-bold">
                               <option>Birthday Party</option>
                               <option>Anniversary</option>
                               <option>Corporate Meeting</option>
@@ -631,24 +707,39 @@ export function ReceptionWedding() {
                           </div>
                         )}
                         <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Event Date *</label>
-                          <input required type="date" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Event Date *</label>
+                          <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                              <Calendar className="w-4 h-4" />
+                            </div>
+                            <input required type="date" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} className="w-full pl-11 pr-5 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-xs" />
+                          </div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Start Time *</label>
-                          <input required type="time" value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Start Time *</label>
+                          <div className="relative">
+                            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                              <Clock className="w-4 h-4" />
+                            </div>
+                            <input required type="time" value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-xs" />
+                          </div>
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">End Time *</label>
-                          <input required type="time" value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">End Time *</label>
+                          <div className="relative">
+                            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                              <Clock className="w-4 h-4" />
+                            </div>
+                            <input required type="time" value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-xs" />
+                          </div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">{formData.venuePreference === 'Indoor' ? 'Hall' : 'Outdoor Area'} *</label>
-                          <select required value={formData.hallId} onChange={e => setFormData({...formData, hallId: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">{formData.venuePreference === 'Indoor' ? 'Hall' : 'Outdoor Area'} *</label>
+                          <select required value={formData.hallId} onChange={e => setFormData({...formData, hallId: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none text-xs font-bold">
                             <option value="">Select {formData.venuePreference === 'Indoor' ? 'Hall' : 'Area'}</option>
                             {halls
                               .filter(h => h.type === (formData.venuePreference === 'Indoor' ? 'Hall' : 'Event Area'))
@@ -658,8 +749,13 @@ export function ReceptionWedding() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Guest Count *</label>
-                          <input required type="number" min="1" value={formData.guestCount} onChange={e => setFormData({...formData, guestCount: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" />
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Guest Count *</label>
+                          <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                              <Users className="w-3.5 h-3.5" />
+                            </div>
+                            <input required type="number" min="1" value={formData.guestCount} onChange={e => setFormData({...formData, guestCount: e.target.value})} className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-[#D4AF37] outline-none transition-all text-xs font-bold" />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -667,107 +763,79 @@ export function ReceptionWedding() {
                 </div>
 
                 {/* Column 2 */}
-                <div className="flex flex-col h-full space-y-6">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Packages & Services</h3>
+                <div className="space-y-6">
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
+                    <h3 className="text-xs font-black text-[#0F172A] uppercase tracking-widest border-b border-slate-200/60 pb-3 flex items-center gap-2">
+                      <Heart className="w-4 h-4 text-[#D4AF37]" /> Packages & Services
+                    </h3>
                     <div className="space-y-4">
                       <div>
-                        {formData.bookingCategory === 'Wedding' ? (
-                          <>
-                            <label className="block text-xs font-semibold text-slate-600 mb-2">Catering Package *</label>
-                            <div className="grid grid-cols-3 gap-2">
-                              {['Silver', 'Gold', 'Platinum'].map(pkg => (
-                                <div 
-                                  key={pkg}
-                                  onClick={() => setFormData({...formData, cateringPackage: pkg})}
-                                  className={`p-3 rounded-xl border text-center cursor-pointer transition-all ${formData.cateringPackage === pkg ? 'bg-[#0F172A] border-[#0F172A] text-white shadow-lg' : 'bg-white border-slate-200 text-slate-600 hover:border-[#D4AF37]'}`}
-                                >
-                                  <div className="font-bold text-sm">{pkg}</div>
-                                  <div className={`text-[10px] ${formData.cateringPackage === pkg ? 'text-[#D4AF37]' : 'text-slate-400'}`}>Rs. {packagePrices[pkg]} / pax</div>
-                                </div>
-                              ))}
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Catering Package *</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {Object.keys(packagePrices)
+                            .filter(pkg => {
+                              if (formData.bookingCategory !== 'Wedding') return true;
+                              const selectedHall = halls.find(h => h._id === formData.hallId);
+                              const maxCapacity = selectedHall ? selectedHall.capacity : 9999;
+                              const match = pkg.match(/(\d+)/);
+                              if (!match) return true;
+                              return parseInt(match[0], 10) <= maxCapacity;
+                            })
+                            .map(pkg => (
+                            <div 
+                              key={pkg}
+                              onClick={() => setFormData({...formData, cateringPackage: pkg})}
+                              className={`p-3.5 rounded-xl border-2 text-center cursor-pointer transition-all flex flex-col justify-center ${
+                                formData.cateringPackage === pkg 
+                                  ? 'bg-[#0F172A] border-[#0F172A] text-white shadow-lg' 
+                                  : 'bg-white border-slate-200/60 text-slate-600 hover:border-[#D4AF37]'
+                              }`}
+                            >
+                              <div className="font-bold text-xs">{pkg}</div>
+                              <div className={`text-[9px] mt-0.5 font-bold ${formData.cateringPackage === pkg ? 'text-[#D4AF37]' : 'text-slate-400'}`}>Rs. {packagePrices[pkg].toLocaleString()} / pax</div>
                             </div>
-                          </>
-                        ) : (
-                          <>
-                            <label className="block text-xs font-semibold text-slate-600 mb-2">Meal Options (Per Person)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              {Object.keys(mealPrices).map(meal => (
-                                <label key={meal} className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-100 bg-white cursor-pointer hover:border-[#D4AF37] transition-all">
-                                  <input 
-                                    type="checkbox" 
-                                    checked={formData.selectedMeals.includes(meal)}
-                                    onChange={() => {
-                                      const newMeals = formData.selectedMeals.includes(meal)
-                                        ? formData.selectedMeals.filter(m => m !== meal)
-                                        : [...formData.selectedMeals, meal];
-                                      setFormData({...formData, selectedMeals: newMeals});
-                                    }}
-                                    className="rounded text-[#0F172A] focus:ring-[#D4AF37]"
-                                  />
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-700">{meal}</span>
-                                    <span className="text-[10px] text-slate-400">Rs. {mealPrices[meal]} / pax</span>
-                                  </div>
-                                </label>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-2">Optional Add-ons</label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {Object.keys(formData.bookingCategory === 'Wedding' ? weddingServicePrices : eventServicePrices).map((service) => (
-                            <label key={service} className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${formData.optionalServices.includes(service) ? 'border-[#0F172A] bg-slate-50' : 'border-slate-100 hover:border-slate-200'}`}>
-                              <div className="flex items-center gap-3">
-                                <input type="checkbox" checked={formData.optionalServices.includes(service)} onChange={() => handleServiceToggle(service)} className="w-5 h-5 rounded accent-[#0F172A]" />
-                                <div>
-                                  <p className="text-sm font-semibold text-slate-900">{service}</p>
-                                  <p className="text-xs text-[#D4AF37] font-bold">Rs. {(formData.bookingCategory === 'Wedding' ? weddingServicePrices[service] : eventServicePrices[service]).toLocaleString()}</p>
-                                </div>
-                              </div>
-                            </label>
                           ))}
                         </div>
                       </div>
-
                       <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Menu Changes / Special Requests</label>
-                        <textarea value={formData.specialRequests} onChange={e => setFormData({...formData, specialRequests: e.target.value})} rows="2" placeholder="e.g. No beef, Extra spicy, Vattalappam for dessert..." className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none resize-none"></textarea>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Special Requests / Menu Changes</label>
+                        <textarea value={formData.specialRequests} onChange={e => setFormData({...formData, specialRequests: e.target.value})} rows="2" placeholder="e.g. Vegetarian counts, allergies, special menu adjustments..." className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none text-xs resize-none"></textarea>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 relative overflow-hidden mt-auto">
-                    <div className="absolute top-0 right-0 p-4">
-                      <DollarSign className="w-12 h-12 text-[#D4AF37] opacity-20" />
+                  <div className="bg-[#0F172A] border border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-2xl">
+                    <div className="absolute top-0 right-0 p-4 opacity-5">
+                      <DollarSign className="w-16 h-16 text-[#D4AF37]" />
                     </div>
-                    <div className="mb-4 pb-4 border-b border-slate-200">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Estimated Total</p>
-                      <h3 className="text-4xl font-semibold text-slate-900" style={{ fontFamily: "DM Serif Display, serif" }}>
-                        Rs. {calculateTotal().toLocaleString()}
-                      </h3>
-                      <p className="text-[10px] text-slate-500 mt-1">Min. 20% advance required: Rs. {(calculateTotal() * 0.2).toLocaleString()}</p>
+                    <div className="mb-4 pb-4 border-b border-white/10 flex justify-between items-end">
+                      <div>
+                        <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Estimated Total</p>
+                        <h3 className="text-3xl font-black text-[#D4AF37] mt-0.5">
+                          Rs. {calculateTotal().toLocaleString()}
+                        </h3>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] text-white/40 italic">Min. 20% Advance: Rs. {(calculateTotal() * 0.2).toLocaleString()}</p>
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Advance Payment *</label>
+                        <label className="block text-[9px] font-bold text-white/50 uppercase mb-1.5">Advance Payment *</label>
                         <input 
                           required 
                           type="number" 
                           min={calculateTotal() * 0.2}
                           value={formData.advancePaid} 
                           onChange={e => setFormData({...formData, advancePaid: e.target.value})} 
-                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none" 
+                          className="w-full px-3 py-2 bg-white/10 border border-white/10 rounded-lg focus:border-[#D4AF37] outline-none text-white font-bold text-xs" 
                           placeholder="Rs."
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Balance Amount</label>
-                        <div className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-900 font-bold">
+                        <label className="block text-[9px] font-bold text-white/50 uppercase mb-1.5">Balance Amount</label>
+                        <div className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white font-bold text-xs">
                           Rs. {Math.max(0, calculateTotal() - (Number(formData.advancePaid) || 0)).toLocaleString()}
                         </div>
                       </div>
@@ -777,8 +845,8 @@ export function ReceptionWedding() {
               </div>
 
               <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-slate-100">
-                <button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors text-sm">Cancel</button>
-                <button type="submit" className="px-8 py-3 bg-[#D4AF37] text-[#0F172A] rounded-xl font-bold hover:bg-[#B8962D] transition-colors shadow-lg shadow-[#D4AF37]/20 text-sm">Create Booking</button>
+                <button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors text-xs uppercase tracking-wider">Cancel</button>
+                <button type="submit" className="px-8 py-3 bg-[#0F172A] text-[#D4AF37] rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20 text-xs uppercase tracking-wider">Create Booking</button>
               </div>
             </form>
           </div>

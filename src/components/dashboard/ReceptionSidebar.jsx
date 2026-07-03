@@ -1,4 +1,4 @@
-// ReceptionSidebar.jsx - Reception Dashboard Sidebar Navigation
+// ReceptionSidebar.jsx - Reception Dashboard Sidebar Navigation bar
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
@@ -10,7 +10,10 @@ import {
   Users2,
   LogOut,
   Crown,
+  Dumbbell
 } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext";
+
 
 const navItems = [
   { label: "Dashboard", icon: Grid3X3, path: "/reception" },
@@ -18,19 +21,25 @@ const navItems = [
   { label: "Rooms", icon: Bed, path: "/reception/rooms" },
   { label: "Wedding Events", icon: Heart, path: "/reception/wedding" },
   { label: "Pool Access", icon: Waves, path: "/reception/pool" },
+  { label: "Gym Entrance", icon: Dumbbell, path: "/reception/gym" },
   { label: "Customers", icon: Users2, path: "/reception/customers" },
 ];
 
 export function ReceptionSidebar({ user, onLogout }) {
+  const { settings } = useSettings();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+
+  const handleLogout = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (onLogout) onLogout();
-    navigate("/");
   };
 
   return (
-    <aside className="w-64 bg-[#0F172A] border-r border-[#1E293B] text-slate-100 flex flex-col min-h-screen fixed left-0 top-0 z-40">
+    <aside className="w-64 bg-[#0F172A] border-r border-[#1E293B] text-slate-100 flex flex-col h-screen fixed left-0 top-0 z-40">
       {/* Logo */}
       <div className="p-6 border-b border-[#1E293B]">
         <div className="flex items-center gap-3">
@@ -38,8 +47,8 @@ export function ReceptionSidebar({ user, onLogout }) {
             <Crown className="w-6 h-6 text-[#D4AF37]" />
           </div>
           <div>
-            <h1 className="text-[1.8rem] leading-none tracking-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-              HOTEL JANRO
+            <h1 className="text-[1.8rem] leading-none tracking-tight text-white uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
+              {settings.hotelName}
             </h1>
             <p className="text-xs text-[#D4AF37] tracking-[0.16em] uppercase mt-1">Reception Panel</p>
           </div>
@@ -89,8 +98,9 @@ export function ReceptionSidebar({ user, onLogout }) {
             <p className="text-xs text-slate-400 truncate">Front Desk Agent</p>
           </div>
           <button
+            type="button"
             onClick={handleLogout}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors shrink-0 cursor-pointer z-50 relative"
             title="Logout"
           >
             <LogOut className="w-4 h-4" />

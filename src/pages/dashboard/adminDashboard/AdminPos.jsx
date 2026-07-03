@@ -1,10 +1,11 @@
+// Handles orders, billing, and thermal receipts
 import React, { useEffect, useMemo, useState } from 'react';
-import { apiFetch, API_HOST } from '../../../api.js';
-import { 
-  ShoppingCart, 
-  Search, 
-  Clock, 
-  DollarSign, 
+import { apiFetch, API_HOST, getImageUrl } from '../../../api.js';
+import {
+  ShoppingCart,
+  Search,
+  Clock,
+  Gem,
   Plus,
   Trash2,
   CheckCircle,
@@ -15,900 +16,1406 @@ import {
   Zap,
   ChevronRight,
   User,
-  Phone
+  Phone,
+  MapPin,
+  X,
+  Truck,
+  Printer,
+  Banknote,
+  TrendingUp
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { toast, Toaster } from 'sonner';
+import { useSettings } from '../../../context/SettingsContext.jsx';
+import { useSocket } from '../../../context/SocketContext.jsx';
+
+const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+// Memoized component for faster rendering of menu items
+const PosMenuItem = React.memo(({ item, handleAddVisualItem }) => {
+  return (
+    <div
+      className={`bg-[#1E293B] rounded-xl border border-white/5 flex flex-row items-center p-2.5 gap-3 hover:border-slate-500 transition-colors shadow-sm ${!item.isAvailable ? 'opacity-50 grayscale' : 'cursor-pointer'
+        }`}
+      onClick={() => {
+        if (!item.hasPortions && item.isAvailable) {
+          handleAddVisualItem(item, 'Full');
+        }
+      }}
+    >
+      <div className="relative w-[70px] h-[70px] bg-slate-900 rounded-lg flex-shrink-0 overflow-hidden">
+        {item.image ? (
+          <img
+            src={getImageUrl(item.image)}
+            alt={item.name}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-700">
+            <Utensils className="w-6 h-6" />
+          </div>
+        )}
+        {!item.isAvailable && (
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
+            <span className="text-[8px] font-black text-white uppercase tracking-widest bg-rose-500 px-1 rounded-sm">Out</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 flex flex-col justify-center min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <h4 className="font-bold text-white text-xs leading-tight line-clamp-2">{item.name}</h4>
+          {!item.hasPortions && (
+            <div className="text-xs font-black text-emerald-400 flex-shrink-0">{formatCurrency(item.price)}</div>
+          )}
+        </div>
+
+        <div className="mt-1.5 flex flex-wrap gap-1.5" onClick={e => e.stopPropagation()}>
+          {item.hasPortions ? (
+            item.portions.map(p => (
+              <button
+                key={p.portionType}
+                disabled={!item.isAvailable}
+                onClick={() => handleAddVisualItem(item, p.portionType)}
+                className="px-2 py-1 bg-slate-800 hover:bg-[#D4AF37] hover:text-[#0F172A] border border-slate-700 text-slate-300 rounded-md text-[9px] font-black uppercase transition-colors"
+              >
+                {p.portionType[0]}: {formatCurrency(p.price).replace('Rs ', '').split('.')[0]}
+              </button>
+            ))
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}, (prev, next) => prev.item._id === next.item._id && prev.item.isAvailable === next.item.isAvailable);
 
 export function AdminPOS() {
-  const [menuItems, setMenuItems] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  const [posForm, setPosForm] = useState({
-    orderType: 'Dine-in',
-    tableNumber: '',
-    roomNumber: '',
-    deliveryAddress: '',
-    contactNumber: '',
-    customerName: '',
-    discount: '0',
-    coordinates: null
+  const { settings } = useSettings();
+  const socket = useSocket();
+const [menuItems, setMenuItems] = useState([]);
+const [orders, setOrders] = useState([]);
+const [loading, setLoading] = useState(true);
+const [validationErrors, setValidationErrors] = useState({});
+
+// Luxury Tabbed POS States
+const [activeTab, setActiveTab] = useState('terminal'); // 'terminal', 'kitchen', 'analytics'
+const [selectedCategory, setSelectedCategory] = useState('All');
+const [menuSearch, setMenuSearch] = useState('');
+const [portionModalItem, setPortionModalItem] = useState(null);
+const [currentPage, setCurrentPage] = useState(1);
+const itemsPerPage = 12;
+
+const clearError = (field) => {
+  if (validationErrors[field]) {
+    setValidationErrors(prev => {
+      const newErrs = { ...prev };
+      delete newErrs[field];
+      return newErrs;
+    });
+  }
+};
+
+const [posForm, setPosForm] = useState({
+  orderType: 'Dine-in',
+  tableNumber: '',
+  roomNumber: '',
+  deliveryAddress: '',
+  contactNumber: '',
+  customerName: '',
+  discount: '0',
+  coordinates: null,
+  deliveryFee: 0
+});
+const [cart, setCart] = useState([]);
+const [selectedPosMenuItemId, setSelectedPosMenuItemId] = useState('');
+const [selectedPosQuantity, setSelectedPosQuantity] = useState('1');
+const [selectedPortion, setSelectedPortion] = useState('Full');
+const [savingPosOrder, setSavingPosOrder] = useState(false);
+const [isGettingLocation, setIsGettingLocation] = useState(false);
+
+const [amountReceived, setAmountReceived] = useState('');
+const [balance, setBalance] = useState(0);
+const [isPaidToggle, setIsPaidToggle] = useState(false);
+
+const [settleModalOrder, setSettleModalOrder] = useState(null);
+const [settleTab, setSettleTab] = useState('full'); // 'full', 'equal', 'custom', 'item'
+const [splitWays, setSplitWays] = useState(2);
+const [customAmount, setCustomAmount] = useState('');
+const [paymentMethod, setPaymentMethod] = useState('Cash');
+const [itemSplitChecked, setItemSplitChecked] = useState({});
+const [lastPollTime, setLastPollTime] = useState(new Date());
+
+const HOTEL_COORDS = { lat: 6.9458, lng: 80.1250 };
+
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// Logic for totals and delivery fees
+const subtotal = useMemo(() => {
+  return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+}, [cart]);
+
+const serviceCharge = useMemo(() => {
+  return (posForm.orderType === "Dine-in" || posForm.orderType === "Room") ? subtotal * 0.1 : 0;
+}, [subtotal, posForm.orderType]);
+
+const { deliveryFee, distance } = useMemo(() => {
+  if (posForm.orderType === "Delivery") {
+    // Prioritize manual input if available
+    if (posForm.deliveryFee > 0) {
+      return { deliveryFee: posForm.deliveryFee, distance: 0 };
+    }
+    if (posForm.coordinates) {
+      const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
+      // Apply a 1.2x winding factor to estimate actual road distance
+      const dist = straightDist * 1.2;
+      // First 1km free, then 10% for every additional 1km 
+      const fee = (dist > 1 && dist <= 15) ? subtotal * 0.1 * Math.ceil(dist - 1) : 0;
+      return { deliveryFee: fee, distance: dist };
+    }
+  }
+  return { deliveryFee: 0, distance: 0 };
+}, [subtotal, posForm.orderType, posForm.coordinates, posForm.deliveryFee]);
+
+const discountValue = Number(posForm.discount || 0);
+const grandTotal = Math.max(subtotal + serviceCharge + deliveryFee - discountValue, 0);
+
+const handleGetLocation = () => {
+  if (!navigator.geolocation) return toast.error('Geolocation not supported');
+  setIsGettingLocation(true);
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      setPosForm(prev => ({
+        ...prev,
+        coordinates: { lat: pos.coords.latitude, lng: pos.coords.longitude }
+      }));
+      setIsGettingLocation(false);
+      toast.success('GPS Pinned!');
+    },
+    () => {
+      toast.error('Location failed');
+      setIsGettingLocation(false);
+    }
+  );
+};
+
+const autoGeocode = async (address) => {
+  if (!address || address.length < 5) return;
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+    const data = await response.json();
+    if (data && data.length > 0) {
+      const { lat, lon } = data[0];
+      setPosForm(prev => ({
+        ...prev,
+        coordinates: { lat: parseFloat(lat), lng: parseFloat(lon) }
+      }));
+    }
+  } catch (e) { /* Ignore format errors */ }
+};
+
+// Auto-fill guest details for existing rooms/tables
+useEffect(() => {
+  if (orders.length > 0) {
+    let existingOrder = null;
+    if (posForm.orderType === 'Dine-in' && posForm.tableNumber) {
+      existingOrder = orders.find(o => o.tableNumber === posForm.tableNumber && o.orderStatus !== 'Completed' && o.orderStatus !== 'Cancelled');
+    } else if (posForm.orderType === 'Room' && posForm.roomNumber) {
+      existingOrder = orders.find(o => o.roomNumber === posForm.roomNumber && o.orderStatus !== 'Completed' && o.orderStatus !== 'Cancelled');
+    }
+
+    if (existingOrder) {
+      setPosForm(prev => ({
+        ...prev,
+        customerName: existingOrder.customerName || prev.customerName,
+        contactNumber: existingOrder.contactNumber || prev.contactNumber
+      }));
+    }
+  }
+}, [posForm.tableNumber, posForm.roomNumber, posForm.orderType, orders]);
+
+
+useEffect(() => {
+  const received = Number(amountReceived || 0);
+  if (isPaidToggle && received < grandTotal) {
+    setBalance(0);
+  } else {
+    setBalance(received > 0 ? Math.max(received - grandTotal, 0) : 0);
+  }
+}, [amountReceived, grandTotal, isPaidToggle]);
+
+// Load menu and orders on mount
+useEffect(() => {
+  refreshData();
+  const interval = setInterval(() => loadOrders(true), 30000);
+  return () => clearInterval(interval);
+}, []);
+
+// Real-time socket event listeners
+useEffect(() => {
+  if (!socket) return;
+
+  socket.on("orderCreated", (newOrder) => {
+    setOrders((prev) => {
+      if (prev.some((o) => o._id === newOrder._id)) return prev;
+      toast.info(`New Order #${newOrder._id.slice(-6).toUpperCase()} placed!`, {
+        description: `By: ${newOrder.customerName || "Guest"} (${newOrder.orderType})`,
+        duration: 6000,
+      });
+      return [newOrder, ...prev];
+    });
   });
-  const [cart, setCart] = useState([]);
-  const [selectedPosMenuItemId, setSelectedPosMenuItemId] = useState('');
-  const [selectedPosQuantity, setSelectedPosQuantity] = useState('1');
-  const [savingPosOrder, setSavingPosOrder] = useState(false);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
-  
-  // Payment processing state
-  const [amountReceived, setAmountReceived] = useState('');
-  const [balance, setBalance] = useState(0);
 
-  // Existing order payment state
-  const [settlingOrderId, setSettlingOrderId] = useState(null);
-  const [settleAmount, setSettleAmount] = useState('');
+  socket.on("orderUpdated", (updatedOrder) => {
+    setOrders((prev) =>
+      prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o))
+    );
+    toast.success(`Order #${updatedOrder._id.slice(-6).toUpperCase()} updated!`, {
+      description: `Status: ${updatedOrder.orderStatus} | Payment: ${updatedOrder.paymentStatus}`,
+      duration: 5000,
+    });
+  });
 
-  const HOTEL_COORDS = { lat: 6.0833, lng: 80.5667 }; // Kamburupitiya, Matara
+  socket.on("orderDeleted", ({ id }) => {
+    setOrders((prev) => prev.filter((o) => o._id !== id));
+    toast.warning("An order was deleted.", { duration: 4000 });
+  });
 
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; 
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+  return () => {
+    socket.off("orderCreated");
+    socket.off("orderUpdated");
+    socket.off("orderDeleted");
   };
+}, [socket]);
 
-  const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  }, [cart]);
+const refreshData = async () => {
+  setLoading(true);
+  await Promise.allSettled([loadMenu(), loadOrders()]);
+  setLoading(false);
+};
 
-  let serviceCharge = 0;
-  let deliveryFee = 0;
-  let distance = 0;
+const loadMenu = async () => {
+  try {
+    const data = await apiFetch('/menu?populate=inventoryItem');
+    setMenuItems(Array.isArray(data) ? data : []);
+  } catch (e) {
+    console.error("POS: Failed to load menu:", e);
+    toast.error('Menu Loading Failed', {
+      description: "Something went wrong while fetching the culinary collection.",
+      duration: 5000,
+    });
+  }
+};
 
-  if (posForm.orderType === "Dine-in" || posForm.orderType === "Room") {
-    serviceCharge = subtotal * 0.1; 
-  } else if (posForm.orderType === "Delivery" && posForm.coordinates) {
-    distance = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
-    if (distance > 1 && distance <= 15) {
-      deliveryFee = subtotal * 0.1 * Math.floor(distance);
+const loadOrders = async (isPoll = false) => {
+  try {
+    const data = await apiFetch('/orders');
+    setOrders(Array.isArray(data) ? data : []);
+    setLastPollTime(new Date());
+  } catch (e) { /* error logged */ }
+};
+
+
+// Add item to active cart
+const addPosItem = () => {
+  const menuItem = menuItems.find((item) => item._id === selectedPosMenuItemId);
+  if (!menuItem) {
+    toast.warning("Please select a dish first!");
+    return;
+  }
+  const quantity = Number(selectedPosQuantity || 1);
+  const price = menuItem.hasPortions
+    ? menuItem.portions.find(p => p.portionType === selectedPortion)?.price
+    : menuItem.price;
+
+  setCart((prev) => {
+    const cartItemId = `${menuItem._id}-${menuItem.hasPortions ? selectedPortion : 'single'}`;
+    const existing = prev.find((i) => i.cartItemId === cartItemId);
+    if (existing) {
+      return prev.map((i) => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + quantity } : i);
+    }
+    return [...prev, {
+      cartItemId, menuItemId: menuItem._id, name: menuItem.name,
+      portion: menuItem.hasPortions ? selectedPortion : '', price: price, quantity
+    }];
+  });
+  setSelectedPosMenuItemId('');
+  setSelectedPosQuantity('1');
+  setSelectedPortion('Full');
+};
+
+// Validate and submit order to backend
+const handlePlaceOrder = async () => {
+  // Comprehensive Validation
+  const errors = {};
+
+  // General Empty Check
+  const isCartEmpty = cart.length === 0;
+
+  if (isCartEmpty) {
+    toast.error("Your cart is empty. Please add at least one item.");
+    return;
+  }
+
+  // Name Validation
+  if (!posForm.customerName || posForm.customerName.trim().length < 2) {
+    errors.customerName = "Guest Name is required (at least 2 characters).";
+  } else if (!/^[a-zA-Z\s.]+$/.test(posForm.customerName)) {
+    errors.customerName = "Invalid Guest Name: Only letters allowed.";
+  }
+
+  // Phone Validation
+  if (posForm.orderType !== 'Take-away') {
+    if (!posForm.contactNumber || posForm.contactNumber.trim().length === 0) {
+      errors.contactNumber = "Contact number is required.";
     }
   }
 
-  const discountValue = Number(posForm.discount || 0);
-  const grandTotal = Math.max(subtotal + serviceCharge + deliveryFee - discountValue, 0);
+  if (posForm.contactNumber && !/^\d{10}$/.test(posForm.contactNumber)) {
+    errors.contactNumber = "Invalid Phone Number: Must be 10 digits.";
+  }
 
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) return toast.error('Geolocation not supported');
-    setIsGettingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setPosForm({
-          ...posForm, 
-          coordinates: { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        });
-        setIsGettingLocation(false);
-        toast.success('Location captured successfully!');
-      },
-      (err) => {
-        toast.error('Could not get location. Please enter address manually.');
-        setIsGettingLocation(false);
-      }
-    );
-  };
+  // 2. Room Number Validation
+  if (posForm.roomNumber || posForm.orderType === 'Room') {
+    const rNum = Number(posForm.roomNumber);
+    if (!posForm.roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
+      toast.error(`Access Denied: Only Room 1 to Room 10 are available in ${settings.hotelName}.`);
+      return;
+    }
+  }
 
-  useEffect(() => {
-    const received = Number(amountReceived || 0);
-    if (received > 0) {
-      setBalance(Math.max(received - grandTotal, 0));
+  // Contextual Validation
+  if (posForm.orderType === 'Dine-in') {
+    if (!posForm.tableNumber) errors.tableNumber = "Table is required.";
+  } else if (posForm.orderType === 'Room') {
+    if (!posForm.roomNumber) errors.roomNumber = "Room is required.";
+  } else if (posForm.orderType === 'Delivery') {
+    if (!posForm.deliveryAddress) errors.deliveryAddress = "Address is missing.";
+  }
+
+  if (Object.keys(errors).length > 0) {
+    setValidationErrors(errors);
+    toast.error("Required fields are missing or invalid");
+    return;
+  }
+
+
+  setSavingPosOrder(true);
+  try {
+    const receivedNum = Number(amountReceived || 0);
+    const isPaid = isPaidToggle || (receivedNum >= grandTotal && grandTotal > 0) || (grandTotal === 0);
+
+    const newItems = cart.map(i => ({
+      menuItemId: i.menuItemId,
+      name: i.name,
+      quantity: i.quantity,
+      portion: i.portion || "",
+      price: i.price
+    }));
+
+    // Check for existing unpaid order for this table/room
+    let existingOrder = null;
+    if (posForm.orderType === 'Dine-in' && posForm.tableNumber) {
+      existingOrder = orders.find(o => o.tableNumber === posForm.tableNumber && o.paymentStatus === 'Unpaid' && o.orderStatus !== 'Cancelled');
+    } else if (posForm.orderType === 'Room' && posForm.roomNumber) {
+      existingOrder = orders.find(o => o.roomNumber === posForm.roomNumber && o.paymentStatus === 'Unpaid' && o.orderStatus !== 'Cancelled');
+    }
+
+    if (existingOrder) {
+      // Merge items and recalculate
+      const mergedItems = [...(existingOrder.items || []), ...newItems];
+      const mergedSubtotal = mergedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const mergedServiceCharge = (mergedSubtotal * 10) / 100;
+      const mergedTotal = mergedSubtotal + mergedServiceCharge + (existingOrder.deliveryFee || 0) - (existingOrder.discount || discountValue);
+
+      const payload = {
+        items: mergedItems,
+        subtotal: mergedSubtotal,
+        serviceCharge: mergedServiceCharge,
+        totalAmount: mergedTotal,
+        paymentStatus: isPaid ? 'Paid' : 'Unpaid',
+        amountReceived: isPaid ? mergedTotal : (existingOrder.amountReceived || 0)
+      };
+
+      const response = await apiFetch(`/orders/${existingOrder._id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+
+      if (!response?._id) throw new Error("Failed to update existing order");
+
+      toast.success(`Order #${response._id.slice(-6).toUpperCase()} updated with new items!`);
+      handlePrintReceipt(response);
+
     } else {
-      setBalance(0);
-    }
-  }, [amountReceived, grandTotal]);
-
-  useEffect(() => {
-    refreshData();
-    // Auto-poll for new orders every 30 seconds
-    const interval = setInterval(() => {
-      loadOrders(true); // pass true to indicate it's a silent background poll
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const refreshData = async () => {
-    setLoading(true);
-    await Promise.allSettled([loadMenu(), loadOrders()]);
-    setLoading(false);
-  };
-
-  const loadMenu = async () => {
-    const data = await apiFetch('/menu?populate=inventoryItem');
-    setMenuItems(Array.isArray(data) ? data : []);
-  };
-
-  const loadOrders = async (isPoll = false) => {
-    try {
-      const data = await apiFetch('/orders');
-      const newOrders = Array.isArray(data) ? data : [];
-      
-      // If polling, check if there are new orders that weren't in the previous list
-      if (isPoll && newOrders.length > orders.length) {
-        const latestOrder = newOrders[0]; // Assuming backend returns newest first
-        if (latestOrder.orderStatus === 'Pending') {
-          toast.success(`New order from ${latestOrder.customerName || 'Guest'}!`, {
-            description: `${latestOrder.orderType} order worth Rs ${latestOrder.totalAmount.toLocaleString()}`,
-            duration: 10000,
-          });
-        }
-      }
-      
-      setOrders(newOrders);
-    } catch (e) {
-      console.error("Order poll failed", e);
-    }
-  };
-
-  const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-
-  const [selectedPortion, setSelectedPortion] = useState('Full');
-
-  const addPosItem = () => {
-    const menuItem = menuItems.find((item) => item._id === selectedPosMenuItemId);
-    const quantity = Number(selectedPosQuantity || 1);
-    if (!menuItem || quantity < 1) return;
-
-    if (menuItem.inventoryItem && menuItem.inventoryItem.quantity < quantity) {
-      if (!window.confirm(`Low stock: Only ${menuItem.inventoryItem.quantity} left. Continue?`)) return;
-    }
-
-    const price = menuItem.hasPortions 
-      ? menuItem.portions.find(p => p.portionType === selectedPortion)?.price 
-      : menuItem.price;
-
-    setCart((prev) => {
-      const cartItemId = `${menuItem._id}-${menuItem.hasPortions ? selectedPortion : 'single'}`;
-      const existing = prev.find((i) => i.cartItemId === cartItemId);
-      if (existing) {
-        return prev.map((i) => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + quantity } : i);
-      }
-      return [...prev, { 
-        cartItemId,
-        menuItemId: menuItem._id, 
-        name: menuItem.name, 
-        portion: menuItem.hasPortions ? selectedPortion : '',
-        price: price, 
-        quantity 
-      }];
-    });
-    setSelectedPosMenuItemId('');
-    setSelectedPosQuantity('1');
-    setSelectedPortion('Full');
-  };
-
-  const handlePlaceOrder = async () => {
-    console.log("POS: Initiating Order Validation...", posForm);
-    
-    if (cart.length === 0) {
-      alert("Error: Your cart is empty.");
-      toast.error('Your cart is empty. Please add items to the bill.');
-      return;
-    }
-
-    // --- STRIGENT VALIDATION WITH ALERTS ---
-
-    // 1. Contact Number Validation
-    if (posForm.contactNumber || posForm.orderType === 'Delivery') {
-      const cleanPhone = (posForm.contactNumber || "").replace(/[\s-]/g, '');
-      if (cleanPhone.length !== 10 || isNaN(Number(cleanPhone))) {
-        alert("CRITICAL ERROR: Phone number must be exactly 10 digits!");
-        toast.error('Phone number must be exactly 10 digits (e.g., 0712345678)');
-        return;
-      }
-    }
-
-    // 2. Room Number Validation
-    if (posForm.roomNumber || posForm.orderType === 'Room') {
-      const rNum = Number(posForm.roomNumber);
-      if (!posForm.roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
-        alert("CRITICAL ERROR: Invalid Room Number! Only rooms 1 to 10 are allowed.");
-        toast.error('Access Denied: Only rooms 1-10 are available in Hotel Janro.');
-        return;
-      }
-    }
-
-    // 3. Table Number Validation
-    if (posForm.orderType === 'Dine-in' && !posForm.tableNumber) {
-      alert("Error: Please assign a table number.");
-      toast.error('Please assign a table number');
-      return;
-    }
-
-    // 4. Delivery Address Validation
-    if (posForm.orderType === 'Delivery' && !posForm.deliveryAddress) {
-      alert("Error: Delivery address is required.");
-      toast.error('Delivery address is required');
-      return;
-    }
-
-    console.log("POS: Validation Passed. Sending to Backend...");
-    const payload = {
-      orderType: posForm.orderType,
-      items: cart.map(i => ({ 
-        menuItemId: i.menuItemId, 
-        quantity: i.quantity,
-        portion: i.portion || ""
-      })),
-      discount: discountValue,
-      ...(posForm.orderType === 'Dine-in' && { tableNumber: posForm.tableNumber }),
-      ...(posForm.orderType === 'Room' && { roomNumber: posForm.roomNumber }),
-      ...(posForm.orderType === 'Delivery' && { 
-        deliveryAddress: posForm.deliveryAddress, 
+      // Create new order
+      const payload = {
+        orderType: posForm.orderType,
+        items: newItems,
+        discount: discountValue,
+        customerName: posForm.customerName || "Walk-in Guest",
+        tableNumber: posForm.tableNumber,
+        roomNumber: posForm.roomNumber,
+        deliveryAddress: posForm.deliveryAddress,
         contactNumber: posForm.contactNumber,
-        coordinates: posForm.coordinates
-      }),
-      serviceCharge,
-      deliveryFee,
-      subtotal,
-      totalAmount: grandTotal
-    };
-
-    try {
-      setSavingPosOrder(true);
-      // If amount received is enough, set as Paid automatically
-      const receivedNum = Number(amountReceived || 0);
-      const isPaid = receivedNum >= grandTotal && receivedNum > 0;
-      const finalPayload = { 
-        ...payload, 
+        coordinates: posForm.coordinates,
+        serviceCharge,
+        deliveryFee,
+        subtotal,
+        totalAmount: grandTotal,
         paymentStatus: isPaid ? 'Paid' : 'Unpaid',
         amountReceived: receivedNum,
         balance: balance
       };
 
-      const response = await apiFetch('/orders', { method: 'POST', body: JSON.stringify(finalPayload) });
-      toast.success('Order processed successfully!');
-      
-      if (response && response._id) {
-        handlePrintReceipt(response);
-      }
+      const response = await apiFetch('/orders', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
 
-      setCart([]);
-      setPosForm({ ...posForm, customerName: '', discount: '0', tableNumber: '', roomNumber: '', deliveryAddress: '', contactNumber: '', coordinates: null });
-      setAmountReceived('');
-      await refreshData();
-    } catch (e) {
-      toast.error(e.message);
-    } finally {
-      setSavingPosOrder(false);
+      if (!response?._id) throw new Error("Failed to create order");
+
+      toast.success(`Order #${response._id.slice(-6).toUpperCase()} placed!`);
+      handlePrintReceipt(response);
     }
-  };
 
-  const handlePrintReceipt = (order) => {
-    const subtotalAmount = order.items.reduce((s, i) => s + (i.price * i.quantity), 0);
-    const printWindow = window.open('', '_blank', 'width=400,height=700');
-    const itemsHtml = order.items.map(item => `
-      <div class="item-row">
-        <span>${item.quantity} x ${item.name}</span>
-        <span>Rs ${item.price.toLocaleString()}</span>
-      </div>
+    setCart([]);
+    setAmountReceived('');
+    setIsPaidToggle(false);
+    setPosForm(prev => ({
+      ...prev,
+      discount: '0'
+    }));
+    await loadOrders();
+  } catch (e) {
+    toast.error('Order Placement Failed', {
+      description: e.message || "Something went wrong while connecting to the server.",
+      duration: 5000,
+    });
+  }
+  finally { setSavingPosOrder(false); }
+};
+
+// Generate thermal receipt layout and print
+const handlePrintReceipt = (order) => {
+  // Basic safety check
+  if (!order) return toast.error("No order data provided");
+
+  const relatedOrders = [order];
+
+  const combinedItems = relatedOrders.flatMap(o => o.items || []);
+  const combinedSubtotal = relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0);
+  const combinedServiceCharge = relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0);
+  const combinedDeliveryFee = relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
+  const combinedDiscount = relatedOrders.reduce((s, o) => s + (o.discount || 0), 0);
+  const combinedTotalAmount = relatedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const totalQty = combinedItems.reduce((s, it) => s + (it?.quantity || 0), 0);
+
+  const printWindow = window.open('', '_blank', 'width=350,height=600');
+  if (!printWindow) return toast.error('Pop-up blocked!');
+
+  const itemsHtml = combinedItems.map(it => `
+      <tr>
+        <td style="padding: 2px 0;">${it.name}${it.portion ? ` (${it.portion})` : ''}</td>
+        <td style="text-align: center;">${it.quantity}</td>
+        <td style="text-align: right;">${((Number(it.price) || 0) * (Number(it.quantity) || 1)).toLocaleString()}</td>
+      </tr>
     `).join('');
 
-    let qrHtml = '';
-    if (order.orderType === 'Delivery' && order.coordinates) {
-      const mapsUrl = `https://www.google.com/maps?q=${order.coordinates.lat},${order.coordinates.lng}`;
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(mapsUrl)}`;
-      qrHtml = `
-        <div style="text-align: center; margin-top: 25px; padding-top: 25px; border-top: 2px dashed #CBD5E1;">
-          <div style="font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #0F172A; margin-bottom: 12px;">Delivery Location</div>
-          <img src="${qrUrl}" alt="Location QR Code" style="width: 120px; height: 120px; border-radius: 8px; border: 2px solid #0F172A; padding: 4px;" />
-          <div style="font-size: 10px; font-weight: 700; color: #64748B; margin-top: 8px;">Scan for Google Maps Navigation</div>
+  let qrHtml = '';
+  if (order.orderType === 'Delivery' && order.coordinates) {
+    const mapsUrl = `https://www.google.com/maps?q=${order.coordinates.lat},${order.coordinates.lng}`;
+    qrHtml = `
+        <div style="text-align: center; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #000;">
+          <div style="font-size: 8px; margin-bottom: 2px;">DELIVERY LOCATION</div>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(mapsUrl)}" style="width:100px; height:100px; margin: 0 auto;" />
+          <div style="font-size: 7px; margin-top: 2px;">SCAN FOR GOOGLE MAPS</div>
         </div>
       `;
-    }
+  }
 
-    const hotelLogo = `
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto;">
-        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
-        <path d="M9 22v-4h6v4"></path>
-        <path d="M8 6h.01"></path>
-        <path d="M16 6h.01"></path>
-        <path d="M12 6h.01"></path>
-        <path d="M12 10h.01"></path>
-        <path d="M12 14h.01"></path>
-        <path d="M16 10h.01"></path>
-        <path d="M16 14h.01"></path>
-        <path d="M8 10h.01"></path>
-        <path d="M8 14h.01"></path>
-      </svg>
-    `;
+  // Calculate daily sequence number
+  const orderDate = new Date(order.createdAt).toLocaleDateString();
+  const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
+  const dailyNum = sameDayOrders.length - sameDayOrders.indexOf(order);
+  const dailySeqStr = dailyNum.toString().padStart(3, '0');
 
-    printWindow.document.write(`
+  printWindow.document.write(`
       <html>
         <head>
-          <title>Hotel Janro - Receipt #${order._id.slice(-8)}</title>
+          <title>${settings.hotelName} - Receipt #${order._id.slice(-8)}</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;600;700;900&display=swap');
-            body { font-family: 'Inter', sans-serif; padding: 30px; color: #0F172A; max-width: 400px; margin: 0 auto; }
-            .header { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #0F172A; padding-bottom: 20px; }
-            .logo { margin-bottom: 10px; display: flex; justify-content: center; }
-            .hotel-name { font-family: 'DM Serif Display', serif; font-size: 28px; font-weight: normal; letter-spacing: 1px; color: #0F172A; }
-            .hotel-details { font-size: 10px; color: #64748B; margin-top: 5px; line-height: 1.4; font-weight: 600; }
-            .receipt-title { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 4px; color: #0F172A; margin-top: 15px; padding: 5px 0; border-top: 1px dashed #CBD5E1; border-bottom: 1px dashed #CBD5E1; }
-            .info { margin-bottom: 25px; font-size: 11px; color: #475569; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-weight: 500; }
-            .info strong { color: #0F172A; font-weight: 900; text-transform: uppercase; font-size: 9px; letter-spacing: 1px; display: block; margin-bottom: 2px; }
-            .items { margin-bottom: 25px; }
-            .item-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; font-weight: 600; color: #1E293B; }
-            .item-row span:last-child { font-weight: 900; color: #0F172A; }
-            .totals { border-top: 2px solid #0F172A; padding-top: 15px; }
-            .total-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
-            .grand-total { font-size: 18px; font-weight: 900; color: #0F172A; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #CBD5E1; letter-spacing: 0; }
-            .footer { text-align: center; margin-top: 40px; font-size: 10px; color: #64748B; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; line-height: 1.6; }
+            @media print { @page { margin: 0; } body { margin: 0.2cm; } }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              font-size: 11px; 
+              line-height: 1.2; 
+              color: #000; 
+              width: 100%; 
+              max-width: 300px; 
+              margin: 0 auto;
+            }
+            .header { text-align: center; margin-bottom: 8px; }
+            .divider { border-top: 1px dashed #000; margin: 4px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            .total-row { font-weight: bold; font-size: 13px; }
+            .footer { text-align: center; margin-top: 10px; font-size: 9px; }
+            .badge { display: inline-block; padding: 2px 4px; border: 1px solid #000; font-weight: bold; }
           </style>
         </head>
         <body>
           <div class="header">
-            <div class="logo">${hotelLogo}</div>
-            <div class="hotel-name">HOTEL JANRO</div>
+            <div class="logo">${settings.hotelLogo || ''}</div>
+            <div class="hotel-name">${settings.hotelName.toUpperCase()}</div>
             <div class="hotel-details">
-              Main Street, Kamburupitiya, Matara, Sri Lanka<br>
-              Tel: +94 41 229 2234 | Web: www.hoteljanro.com<br>
+              ${settings.address}<br>
+              Tel: ${settings.phone} | Web: ${settings.website}<br>
               VAT Reg No: 123456789-0000
             </div>
             <div class="receipt-title">Official Receipt</div>
           </div>
-          <div class="info">
-            <div><strong>Order ID</strong>#${order._id.slice(-8)}</div>
-            <div style="text-align: right;"><strong>Date</strong>${new Date(order.createdAt).toLocaleDateString()} ${new Date(order.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
-            <div><strong>Type</strong>${order.orderType}</div>
-            <div style="text-align: right;"><strong>Customer</strong>${order.customerName || 'Guest'}</div>
-            ${order.tableNumber ? `<div><strong>Table</strong>${order.tableNumber}</div>` : ''}
-            ${order.roomNumber ? `<div><strong>Room</strong>${order.roomNumber}</div>` : ''}
-            ${order.contactNumber ? `<div style="grid-column: 1 / -1;"><strong>Contact Number</strong>${order.contactNumber}</div>` : ''}
-            ${order.deliveryAddress ? `<div style="grid-column: 1 / -1;"><strong>Delivery Address</strong>${order.deliveryAddress}</div>` : ''}
+          <div class="divider"></div>
+          <div style="text-align: center; margin-bottom: 5px;">
+            <div style="font-size: 16px; font-weight: bold; border: 2px solid #000; display: inline-block; padding: 4px 10px;">ORDER #${dailySeqStr}</div>
           </div>
-          <div class="items">
-            ${itemsHtml}
+          <div class="divider"></div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>ID: #${(order?._id || "").slice(-6).toUpperCase()}</span>
+            <span>${order?.createdAt ? new Date(order.createdAt).toLocaleDateString() : ""}</span>
           </div>
-          <div class="totals">
-            <div class="total-row"><span>Subtotal</span><span>Rs ${subtotalAmount.toLocaleString()}</span></div>
-            ${order.serviceCharge > 0 ? `<div class="total-row"><span>Service Charge (10%)</span><span>Rs ${order.serviceCharge.toLocaleString()}</span></div>` : ''}
-            ${order.deliveryFee > 0 ? `<div class="total-row"><span>Delivery Fee</span><span>Rs ${order.deliveryFee.toLocaleString()}</span></div>` : ''}
-            <div class="total-row"><span>Discount</span><span>-Rs ${(order.discount || 0).toLocaleString()}</span></div>
-            <div class="total-row grand-total"><span>Grand Total</span><span>Rs ${order.totalAmount.toLocaleString()}</span></div>
-            ${order.amountReceived > 0 ? `
-              <div class="total-row" style="margin-top: 15px;"><span>Amount Received</span><span style="color: #10B981;">Rs ${order.amountReceived.toLocaleString()}</span></div>
-              <div class="total-row"><span>Change Given</span><span>Rs ${(order.balance || 0).toLocaleString()}</span></div>
-            ` : ''}
+          <div style="display:flex; justify-content:space-between;">
+             <span>Time: ${order?.createdAt ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</span>
+             <span class="badge">${(order?.orderType || "").toUpperCase()}</span>
           </div>
+          ${order?.tableNumber ? `<div>Table: ${order.tableNumber}</div>` : ''}
+          ${order?.roomNumber ? `<div>Room: ${order.roomNumber}</div>` : ''}
+          <div>Guest: ${order.customerName.toUpperCase()}</div>
+          ${order?.contactNumber ? `<div>Phone: ${order.contactNumber}</div>` : ''}
+          ${order?.deliveryAddress ? `<div>Address: ${order.deliveryAddress}</div>` : ''}
+          
+          <div class="divider"></div>
+          <table>
+            <thead>
+              <tr style="border-bottom: 1px dashed #000;">
+                <th style="text-align: left;">ITEM</th>
+                <th style="width: 30px;">QTY</th>
+                <th style="text-align: right; width: 70px;">PRICE</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          <div class="divider"></div>
+          
+          <div style="text-align: right; space-y: 2px;">
+            <div>Items Count: ${totalQty}</div>
+            <div>Subtotal Sum: Rs ${(combinedSubtotal || 0).toLocaleString()}</div>
+            ${combinedServiceCharge > 0 ? `<div>Service (10%): Rs ${combinedServiceCharge.toLocaleString()}</div>` : ''}
+            ${(function() {
+              if (combinedDeliveryFee > 0) {
+                if (order?.orderType === 'Delivery' && order?.coordinates) {
+                  const HOTEL_COORDS = { lat: 6.9458, lng: 80.1250 };
+                  const R = 6371;
+                  const dLat = (order.coordinates.lat - HOTEL_COORDS.lat) * Math.PI / 180;
+                  const dLon = (order.coordinates.lng - HOTEL_COORDS.lng) * Math.PI / 180;
+                  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(HOTEL_COORDS.lat * Math.PI / 180) * Math.cos(order.coordinates.lat * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                  const straightDist = R * c;
+                  const dist = straightDist * 1.2; // Winding factor
+                  
+                  const calculatedFee = (dist > 1 && dist <= 15) ? (combinedSubtotal * 0.1 * Math.ceil(dist - 1)) : 0;
+                  
+                  // Check if it's auto-calculated or manually overridden
+                  if (Math.abs(calculatedFee - combinedDeliveryFee) <= 1 && dist > 1) {
+                    const payableKm = Math.ceil(dist - 1);
+                    return `
+                      <div class="divider"></div>
+                      <div style="text-align: right;">
+                        <div style="font-weight:bold;">Delivery Distance: ${dist.toFixed(1)} km</div>
+                        <div style="font-size: 8px; color: #555; margin-bottom: 2px;">(1km Free + ${payableKm}km @ 10% Subtotal)</div>
+                        <div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>
+                      </div>
+                    `;
+                  } else {
+                    return `
+                      <div class="divider"></div>
+                      <div style="text-align: right;">
+                        <div style="font-weight:bold;">Delivery Distance: ${dist.toFixed(1)} km</div>
+                        <div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>
+                      </div>
+                    `;
+                  }
+                }
+                return `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>`;
+              }
+              return '';
+            })()}
+            ${combinedDiscount > 0 ? `<div>Discount: -Rs ${combinedDiscount.toLocaleString()}</div>` : ''}
+            <div class="divider"></div>
+            <div class="total-row">GROUP TOTAL: Rs ${(combinedTotalAmount || 0).toLocaleString()}</div>
+            <div class="divider"></div>
+            ${(order?.amountReceived || 0) > 0 ? `
+              <div>Cash Paid: Rs ${(order?.amountReceived || 0).toLocaleString()}</div>
+              <div style="font-weight:bold; font-size: 13px;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
+            ` : `
+              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending</div>
+            `}
+          </div>
+
           ${qrHtml}
+
           <div class="footer">
-            Thank you for choosing Hotel Janro<br>Visit again for a premium experience
+            Thank you for choosing ${settings.hotelName}<br>Visit again for a premium experience
           </div>
+          
           <script>
-            window.onload = () => {
-              setTimeout(() => {
-                window.print();
-                setTimeout(() => window.close(), 500);
-              }, 500);
-            };
+            setTimeout(function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+              // Fallback for browsers that don't support onafterprint well
+              setTimeout(function() { window.close(); }, 2000);
+            }, 500);
           </script>
         </body>
       </html>
     `);
-    printWindow.document.close();
-  };
+  printWindow.document.close();
+};
 
-  const updateOrderStatus = async (orderId, orderStatus) => {
-    await apiFetch(`/orders/${orderId}`, { method: 'PUT', body: JSON.stringify({ orderStatus }) });
+// Update order and payment status
+const updateOrderStatus = async (orderId, orderStatus) => {
+  await apiFetch(`/orders/${orderId}`, { method: 'PUT', body: JSON.stringify({ orderStatus }) });
+  await loadOrders();
+};
+
+const updatePaymentStatus = async (orderId, splitPaymentDetails = null) => {
+  try {
+    const payload = splitPaymentDetails ? { splitPayment: splitPaymentDetails } : { paymentStatus: 'Paid' };
+    await apiFetch(`/orders/${orderId}`, { method: 'PUT', body: JSON.stringify(payload) });
+    
+    setSettleModalOrder(null);
+    setCustomAmount('');
+    setItemSplitChecked({});
+    setSettleTab('full');
+    toast.success(`Payment processed successfully!`);
     await loadOrders();
-  };
+  } catch (e) {
+    toast.error("Failed to process payment");
+  }
+};
 
-  const updatePaymentStatus = async (orderId, updates) => {
-    try {
-      await apiFetch(`/orders/${orderId}`, { method: 'PUT', body: JSON.stringify(updates) });
-      toast.success(`Payment updated successfully`);
-      setSettlingOrderId(null);
-      setSettleAmount('');
-      await loadOrders();
-    } catch (e) {
-      toast.error(e.message);
+const popularityData = useMemo(() => {
+  const counts = {};
+  orders.forEach(order => {
+    if (order.orderStatus === 'Cancelled') return;
+    (order.items || []).forEach(item => {
+      const name = item.name;
+      counts[name] = (counts[name] || 0) + (item.quantity || 0);
+    });
+  });
+
+  return Object.entries(counts)
+    .map(([name, sales]) => ({ name, sales }))
+    .sort((a, b) => b.sales - a.sales)
+    .slice(0, 5);
+}, [orders]);
+
+const categories = useMemo(() => {
+  const predefinedOrder = [
+    'Rice', 'Koththu', 'Noodles', 'Chicken', 'Fish', 'Prawns', 'Cuttle Fish', 
+    'Mutton', 'Pork', 'Omelet', 'Vegetables & Sides', 'Salad', 'Soup', 
+    'Starters', 'Outdoor Party', 'Beverages'
+  ];
+  
+  const cats = new Set(menuItems.map(item => item.category).filter(Boolean));
+  const sortedCats = Array.from(cats).sort((a, b) => {
+    const indexA = predefinedOrder.indexOf(a);
+    const indexB = predefinedOrder.indexOf(b);
+    
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA === -1 && indexB !== -1) return 1;
+    if (indexA !== -1 && indexB === -1) return -1;
+    return a.localeCompare(b);
+  });
+  
+  return ['All', ...sortedCats];
+}, [menuItems]);
+
+const filteredMenuItems = useMemo(() => {
+  return menuItems.filter(item => {
+    const matchCategory = selectedCategory === 'All' || item.category === selectedCategory;
+    const matchSearch = item.name.toLowerCase().includes(menuSearch.toLowerCase());
+    return matchCategory && matchSearch;
+  });
+}, [menuItems, selectedCategory, menuSearch]);
+
+useEffect(() => {
+  setCurrentPage(1);
+}, [selectedCategory, menuSearch]);
+
+const totalPages = Math.ceil(filteredMenuItems.length / itemsPerPage);
+
+const paginatedMenuItems = useMemo(() => {
+  const start = (currentPage - 1) * itemsPerPage;
+  return filteredMenuItems.slice(start, start + itemsPerPage);
+}, [filteredMenuItems, currentPage, itemsPerPage]);
+
+const handleAddVisualItem = (menuItem, portion = 'Full', quantity = 1) => {
+  if (!menuItem.isAvailable) {
+    toast.warning(`${menuItem.name} is currently unavailable!`);
+    return;
+  }
+  const price = menuItem.hasPortions
+    ? menuItem.portions.find(p => p.portionType === portion)?.price
+    : menuItem.price;
+
+  setCart((prev) => {
+    const cartItemId = `${menuItem._id}-${menuItem.hasPortions ? portion : 'single'}`;
+    const existing = prev.find((i) => i.cartItemId === cartItemId);
+    if (existing) {
+      return prev.map((i) => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + quantity } : i);
     }
-  };
+    return [...prev, {
+      cartItemId, menuItemId: menuItem._id, name: menuItem.name,
+      portion: menuItem.hasPortions ? portion : '', price: price, quantity
+    }];
+  });
+  toast.success(`Added ${menuItem.name} (${portion}) to cart!`);
+};
 
-  const activeOrdersCount = orders.filter(o => o.orderStatus === 'Pending' || o.orderStatus === 'Preparing').length;
-  const totalRevenue = orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+const today = new Date().toLocaleDateString();
+const todayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === today);
+const activeOrdersCount = orders.filter(o => o.orderStatus === 'Pending' || o.orderStatus === 'Preparing').length;
+const todayRevenue = todayOrders.filter(o => o.paymentStatus === 'Paid').reduce((s, o) => s + (o.totalAmount || 0), 0);
 
-  return (
-    <div className="space-y-8">
-      {/* Premium Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { label: 'Today\'s Orders', value: orders.length, icon: ShoppingCart, color: 'blue' },
-          { label: 'Active Kitchen', value: activeOrdersCount, icon: Clock, color: 'amber' },
-          { label: 'Net Revenue', value: formatCurrency(totalRevenue), icon: DollarSign, color: 'emerald' }
-        ].map((stat, i) => (
-          <div key={i} className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 group hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-500 bg-${stat.color}-50 text-${stat.color}-600`}>
-              <stat.icon className="w-8 h-8" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
-              <h3 className="text-3xl font-black text-slate-900">{stat.value}</h3>
-            </div>
-          </div>
-        ))}
+// Helper sub-render functions for clean tabs layout
+const renderHeader = () => (
+  <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-white/5">
+    <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-[#D4AF37]/5 rounded-full blur-[60px] -mr-16 -mt-16" />
+
+    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div className="inline-flex items-center gap-2 text-[#D4AF37] text-[9px] font-black uppercase tracking-[0.3em] mb-2">
+          <Zap className="w-3 h-3 animate-pulse" /> Luxury POS System
+        </div>
+        <h2 className="text-2xl text-white font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
+          Culinary <span className="text-[#D4AF37]">POS Hub</span>
+        </h2>
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-[480px_minmax(0,1fr)]">
-        {/* Luxury POS Panel */}
-        <div className="flex flex-col gap-8">
-          <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-white border border-white/5">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-[80px] -mr-32 -mt-32" />
-            
-            <div className="relative z-10 space-y-8">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Digital <span className="text-[#D4AF37]">Checkout</span></h3>
-                <Receipt className="w-6 h-6 text-[#D4AF37]" />
+      <div className="flex p-1 bg-slate-950 rounded-xl border border-white/10 shadow-lg">
+        {[
+          { id: 'terminal', label: 'Cashier Terminal', icon: ShoppingCart },
+          { id: 'kitchen', label: 'Kitchen Sync', icon: Clock },
+          { id: 'analytics', label: 'Sales Trends', icon: TrendingUp },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${activeTab === tab.id
+              ? 'bg-[#D4AF37] text-[#0F172A] shadow-md shadow-[#D4AF37]/20'
+              : 'text-slate-400 hover:text-white'
+              }`}
+          >
+            <tab.icon className="w-3.5 h-3.5" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const renderStats = () => (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    {[
+      { label: 'Today Orders', value: todayOrders.length, icon: ShoppingCart, color: 'blue' },
+      { label: 'Active Kitchen', value: activeOrdersCount, icon: Clock, color: 'amber' },
+      { label: 'Net Revenue', value: formatCurrency(todayRevenue), icon: Gem, color: 'emerald' }
+    ].map((stat, i) => (
+      <div key={i} className="bg-[#0F172A] p-3 rounded-xl shadow-sm border border-white/5 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-900 text-[#D4AF37] border border-white/5">
+          <stat.icon className="w-4 h-4" />
+        </div>
+        <div>
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
+          <h3 className="text-sm font-black text-white mt-1">{stat.value}</h3>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const renderTerminal = () => (
+  <div className="flex flex-col lg:flex-row gap-4 xl:gap-6 items-start relative w-full">
+    {/* Left Column: Culinary Grid */}
+    <div className="flex-1 space-y-4 min-w-0 w-full">
+      {/* Search & Categories (Sticky) */}
+      <div className="sticky top-0 z-20 bg-[#0F172A] p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search dishes..."
+            value={menuSearch}
+            onChange={e => setMenuSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-white/5 text-white placeholder:text-slate-500 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/20 transition-all"
+          />
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto py-1 custom-scrollbar">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-300 border whitespace-nowrap ${selectedCategory === cat
+                ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/15'
+                : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid of Dishes */}
+      {filteredMenuItems.length === 0 ? (
+        <div className="bg-[#0F172A] py-20 text-center rounded-[2rem] border border-white/5">
+          <Utensils className="w-12 h-12 mx-auto text-slate-500 mb-3 animate-pulse" />
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">No Dishes Found</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+            {paginatedMenuItems.map(item => (
+              <PosMenuItem key={item._id} item={item} handleAddVisualItem={handleAddVisualItem} />
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-3 mt-4 bg-slate-900 px-4 py-2.5 rounded-xl border border-white/5 w-fit mx-auto animate-in fade-in duration-300">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                  currentPage === 1 
+                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-transparent" 
+                    : "bg-slate-800 text-slate-300 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-white/5"
+                }`}
+              >
+                Prev
+              </button>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                  currentPage === totalPages 
+                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-transparent" 
+                    : "bg-slate-800 text-slate-300 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-white/5"
+                }`}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+
+    {/* Right Column: Checkout Cart */}
+    <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0 bg-[#0F172A] p-4 rounded-2xl shadow-lg border border-white/5 text-white flex flex-col sticky top-6 max-h-[calc(100vh-120px)] h-fit z-10">
+      <div className="flex flex-col max-h-[calc(100vh-160px)] space-y-4 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-white/5 pb-2 shrink-0">
+          <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Order <span className="text-[#D4AF37]">Checkout</span></h3>
+          <Receipt className="w-4 h-4 text-[#D4AF37]" />
+        </div>
+
+        {/* Checkout Form */}
+        <div className="grid grid-cols-2 gap-3 shrink-0">
+          <div className="space-y-1">
+            <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Type</label>
+            <select value={posForm.orderType} onChange={e => setPosForm({ ...posForm, orderType: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none">
+              {['Dine-in', 'Room', 'Delivery', 'Take-away'].map(t => <option key={t} value={t} className="text-black">{t}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Guest Name</label>
+            <input
+              type="text"
+              placeholder="Kasun Tharaka"
+              value={posForm.customerName}
+              onChange={e => {
+                const val = e.target.value;
+                if (val === "" || /^[a-zA-Z\s.]+$/.test(val)) {
+                  setPosForm({ ...posForm, customerName: val });
+                  clearError('customerName');
+                }
+              }}
+              className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+            />
+            {validationErrors.customerName && <p className="text-[9px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.customerName}</p>}
+          </div>
+
+          {posForm.orderType === 'Dine-in' && (
+            <>
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Table</label>
+                <select
+                  value={posForm.tableNumber}
+                  onChange={e => { setPosForm({ ...posForm, tableNumber: e.target.value }); clearError('tableNumber'); }}
+                  className={`w-full bg-white/5 border ${validationErrors.tableNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
+                >
+                  <option value="" className="bg-slate-900 text-white">Select Table</option>
+                  {[...Array(15)].map((_, i) => <option key={i} value={`T-${i + 1}`} className="bg-slate-900 text-white">Table {i + 1}</option>)}
+                </select>
+                {validationErrors.tableNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.tableNumber}</p>}
               </div>
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                <input
+                  type="tel"
+                  placeholder="07XXXXXXXX"
+                  value={posForm.contactNumber}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d{0,10}$/.test(val)) {
+                      setPosForm({ ...posForm, contactNumber: val });
+                      clearError('contactNumber');
+                    }
+                  }}
+                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                />
+                {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+              </div>
+            </>
+          )}
 
-              <div className="space-y-6">
-                {/* Order Configuration */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Type</label>
-                    <select 
-                      value={posForm.orderType} 
-                      onChange={e => setPosForm({...posForm, orderType: e.target.value})} 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-[#D4AF37]/50 outline-none transition-all"
-                    >
-                      <option className="text-slate-900" value="Dine-in">Dine-in</option>
-                      <option className="text-slate-900" value="Room">Room Service</option>
-                      <option className="text-slate-900" value="Delivery">Delivery</option>
-                      <option className="text-slate-900" value="Take-away">Take-away</option>
-                    </select>
+          {posForm.orderType === 'Room' && (
+            <>
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Room</label>
+                <select
+                  value={posForm.roomNumber}
+                  onChange={e => { setPosForm({ ...posForm, roomNumber: e.target.value }); clearError('roomNumber'); }}
+                  className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
+                >
+                  <option value="" className="bg-slate-900 text-white">Select Room</option>
+                  {[...Array(10)].map((_, i) => <option key={i} value={`${i + 1}`} className="bg-slate-900 text-white">Room {i + 1}</option>)}
+                </select>
+                {validationErrors.roomNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.roomNumber}</p>}
+              </div>
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                <input
+                  type="tel"
+                  placeholder="07XXXXXXXX"
+                  value={posForm.contactNumber}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d{0,10}$/.test(val)) {
+                      setPosForm({ ...posForm, contactNumber: val });
+                      clearError('contactNumber');
+                    }
+                  }}
+                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                />
+                {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+              </div>
+            </>
+          )}
+
+          {posForm.orderType === 'Delivery' && (
+            <>
+              <div className="space-y-1 col-span-2">
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Address</label>
+                <input
+                  type="text"
+                  placeholder="123 Main Street, Dompe"
+                  value={posForm.deliveryAddress}
+                  onChange={e => { setPosForm({ ...posForm, deliveryAddress: e.target.value }); clearError('deliveryAddress'); }}
+                  onBlur={(e) => autoGeocode(e.target.value)}
+                  className={`w-full bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                />
+                {validationErrors.deliveryAddress && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.deliveryAddress}</p>}
+              </div>
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Fee (Rs)</label>
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  value={posForm.deliveryFee}
+                  onChange={e => setPosForm({ ...posForm, deliveryFee: Number(e.target.value) })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                <input
+                  type="tel"
+                  placeholder="07XXXXXXXX"
+                  value={posForm.contactNumber}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d{0,10}$/.test(val)) {
+                      setPosForm({ ...posForm, contactNumber: val });
+                      clearError('contactNumber');
+                    }
+                  }}
+                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                />
+                {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+              </div>
+            </>
+          )}
+
+          {posForm.orderType === 'Take-away' && (
+            <div className="space-y-1 col-span-2">
+              <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Number</label>
+              <input
+                type="tel"
+                placeholder="0771234567"
+                value={posForm.contactNumber}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d{0,10}$/.test(val)) {
+                    setPosForm({ ...posForm, contactNumber: val });
+                    clearError('contactNumber');
+                  }
+                }}
+                className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+              />
+              {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Cart Items */}
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
+          {cart.length === 0 ? (
+            <div className="py-8 text-center text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+              Cart is empty. Click a dish to add.
+            </div>
+          ) : (
+            cart.map(item => (
+              <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5 text-[10px] shrink-0">
+                <div><span className="font-bold">{item.name}</span> {item.portion && <span className="text-[#D4AF37] text-[8px] ml-1">({item.portion})</span>}</div>
+                <div className="flex items-center gap-3">
+                  <span>{item.quantity}x {formatCurrency(item.price)}</span>
+                  <button onClick={() => setCart(c => c.filter(i => i.cartItemId !== item.cartItemId))} className="text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Totals & Settlement */}
+        <div className="pt-3 border-t border-white/10 space-y-2 shrink-0">
+          <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-400">
+            {serviceCharge > 0 && <div className="flex justify-between col-span-2"><span>Service Charge (10%)</span><span className="text-[#D4AF37] font-bold">+{formatCurrency(serviceCharge)}</span></div>}
+            {deliveryFee > 0 && <div className="flex justify-between col-span-2"><span>Delivery Fee (Dist: {distance.toFixed(1)}km)</span><span className="text-blue-400 font-bold">+{formatCurrency(deliveryFee)}</span></div>}
+          </div>
+
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Bill</span>
+            <span className="text-xl font-black text-[#D4AF37]">{formatCurrency(grandTotal)}</span>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2">
+            <div className="space-y-1">
+              <label className="text-[7px] text-slate-500 uppercase tracking-widest">Discount</label>
+              <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white font-bold" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[7px] text-slate-500 uppercase tracking-widest">Received</label>
+              <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white font-bold" />
+            </div>
+            <div className="flex flex-col justify-center items-center gap-1">
+              <label className="text-[7px] text-slate-500 uppercase tracking-widest">Paid</label>
+              <input type="checkbox" checked={isPaidToggle} onChange={e => setIsPaidToggle(e.target.checked)} className="w-4 h-4 accent-[#D4AF37] cursor-pointer" />
+            </div>
+            <div className="text-right">
+              <label className="text-[7px] text-slate-500 uppercase tracking-widest">Balance</label>
+              <p className="text-sm font-black text-emerald-400">{formatCurrency(balance)}</p>
+            </div>
+          </div>
+
+          <button onClick={handlePlaceOrder} disabled={savingPosOrder} className="w-full bg-[#D4AF37] text-[#0F172A] py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white transition-all shadow-lg active:scale-95">
+            {savingPosOrder ? 'Saving Order...' : 'Confirm & Print'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const renderKitchen = () => (
+  <div className="bg-[#0F172A] rounded-[2rem] border border-white/5 flex flex-col overflow-hidden shadow-sm p-6">
+    <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+      <h3 className="text-md font-bold text-white" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-[#D4AF37]">Sync Monitor</span></h3>
+      <div className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        Live {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </div>
+    </div>
+
+    {orders.length === 0 ? (
+      <div className="py-24 text-center text-slate-500 uppercase tracking-widest font-bold text-xs opacity-45">No Incoming Orders</div>
+    ) : (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {orders.map((order, idx) => {
+          const orderDate = new Date(order.createdAt).toLocaleDateString();
+          const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
+          const dailySequenceNum = sameDayOrders.length - sameDayOrders.indexOf(order);
+
+          const statusStyles =
+            order.orderStatus === 'Completed' ? { border: 'border-emerald-500/20', hover: 'hover:border-emerald-500/60', bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-500', borderLight: 'border-emerald-500/20' } :
+              order.orderStatus === 'Preparing' ? { border: 'border-blue-500/20', hover: 'hover:border-blue-500/60', bg: 'bg-blue-505/10', text: 'text-blue-400', dot: 'bg-blue-500', borderLight: 'border-blue-500/20' } :
+                order.orderStatus === 'Cancelled' ? { border: 'border-rose-500/20', hover: 'hover:border-rose-500/60', bg: 'bg-rose-505/10', text: 'text-rose-400', dot: 'bg-rose-500', borderLight: 'border-rose-500/20' } :
+                  { border: 'border-amber-500/20', hover: 'hover:border-amber-500/60', bg: 'bg-amber-505/10', text: 'text-amber-400', dot: 'bg-amber-500', borderLight: 'border-amber-500/20' };
+
+          return (
+            <div key={order._id} className={`relative group p-5 rounded-[2rem] border bg-slate-900 hover:bg-slate-950 transition-all duration-500 ${statusStyles.border} ${statusStyles.hover}`}>
+              <div className={`absolute left-0 top-1/4 bottom-1/4 w-1.5 rounded-r-full ${statusStyles.dot} shadow-[0_0_15px_${statusStyles.dot}]`} />
+
+              <div className="pl-3 space-y-4">
+                <div className="flex justify-between items-center text-[10px]">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-black ${statusStyles.bg} ${statusStyles.text} px-3 py-1 rounded-full border ${statusStyles.borderLight} uppercase tracking-widest text-[8px]`}>
+                      Order {dailySequenceNum.toString().padStart(3, '0')}
+                    </span>
+                    <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">#{order._id.slice(-4).toUpperCase()}</span>
                   </div>
-                                {/* Dynamic Info Fields */}
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2 col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Customer Name</label>
-                      <input 
-                        type="text" 
-                        placeholder="Guest Name (Optional)" 
-                        value={posForm.customerName} 
-                        onChange={e => setPosForm({...posForm, customerName: e.target.value})} 
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all"
-                      />
-                    </div>
-
-                    {posForm.orderType === 'Dine-in' && (
-                      <div className="space-y-2 col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Assign Table</label>
-                        <select 
-                          value={posForm.tableNumber} 
-                          onChange={e => setPosForm({...posForm, tableNumber: e.target.value})} 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all text-white appearance-none cursor-pointer"
-                        >
-                          <option value="" className="bg-[#0F172A]">Select Table</option>
-                          {[...Array(15)].map((_, i) => {
-                            const t = `T-${(i + 1).toString().padStart(2, '0')}`;
-                            return <option key={t} value={t} className="bg-[#0F172A]">{t}</option>
-                          })}
-                        </select>
-                      </div>
-                    )}
-
-                    {posForm.orderType === 'Room' && (
-                      <div className="space-y-2 col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Assign Room</label>
-                        <select 
-                          value={posForm.roomNumber} 
-                          onChange={e => setPosForm({...posForm, roomNumber: e.target.value})} 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all text-white appearance-none cursor-pointer"
-                        >
-                          <option value="" className="bg-[#0F172A]">Select Room</option>
-                          {[...Array(10)].map((_, i) => {
-                            const r = `R-${(i + 1).toString().padStart(2, '0')}`;
-                            return <option key={r} value={r} className="bg-[#0F172A]">{r}</option>
-                          })}
-                        </select>
-                      </div>
-                    )}
-
-                    {posForm.orderType === 'Delivery' && (
-                      <div className="space-y-2 col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Delivery Address</label>
-                        <textarea 
-                          placeholder="Full address for delivery" 
-                          value={posForm.deliveryAddress} 
-                          onChange={e => setPosForm({...posForm, deliveryAddress: e.target.value})} 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all h-20 resize-none"
-                        />
-                      </div>
-                    )}
-
-                    {(posForm.orderType === 'Delivery' || posForm.orderType === 'Take-away') && (
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Contact Number</label>
-                        <input 
-                          type="tel" 
-                          maxLength="10"
-                          placeholder="07x xxxxxxx" 
-                          value={posForm.contactNumber} 
-                          onChange={e => setPosForm({...posForm, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#D4AF37] transition-all"
-                        />
-                      </div>
-                    )}
-
-                    {posForm.orderType === 'Delivery' && (
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">GPS Location</label>
-                        <button 
-                          onClick={handleGetLocation}
-                          disabled={isGettingLocation}
-                          className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-                            posForm.coordinates ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {isGettingLocation ? 'Locating...' : posForm.coordinates ? 'Location Set' : 'Get Location'}
-                        </button>
-                      </div>
-                    )}
+                  <div className="text-right">
+                    <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString('en-GB')}</p>
+                    <p className="text-[9px] text-slate-300 font-black tracking-widest">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                 </div>
 
-                {/* Item Selection */}
-                <div className="space-y-3">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Select Cuisine</label>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex gap-3">
-                      <select 
-                        value={selectedPosMenuItemId} 
-                        onChange={e => {
-                          setSelectedPosMenuItemId(e.target.value);
-                          setSelectedPortion('Full');
-                        }} 
-                        className="flex-1 bg-white border-none rounded-2xl px-5 py-4 text-sm text-slate-900 font-bold focus:ring-4 focus:ring-[#D4AF37]/30 outline-none shadow-xl"
-                      >
-                        <option value="">Select a dish...</option>
-                        {menuItems.map(item => (
-                          <option key={item._id} value={item._id} disabled={!item.isAvailable}>
-                            {item.name} {item.hasPortions ? '(Multi-price)' : `(${formatCurrency(item.price)})`}
-                          </option>
-                        ))}
-                      </select>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        value={selectedPosQuantity} 
-                        onChange={e => setSelectedPosQuantity(e.target.value)} 
-                        className="w-20 bg-white/10 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-sm outline-none focus:border-[#D4AF37]"
-                      />
-                    </div>
-
-                    {selectedPosMenuItemId && menuItems.find(i => i._id === selectedPosMenuItemId)?.hasPortions && (
-                      <div className="flex gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                        {['Full', 'Half'].map(p => {
-                          const item = menuItems.find(i => i._id === selectedPosMenuItemId);
-                          const pPrice = item.portions.find(x => x.portionType === p)?.price;
-                          return (
-                            <button
-                              key={p}
-                              type="button"
-                              onClick={() => setSelectedPortion(p)}
-                              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-                                selectedPortion === p ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A]' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
-                              }`}
-                            >
-                              {p} ({formatCurrency(pPrice)})
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                <div className="flex justify-between items-end">
+                  <div>
+                    <h4 className="text-sm font-black text-white uppercase tracking-wider">
+                      {order.orderType === 'Dine-in' ? `Table ${order.tableNumber}` :
+                        order.orderType === 'Room' ? `Room ${order.roomNumber}` : order.orderType}
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                      <User className="w-3 h-3 text-[#D4AF37]" />
+                      {order.customerName || 'Boutique Guest'}
+                    </p>
                   </div>
-                  <button 
-                    onClick={addPosItem} 
-                    className="w-full bg-[#D4AF37] text-[#0F172A] py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-[#D4AF37]/10"
+                  <div className="text-right">
+                    <span className={`text-[7px] font-black uppercase px-2.5 py-1 rounded-full ${order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-white' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                      {order.paymentStatus}
+                    </span>
+                    <p className="text-lg font-black text-[#D4AF37] mt-2 leading-none" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                      {formatCurrency(order.totalAmount)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-3 border-t border-white/5">
+                  {order.items.map((it, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-slate-950/20 px-3 py-1.5 rounded-xl border border-white/5 text-[9px] font-black text-slate-300">
+                      <span className="text-[#D4AF37] font-black text-[10px]">{it.quantity}x</span>
+                      <span className="uppercase tracking-wider">{it.name}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-white/5">
+                  <select value={order.orderStatus} onChange={e => updateOrderStatus(order._id, e.target.value)} className="flex-1 bg-slate-950/40 border border-white/10 text-slate-300 rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none cursor-pointer">
+                    {['Pending', 'Preparing', 'Completed', 'Cancelled'].map(s => <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>)}
+                  </select>
+                  <button
+                    onClick={() => handlePrintReceipt(order)}
+                    className="px-2.5 py-1.5 bg-slate-950/40 text-slate-400 hover:text-[#D4AF37] rounded-lg border border-white/10 flex items-center gap-1.5 transition-all"
+                    title="Print Bill"
                   >
-                    Add to Bill
+                    <Printer className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Bill</span>
                   </button>
-                </div>
-              </div>
-
-              {/* Cart Preview - Glassmorphism */}
-              <div className="pt-8 border-t border-white/10 space-y-4">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Current Items</span>
-                  <span className="text-[10px] font-bold">{cart.length} items</span>
-                </div>
-                <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-                  {cart.length === 0 ? (
-                    <div className="py-12 text-center bg-white/5 rounded-3xl border border-white/5 border-dashed">
-                      <Utensils className="w-8 h-8 text-white/10 mx-auto mb-2" />
-                      <p className="text-xs text-slate-500">Awaiting selection...</p>
-                    </div>
-                  ) : (
-                    cart.map(item => (
-                      <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors">
-                        <div>
-                          <p className="text-sm font-bold">{item.name} {item.portion ? `(${item.portion})` : ''}</p>
-                          <p className="text-[10px] text-[#D4AF37] font-bold">{item.quantity} × {formatCurrency(item.price)}</p>
-                        </div>
-                        <button onClick={() => setCart(c => c.filter(i => i.cartItemId !== item.cartItemId))} className="p-2 text-rose-400 hover:bg-rose-400/10 rounded-xl transition-colors">
-                          <Trash2 className="w-4 h-4"/>
-                        </button>
-                      </div>
-                    ))
+                  {(order.paymentStatus === 'Unpaid' || order.paymentStatus === 'Partial') && (
+                    <button
+                      onClick={() => {
+                        setSettleModalOrder(order);
+                        setCustomAmount('');
+                        setItemSplitChecked({});
+                      }}
+                      className="px-3 py-1 bg-[#D4AF37] hover:bg-[#b08d27] text-[#0F172A] text-[9px] font-black uppercase rounded-lg transition-all shadow-sm"
+                    >
+                      Settle Bill
+                    </button>
                   )}
                 </div>
               </div>
-
-              {/* Totals */}
-              <div className="pt-8 border-t border-white/10 space-y-3">
-                <div className="flex justify-between text-sm text-slate-400"><span>Subtotal</span><span className="font-medium">{formatCurrency(subtotal)}</span></div>
-                {serviceCharge > 0 && (
-                  <div className="flex justify-between text-sm text-[#D4AF37] font-bold italic">
-                    <span>Service Charge (10%)</span>
-                    <span>+{formatCurrency(serviceCharge)}</span>
-                  </div>
-                )}
-
-                {deliveryFee > 0 && (
-                  <div className="flex justify-between text-sm text-blue-400 font-bold italic">
-                    <span>Delivery Fee (Dist: {distance.toFixed(1)}km)</span>
-                    <span>+{formatCurrency(deliveryFee)}</span>
-                  </div>
-                )}
-
-                {distance > 0 && distance <= 1 && posForm.orderType === 'Delivery' && (
-                  <div className="flex justify-between text-sm text-emerald-400 font-bold italic">
-                    <span>Delivery Distance ({distance.toFixed(1)}km)</span>
-                    <span>FREE</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center pt-4">
-                  <span className="text-lg font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Grand Total</span>
-                  <span className="text-3xl font-black text-[#D4AF37] tracking-tighter">{formatCurrency(grandTotal)}</span>
-                </div>
-                {/* Payment & Balance Section */}
-                <div className="pt-8 border-t border-white/10 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest ml-1">Amount Received</label>
-                      <div className="relative">
-                        <input 
-                          type="number" 
-                          placeholder="0.00" 
-                          value={amountReceived} 
-                          onChange={e => setAmountReceived(e.target.value)} 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white outline-none focus:border-[#D4AF37] transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2 text-right">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">Change / Balance</label>
-                      <div className="py-4 pr-1">
-                        <span className={`text-2xl font-black tracking-tighter ${balance > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
-                          {formatCurrency(balance)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handlePlaceOrder} 
-                  disabled={cart.length === 0 || savingPosOrder} 
-                  className="w-full bg-white text-[#0F172A] py-5 rounded-3xl font-black text-sm uppercase tracking-[0.2em] mt-6 shadow-2xl hover:bg-slate-100 disabled:opacity-30 transition-all flex items-center justify-center gap-3"
-                >
-                  {savingPosOrder ? <div className="w-5 h-5 border-2 border-[#0F172A]/20 border-t-[#0F172A] rounded-full animate-spin" /> : <CreditCard className="w-5 h-5" />}
-                  {savingPosOrder ? 'Authenticating...' : 'Confirm Order & Print'}
-                </button>
-              </div>
             </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+);
+
+const renderAnalyticsTab = () => (
+  <div className="bg-[#0F172A] p-6 rounded-[2rem] border border-white/5 shadow-sm">
+    <div className="flex items-center justify-between mb-6">
+      <div>
+        <h3 className="text-md font-bold text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+          Dish <span className="text-[#D4AF37]">Popularity Trends</span>
+        </h3>
+        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Top Selling Items in Restaurant & POS</p>
+      </div>
+      <TrendingUp className="w-5 h-5 text-[#D4AF37]" />
+    </div>
+
+    {popularityData.length === 0 ? (
+      <div className="py-12 text-center opacity-30">
+        <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-slate-400" />
+        <p className="text-xs font-bold uppercase tracking-wider">No Sales Data Available</p>
+      </div>
+    ) : (
+      <div className="w-full h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={popularityData}
+            layout="vertical"
+            margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={false} />
+            <XAxis type="number" stroke="#94A3B8" fontSize={9} tickLine={false} axisLine={false} />
+            <YAxis type="category" dataKey="name" stroke="#94A3B8" fontSize={9} tickLine={false} axisLine={false} width={80} />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '10px' }}
+              cursor={{ fill: 'rgba(212, 175, 55, 0.05)' }}
+            />
+            <Bar dataKey="sales" fill="#D4AF37" radius={[0, 8, 8, 0]} barSize={16} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    )}
+  </div>
+);
+
+const renderGroupSettleModal = () => {
+  if (!settleModalOrder) return null;
+  const total = settleModalOrder.totalAmount || 0;
+
+  const handlePay = () => {
+    const cashValue = Number(customAmount) || 0;
+    if (paymentMethod === 'Cash' && cashValue < total) return toast.error("Cash received must be greater than or equal to total amount.");
+    
+    updatePaymentStatus(settleModalOrder._id, {
+      amount: total,
+      method: paymentMethod,
+      note: 'Normal Settlement'
+    });
+  };
+
+  const cashValue = Number(customAmount) || 0;
+
+  return (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#0F172A]/90 backdrop-blur-sm" onClick={() => setSettleModalOrder(null)} />
+      <div className="relative w-full max-w-lg bg-[#0F172A] rounded-[2rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+        
+        <div className="bg-slate-950/40 px-8 py-6 flex items-center justify-between border-b border-white/5">
+          <div>
+            <h2 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Order <span className="text-[#D4AF37]">Settlement</span></h2>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">
+              #{settleModalOrder._id.slice(-8).toUpperCase()}
+            </p>
           </div>
+          <button onClick={() => setSettleModalOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-white hover:bg-white/10 transition-all">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Live Orders Monitoring - Modern Card */}
-        <div className="bg-white rounded-[3.5rem] shadow-sm border border-slate-100 flex flex-col overflow-hidden">
-          <div className="p-10 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="p-8 space-y-6">
+          <div className="flex justify-between items-end border-b border-white/5 pb-6">
             <div>
-              <h3 className="text-3xl font-normal text-slate-900" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-blue-600">Sync</span></h3>
-              <p className="text-sm text-slate-400 mt-1 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Real-time order monitoring</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount Due</p>
+              <h3 className="text-4xl font-black text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(total)}</h3>
             </div>
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-              <input type="text" placeholder="Filter orders..." className="bg-slate-50 border-none rounded-2xl pl-12 pr-6 py-3 text-sm outline-none focus:ring-4 focus:ring-blue-500/5 min-w-[240px]" />
+            <div className="text-right">
+                <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{settleModalOrder.orderType}</p>
+                <p className="text-xs font-black text-white">{settleModalOrder.tableNumber ? `Table ${settleModalOrder.tableNumber}` : settleModalOrder.roomNumber ? `Room ${settleModalOrder.roomNumber}` : settleModalOrder.customerName}</p>
             </div>
           </div>
 
-          <div className="flex-1 p-10 overflow-y-auto max-h-[800px] custom-scrollbar space-y-6">
-            {loading ? (
-              <div className="py-20 text-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin mx-auto" /></div>
-            ) : orders.length === 0 ? (
-              <div className="py-20 text-center opacity-30">
-                <History className="w-16 h-16 mx-auto mb-4" />
-                <p className="text-xl font-bold">No orders recorded</p>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash Received (Rs)</label>
+              <div className="relative">
+                <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+                <input 
+                  autoFocus
+                  type="number" 
+                  value={customAmount} 
+                  onChange={e => setCustomAmount(e.target.value)}
+                  placeholder="Enter amount..."
+                  className="w-full pl-14 pr-6 py-5 bg-slate-950 border border-white/10 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-white outline-none"
+                />
               </div>
-            ) : (
-              orders.map(order => (
-                <div key={order._id} className="group p-8 rounded-[2.5rem] border border-slate-100 hover:border-blue-200 transition-all duration-500 bg-white hover:shadow-2xl hover:shadow-blue-500/5">
-                  <div className="flex flex-col lg:flex-row justify-between gap-8">
-                    <div className="space-y-4 flex-1">
-                      <div className="flex items-center gap-4">
-                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                          order.orderStatus === 'Completed' ? 'bg-emerald-50 text-emerald-600' :
-                          order.orderStatus === 'Preparing' ? 'bg-blue-50 text-blue-600' :
-                          order.orderStatus === 'Pending' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-500'
-                        }`}>
-                          {order.orderStatus}
-                        </div>
-                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                          order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
-                        }`}>
-                          {order.paymentStatus}
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">Ref: #{order._id.slice(-8)}</span>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                          {order.orderType === 'Dine-in' ? `Table ${order.tableNumber}` : 
-                           order.orderType === 'Room' ? `Room ${order.roomNumber}` : 
-                           order.orderType === 'Take-away' ? 'Take-away Order' : 'Delivery Service'}
-                          <ChevronRight className="w-4 h-4 text-slate-300" />
-                        </h4>
-                        <div className="flex flex-col gap-1 mt-1">
-                          <p className="text-xs text-slate-400">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
-                          
-                          {/* Customer Details Section */}
-                          <div className="mt-3 flex flex-wrap gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <div className="flex items-center gap-2">
-                              <User className="w-3.5 h-3.5 text-blue-500" />
-                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">
-                                Placed By: <span className="text-blue-600 ml-1">{order.customerName || 'Guest'}</span>
-                              </span>
-                            </div>
-                            {(order.contactNumber || order.orderType === 'Delivery') && (
-                              <div className="flex items-center gap-2">
-                                <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">
-                                  Contact: <span className="text-emerald-600 ml-1">{order.contactNumber || 'N/A'}</span>
-                                </span>
-                              </div>
-                            )}
-                          </div>
+            </div>
 
-                          {order.orderType === 'Delivery' && (
-                            <div className="flex flex-col gap-1 mt-3">
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Address: {order.deliveryAddress}</p>
-                              {order.coordinates && (
-                                <a 
-                                  href={`https://www.google.com/maps?q=${order.coordinates.lat},${order.coordinates.lng}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:underline flex items-center gap-1 mt-1"
-                                >
-                                  View GPS Location on Google Maps
-                                </a>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+            <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/20 flex justify-between items-center">
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Balance to Return</span>
+              <span className="text-2xl font-black text-emerald-400" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                {formatCurrency(Math.max(cashValue - total, 0))}
+              </span>
+            </div>
+          </div>
 
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {order.items.map((i, idx) => (
-                          <div key={idx} className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                            <span className="w-5 h-5 bg-white rounded-md flex items-center justify-center text-[10px] font-black text-slate-900 border border-slate-200">{i.quantity}</span>
-                            <span className="text-xs font-bold text-slate-700">{i.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-end justify-between min-w-[180px]">
-                      <div className="text-right">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
-                        <p className="text-3xl font-black text-slate-900 tracking-tighter">{formatCurrency(order.totalAmount)}</p>
-                      </div>
-                      
-                      <div className="flex flex-col gap-2 mt-6">
-                        {order.paymentStatus === 'Unpaid' && (
-                          <div className="flex flex-col gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            {settlingOrderId === order._id ? (
-                              <div className="space-y-3">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Process Payment</span>
-                                  <button onClick={() => setSettlingOrderId(null)} className="text-[10px] text-rose-500 font-bold hover:underline">Cancel</button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div className="space-y-1">
-                                    <label className="text-[9px] font-bold text-slate-400 uppercase">Received</label>
-                                    <input 
-                                      type="number" 
-                                      placeholder="0.00"
-                                      value={settleAmount}
-                                      onChange={(e) => setSettleAmount(e.target.value)}
-                                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-[#D4AF37]"
-                                    />
-                                  </div>
-                                  <div className="space-y-1 text-right">
-                                    <label className="text-[9px] font-bold text-slate-400 uppercase">Balance</label>
-                                    <div className="py-2 text-sm font-black text-emerald-600">
-                                      {formatCurrency(Math.max(Number(settleAmount || 0) - order.totalAmount, 0))}
-                                    </div>
-                                  </div>
-                                </div>
-                                <button 
-                                  onClick={() => updatePaymentStatus(order._id, { 
-                                    paymentStatus: 'Paid', 
-                                    amountReceived: Number(settleAmount), 
-                                    balance: Math.max(Number(settleAmount || 0) - order.totalAmount, 0)
-                                  })}
-                                  disabled={Number(settleAmount || 0) < order.totalAmount}
-                                  className="w-full py-2.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100 disabled:opacity-30"
-                                >
-                                  Complete Payment
-                                </button>
-                              </div>
-                            ) : (
-                              <button 
-                                onClick={() => setSettlingOrderId(order._id)}
-                                className="w-full py-2.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100"
-                              >
-                                Settle Payment
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        
-                        {order.paymentStatus === 'Paid' && order.amountReceived > 0 && (
-                          <div className="flex flex-col gap-1 p-3 bg-emerald-50 rounded-2xl border border-emerald-100/50">
-                             <div className="flex justify-between text-[9px] font-bold text-emerald-600 uppercase tracking-widest">
-                               <span>Received</span>
-                               <span>{formatCurrency(order.amountReceived)}</span>
-                             </div>
-                             <div className="flex justify-between text-[9px] font-bold text-emerald-400 uppercase tracking-widest">
-                               <span>Change</span>
-                               <span>{formatCurrency(order.balance)}</span>
-                             </div>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => handlePrintReceipt(order)}
-                            className="p-2.5 bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all border border-slate-100"
-                            title="Print Receipt"
-                          >
-                            <Receipt className="w-4 h-4" />
-                          </button>
-                          <select 
-                            value={order.orderStatus} 
-                            onChange={e => updateOrderStatus(order._id, e.target.value)} 
-                            className="appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-4 focus:ring-blue-500/10 cursor-pointer flex-1"
-                          >
-                            {['Pending', 'Preparing', 'Completed', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                          {order.orderStatus === 'Completed' ? (
-                            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0"><CheckCircle className="w-5 h-5" /></div>
-                          ) : (
-                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center animate-pulse shrink-0"><Clock className="w-5 h-5" /></div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="pt-6 border-t border-white/5 space-y-4">
+            <div className="flex gap-2">
+              {['Cash', 'Card', 'Room Charge', 'Other'].map(method => (
+                <button
+                  key={method}
+                  onClick={() => setPaymentMethod(method)}
+                  className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${paymentMethod === method ? 'bg-white text-black border-white shadow-lg' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30'}`}
+                >
+                  {method}
+                </button>
+              ))}
+            </div>
+            <button 
+              disabled={paymentMethod === 'Cash' && cashValue < total}
+              onClick={handlePay}
+              className="w-full py-5 rounded-2xl bg-[#D4AF37] text-[#0F172A] font-black text-xs uppercase tracking-[0.3em] transition-all hover:bg-white hover:text-[#0F172A] active:scale-95 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Confirm Settlement
+            </button>
           </div>
         </div>
       </div>
     </div>
   );
+};
+
+// Main Interface Render
+return (
+  <div className="space-y-6 animate-in fade-in duration-500">
+    {renderHeader()}
+    {renderStats()}
+    {activeTab === 'terminal' && renderTerminal()}
+    {activeTab === 'kitchen' && renderKitchen()}
+    {activeTab === 'analytics' && renderAnalyticsTab()}
+    {renderGroupSettleModal()}
+  </div>
+);
 }

@@ -20,6 +20,8 @@ export function AdminBookings() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchBookings();
@@ -45,6 +47,17 @@ export function AdminBookings() {
     const matchesFilter = filterStatus === 'All' || booking.status.toLowerCase() === filterStatus.toLowerCase();
     return matchesSearch && matchesFilter;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus]);
+
+  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+
+  const paginatedBookings = React.useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredBookings.slice(start, start + itemsPerPage);
+  }, [filteredBookings, currentPage, itemsPerPage]);
 
   const getStatusColor = (status) => {
     const s = status?.toLowerCase();
@@ -144,7 +157,7 @@ export function AdminBookings() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredBookings.map((booking) => (
+              {paginatedBookings.map((booking) => (
                 <tr key={booking._id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
@@ -170,15 +183,40 @@ export function AdminBookings() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-xs space-y-1">
-                      <div className="flex items-center gap-1 text-emerald-600 font-semibold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        IN: {new Date(booking.checkInDate).toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center gap-1 text-rose-600 font-semibold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                        OUT: {new Date(booking.checkOutDate).toLocaleDateString()}
-                      </div>
+                    <div className="space-y-1.5">
+                      {new Date(booking.checkInDate) > new Date(booking.checkOutDate) || 
+                       (booking.startIndex !== undefined && booking.endIndex !== undefined && booking.endIndex < booking.startIndex) ? (
+                        <span className="inline-flex items-center justify-center px-2 py-1 bg-red-100 text-[10px] text-red-700 border border-red-200 rounded font-black uppercase tracking-wider">
+                          ⚠️ INVALID DATES
+                        </span>
+                      ) : new Date(booking.checkInDate).toLocaleDateString() === new Date(booking.checkOutDate).toLocaleDateString() && 
+                       booking.checkInType === booking.checkOutType ? (
+                        <div className="flex flex-col items-start gap-1">
+                          <div className="text-slate-900 font-bold text-[11px]">
+                            {new Date(booking.checkInDate).toLocaleDateString()}
+                          </div>
+                          <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-wider ${
+                            booking.checkInType === 'Day' 
+                              ? 'bg-orange-50 text-orange-700 border-orange-200' 
+                              : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                          }`}>
+                            ONLY {booking.checkInType}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-400">IN:</span>
+                            <span className="text-[11px] font-bold text-slate-900">{new Date(booking.checkInDate).toLocaleDateString()}</span>
+                            <span className="px-1.5 py-0.5 bg-emerald-50 text-[9px] text-emerald-700 border border-emerald-100 rounded font-bold uppercase">{booking.checkInType || 'Day'}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-400">OUT:</span>
+                            <span className="text-[11px] font-bold text-slate-900">{new Date(booking.checkOutDate).toLocaleDateString()}</span>
+                            <span className="px-1.5 py-0.5 bg-rose-50 text-[9px] text-rose-700 border border-rose-100 rounded font-bold uppercase">{booking.checkOutType || 'Night'}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
@@ -203,6 +241,37 @@ export function AdminBookings() {
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {!loading && filteredBookings.length > 0 && totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-6 bg-white px-6 py-3.5 rounded-2xl shadow-sm border border-slate-100 w-fit mx-auto animate-in fade-in duration-300">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+              currentPage === 1 
+                ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                : "bg-slate-100 text-slate-700 hover:bg-blue-600 hover:text-white active:scale-95 border border-slate-200"
+            }`}
+          >
+            Previous
+          </button>
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+              currentPage === totalPages 
+                ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                : "bg-slate-100 text-slate-700 hover:bg-blue-600 hover:text-white active:scale-95 border border-slate-200"
+            }`}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {filteredBookings.length === 0 && (
         <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">

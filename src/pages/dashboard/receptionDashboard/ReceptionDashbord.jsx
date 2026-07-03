@@ -79,12 +79,16 @@ export function ReceptionDashboard() {
         
         const occupiedRooms = allBookings.filter(b => b.status === 'checked-in').length;
         const reservedRooms = allBookings.filter(b => b.status === 'confirmed').length;
-        
-        const BASE_COUNTS = { 'Standard Room': 6, 'Family Suite': 2, 'Honeymoon Suite': 2 };
-        const baseTotal = 10;
-        const addedTotal = allRooms.reduce((acc, room) => acc + (room.availableRooms || 0), 0);
-        const totalRooms = baseTotal + addedTotal + occupiedRooms; 
-        const availableRooms = totalRooms - occupiedRooms - reservedRooms;
+
+        const activeRooms = allRooms.filter(room => room.isActive !== false);
+        const totalRooms = activeRooms.reduce(
+          (acc, room) => acc + (Number(room.totalRooms) || Number(room.availableRooms) || 0),
+          0
+        );
+        const availableRooms = activeRooms.reduce(
+          (acc, room) => acc + (Number(room.availableRooms) || 0),
+          0
+        );
         
         const activePoolBookings = poolBookings.filter(p => p.status === 'Confirmed' || p.status === 'Checked-In');
         
@@ -189,7 +193,7 @@ export function ReceptionDashboard() {
       <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">{settings.hotelName}</p>
             <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
               Good {getGreeting()}! Welcome to Reception
             </h1>

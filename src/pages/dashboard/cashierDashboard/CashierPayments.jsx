@@ -1,37 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import {
-  CreditCard,
-  Banknote,
-  Wifi,
-  DollarSign,
-  Search,
-  CheckCircle,
-  Clock,
-  XCircle,
-  ArrowDownRight,
-  ArrowUpRight,
-  Filter,
-  TrendingUp,
+import { 
+  Search, FileText, CheckCircle, Clock, 
+  TrendingUp, Download, ArrowUpRight, Check,
+  CreditCard, Calendar, BarChart3, Filter,
+  Activity, Wifi, RefreshCcw, Gem, Banknote, User, ChevronDown
 } from 'lucide-react';
 import { apiFetch } from '../../../api.js';
 
+// CashierPayments.jsx - Financial tracking for the Cashier
+// Handles revenue monitoring and payment records
 export function CashierPayments() {
+  // Page state
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMethod, setFilterMethod] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [dateFilter, setDateFilter] = useState('All');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [lastPollTime, setLastPollTime] = useState(new Date());
 
+  // Fetch orders on mount
   useEffect(() => {
     loadOrders();
     const interval = setInterval(loadOrders, 30000);
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch orders from API
   const loadOrders = async () => {
     try {
       const data = await apiFetch('/orders');
       setOrders(Array.isArray(data) ? data : []);
+      setLastPollTime(new Date());
     } catch (error) {
       console.error("Failed to load payments:", error);
     } finally {
@@ -41,10 +41,11 @@ export function CashierPayments() {
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
+  // Map orders to payment records
   const paymentRecords = orders.map((order) => ({
     id: `PAY-${order._id.slice(-6).toUpperCase()}`,
     orderId: `#${order._id.slice(-8).toUpperCase()}`,
-    customerName: order.customerName || 'Guest',
+    customerName: order.customerName || 'Boutique Guest',
     amount: order.totalAmount,
     tax: order.serviceCharge || 0,
     method: order.paymentMethod || 'Cash',
@@ -53,6 +54,7 @@ export function CashierPayments() {
     type: order.orderType,
   }));
 
+  // Apply filters
   const filtered = paymentRecords.filter((p) => {
     const matchSearch =
       (p.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -60,224 +62,306 @@ export function CashierPayments() {
       (p.id || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchMethod = filterMethod === 'All' || p.method === filterMethod;
     const matchStatus = filterStatus === 'All' || p.status === filterStatus;
-    return matchSearch && matchMethod && matchStatus;
+    
+    const matchDate = (() => {
+      if (dateFilter === 'All') return true;
+      const recDate = new Date(p.date);
+      const now = new Date();
+      if (dateFilter === 'Today') {
+        return recDate.toDateString() === now.toDateString();
+      }
+      if (dateFilter === 'Week') {
+        const diffTime = Math.abs(now - recDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      }
+      if (dateFilter === 'Month') {
+        return recDate.getMonth() === now.getMonth() && recDate.getFullYear() === now.getFullYear();
+      }
+      if (dateFilter === 'Year') {
+        return recDate.getFullYear() === now.getFullYear();
+      }
+      return true;
+    })();
+
+    return matchSearch && matchMethod && matchStatus && matchDate;
   });
 
-  const totalSettled = paymentRecords
+  // Calculate totals for stats based on filtered results
+  const totalSettled = filtered
     .filter((p) => p.status === 'Settled')
     .reduce((sum, p) => sum + p.amount, 0);
-  const totalPending = paymentRecords
+  const totalPending = filtered
     .filter((p) => p.status === 'Pending')
     .reduce((sum, p) => sum + p.amount, 0);
-  const totalTax = paymentRecords
+  const totalService = filtered
     .filter((p) => p.status === 'Settled')
     .reduce((sum, p) => sum + p.tax, 0);
 
-  const methodCounts = paymentRecords.reduce((acc, p) => {
+  const methodCounts = filtered.reduce((acc, p) => {
     acc[p.method] = (acc[p.method] || 0) + 1;
     return acc;
   }, {});
 
+  // UI helpers for icons and styles
   const getMethodIcon = (method) => {
     switch (method) {
       case 'Card': return CreditCard;
       case 'Cash': return Banknote;
       case 'Online': return Wifi;
-      case 'Room Charge': return DollarSign;
-      default: return DollarSign;
+      case 'Room Charge': return Gem;
+      default: return Gem;
     }
   };
 
-  const getMethodColor = (method) => {
+  const getMethodStyles = (method) => {
     switch (method) {
-      case 'Card': return 'bg-blue-100 text-blue-700';
-      case 'Cash': return 'bg-green-100 text-green-700';
-      case 'Online': return 'bg-purple-100 text-purple-700';
-      case 'Room Charge': return 'bg-orange-100 text-orange-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'Card': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      case 'Cash': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'Online': return 'bg-violet-500/10 text-violet-400 border-violet-500/20';
+      case 'Room Charge': return 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/20';
+      default: return 'bg-slate-900 text-slate-400 border-white/5';
     }
   };
 
   const stats = [
     {
-      label: 'Total Settled',
+      label: 'Settled Revenue',
       value: formatCurrency(totalSettled),
       icon: CheckCircle,
-      color: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-      iconBg: 'bg-emerald-100',
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-500/10',
+      border: 'border-white/5',
+      trend: 'up'
     },
     {
-      label: 'Pending Amount',
+      label: 'Floating Credit',
       value: formatCurrency(totalPending),
       icon: Clock,
-      color: 'bg-amber-50 text-amber-600 border-amber-200',
-      iconBg: 'bg-amber-100',
+      color: 'text-amber-400',
+      bg: 'bg-amber-500/10',
+      border: 'border-white/5',
+      trend: 'neutral'
     },
     {
-      label: 'Service Charges',
-      value: formatCurrency(totalTax),
+      label: 'Service Earnings',
+      value: formatCurrency(totalService),
       icon: TrendingUp,
-      color: 'bg-violet-50 text-violet-600 border-violet-200',
-      iconBg: 'bg-violet-100',
+      color: 'text-[#D4AF37]',
+      bg: 'bg-[#D4AF37]/10',
+      border: 'border-white/5',
+      trend: 'up'
     },
     {
-      label: 'Transactions',
+      label: 'Stream Count',
       value: paymentRecords.length,
-      icon: CreditCard,
-      color: 'bg-blue-50 text-blue-600 border-blue-200',
-      iconBg: 'bg-blue-100',
+      icon: Activity,
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/10',
+      border: 'border-white/5',
+      trend: 'neutral'
     },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-          <p className="text-gray-500 mt-1">Track and manage all payment transactions from real orders</p>
+    <div className="space-y-8 pb-20 animate-in fade-in duration-700">
+      {/* Premium Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-[#0F172A] rounded-2xl flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(15,23,42,0.4)]">
+            <Gem className="w-7 h-7 text-[#D4AF37]" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-[#0F172A] uppercase tracking-wider">Revenue Stream</h1>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">Financial Boutique Performance</p>
+          </div>
         </div>
-        <button 
-          onClick={loadOrders}
-          className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
-        >
-          <Clock className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Sync Payments
-        </button>
+        <div className="flex flex-col items-end gap-1">
+          <button 
+            onClick={loadOrders}
+            className="group flex items-center gap-3 px-6 py-3 bg-slate-900 border border-white/5 text-slate-300 rounded-2xl hover:bg-[#0F172A] hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
+          >
+            <RefreshCcw className={`w-4 h-4 group-hover:rotate-180 transition-transform duration-700 ${loading ? 'animate-spin text-[#D4AF37]' : ''}`} />
+            Sync Financials
+          </button>
+          <p className="text-[7px] font-black text-slate-300 uppercase tracking-widest pr-2">
+            Last Sync: {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </p>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Luxury Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className={`rounded-xl border p-4 ${stat.color}`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-lg ${stat.iconBg}`}>
-                  <Icon className="w-5 h-5" />
+            <div key={stat.label} className={`group relative p-8 rounded-[2.5rem] border bg-[#0F172A] border-white/5 shadow-2xl hover:shadow-[0_25px_60px_-25px_rgba(212,175,55,0.15)] hover:border-[#D4AF37]/30 transition-all duration-500 hover:-translate-y-1`}>
+              <div className="flex items-start justify-between mb-6">
+                <div className={`p-4 rounded-2xl transition-transform duration-500 group-hover:rotate-12 ${stat.bg} ${stat.color}`}>
+                  <Icon className="w-6 h-6" />
                 </div>
-                <div>
-                  <p className="text-xs font-medium opacity-80">{stat.label}</p>
-                  <h3 className="text-xl font-bold">{stat.value}</h3>
-                </div>
+                {stat.trend === 'up' && (
+                  <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg text-[8px] font-black uppercase border border-emerald-500/20">
+                    <ArrowUpRight className="w-2.5 h-2.5" /> Growth
+                  </div>
+                )}
               </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1.5">{stat.label}</p>
+                <h3 className="text-2xl font-black text-white tracking-tight" style={{ fontFamily: 'DM Serif Display, serif' }}>{stat.value}</h3>
+              </div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-slate-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-bl-[100%] pointer-events-none" />
             </div>
           );
         })}
       </div>
 
-      {/* Payment Method Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Payment Method Distribution */}
+      <div className="flex flex-wrap gap-4 pt-2">
         {Object.entries(methodCounts).map(([method, count]) => {
           const MIcon = getMethodIcon(method);
           return (
-            <div key={method} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${getMethodColor(method)}`}>
-                <MIcon className="w-4 h-4" />
+            <div key={method} className="bg-slate-900 rounded-2xl border border-white/5 p-4 px-6 flex items-center gap-4 shadow-sm hover:border-[#D4AF37]/30 transition-all group text-white">
+              <div className={`p-2.5 rounded-xl transition-all group-hover:scale-110 ${getMethodStyles(method)}`}>
+                <MIcon className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">{method}</p>
-                <p className="text-lg font-bold text-gray-900">{count}</p>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">{method}</p>
+                <p className="text-sm font-black text-white">{count} Transactions</p>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Filters & Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex flex-col lg:flex-row gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by payment ID, order, or customer..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-              />
+      {/* Luxury Table Section */}
+      <div className="bg-[#0F172A] rounded-[3rem] border border-white/5 shadow-2xl overflow-hidden">
+        <div className="p-8 border-b border-white/5 flex flex-col lg:flex-row gap-6">
+          <div className="flex-1 relative group">
+            <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#D4AF37] transition-colors" />
+            <input
+              type="text"
+              placeholder="Locate payment record or guest..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-14 pr-8 py-4 bg-slate-950 border border-white/10 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-sm font-bold text-white placeholder:text-slate-500 transition-all outline-none"
+            />
+          </div>
+          <div className="flex gap-3">
+            <div className="relative group/select">
+              <select
+                value={filterMethod}
+                onChange={(e) => setFilterMethod(e.target.value)}
+                className="pl-6 pr-10 py-4 bg-slate-950 border border-white/10 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-[10px] font-black uppercase tracking-widest text-slate-300 cursor-pointer appearance-none min-w-[160px] text-center"
+              >
+                <option value="All">All Channels</option>
+                <option value="Card">Card</option>
+                <option value="Cash">Cash</option>
+                <option value="Online">Online</option>
+                <option value="Room Charge">Room Charge</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
             </div>
-            <select
-              value={filterMethod}
-              onChange={(e) => setFilterMethod(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white"
-            >
-              <option value="All">All Methods</option>
-              <option value="Card">Card</option>
-              <option value="Cash">Cash</option>
-              <option value="Online">Online</option>
-              <option value="Room Charge">Room Charge</option>
-            </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white"
-            >
-              <option value="All">All Status</option>
-              <option value="Settled">Settled</option>
-              <option value="Pending">Pending</option>
-            </select>
+
+            <div className="relative group/select">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="pl-6 pr-10 py-4 bg-slate-950 border border-white/10 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-[10px] font-black uppercase tracking-widest text-slate-300 cursor-pointer appearance-none min-w-[160px] text-center"
+              >
+                <option value="All">All Fulfillment</option>
+                <option value="Settled">Settled</option>
+                <option value="Pending">Pending</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
+            </div>
+
+            <div className="relative group/select">
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="pl-6 pr-10 py-4 bg-slate-950 border border-white/10 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-[10px] font-black uppercase tracking-widest text-slate-300 cursor-pointer appearance-none min-w-[160px] text-center"
+              >
+                <option value="All">All Time</option>
+                <option value="Today">Today</option>
+                <option value="Week">This Week</option>
+                <option value="Month">This Month</option>
+                <option value="Year">This Year</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
+            </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+        {/* Premium Table Layout */}
+        <div className="overflow-x-auto custom-scrollbar">
           {loading && orders.length === 0 ? (
-             <div className="py-20 text-center">
-                <div className="w-10 h-10 border-4 border-teal-100 border-t-teal-600 rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-gray-400">Loading payment history...</p>
+             <div className="py-40 text-center">
+                <div className="w-16 h-16 border-4 border-slate-700 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6" />
+                <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[10px]">Syncing Financial Boutique History...</p>
              </div>
           ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment ID</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-slate-950/20 border-b border-white/5">
+                  <th className="px-10 py-6 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Transaction</th>
+                  <th className="px-10 py-6 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Boutique Guest</th>
+                  <th className="px-10 py-6 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Channel</th>
+                  <th className="px-10 py-6 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Timestamp</th>
+                  <th className="px-10 py-6 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Fulfillment</th>
+                  <th className="px-10 py-6 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Net Value</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-white/5">
                 {filtered.map((payment) => {
                   const MIcon = getMethodIcon(payment.method);
                   return (
-                    <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <span className="text-sm font-semibold text-gray-900">{payment.id}</span>
+                    <tr key={payment.id} className="group hover:bg-slate-900/50 transition-all duration-500 cursor-default">
+                      <td className="px-10 py-7">
+                        <div>
+                          <span className="text-xs font-black text-white tracking-widest uppercase group-hover:text-[#D4AF37] transition-colors">{payment.id}</span>
+                          <p className="text-[9px] font-bold text-slate-500 mt-1 uppercase tracking-widest">{payment.orderId}</p>
+                        </div>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-sm text-gray-700">{payment.orderId}</span>
+                      <td className="px-10 py-7">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-center text-[#D4AF37] group-hover:bg-[#D4AF37] group-hover:text-[#0F172A] transition-all duration-500">
+                            <User className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-white uppercase tracking-widest">{payment.customerName}</span>
+                            <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-[0.1em]">{payment.type}</p>
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-sm text-gray-900 font-medium">{payment.customerName}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getMethodColor(payment.method)}`}>
-                          <MIcon className="w-3 h-3" />
+                      <td className="px-10 py-7">
+                        <div className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] border ${getMethodStyles(payment.method)} shadow-sm`}>
+                          <MIcon className="w-3.5 h-3.5" />
                           {payment.method}
                         </div>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <div>
-                          <p className="text-sm text-gray-900">{new Date(payment.date).toLocaleDateString()}</p>
-                          <p className="text-xs text-gray-500">{new Date(payment.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                      <td className="px-10 py-7">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest">
+                            <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
+                            {new Date(payment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                          </div>
+                          <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] ml-5">
+                            {new Date(payment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                          payment.status === 'Settled' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      <td className="px-10 py-7">
+                        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                          payment.status === 'Settled' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                         }`}>
-                          {payment.status === 'Settled' ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                          {payment.status === 'Settled' ? <CheckCircle className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
                           {payment.status}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-right">
-                        <p className="text-sm font-bold text-gray-900">{formatCurrency(payment.amount)}</p>
-                        <p className="text-[10px] text-gray-500">Charge: {formatCurrency(payment.tax)}</p>
+                      <td className="px-10 py-7 text-right">
+                        <p className="text-lg font-black text-white tracking-tighter" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(payment.amount)}</p>
+                        <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest mt-1">Svc: {formatCurrency(payment.tax)}</p>
                       </td>
                     </tr>
                   );
@@ -286,10 +370,12 @@ export function CashierPayments() {
             </table>
           )}
           {!loading && filtered.length === 0 && (
-            <div className="text-center py-12">
-              <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No payments found</p>
-              <p className="text-sm text-gray-400 mt-1">Try adjusting your filters</p>
+            <div className="py-48 text-center bg-slate-950/20">
+              <div className="w-24 h-24 bg-slate-900 rounded-[3rem] border border-white/5 flex items-center justify-center mx-auto mb-8 shadow-xl">
+                <CreditCard className="w-10 h-10 text-slate-600" />
+              </div>
+              <h4 className="text-lg font-black text-white uppercase tracking-widest mb-2">No Records Found</h4>
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-[0.2em]">Adjust your boutique filters to search again</p>
             </div>
           )}
         </div>
