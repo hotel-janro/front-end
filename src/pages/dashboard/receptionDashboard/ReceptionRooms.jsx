@@ -500,27 +500,29 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                         {(!booking.status || booking.status === 'pending') && (
                           <>
                             <button
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
                               title="Confirm Booking"
                               onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}
                             >
-                              <CheckCircle className="w-4 h-4" />
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              <span className="hidden md:inline">Confirm</span>
                             </button>
                             <button
-                              className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-md transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-500 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
                               title="Reject Booking"
                               onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}
                             >
-                              <XCircle className="w-4 h-4" />
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span className="hidden md:inline">Reject</span>
                             </button>
                           </>
                         )}
                         <button 
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider flex-shrink-0"
                           title="Delete Booking"
                           onClick={() => handleDeleteBooking(booking._id)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
