@@ -20,6 +20,8 @@ export function AdminBookings() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchBookings();
@@ -45,6 +47,17 @@ export function AdminBookings() {
     const matchesFilter = filterStatus === 'All' || booking.status.toLowerCase() === filterStatus.toLowerCase();
     return matchesSearch && matchesFilter;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus]);
+
+  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+
+  const paginatedBookings = React.useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredBookings.slice(start, start + itemsPerPage);
+  }, [filteredBookings, currentPage, itemsPerPage]);
 
   const getStatusColor = (status) => {
     const s = status?.toLowerCase();
@@ -144,7 +157,7 @@ export function AdminBookings() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredBookings.map((booking) => (
+              {paginatedBookings.map((booking) => (
                 <tr key={booking._id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
@@ -228,6 +241,37 @@ export function AdminBookings() {
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {!loading && filteredBookings.length > 0 && totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-6 bg-white px-6 py-3.5 rounded-2xl shadow-sm border border-slate-100 w-fit mx-auto animate-in fade-in duration-300">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+              currentPage === 1 
+                ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                : "bg-slate-100 text-slate-700 hover:bg-blue-600 hover:text-white active:scale-95 border border-slate-200"
+            }`}
+          >
+            Previous
+          </button>
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+              currentPage === totalPages 
+                ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                : "bg-slate-100 text-slate-700 hover:bg-blue-600 hover:text-white active:scale-95 border border-slate-200"
+            }`}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {filteredBookings.length === 0 && (
         <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">

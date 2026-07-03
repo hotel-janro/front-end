@@ -167,6 +167,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
         <Route path="bookings" element={<ReceptionBookings />} />
         <Route path="pool" element={<ReceptionPool />} />
         <Route path="gym" element={<ReceptionGym />} />
+        <Route path="customers" element={<AdminGuests />} />
       </Route>
 
       <Route

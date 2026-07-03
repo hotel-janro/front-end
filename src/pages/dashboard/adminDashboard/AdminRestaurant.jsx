@@ -29,6 +29,8 @@ export function AdminRestaurant() {
   const [menuSearch, setMenuSearch] = useState('');
   const [menuCategory, setMenuCategory] = useState('All');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8; // Fits 2, 3, or 4 columns nicely
 
   useEffect(() => {
     if (activeTab === 'menu') {
@@ -69,6 +71,17 @@ export function AdminRestaurant() {
       return matchesSearch && matchesCategory;
     });
   }, [menuItems, menuSearch, menuCategory]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [menuSearch, menuCategory]);
+
+  const totalPages = Math.ceil(visibleMenuItems.length / itemsPerPage);
+
+  const paginatedMenuItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return visibleMenuItems.slice(start, start + itemsPerPage);
+  }, [visibleMenuItems, currentPage, itemsPerPage]);
 
   const menuCategories = useMemo(() => {
     const predefinedOrder = [
@@ -188,8 +201,9 @@ export function AdminRestaurant() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Syncing with culinary database...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {visibleMenuItems.map((item) => (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {paginatedMenuItems.map((item) => (
                   <div key={item._id} className="group bg-white rounded-[1.5rem] overflow-hidden border border-slate-100 hover:border-[#D4AF37]/30 transition-all duration-300 hover:shadow-xl">
                     <div className="relative h-40 overflow-hidden">
                       <ImageWithFallback
@@ -238,6 +252,38 @@ export function AdminRestaurant() {
                   </div>
                 ))}
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-8 bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100 w-fit mx-auto animate-in fade-in duration-300">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                      currentPage === 1 
+                        ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                        : "bg-slate-100 text-slate-700 hover:bg-[#0F172A] hover:text-[#D4AF37] active:scale-95 border border-slate-200"
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                      currentPage === totalPages 
+                        ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                        : "bg-slate-100 text-slate-700 hover:bg-[#0F172A] hover:text-[#D4AF37] active:scale-95 border border-slate-200"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
             )}
 
             {!menuLoading && visibleMenuItems.length === 0 && (
