@@ -211,7 +211,8 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
                   onChange={e => handleInputChange('category', e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37]"
                 >
-                  {['Main Course', 'Bites', 'Desserts', 'Beverages'].map(c => <option key={c} value={c} className="text-black">{c}</option>)}
+                  <option value="" disabled className="text-black">Select a group...</option>
+                  {['Rice', 'Koththu', 'Noodles', 'Chicken', 'Fish', 'Prawns', 'Cuttle Fish', 'Mutton', 'Pork', 'Omelet', 'Vegetables & Sides', 'Salad', 'Soup', 'Starters', 'Outdoor Party', 'Beverages', 'Desserts'].map(c => <option key={c} value={c} className="text-black">{c}</option>)}
                 </select>
               </div>
 
