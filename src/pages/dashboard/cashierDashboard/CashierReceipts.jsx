@@ -300,9 +300,9 @@ export function CashierReceipts() {
       {/* Receipt Modal */}
       {selectedReceipt && (
         <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-xl flex items-center justify-center z-[200] p-4 animate-in fade-in duration-500">
-          <div className="bg-white rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] w-full max-w-md border border-white/20 relative overflow-hidden animate-in zoom-in-95 duration-500">
+          <div className="bg-white rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] w-full max-w-md border border-white/20 relative overflow-hidden animate-in zoom-in-95 duration-500 flex flex-col max-h-[90vh]">
             {/* Modal Header */}
-            <div className="bg-[#0F172A] px-8 py-6 flex items-center justify-between">
+            <div className="bg-[#0F172A] px-8 py-5 flex items-center justify-between shrink-0">
               <div>
                 <h3 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Receipt <span className="text-[#D4AF37]">Details</span></h3>
                 <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">{selectedReceipt.id}</p>
@@ -316,7 +316,7 @@ export function CashierReceipts() {
             </div>
 
             {/* Receipt Content */}
-            <div className="p-8">
+            <div className="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar">
               {/* Header */}
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-black text-[#0F172A] tracking-widest uppercase">{settings.hotelName}</h2>
@@ -397,7 +397,7 @@ export function CashierReceipts() {
             </div>
 
             {/* Modal Actions */}
-            <div className="p-8 bg-slate-50 border-t border-slate-100">
+            <div className="p-6 md:p-8 bg-slate-50 border-t border-slate-100 shrink-0">
               <button
                 onClick={() => {
                   const printWindow = window.open('', '_blank');

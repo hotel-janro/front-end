@@ -104,6 +104,8 @@ const [activeTab, setActiveTab] = useState('terminal'); // 'terminal', 'kitchen'
 const [selectedCategory, setSelectedCategory] = useState('All');
 const [menuSearch, setMenuSearch] = useState('');
 const [portionModalItem, setPortionModalItem] = useState(null);
+const [currentPage, setCurrentPage] = useState(1);
+const itemsPerPage = 12;
 
 const clearError = (field) => {
   if (validationErrors[field]) {
@@ -758,6 +760,17 @@ const filteredMenuItems = useMemo(() => {
   });
 }, [menuItems, selectedCategory, menuSearch]);
 
+useEffect(() => {
+  setCurrentPage(1);
+}, [selectedCategory, menuSearch]);
+
+const totalPages = Math.ceil(filteredMenuItems.length / itemsPerPage);
+
+const paginatedMenuItems = useMemo(() => {
+  const start = (currentPage - 1) * itemsPerPage;
+  return filteredMenuItems.slice(start, start + itemsPerPage);
+}, [filteredMenuItems, currentPage, itemsPerPage]);
+
 const handleAddVisualItem = (menuItem, portion = 'Full', quantity = 1) => {
   if (!menuItem.isAvailable) {
     toast.warning(`${menuItem.name} is currently unavailable!`);
@@ -883,17 +896,50 @@ const renderTerminal = () => (
           <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">No Dishes Found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-          {filteredMenuItems.map(item => (
-            <PosMenuItem key={item._id} item={item} handleAddVisualItem={handleAddVisualItem} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+            {paginatedMenuItems.map(item => (
+              <PosMenuItem key={item._id} item={item} handleAddVisualItem={handleAddVisualItem} />
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-3 mt-4 bg-slate-900 px-4 py-2.5 rounded-xl border border-white/5 w-fit mx-auto animate-in fade-in duration-300">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                  currentPage === 1 
+                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-transparent" 
+                    : "bg-slate-800 text-slate-300 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-white/5"
+                }`}
+              >
+                Prev
+              </button>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                  currentPage === totalPages 
+                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-transparent" 
+                    : "bg-slate-800 text-slate-300 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-white/5"
+                }`}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
 
     {/* Right Column: Checkout Cart */}
-    <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0 bg-[#0F172A] p-4 rounded-2xl shadow-lg border border-white/5 text-white flex flex-col sticky top-6 h-[calc(100vh-120px)] z-10">
-      <div className="flex flex-col h-full space-y-4 overflow-hidden">
+    <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0 bg-[#0F172A] p-4 rounded-2xl shadow-lg border border-white/5 text-white flex flex-col sticky top-6 max-h-[calc(100vh-120px)] h-fit z-10">
+      <div className="flex flex-col max-h-[calc(100vh-160px)] space-y-4 overflow-hidden">
         <div className="flex items-center justify-between border-b border-white/5 pb-2 shrink-0">
           <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Order <span className="text-[#D4AF37]">Checkout</span></h3>
           <Receipt className="w-4 h-4 text-[#D4AF37]" />

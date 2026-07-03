@@ -330,6 +330,18 @@ export function AdminWedding() {
     }
   };
 
+  const handleDeleteBooking = async (id) => {
+    if (!window.confirm("Are you sure you want to completely delete this booking? This action cannot be undone.")) return;
+    try {
+      const res = await apiFetch(`/wedding/bookings/${id}`, { method: 'DELETE' });
+      if (res.success) {
+        fetchData();
+      }
+    } catch (error) {
+      alert("Failed to delete booking: " + error.message);
+    }
+  };
+
   const handleServiceToggle = (serviceName) => {
     setFormData(prev => {
       const services = prev.optionalServices.includes(serviceName)
@@ -753,7 +765,7 @@ export function AdminWedding() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2 items-center">
                           <button 
                             onClick={() => {
                               setViewingBooking(booking);
@@ -765,19 +777,20 @@ export function AdminWedding() {
                           </button>
                           {booking.bookingStatus === 'pending' && (
                             <>
-                              <button onClick={() => handleStatusChange(booking._id, 'confirmed')} className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-200 transition-colors font-semibold">Confirm</button>
-                              <button onClick={() => handleStatusChange(booking._id, 'rejected')} className="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors font-semibold">Reject</button>
+                              <button onClick={() => handleStatusChange(booking._id, 'confirmed')} className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-200 transition-colors font-semibold flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Confirm</button>
+                              <button onClick={() => handleStatusChange(booking._id, 'rejected')} className="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors font-semibold flex items-center gap-1"><X className="w-3.5 h-3.5" /> Reject</button>
                             </>
                           )}
                           {booking.bookingStatus === 'confirmed' && (
                             <>
-                              <button onClick={() => handleEditBooking(booking)} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors font-semibold">Edit</button>
+                              <button onClick={() => handleEditBooking(booking)} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors font-semibold flex items-center gap-1"><Edit className="w-3.5 h-3.5" /> Edit</button>
                               {booking.paymentStatus !== 'Fully Paid' && (
-                                <button onClick={() => handleAddPayment(booking)} className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors font-semibold">Pay</button>
+                                <button onClick={() => handleAddPayment(booking)} className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors font-semibold flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" /> Pay</button>
                               )}
-                              <button onClick={() => handleStatusChange(booking._id, 'cancelled')} className="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors font-semibold">Cancel</button>
+                              <button onClick={() => handleStatusChange(booking._id, 'cancelled')} className="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors font-semibold flex items-center gap-1"><X className="w-3.5 h-3.5" /> Cancel</button>
                             </>
                           )}
+                          <button onClick={() => handleDeleteBooking(booking._id)} className="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-semibold flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
                         </div>
                       </td>
                     </tr>

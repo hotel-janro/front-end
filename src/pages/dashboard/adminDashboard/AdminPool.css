@@ -38,9 +38,9 @@
 .admin-pool__stat-card,
 .admin-pool__panel {
   background: #ffffff;
-  border: 1px solid #f3f4f6;
-  border-radius: 1rem;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  border: 1px solid #e2e8f0;
+  border-radius: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
 }
 
 .admin-pool__panel {
@@ -49,6 +49,12 @@
 
 .admin-pool__stat-card {
   padding: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-pool__stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
 }
 
 .admin-pool__stat-content,
@@ -92,23 +98,26 @@
 }
 
 .admin-pool__tab {
-  padding: 0.75rem 1.5rem;
+  padding: 1rem 2rem;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   background: transparent;
-  color: #6b7280;
-  font-weight: 500;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   cursor: pointer;
   transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .admin-pool__tab:hover {
-  color: #374151;
+  color: #0f172a;
 }
 
 .admin-pool__tab--active {
-  border-bottom-color: #2563eb;
-  color: #2563eb;
+  border-bottom-color: #d4af37;
+  color: #d4af37;
 }
 
 .admin-pool__search-wrap {
@@ -161,97 +170,125 @@
 }
 
 .admin-pool__table-header {
-  padding: 0.75rem 1.5rem;
+  padding: 1rem 1.5rem;
   text-align: left;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.7rem;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
 }
 
 .admin-pool__table-body {
-  border-top: 1px solid #f3f4f6;
+  border-top: none;
 }
 
 .admin-pool__table-row {
   transition: background-color 0.2s ease;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .admin-pool__table-row + .admin-pool__table-row {
-  border-top: 1px solid #f3f4f6;
+  border-top: none;
 }
 
 .admin-pool__table-row:hover {
-  background: #f9fafb;
+  background: #f8fafc/50;
 }
 
 .admin-pool__table-cell {
-  padding: 1rem 1.5rem;
+  padding: 0.875rem 1.5rem;
   white-space: nowrap;
-  font-size: 0.875rem;
-  color: #111827;
+  font-size: 0.85rem;
+  color: #334155;
+  vertical-align: middle;
 }
 
-.admin-pool__booking-code,
-.admin-pool__guest-name,
+.admin-pool__booking-code {
+  font-weight: 700;
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+}
+
+.admin-pool__guest-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+
 .admin-pool__amount {
-  font-weight: 600;
-  color: #111827;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #0f172a;
 }
 
 .admin-pool__guest-email,
 .admin-pool__slot-remaining {
-  color: #6b7280;
+  color: #64748b;
 }
 
 .admin-pool__guest-email {
   margin-top: 0.125rem;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
 .admin-pool__status-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0.625rem;
   border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid transparent;
 }
 
 .admin-pool__status-badge--confirmed,
 .admin-pool__status-badge--available {
-  background: #dcfce7;
-  color: #166534;
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
 }
 
 .admin-pool__status-badge--checked-in {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #eff6ff;
+  color: #1e40af;
+  border-color: #bfdbfe;
 }
 
 .admin-pool__status-badge--completed,
 .admin-pool__status-badge--closed {
-  background: #f3f4f6;
-  color: #374151;
+  background: #f8fafc;
+  color: #334155;
+  border-color: #cbd5e1;
 }
 
 .admin-pool__status-badge--cancelled,
 .admin-pool__status-badge--full {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fca5a5;
 }
 
 .admin-pool__slot-card {
-  padding: 1.25rem;
-  border-radius: 0.75rem;
-  background: #f9fafb;
-  transition: box-shadow 0.2s ease;
+  padding: 1.5rem;
+  border-radius: 2rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc/30;
+  transition: all 0.3s ease;
 }
 
 .admin-pool__slot-card:hover {
-  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
+  border-color: #d4af37;
+  transform: translateY(-2px);
 }
 
 .admin-pool__slot-head {
@@ -317,23 +354,25 @@
 .admin-pool__slot-button {
   width: 100%;
   margin-top: 1rem;
-  padding: 0.625rem 1rem;
+  padding: 0.75rem 1rem;
   border: 0;
   border-radius: 0.75rem;
-  background: #2563eb;
-  color: #ffffff;
+  background: #d4af37;
+  color: #0f172a;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .admin-pool__slot-button:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #b8962d;
+  box-shadow: 0 5px 15px rgba(212, 175, 55, 0.25);
 }
 
 .admin-pool__slot-button:disabled {
-  background: #d1d5db;
+  background: #e2e8f0;
+  color: #94a3b8;
   cursor: not-allowed;
 }
 

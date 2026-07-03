@@ -19,6 +19,8 @@ export function Restaurant({ onOrder, user }) {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12; // 12 fits better in responsive grids (2, 3, or 4 columns)
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -104,6 +106,17 @@ export function Restaurant({ onOrder, user }) {
       return matchCategory && matchSearch;
     });
   }, [menuItems, activeCategory, debouncedSearch]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, debouncedSearch]);
+
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredItems.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredItems, currentPage, itemsPerPage]);
 
   const addToCart = (item) => {
     setCart((prev) => {
@@ -395,11 +408,44 @@ export function Restaurant({ onOrder, user }) {
               <h3 className="text-xl text-gray-300 font-light italic">No culinary treasures found in this category.</h3>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 px-2">
-              {filteredItems.map((item) => (
-                <FoodCard key={item._id} item={item} onAddToCart={addToCart} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 px-2">
+                {paginatedItems.map((item) => (
+                  <FoodCard key={item._id} item={item} onAddToCart={addToCart} />
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-12 bg-white px-6 py-3.5 rounded-2xl shadow-sm border border-slate-100 w-fit mx-auto animate-in fade-in duration-300">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                      currentPage === 1 
+                        ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                        : "bg-slate-100 text-slate-700 hover:bg-[#0F172A] hover:text-[#D4AF37] active:scale-95 border border-slate-200"
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                      currentPage === totalPages 
+                        ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                        : "bg-slate-100 text-slate-700 hover:bg-[#0F172A] hover:text-[#D4AF37] active:scale-95 border border-slate-200"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )
         )}
 
