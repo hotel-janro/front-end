@@ -140,10 +140,10 @@ export function Events() {
               <h4 className="text-white text-2xl font-bold mb-2">Speak with us</h4>
               <p className="text-gray-400 text-sm mb-8">Available 9:00 AM - 8:00 PM</p>
               <a 
-                href="tel:+94112345678" 
+                href={`tel:${settings.phone}`} 
                 className="block w-full bg-[#D4AF37] text-[#0F172A] py-5 px-10 rounded-2xl font-bold text-lg hover:bg-[#B8962D] transition-all mb-4 shadow-xl shadow-[#D4AF37]/10"
               >
-                +94 11 234 5678
+                {settings.phone}
               </a>
               <button 
                 onClick={() => window.location.href = '/contact'}

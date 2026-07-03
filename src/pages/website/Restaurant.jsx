@@ -341,7 +341,7 @@ export function Restaurant({ onOrder, user }) {
       <div className="bg-[#0F172A] py-16 text-center relative overflow-hidden">
         {/* Hero */}
         <div className="absolute inset-0 opacity-10">
-          <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="Luxury Dining" />
+          <img src="https://res.cloudinary.com/dhuirf8i9/image/upload/v1783022207/hotel_janro/hotel_hero.jpg" className="w-full h-full object-cover" alt="Hotel Janro" />
         </div>
         <div className="relative z-10 px-4">
           <h1 className="text-4xl md:text-5xl text-[#D4AF37] mb-4 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>
