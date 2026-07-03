@@ -604,30 +604,6 @@ export function AdminWedding() {
               Add Venue
             </button>
           )}
-          {activeTab === 'bookings' && (
-            <button 
-              onClick={() => {
-                setEditingId(null);
-                setFormData({
-                  customerName: '', customerPhone: '', customerEmail: '',
-                  groomName: '', groomPhone: '', brideName: '', bridePhone: '',
-                  eventDate: '', startTime: '09:00', endTime: '16:00', eventType: 'Wedding',
-                  guestCount: '', hallId: '', cateringPackage: '100 Pax Package',
-                  selectedMeals: [], optionalServices: [], specialRequests: '', 
-                  advancePaid: '', bookingCategory: 'Wedding', venuePreference: 'Indoor', timeSlot: 'Day',
-                  seatingStyle: 'Round Tables', dietaryNotes: '', corkageIncluded: false,
-                  customerNIC: '', customerAddress: '', discountPercentage: 0, complimentaryItems: [],
-                  nekathTimes: { poruwa: '', teaTime: '', lunchDinner: '' }
-                });
-                setCurrentStep(0);
-                setShowModal(true);
-              }}
-              className="flex items-center gap-2 bg-[#0F172A] text-white px-6 py-3 rounded-xl hover:bg-slate-800 transition-all font-bold shadow-lg shadow-slate-900/20"
-            >
-              <Plus className="w-5 h-5 text-[#D4AF37]" />
-              New Booking
-            </button>
-          )}
         </div>
       </div>
 
