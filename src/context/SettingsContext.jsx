@@ -14,8 +14,8 @@ export const SettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState({
     hotelName: 'Hotel Janro',
     email: 'info@hoteljanro.com',
-    address: '123 Luxury Avenue, Paradise City, PC 10001',
-    phone: '+1 (555) 123-4567',
+    address: 'No: 10/2, B, Medagodawatta, Malwana-Dompe Road, Dompe 11680, Sri Lanka',
+    phone: '+94 76 360 0041',
     website: 'https://www.hoteljanro.com',
     currency: { code: 'LKR', symbol: 'Rs.' },
     language: 'English',

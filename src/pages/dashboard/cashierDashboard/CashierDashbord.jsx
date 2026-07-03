@@ -15,6 +15,8 @@ import {
   History
 } from "lucide-react";
 import { useSettings } from "../../../context/SettingsContext.jsx";
+import { useSocket } from "../../../context/SocketContext.jsx";
+import { toast } from "sonner";
 import "./CashierDashbord.css";
 
 
@@ -47,10 +49,11 @@ function RealTimeClock({ className = "" }) {
   );
 }
 
-// ---------------- Orders Tab ---------------- //
+// --- Orders Tab --- //
 function CashierOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const socket = useSocket();
 
   useEffect(() => {
     loadOrders();
@@ -58,12 +61,48 @@ function CashierOrders() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("orderCreated", (newOrder) => {
+      setOrders((prev) => {
+        if (prev.some((o) => o._id === newOrder._id)) return prev;
+        toast.info(`New Order #${newOrder._id.slice(-6).toUpperCase()} placed!`, {
+          description: `Guest: ${newOrder.customerName || "Walk-in"} (${newOrder.orderType})`,
+          duration: 6000,
+        });
+        return [newOrder, ...prev];
+      });
+    });
+
+    socket.on("orderUpdated", (updatedOrder) => {
+      setOrders((prev) =>
+        prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o))
+      );
+      toast.success(`Order #${updatedOrder._id.slice(-6).toUpperCase()} updated!`, {
+        description: `Status: ${updatedOrder.orderStatus} | Payment: ${updatedOrder.paymentStatus}`,
+        duration: 5000,
+      });
+    });
+
+    socket.on("orderDeleted", ({ id }) => {
+      setOrders((prev) => prev.filter((o) => o._id !== id));
+      toast.warning("An order was deleted.");
+    });
+
+    return () => {
+      socket.off("orderCreated");
+      socket.off("orderUpdated");
+      socket.off("orderDeleted");
+    };
+  }, [socket]);
+
   const loadOrders = async () => {
     try {
       const data = await apiFetch('/orders');
       setOrders(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error(e);
+      /* Silent error handling for data fetch */
     } finally {
       setLoading(false);
     }
@@ -140,23 +179,51 @@ function CashierOrders() {
   );
 }
 
-// ---------------- Payments Tab ---------------- //
+// Payment tracking
 function CashierPayments() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const socket = useSocket();
 
   useEffect(() => {
     loadOrders();
-    const interval = setInterval(loadOrders, 30000); // Auto refresh every 30s
+    const interval = setInterval(loadOrders, 30000); 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("orderCreated", (newOrder) => {
+      setOrders((prev) => {
+        if (prev.some((o) => o._id === newOrder._id)) return prev;
+        return [newOrder, ...prev];
+      });
+    });
+
+    socket.on("orderUpdated", (updatedOrder) => {
+      setOrders((prev) =>
+        prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o))
+      );
+    });
+
+    socket.on("orderDeleted", ({ id }) => {
+      setOrders((prev) => prev.filter((o) => o._id !== id));
+    });
+
+    return () => {
+      socket.off("orderCreated");
+      socket.off("orderUpdated");
+      socket.off("orderDeleted");
+    };
+  }, [socket]);
 
   const loadOrders = async () => {
     try {
       const data = await apiFetch('/orders');
       setOrders(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error(e);
+      /* Error handled */
     } finally {
       setLoading(false);
     }
@@ -236,95 +303,154 @@ function CashierPayments() {
   );
 }
 
-// ---------------- Receipts Tab ---------------- //
+// Revenue printing
 function CashierReceipts() {
   const { settings } = useSettings();
   const [orders, setOrders] = useState([]);
-
   const [loading, setLoading] = useState(true);
+  const socket = useSocket();
 
   useEffect(() => {
     loadOrders();
-    const interval = setInterval(loadOrders, 30000); // Auto refresh every 30s
+    const interval = setInterval(loadOrders, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("orderCreated", (newOrder) => {
+      if (newOrder.paymentStatus === 'Paid') {
+        setOrders((prev) => {
+          if (prev.some((o) => o._id === newOrder._id)) return prev;
+          return [newOrder, ...prev];
+        });
+      }
+    });
+
+    socket.on("orderUpdated", (updatedOrder) => {
+      setOrders((prev) => {
+        const exists = prev.some((o) => o._id === updatedOrder._id);
+        if (updatedOrder.paymentStatus === 'Paid') {
+          if (exists) {
+            return prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o));
+          } else {
+            return [updatedOrder, ...prev];
+          }
+        } else {
+          return prev.filter((o) => o._id !== updatedOrder._id);
+        }
+      });
+    });
+
+    socket.on("orderDeleted", ({ id }) => {
+      setOrders((prev) => prev.filter((o) => o._id !== id));
+    });
+
+    return () => {
+      socket.off("orderCreated");
+      socket.off("orderUpdated");
+      socket.off("orderDeleted");
+    };
+  }, [socket]);
 
   const loadOrders = async () => {
     try {
       const data = await apiFetch('/orders');
-      // Only show paid orders for receipts
       setOrders(Array.isArray(data) ? data.filter(o => o.paymentStatus === 'Paid') : []);
     } catch (e) {
-      console.error(e);
+      /* Error handled */
     } finally {
       setLoading(false);
     }
   };
 
   const handlePrintReceipt = (order) => {
-    const printWindow = window.open('', '_blank', 'width=400,height=700');
-    const itemsHtml = order.items.map(item => `
-      <div class="item-row">
-        <span>${item.quantity} x ${item.name}</span>
-        <span>Rs ${item.price.toLocaleString()}</span>
-      </div>
+    let relatedOrders = [order];
+    if (order.tableNumber || order.roomNumber) {
+      if (order.paymentStatus === 'Unpaid') {
+        const existingUnpaid = (orders || []).filter(o =>
+          o.paymentStatus === 'Unpaid' &&
+          ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+            (order.roomNumber && o.roomNumber === order.roomNumber)) &&
+          o._id !== order._id
+        );
+        relatedOrders = [...existingUnpaid, order];
+      } else if (order.paymentStatus === 'Paid') {
+        const orderTime = new Date(order.updatedAt || order.createdAt).getTime();
+        const existingPaid = (orders || []).filter(o =>
+          o.paymentStatus === 'Paid' &&
+          ((order.tableNumber && o.tableNumber === order.tableNumber) ||
+            (order.roomNumber && o.roomNumber === order.roomNumber)) &&
+          Math.abs(new Date(o.updatedAt || o.createdAt).getTime() - orderTime) < 10000 &&
+          o._id !== order._id
+        );
+        relatedOrders = [...existingPaid, order];
+      }
+    }
+
+    const combinedItems = relatedOrders.flatMap(o => o.items || []);
+    const combinedSubtotal = relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0);
+    const combinedServiceCharge = relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0);
+    const combinedDeliveryFee = relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
+    const combinedDiscount = relatedOrders.reduce((s, o) => s + (o.discount || 0), 0);
+    const combinedTotalAmount = relatedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const totalQty = combinedItems.reduce((s, it) => s + (it?.quantity || 0), 0);
+
+    const printWindow = window.open('', '_blank', 'width=350,height=600');
+    if (!printWindow) return;
+
+    const itemsHtml = combinedItems.map(it => `
+      <tr>
+        <td style="padding: 2px 0;">${it.name}${it.portion ? ` (${it.portion})` : ''}</td>
+        <td style="text-align: center;">${it.quantity}</td>
+        <td style="text-align: right;">${((Number(it.price) || 0) * (Number(it.quantity) || 1)).toLocaleString()}</td>
+      </tr>
     `).join('');
 
     let qrHtml = '';
     if (order.orderType === 'Delivery' && order.coordinates) {
       const mapsUrl = `https://www.google.com/maps?q=${order.coordinates.lat},${order.coordinates.lng}`;
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(mapsUrl)}`;
       qrHtml = `
-        <div style="text-align: center; margin-top: 25px; padding-top: 25px; border-top: 2px dashed #CBD5E1;">
-          <div style="font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #0F172A; margin-bottom: 12px;">Delivery Location</div>
-          <img src="${qrUrl}" alt="Location QR Code" style="width: 120px; height: 120px; border-radius: 8px; border: 2px solid #0F172A; padding: 4px;" />
-          <div style="font-size: 10px; font-weight: 700; color: #64748B; margin-top: 8px;">Scan for Google Maps Navigation</div>
+        <div style="text-align: center; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #000;">
+          <div style="font-size: 8px; margin-bottom: 2px;">DELIVERY LOCATION</div>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(mapsUrl)}" style="width:100px; height:100px; margin: 0 auto;" />
+          <div style="font-size: 7px; margin-top: 2px;">SCAN FOR GOOGLE MAPS</div>
         </div>
       `;
     }
 
-    const hotelLogo = `
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto;">
-        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
-        <path d="M9 22v-4h6v4"></path>
-        <path d="M8 6h.01"></path>
-        <path d="M16 6h.01"></path>
-        <path d="M12 6h.01"></path>
-        <path d="M12 10h.01"></path>
-        <path d="M12 14h.01"></path>
-        <path d="M16 10h.01"></path>
-        <path d="M16 14h.01"></path>
-        <path d="M8 10h.01"></path>
-        <path d="M8 14h.01"></path>
-      </svg>
-    `;
+    const orderDate = new Date(order.createdAt).toLocaleDateString();
+    const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
+    const dailyNum = sameDayOrders.length - sameDayOrders.indexOf(order);
+    const dailySeqStr = dailyNum.toString().padStart(3, '0');
 
     printWindow.document.write(`
       <html>
         <head>
           <title>${settings.hotelName} - Receipt #${order._id.slice(-8)}</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;600;700;900&display=swap');
-            body { font-family: 'Inter', sans-serif; padding: 30px; color: #0F172A; max-width: 400px; margin: 0 auto; }
-            .header { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #0F172A; padding-bottom: 20px; }
-            .logo { margin-bottom: 10px; display: flex; justify-content: center; }
-            .hotel-name { font-family: 'DM Serif Display', serif; font-size: 28px; font-weight: normal; letter-spacing: 1px; color: #0F172A; }
-            .hotel-details { font-size: 10px; color: #64748B; margin-top: 5px; line-height: 1.4; font-weight: 600; }
-            .receipt-title { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 4px; color: #0F172A; margin-top: 15px; padding: 5px 0; border-top: 1px dashed #CBD5E1; border-bottom: 1px dashed #CBD5E1; }
-            .info { margin-bottom: 25px; font-size: 11px; color: #475569; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-weight: 500; }
-            .info strong { color: #0F172A; font-weight: 900; text-transform: uppercase; font-size: 9px; letter-spacing: 1px; display: block; margin-bottom: 2px; }
-            .items { margin-bottom: 25px; }
-            .item-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; font-weight: 600; color: #1E293B; }
-            .item-row span:last-child { font-weight: 900; color: #0F172A; }
-            .totals { border-top: 2px solid #0F172A; padding-top: 15px; }
-            .total-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
-            .grand-total { font-size: 18px; font-weight: 900; color: #0F172A; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #CBD5E1; letter-spacing: 0; }
-            .footer { text-align: center; margin-top: 40px; font-size: 10px; color: #64748B; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; line-height: 1.6; }
+            @media print { @page { margin: 0; } body { margin: 0.2cm; } }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              font-size: 11px; 
+              line-height: 1.2; 
+              color: #000; 
+              width: 100%; 
+              max-width: 300px; 
+              margin: 0 auto;
+            }
+            .header { text-align: center; margin-bottom: 8px; }
+            .divider { border-top: 1px dashed #000; margin: 4px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            .total-row { font-weight: bold; font-size: 13px; }
+            .footer { text-align: center; margin-top: 10px; font-size: 9px; }
+            .badge { display: inline-block; padding: 2px 4px; border: 1px solid #000; font-weight: bold; }
           </style>
         </head>
         <body>
           <div class="header">
-            <div class="logo">${hotelLogo}</div>
+            <div class="logo">${settings.hotelLogo || ''}</div>
             <div class="hotel-name">${settings.hotelName.toUpperCase()}</div>
             <div class="hotel-details">
               ${settings.address}<br>
@@ -333,39 +459,70 @@ function CashierReceipts() {
             </div>
             <div class="receipt-title">Official Receipt</div>
           </div>
-          <div class="info">
-            <div><strong>Order ID</strong>#${order._id.slice(-8)}</div>
-            <div style="text-align: right;"><strong>Date</strong>${new Date(order.createdAt).toLocaleDateString()} ${new Date(order.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
-            <div><strong>Type</strong>${order.orderType}</div>
-            <div style="text-align: right;"><strong>Customer</strong>${order.customerName || 'Guest'}</div>
-            ${order.tableNumber ? `<div><strong>Table</strong>${order.tableNumber}</div>` : ''}
-            ${order.roomNumber ? `<div><strong>Room</strong>${order.roomNumber}</div>` : ''}
-            ${order.contactNumber ? `<div style="grid-column: 1 / -1;"><strong>Contact Number</strong>${order.contactNumber}</div>` : ''}
-            ${order.deliveryAddress ? `<div style="grid-column: 1 / -1;"><strong>Delivery Address</strong>${order.deliveryAddress}</div>` : ''}
+          <div class="divider"></div>
+          <div style="text-align: center; margin-bottom: 5px;">
+            <div style="font-size: 16px; font-weight: bold; border: 2px solid #000; display: inline-block; padding: 4px 10px;">ORDER #${dailySeqStr}</div>
           </div>
-          <div class="items">
-            ${itemsHtml}
+          <div class="divider"></div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>ID: #${(order?._id || "").slice(-6).toUpperCase()}</span>
+            <span>${order?.createdAt ? new Date(order.createdAt).toLocaleDateString() : ""}</span>
           </div>
-          <div class="totals">
-            <div class="total-row"><span>Subtotal</span><span>Rs ${order.items.reduce((s,i) => s + (i.price*i.quantity), 0).toLocaleString()}</span></div>
-            <div class="total-row"><span>Discount</span><span>-Rs ${(order.discount || 0).toLocaleString()}</span></div>
-            <div class="total-row grand-total"><span>Grand Total</span><span>Rs ${order.totalAmount.toLocaleString()}</span></div>
-            ${order.amountReceived > 0 ? `
-              <div class="total-row" style="margin-top: 15px;"><span>Amount Received</span><span style="color: #10B981;">Rs ${order.amountReceived.toLocaleString()}</span></div>
-              <div class="total-row"><span>Change Given</span><span>Rs ${(order.balance || 0).toLocaleString()}</span></div>
-            ` : ''}
+          <div style="display:flex; justify-content:space-between;">
+             <span>Time: ${order?.createdAt ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</span>
+             <span class="badge">${(order?.orderType || "").toUpperCase()}</span>
           </div>
+          ${order?.tableNumber ? `<div>Table: ${order.tableNumber}</div>` : ''}
+          ${order?.roomNumber ? `<div>Room: ${order.roomNumber}</div>` : ''}
+          <div>Guest: ${order.customerName.toUpperCase()}</div>
+          ${order?.contactNumber ? `<div>Phone: ${order.contactNumber}</div>` : ''}
+          ${order?.deliveryAddress ? `<div>Address: ${order.deliveryAddress}</div>` : ''}
+          
+          <div class="divider"></div>
+          <table>
+            <thead>
+              <tr style="border-bottom: 1px dashed #000;">
+                <th style="text-align: left;">ITEM</th>
+                <th style="width: 30px;">QTY</th>
+                <th style="text-align: right; width: 70px;">PRICE</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          <div class="divider"></div>
+          
+          <div style="text-align: right; space-y: 2px;">
+            <div>Items Count: ${totalQty}</div>
+            <div>Subtotal Sum: Rs ${(combinedSubtotal || 0).toLocaleString()}</div>
+            ${combinedServiceCharge > 0 ? `<div>Service (10%): Rs ${combinedServiceCharge.toLocaleString()}</div>` : ''}
+            ${combinedDeliveryFee > 0 ? `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>` : ''}
+            ${combinedDiscount > 0 ? `<div>Discount: -Rs ${combinedDiscount.toLocaleString()}</div>` : ''}
+            <div class="divider"></div>
+            <div class="total-row">GROUP TOTAL: Rs ${(combinedTotalAmount || 0).toLocaleString()}</div>
+            <div class="divider"></div>
+            ${(order?.amountReceived || 0) > 0 ? `
+              <div>Cash Paid: Rs ${(order?.amountReceived || 0).toLocaleString()}</div>
+              <div style="font-weight:bold; font-size: 13px;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
+            ` : `
+              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending / Group Settle</div>
+            `}
+          </div>
+
           ${qrHtml}
+
           <div class="footer">
             Thank you for choosing ${settings.hotelName}<br>Visit again for a premium experience
           </div>
+          
           <script>
-            window.onload = () => {
-              setTimeout(() => {
-                window.print();
-                setTimeout(() => window.close(), 500);
-              }, 500);
-            };
+            setTimeout(function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+              // Fallback for browsers that don't support onafterprint well
+              setTimeout(function() { window.close(); }, 2000);
+            }, 500);
           </script>
         </body>
       </html>

@@ -71,7 +71,22 @@ export function AdminRestaurant() {
   }, [menuItems, menuSearch, menuCategory]);
 
   const menuCategories = useMemo(() => {
-    return ['All', ...new Set(menuItems.map((item) => item.category).filter(Boolean))];
+    const predefinedOrder = [
+      'Rice', 'Koththu', 'Noodles', 'Chicken', 'Fish', 'Prawns', 'Cuttle Fish', 
+      'Mutton', 'Pork', 'Omelet', 'Vegetables & Sides', 'Salad', 'Soup', 
+      'Starters', 'Outdoor Party', 'Beverages'
+    ];
+    const cats = new Set(menuItems.map((item) => item.category).filter(Boolean));
+    const sortedCats = Array.from(cats).sort((a, b) => {
+      const indexA = predefinedOrder.indexOf(a);
+      const indexB = predefinedOrder.indexOf(b);
+      
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA === -1 && indexB !== -1) return 1;
+      if (indexA !== -1 && indexB === -1) return -1;
+      return a.localeCompare(b);
+    });
+    return ['All', ...sortedCats];
   }, [menuItems]);
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

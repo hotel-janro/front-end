@@ -1,9 +1,10 @@
-// Restaurant.jsx - Supreme Luxury Customer Menu & Ordering
+// Restaurant - Customer Menu & Ordering
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FoodCard } from "../../components/website/FoodCard.jsx";
 import { ImageWithFallback } from "../../components/common/ImageWithFallback.jsx";
-import { ShoppingCart, X, Truck, Building2, Loader2, MapPin, Phone, History, UtensilsCrossed, Package, Star, Info, CheckCircle } from "lucide-react";
+import { MapPicker } from "../../components/common/MapPicker.jsx";
+import { ShoppingCart, X, Truck, Building2, Loader2, MapPin, Phone, History, UtensilsCrossed, Package, Star, Info, CheckCircle, Search } from "lucide-react";
 import { apiFetch, API_HOST, getImageUrl } from "../../api.js";
 import { toast } from "sonner";
 import { useSettings } from "../../context/SettingsContext.jsx";
@@ -14,10 +15,19 @@ export function Restaurant({ onOrder, user }) {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
-  
-  // Advanced Order State
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Order state
   const [orderType, setOrderType] = useState("Dine-in");
   const [customerName, setCustomerName] = useState(user?.name || "");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -43,7 +53,7 @@ export function Restaurant({ onOrder, user }) {
   useEffect(() => {
     const fetchMenu = async () => {
       try {
-        const data = await apiFetch("/menu?limit=100&populate=inventoryItem");
+        const data = await apiFetch("/menu?limit=100&populate=inventoryItem&isAvailable=true");
         // Handle both paginated and non-paginated responses
         const items = Array.isArray(data) ? data : (data?.items || []);
         setMenuItems(items);
@@ -64,15 +74,36 @@ export function Restaurant({ onOrder, user }) {
   }, [user]);
 
   const categories = useMemo(() => {
-    const rawCategories = ["All", ...new Set(menuItems.map(i => i.category).filter(Boolean))];
-    return rawCategories
-      .filter(cat => !["Breakfast", "Appetizers", "Chef's Specialty"].includes(cat)) 
-      .map(cat => (cat === "Snack" || cat === "Snacks") ? "Bites" : cat); 
+    const predefinedOrder = [
+      'Rice', 'Koththu', 'Noodles', 'Chicken', 'Fish', 'Prawns', 'Cuttle Fish', 
+      'Mutton', 'Pork', 'Omelet', 'Vegetables & Sides', 'Salad', 'Soup', 
+      'Starters', 'Outdoor Party', 'Beverages'
+    ];
+    
+    const cats = new Set(menuItems.map(item => item.category).filter(Boolean));
+    const sortedCats = Array.from(cats).sort((a, b) => {
+      const indexA = predefinedOrder.indexOf(a);
+      const indexB = predefinedOrder.indexOf(b);
+      
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA === -1 && indexB !== -1) return 1;
+      if (indexA !== -1 && indexB === -1) return -1;
+      return a.localeCompare(b);
+    });
+    
+    return ['All', ...sortedCats];
   }, [menuItems]);
 
-  const filteredItems = useMemo(() => 
-    activeCategory === "All" ? menuItems : menuItems.filter(i => i.category === activeCategory)
-  , [menuItems, activeCategory]);
+  const filteredItems = useMemo(() => {
+    return menuItems.filter(i => {
+      const matchCategory = activeCategory === "All" || i.category === activeCategory;
+      const searchLower = debouncedSearch.toLowerCase();
+      const matchSearch = !debouncedSearch || 
+        i.name.toLowerCase().includes(searchLower) || 
+        (i.category && i.category.toLowerCase().includes(searchLower));
+      return matchCategory && matchSearch;
+    });
+  }, [menuItems, activeCategory, debouncedSearch]);
 
   const addToCart = (item) => {
     setCart((prev) => {
@@ -89,7 +120,7 @@ export function Restaurant({ onOrder, user }) {
   const removeFromCart = (cartItemId) => setCart((prev) => prev.filter((c) => c.cartItemId !== cartItemId));
 
   const updateQuantity = (cartItemId, delta) => {
-    setCart((prev) => 
+    setCart((prev) =>
       prev.map((item) => {
         if (item.cartItemId === cartItemId) {
           const newQty = Math.max(1, item.quantity + delta);
@@ -100,16 +131,16 @@ export function Restaurant({ onOrder, user }) {
     );
   };
 
-  // --- ADVANCED PRICING LOGIC ---
+  // Pricing and distance logic
   const HOTEL_COORDS = { lat: 6.9458, lng: 80.1250 }; // Malwana Road, Dompe
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; 
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
@@ -117,23 +148,50 @@ export function Restaurant({ onOrder, user }) {
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
   const subtotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
-  
+
   let serviceCharge = 0;
   let deliveryFee = 0;
   let distance = 0;
 
   if (orderType === "Dine-in" || orderType === "Room") {
-    serviceCharge = subtotal * 0.1; 
+    serviceCharge = subtotal * 0.1;
   } else if (orderType === "Delivery" && coordinates) {
-    distance = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, coordinates.lat, coordinates.lng);
+    const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, coordinates.lat, coordinates.lng);
+    // Apply a 1.2x winding factor to estimate actual road distance
+    distance = straightDist * 1.2;
     if (distance > 1 && distance <= 15) {
-      // 10% of subtotal for each km after the first free km
-      deliveryFee = subtotal * 0.1 * Math.floor(distance); 
+      // 1km free, then 10% per 1km
+      deliveryFee = subtotal * 0.1 * Math.ceil(distance - 1);
     }
   }
 
   const grandTotal = subtotal + serviceCharge + deliveryFee;
   const isDistanceTooFar = orderType === "Delivery" && distance > 15;
+
+  const autoGeocode = async (address) => {
+    if (!address || address.length < 5) return;
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        setCoordinates({ lat: parseFloat(lat), lng: parseFloat(lon) });
+      }
+    } catch (e) { /* Ignore */ }
+  };
+
+  const handleMapCoordinatesChange = async (coords) => {
+    setCoordinates(coords);
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}`);
+      const data = await response.json();
+      if (data && data.display_name) {
+        setDeliveryAddress(data.display_name);
+      }
+    } catch (e) {
+      console.error("Reverse geocoding failed on marker drag:", e);
+    }
+  };
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
@@ -153,8 +211,8 @@ export function Restaurant({ onOrder, user }) {
         const { latitude, longitude } = pos.coords;
         console.log("Restaurant: Location Captured:", { latitude, longitude });
         setCoordinates({ lat: latitude, lng: longitude });
-        
-        // Reverse Geocoding - Fetch readable address
+
+        // Fill address from location
         try {
           const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await response.json();
@@ -171,8 +229,8 @@ export function Restaurant({ onOrder, user }) {
       (err) => {
         console.error("Restaurant: Geolocation Error:", err);
         setIsLocating(false);
-        
-        switch(err.code) {
+
+        switch (err.code) {
           case err.PERMISSION_DENIED:
             toast.error("Please allow location access in your browser settings.");
             break;
@@ -216,11 +274,10 @@ export function Restaurant({ onOrder, user }) {
 
     if (orderType === "Room") {
       const rNum = Number(roomNumber);
-      if (!roomNumber || isNaN(rNum) || rNum < 101 || rNum > 110) {
-        errors.roomNumber = "Select a valid room (101-110)";
+      if (!roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
+        errors.roomNumber = "Select a valid room (1-10)";
       }
     }
-
     if (orderType === "Dine-in" && !tableNumber) {
       errors.tableNumber = "Table number is required";
     }
@@ -235,13 +292,18 @@ export function Restaurant({ onOrder, user }) {
       return;
     }
 
+    if (isDistanceTooFar) {
+      toast.error("Sorry, we cannot deliver to your location as it is outside our 15km delivery radius.");
+      return;
+    }
+
     try {
       setIsPlacingOrder(true);
       const orderData = {
-        items: cart.map(item => ({ 
-          menuItemId: item._id, 
+        items: cart.map(item => ({
+          menuItemId: item._id,
           quantity: item.quantity,
-          portion: item.portion || "" 
+          portion: item.portion || ""
         })),
         orderType,
         deliveryAddress: orderType === "Delivery" ? deliveryAddress : "",
@@ -276,10 +338,10 @@ export function Restaurant({ onOrder, user }) {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Hero Section - Perfectly Matched with Events Page */}
       <div className="bg-[#0F172A] py-16 text-center relative overflow-hidden">
+        {/* Hero */}
         <div className="absolute inset-0 opacity-10">
-          <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="Luxury Dining" />
+          <img src="https://res.cloudinary.com/dhuirf8i9/image/upload/v1783022207/hotel_janro/hotel_hero.jpg" className="w-full h-full object-cover" alt="Hotel Janro" />
         </div>
         <div className="relative z-10 px-4">
           <h1 className="text-4xl md:text-5xl text-[#D4AF37] mb-4 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>
@@ -292,24 +354,35 @@ export function Restaurant({ onOrder, user }) {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Modern Category Tabs */}
-        <div className="flex flex-wrap justify-center gap-2 mb-10">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`flex items-center gap-2.5 px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer whitespace-nowrap ${
-                  activeCategory === cat
-                    ? "bg-[#0F172A] text-[#D4AF37] shadow-lg shadow-[#0F172A]/20"
-                    : "text-gray-400 hover:text-[#0F172A] hover:bg-gray-50"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+        {/* Search Bar */}
+        <div className="max-w-md mx-auto mb-8 relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search for your favorite dishes..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm text-sm font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all text-slate-800"
+          />
         </div>
 
-        {/* Menu Grid - Matched Gap and Layout */}
+        {/* Categories */}
+        <div className="flex flex-wrap justify-center gap-2 mb-10">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`flex items-center gap-2.5 px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer whitespace-nowrap ${activeCategory === cat
+                  ? "bg-[#0F172A] text-[#D4AF37] shadow-lg shadow-[#0F172A]/20"
+                  : "text-gray-400 hover:text-[#0F172A] hover:bg-gray-50"
+                }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Menu Grid */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-10 h-10 animate-spin text-[#D4AF37]" />
@@ -330,7 +403,7 @@ export function Restaurant({ onOrder, user }) {
           )
         )}
 
-        {/* Elite Floating Cart Trigger */}
+        {/* Floating Cart Button */}
         {cart.length > 0 && (
           <div className="fixed bottom-10 right-10 z-40 group">
             <button
@@ -349,20 +422,20 @@ export function Restaurant({ onOrder, user }) {
           </div>
         )}
 
-        {/* Supreme Sliding Cart Panel */}
+        {/* Checkout Modal */}
         {showCart && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-4">
             <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setShowCart(false)} />
-            
-            <div className="relative bg-white w-full max-w-5xl h-[85vh] rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-500 border border-white/10">
-              
-              {/* Left Side: Scrollable Order Summary */}
-              <div className="w-full md:w-[35%] bg-[#0F172A] flex flex-col border-r border-white/5">
-                <div className="px-6 py-6 border-b border-white/5">
+
+            <div className="relative bg-white w-full max-w-5xl h-[95vh] md:h-[85vh] rounded-[2rem] md:rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-500 border border-white/10">
+
+              {/* Order Summary */}
+              <div className="w-full md:w-[35%] h-[40%] md:h-full bg-[#0F172A] flex flex-col border-b md:border-b-0 md:border-r border-white/5 shrink-0 md:shrink">
+                <div className="px-4 md:px-6 py-4 md:py-6 border-b border-white/5 shrink-0">
                   <h2 className="text-xl text-white font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Your <span className="text-[#D4AF37]">Selection</span></h2>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar-dark px-6 py-4 space-y-3">
+                <div className="flex-1 overflow-y-auto custom-scrollbar-dark px-4 md:px-6 py-4 space-y-3 min-h-0">
                   {cart.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center opacity-20">
                       <Package className="w-12 h-12 text-white mb-2" />
@@ -388,7 +461,7 @@ export function Restaurant({ onOrder, user }) {
                   )}
                 </div>
 
-                <div className="p-6 bg-black/20 border-t border-white/5 space-y-2">
+                <div className="p-4 md:p-6 bg-black/20 border-t border-white/5 space-y-2 shrink-0">
                   <div className="flex justify-between text-[9px] text-white/40 uppercase tracking-widest font-black">
                     <span>Subtotal</span>
                     <span>{formatCurrency(subtotal)}</span>
@@ -400,16 +473,27 @@ export function Restaurant({ onOrder, user }) {
                     </div>
                   )}
                   {deliveryFee > 0 && (
-                    <div className="flex justify-between text-[9px] text-sky-400 uppercase tracking-widest font-black">
-                      <span>Delivery Fee</span>
-                      <span>{formatCurrency(deliveryFee)}</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between text-[9px] text-sky-400 uppercase tracking-widest font-black">
+                        <span>Delivery Fee</span>
+                        <span>{formatCurrency(deliveryFee)}</span>
+                      </div>
+                      <span className="text-[7px] text-sky-400/60 text-right uppercase tracking-widest font-bold">
+                        {distance.toFixed(1)} km (1km free, 10% subtotal/km)
+                      </span>
+                    </div>
+                  )}
+                  {orderType === "Delivery" && deliveryAddress && (
+                    <div className="pt-2 border-t border-white/5 flex flex-col gap-0.5 mt-2">
+                      <span className="text-[7px] font-black text-white/40 uppercase tracking-widest">Delivery Address</span>
+                      <span className="text-[9px] text-white/80 leading-snug line-clamp-2">{deliveryAddress}</span>
                     </div>
                   )}
 
-                  <div className="pt-4 border-t border-white/5 flex justify-between items-end">
+                  <div className="pt-2 md:pt-4 border-t border-white/5 flex justify-between items-end">
                     <div>
                       <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-widest mb-1">Total Payable</p>
-                      <h3 className="text-3xl text-white font-normal leading-none" style={{ fontFamily: "DM Serif Display, serif" }}>
+                      <h3 className="text-2xl md:text-3xl text-white font-normal leading-none" style={{ fontFamily: "DM Serif Display, serif" }}>
                         {formatCurrency(grandTotal)}
                       </h3>
                     </div>
@@ -417,18 +501,18 @@ export function Restaurant({ onOrder, user }) {
                 </div>
               </div>
 
-              {/* Right Side: Non-Scrolling Form */}
-              <div className="flex-1 bg-white flex flex-col h-full overflow-hidden">
-                <div className="px-8 py-5 border-b border-slate-50 flex items-center justify-between">
+              {/* Checkout Form */}
+              <div className="flex-1 bg-white flex flex-col h-[60%] md:h-full overflow-hidden">
+                <div className="px-6 md:px-8 py-3 md:py-5 border-b border-slate-50 flex items-center justify-between shrink-0">
                   <div>
-                    <h2 className="text-2xl text-slate-900 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Checkout <span className="text-[#D4AF37]">Details</span></h2>
+                    <h2 className="text-xl md:text-2xl text-slate-900 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Checkout <span className="text-[#D4AF37]">Details</span></h2>
                   </div>
-                  <button onClick={() => setShowCart(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-[#0F172A] transition-all">
-                    <X className="w-5 h-5" />
+                  <button onClick={() => setShowCart(false)} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-[#0F172A] transition-all">
+                    <X className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
                 </div>
 
-                <div className="flex-1 px-8 py-6 space-y-5 overflow-hidden bg-slate-50/10">
+                <div className="flex-1 px-6 md:px-8 py-4 md:py-6 space-y-5 overflow-y-auto bg-slate-50/10 min-h-0">
                   {/* Step 1: Mode */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
@@ -445,28 +529,25 @@ export function Restaurant({ onOrder, user }) {
                         <button
                           key={type.id}
                           onClick={() => { setOrderType(type.id); setValidationErrors({}); }}
-                          className={`group relative flex flex-col items-center justify-center gap-2 p-4 rounded-3xl transition-all duration-500 cursor-pointer overflow-hidden border-2 ${
-                            orderType === type.id 
-                            ? "bg-[#0F172A] border-[#0F172A] scale-105 shadow-[0_20px_40px_rgba(0,0,0,0.2)]" 
-                            : `${type.bg} ${type.border} hover:border-[#D4AF37]/30 hover:shadow-lg hover:-translate-y-1`
-                          }`}
+                          className={`group relative flex flex-col items-center justify-center gap-2 p-4 rounded-3xl transition-all duration-500 cursor-pointer overflow-hidden border-2 ${orderType === type.id
+                              ? "bg-[#0F172A] border-[#0F172A] scale-105 shadow-[0_20px_40px_rgba(0,0,0,0.2)]"
+                              : `${type.bg} ${type.border} hover:border-[#D4AF37]/30 hover:shadow-lg hover:-translate-y-1`
+                            }`}
                         >
                           {/* Active Background Glow */}
                           {orderType === type.id && (
                             <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-[#D4AF37] to-transparent animate-pulse" />
                           )}
-                          
-                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-500 ${
-                            orderType === type.id 
-                            ? "bg-[#D4AF37] text-[#0F172A] shadow-[0_0_20px_rgba(212,175,55,0.4)] rotate-[360deg]" 
-                            : `bg-white ${type.text} shadow-sm group-hover:scale-110`
-                          }`}>
+
+                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-500 ${orderType === type.id
+                              ? "bg-[#D4AF37] text-[#0F172A] shadow-[0_0_20px_rgba(212,175,55,0.4)] rotate-[360deg]"
+                              : `bg-white ${type.text} shadow-sm group-hover:scale-110`
+                            }`}>
                             <type.icon className="w-5 h-5" />
                           </div>
 
-                          <span className={`text-[8px] font-black uppercase tracking-[0.1em] transition-colors duration-500 ${
-                            orderType === type.id ? "text-[#D4AF37]" : "text-slate-600"
-                          }`}>
+                          <span className={`text-[8px] font-black uppercase tracking-[0.1em] transition-colors duration-500 ${orderType === type.id ? "text-[#D4AF37]" : "text-slate-600"
+                            }`}>
                             {type.label}
                           </span>
 
@@ -479,7 +560,7 @@ export function Restaurant({ onOrder, user }) {
                     </div>
                   </div>
 
-                  {/* Step 2: Details */}
+                  {/* Step 2: Info */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
@@ -489,8 +570,8 @@ export function Restaurant({ onOrder, user }) {
                       {/* Name Field */}
                       <div className="space-y-1">
                         <div className="relative">
-                          <input 
-                            value={customerName} 
+                          <input
+                            value={customerName}
                             onChange={e => { setCustomerName(e.target.value); clearError('customerName'); }}
                             className={`w-full bg-white border-2 ${validationErrors.customerName ? 'border-rose-400' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-[#D4AF37] pl-10 text-slate-900 shadow-sm`}
                             placeholder="Your Full Name"
@@ -503,8 +584,8 @@ export function Restaurant({ onOrder, user }) {
                       {/* Phone Field */}
                       <div className="space-y-1">
                         <div className="relative">
-                          <input 
-                            value={contactNumber} 
+                          <input
+                            value={contactNumber}
                             onChange={e => { setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); clearError('contactNumber'); }}
                             className={`w-full bg-white border-2 ${validationErrors.contactNumber ? 'border-rose-400' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-[#D4AF37] pl-10 text-slate-900 shadow-sm`}
                             placeholder="Phone Number"
@@ -516,7 +597,7 @@ export function Restaurant({ onOrder, user }) {
                     </div>
                   </div>
 
-                  {/* Step 3: Location Dropdowns */}
+                  {/* Step 3: Location */}
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
@@ -528,7 +609,7 @@ export function Restaurant({ onOrder, user }) {
                           <div className="relative">
                             <select value={tableNumber} onChange={e => { setTableNumber(e.target.value); clearError('tableNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.tableNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
                               <option value="">Select Table Number</option>
-                              {["T-01", "T-02", "T-03", "T-04", "T-05", "T-06", "T-07", "T-08", "T-09", "T-10"].map(t => <option key={t} value={t}>{t}</option>)}
+                              {["T-01", "T-02", "T-03", "T-04", "T-05", "T-06", "T-07", "T-08", "T-09", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15"].map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                             <UtensilsCrossed className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
                           </div>
@@ -540,7 +621,7 @@ export function Restaurant({ onOrder, user }) {
                           <div className="relative">
                             <select value={roomNumber} onChange={e => { setRoomNumber(e.target.value); clearError('roomNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.roomNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
                               <option value="">Select Room Number</option>
-                              {["101", "102", "103", "104", "105", "106", "107", "108", "109", "110"].map(r => <option key={r} value={r}>Room {r}</option>)}
+                              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map(r => <option key={r} value={r}>Room {r}</option>)}
                             </select>
                             <Building2 className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
                           </div>
@@ -550,14 +631,19 @@ export function Restaurant({ onOrder, user }) {
                       {orderType === "Delivery" && (
                         <>
                           <div className="flex gap-3">
-                            <textarea value={deliveryAddress} onChange={e => { setDeliveryAddress(e.target.value); clearError('deliveryAddress'); }} className="flex-1 bg-slate-50/50 border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold outline-none h-16 resize-none text-slate-700" placeholder="Type delivery address here..." />
-                            <button 
-                              onClick={handleGetLocation} 
-                              className={`w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all duration-500 shadow-lg group ${
-                                coordinates 
-                                ? 'bg-emerald-500 text-white shadow-emerald-200' 
-                                : 'bg-[#0F172A] text-[#D4AF37] hover:bg-slate-800'
-                              }`}
+                            <textarea
+                              value={deliveryAddress}
+                              onChange={e => { setDeliveryAddress(e.target.value); clearError('deliveryAddress'); }}
+                              onBlur={(e) => autoGeocode(e.target.value)}
+                              className="flex-1 bg-slate-50/50 border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold outline-none h-16 resize-none text-slate-700"
+                              placeholder="Type delivery address here..."
+                            />
+                            <button
+                              onClick={handleGetLocation}
+                              className={`w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all duration-500 shadow-lg group ${coordinates
+                                  ? 'bg-emerald-500 text-white shadow-emerald-200'
+                                  : 'bg-[#0F172A] text-[#D4AF37] hover:bg-slate-800'
+                                }`}
                             >
                               {isLocating ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -569,7 +655,17 @@ export function Restaurant({ onOrder, user }) {
                               </span>
                             </button>
                           </div>
+                          <MapPicker coordinates={coordinates} onChange={handleMapCoordinatesChange} />
+                          {coordinates && distance > 0 && (
+                            <div className="mt-2 flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Est. Distance</span>
+                              <span className={`text-[9px] font-black ${isDistanceTooFar ? 'text-rose-500' : 'text-[#D4AF37]'}`}>
+                                {distance.toFixed(1)} km {isDistanceTooFar ? '(Too Far!)' : ''}
+                              </span>
+                            </div>
+                          )}
                           {validationErrors.deliveryAddress && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.deliveryAddress}</p>}
+                          {isDistanceTooFar && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">Sorry, we only deliver within 15km.</p>}
                         </>
                       )}
                       {orderType === "Take-away" && <p className="text-[9px] font-black text-[#D4AF37] uppercase text-center py-2 tracking-widest">Self-Pickup at Restaurant</p>}
@@ -584,17 +680,17 @@ export function Restaurant({ onOrder, user }) {
                     </div>
                     <input value={specialNotes} onChange={e => setSpecialNotes(e.target.value)} className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-[#D4AF37] text-slate-700 shadow-sm" placeholder="Any special requests or allergies?" />
                   </div>
-                </div>
 
-                <div className="px-8 py-6 bg-white border-t border-slate-50 mt-auto">
-                  <button
-                    disabled={isPlacingOrder || cart.length === 0}
-                    onClick={handlePlaceOrder}
-                    className="w-full py-5 rounded-2xl bg-[#0F172A] text-[#D4AF37] font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] active:scale-95 shadow-xl flex items-center justify-center gap-3 cursor-pointer"
-                  >
-                    {isPlacingOrder ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                    {isPlacingOrder ? "Wait..." : "Confirm Order"}
-                  </button>
+                  <div className="px-6 md:px-8 py-4 md:py-6 bg-white border-t border-slate-50 mt-auto shrink-0">
+                    <button
+                      disabled={isPlacingOrder || cart.length === 0}
+                      onClick={handlePlaceOrder}
+                      className="w-full py-5 rounded-2xl bg-[#0F172A] text-[#D4AF37] font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] active:scale-95 shadow-xl flex items-center justify-center gap-3 cursor-pointer"
+                    >
+                      {isPlacingOrder ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      {isPlacingOrder ? "Wait..." : "Confirm Order"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
