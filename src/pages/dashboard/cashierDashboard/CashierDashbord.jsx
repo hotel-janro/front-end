@@ -506,7 +506,7 @@ function CashierReceipts() {
               <div>Cash Paid: Rs ${(order?.amountReceived || 0).toLocaleString()}</div>
               <div style="font-weight:bold; font-size: 13px;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
             ` : `
-              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending / Group Settle</div>
+              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending</div>
             `}
           </div>
 
