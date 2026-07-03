@@ -62,7 +62,6 @@ export function AdminRooms() {
     setExpandedTypes(newExpanded);
   };
   
-  // Form State
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -70,6 +69,7 @@ export function AdminRooms() {
     availableRooms: '',
     defaultGuests: 1,
     amenities: '',
+    image: '',
     isActive: true
   });
 
@@ -105,8 +105,10 @@ export function AdminRooms() {
         price: existingRoom.price,
         description: existingRoom.description,
         defaultGuests: existingRoom.defaultGuests,
-        amenities: existingRoom.amenities.join(', ')
+        amenities: (existingRoom.amenities && Array.isArray(existingRoom.amenities)) ? existingRoom.amenities.join(', ') : '',
+        image: existingRoom.image || ''
       });
+      setImagePreview(existingRoom.image || null);
     } else {
       setFormData({
         ...formData,
@@ -114,8 +116,10 @@ export function AdminRooms() {
         price: '',
         description: '',
         defaultGuests: 1,
-        amenities: ''
+        amenities: '',
+        image: ''
       });
+      setImagePreview(null);
     }
   };
 
@@ -150,8 +154,10 @@ export function AdminRooms() {
         totalRooms: room.totalRooms,
         defaultGuests: room.defaultGuests,
         amenities: (room.amenities && Array.isArray(room.amenities)) ? room.amenities.join(', ') : '',
+        image: room.image || '',
         isActive: room.isActive
       });
+      setImagePreview(room.image || null);
     } else {
       const defaultData = rooms.find(r => r.name === preSelectedType);
       setEditingRoom(null);
@@ -162,8 +168,10 @@ export function AdminRooms() {
         availableRooms: '',
         defaultGuests: defaultData ? defaultData.defaultGuests : 1,
         amenities: (defaultData?.amenities && Array.isArray(defaultData.amenities)) ? defaultData.amenities.join(', ') : '',
+        image: defaultData ? defaultData.image || '' : '',
         isActive: true
       });
+      setImagePreview(defaultData ? defaultData.image || null : null);
     }
     setIsModalOpen(true);
   };
@@ -171,6 +179,7 @@ export function AdminRooms() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingRoom(null);
+    setImagePreview(null);
   };
 
   // ── New Room Type handlers ──────────────────────────────────────────
@@ -198,6 +207,7 @@ export function AdminRooms() {
       const res = await apiFetch('/upload', { method: 'POST', body: fd });
       if (res.success && res.url) {
         setNewTypeForm(prev => ({ ...prev, image: res.url }));
+        setFormData(prev => ({ ...prev, image: res.url }));
       }
     } catch (err) {
       alert('Image upload failed: ' + err.message);
@@ -777,6 +787,66 @@ export function AdminRooms() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="admin-rooms__modal-body">
+                {/* Image Upload for Edit Mode */}
+                <div className="admin-rooms__form-group admin-rooms__form-group--full" style={{ marginBottom: '16px' }}>
+                  <label className="admin-rooms__label">Room Photo</label>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: '2px dashed #c4b5fd',
+                      borderRadius: '14px',
+                      background: imagePreview ? 'transparent' : '#faf5ff',
+                      minHeight: '160px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      position: 'relative',
+                      transition: 'border-color 0.2s'
+                    }}
+                  >
+                    {imagePreview ? (
+                      <img
+                        src={imagePreview}
+                        alt="preview"
+                        style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '12px' }}
+                      />
+                    ) : (
+                      <div style={{ textAlign: 'center', color: '#7c3aed' }}>
+                        <ImagePlus style={{ width: '36px', height: '36px', margin: '0 auto 8px' }} />
+                        <p style={{ fontWeight: '600', fontSize: '14px' }}>Click to upload room photo</p>
+                        <p style={{ fontSize: '11px', color: '#a78bfa', marginTop: '4px' }}>JPG, PNG, WEBP — recommended 800×600px</p>
+                      </div>
+                    )}
+                    {imageUploading && (
+                      <div style={{
+                        position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.8)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '13px', color: '#7c3aed', fontWeight: '600'
+                      }}>
+                        Uploading…
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleImageFileChange}
+                  />
+                  {imagePreview && (
+                    <button
+                      type="button"
+                      onClick={() => { setImagePreview(null); setFormData(p => ({ ...p, image: '' })); setNewTypeForm(p => ({...p, image: ''})); }}
+                      style={{ fontSize: '11px', color: '#ef4444', marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    >
+                      Remove photo
+                    </button>
+                  )}
+                </div>
+
                 <div className="admin-rooms__form-grid">
                   <div className="admin-rooms__form-group admin-rooms__form-group--full">
                     <label className="admin-rooms__label">Select Room Type</label>
