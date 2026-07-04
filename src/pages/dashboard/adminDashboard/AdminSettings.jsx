@@ -1,20 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Bell, Lock, Globe, Mail, CreditCard, Loader2, Eye, EyeOff, User, Phone } from 'lucide-react';
+import { Save, Building2, Bell, Lock, CreditCard, Loader2, Eye, EyeOff, User, Phone, Mail } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext';
 import './AdminSettings.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
-const CURRENCIES = [
-  { code: 'LKR', symbol: 'Rs.', label: 'Sri Lankan Rupee (LKR)' },
-  { code: 'USD', symbol: '$', label: 'US Dollar (USD)' },
-  { code: 'EUR', symbol: '€', label: 'Euro (EUR)' },
-  { code: 'GBP', symbol: '£', label: 'British Pound (GBP)' },
-];
-
-const LANGUAGES = ['English',];
-const TIMEZONES = ['UTC+05:30 (Colombo)', 'UTC+00:00 (GMT)', 'UTC-05:00 (EST)', 'UTC+01:00 (CET)'];
-const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
 
 export function AdminSettings() {
   const [activeTab, setActiveTab] = useState('profile');
@@ -36,13 +25,7 @@ export function AdminSettings() {
     website: ''
   });
 
-  // Localization Tab State
-  const [locData, setLocData] = useState({
-    currency: { code: 'LKR', symbol: 'Rs.' },
-    language: 'English',
-    timezone: 'UTC+05:30',
-    dateFormat: 'DD/MM/YYYY'
-  });
+
 
   // Security Tab State
   const [passwordData, setPasswordData] = useState({
@@ -59,6 +42,14 @@ export function AdminSettings() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+
+  // Notifications Tab State
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    newBookings: true,
+    paymentReceived: true,
+    lowInventory: true,
+    staffUpdates: true
+  });
 
   useEffect(() => {
     const storedUser = localStorage.getItem('janro_user');
@@ -79,11 +70,11 @@ export function AdminSettings() {
         phone: settings.phone || '',
         website: settings.website || ''
       });
-      setLocData({
-        currency: settings.currency || { code: 'LKR', symbol: 'Rs.' },
-        language: settings.language || 'English',
-        timezone: settings.timezone || 'UTC+05:30',
-        dateFormat: settings.dateFormat || 'DD/MM/YYYY'
+      setNotificationPrefs({
+        newBookings: settings.notifications?.newBookings !== false,
+        paymentReceived: settings.notifications?.paymentReceived !== false,
+        lowInventory: settings.notifications?.lowInventory !== false,
+        staffUpdates: settings.notifications?.staffUpdates !== false
       });
     }
   }, [settings]);
@@ -93,15 +84,7 @@ export function AdminSettings() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleLocChange = (e) => {
-    const { name, value } = e.target;
-    if (name === 'currencyCode') {
-      const selected = CURRENCIES.find(c => c.code === value);
-      setLocData(prev => ({ ...prev, currency: { code: selected.code, symbol: selected.symbol } }));
-    } else {
-      setLocData(prev => ({ ...prev, [name]: value }));
-    }
-  };
+
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
@@ -180,7 +163,9 @@ export function AdminSettings() {
     }
   };
 
-  const handleLocalizationSave = async () => {
+
+
+  const handleNotificationsSave = async () => {
     setIsSaving(true);
     setMessage({ type: '', text: '' });
     try {
@@ -191,18 +176,18 @@ export function AdminSettings() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(locData)
+        body: JSON.stringify({ notifications: notificationPrefs })
       });
       
       const result = await response.json();
       if (result.success) {
-        setMessage({ type: 'success', text: 'Localization settings updated successfully!' });
+        setMessage({ type: 'success', text: 'Notification preferences updated successfully!' });
         fetchSettings(); // Refresh global settings
       } else {
-        setMessage({ type: 'error', text: result.message || 'Failed to update localization' });
+        setMessage({ type: 'error', text: result.message || 'Failed to update notification preferences' });
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'An error occurred while saving localization' });
+      setMessage({ type: 'error', text: 'An error occurred while saving notification preferences' });
     } finally {
       setIsSaving(false);
     }
@@ -253,8 +238,8 @@ export function AdminSettings() {
       handleGeneralSave();
     } else if (activeTab === 'security') {
       handleSecuritySave();
-    } else if (activeTab === 'localization') {
-      handleLocalizationSave();
+    } else if (activeTab === 'notifications') {
+      handleNotificationsSave();
     }
   };
 
@@ -288,8 +273,6 @@ export function AdminSettings() {
                 { id: 'general', label: 'Hotel Settings', icon: Building2 },
                 { id: 'notifications', label: 'Notifications', icon: Bell },
                 { id: 'security', label: 'Security', icon: Lock },
-                { id: 'localization', label: 'Localization', icon: Globe },
-                { id: 'email', label: 'Email Config', icon: Mail },
                 { id: 'payment', label: 'Payments', icon: CreditCard },
               ].map((tab) => {
                 const Icon = tab.icon;
@@ -442,18 +425,23 @@ export function AdminSettings() {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Notification Preferences</h2>
                 <div className="space-y-4">
                   {[
-                    { label: 'New Bookings', desc: 'Receive notifications for new room bookings', defaultChecked: true },
-                    { label: 'Payment Received', desc: 'Get notified when payments are completed', defaultChecked: true },
-                    { label: 'Low Inventory', desc: 'Alert when inventory items are running low', defaultChecked: true },
-                    { label: 'Staff Updates', desc: 'Notifications about staff activities', defaultChecked: false },
+                    { key: 'newBookings', label: 'New Bookings', desc: 'Receive notifications for new room bookings' },
+                    { key: 'paymentReceived', label: 'Payment Received', desc: 'Get notified when payments are completed' },
+                    { key: 'lowInventory', label: 'Low Inventory', desc: 'Alert when inventory items are running low' },
+                    { key: 'staffUpdates', label: 'Staff Updates', desc: 'Notifications about staff activities' },
                   ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between">
+                    <div key={item.key} className="flex items-center justify-between">
                       <div>
                         <p className="font-medium text-gray-900">{item.label}</p>
                         <p className="text-sm text-gray-500">{item.desc}</p>
                       </div>
                       <label className="admin-settings-switch">
-                        <input type="checkbox" className="admin-settings-switch__input" defaultChecked={item.defaultChecked} />
+                        <input
+                          type="checkbox"
+                          className="admin-settings-switch__input"
+                          checked={notificationPrefs[item.key]}
+                          onChange={(e) => setNotificationPrefs(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                        />
                         <div className="admin-settings-switch__track"></div>
                       </label>
                     </div>
@@ -539,61 +527,12 @@ export function AdminSettings() {
               </div>
             )}
 
-            {activeTab === 'localization' && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Localization Settings</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="admin-settings-label">System Language</label>
-                    <input type="text" value="English" disabled className="admin-settings-control bg-gray-50 cursor-not-allowed" />
-                    <p className="text-xs text-gray-400 mt-1">System language is locked and cannot be changed.</p>
-                  </div>
-                  <div>
-                    <label className="admin-settings-label">Timezone</label>
-                    <select 
-                      name="timezone"
-                      value={locData.timezone}
-                      onChange={handleLocChange}
-                      className="admin-settings-control"
-                    >
-                      {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="admin-settings-label">System Currency</label>
-                      <select 
-                        name="currencyCode"
-                        value={locData.currency.code}
-                        onChange={handleLocChange}
-                        className="admin-settings-control"
-                      >
-                        {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="admin-settings-label">Date Format</label>
-                      <select 
-                        name="dateFormat"
-                        value={locData.dateFormat}
-                        onChange={handleLocChange}
-                        className="admin-settings-control"
-                      >
-                        {DATE_FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'email' && <div className="p-4 text-gray-500 italic">Email configuration content (static)</div>}
             {activeTab === 'payment' && <div className="p-4 text-gray-500 italic">Payment gateway settings content (static)</div>}
 
             <div className="flex justify-end pt-6 border-t border-gray-200 mt-6">
               <button 
                 onClick={onSave}
-                disabled={isSaving || (activeTab !== 'profile' && activeTab !== 'general' && activeTab !== 'security' && activeTab !== 'localization')}
+                disabled={isSaving || (activeTab !== 'profile' && activeTab !== 'general' && activeTab !== 'security' && activeTab !== 'notifications')}
                 className={`admin-settings-primary-btn ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}

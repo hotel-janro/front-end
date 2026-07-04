@@ -30,6 +30,7 @@ import { AdminBookings } from "../pages/dashboard/adminDashboard/AdminBooking.js
 import { AdminGuests } from "../pages/dashboard/adminDashboard/AdminGuests.jsx";
 import { AdminWedding } from "../pages/dashboard/adminDashboard/AdminWeddings.jsx";
 import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory.jsx";
+import { AdminMessages } from "../pages/dashboard/adminDashboard/AdminMessages.jsx";
 
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
@@ -154,6 +155,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
         <Route path="inventory" element={<AdminInventory />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="payments" element={<AdminPayments />} />
+        <Route path="messages" element={<AdminMessages />} />
       </Route>
 
       {/* Reception & Cashier */}

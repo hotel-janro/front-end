@@ -10,8 +10,16 @@ import {
   CheckCircle,
   XCircle,
   Download,
-  Plus,
-  Loader2
+  Loader2,
+  X,
+  Phone,
+  Mail,
+  MapPin,
+  Hash,
+  Users,
+  Clock,
+  CreditCard,
+  Sparkles
 } from 'lucide-react';
 import { apiFetch } from '../../../api';
 
@@ -22,6 +30,10 @@ export function AdminBookings() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // View Details Modal State
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingBooking, setViewingBooking] = useState(null);
 
   useEffect(() => {
     fetchBookings();
@@ -77,6 +89,23 @@ export function AdminBookings() {
     }
   };
 
+  const getStatusDotColor = (status) => {
+    const s = status?.toLowerCase();
+    switch (s) {
+      case 'confirmed': return 'bg-emerald-500';
+      case 'checked-in': return 'bg-blue-500';
+      case 'checked-out': return 'bg-gray-400';
+      case 'cancelled': return 'bg-red-500';
+      case 'pending': return 'bg-amber-500';
+      default: return 'bg-gray-400';
+    }
+  };
+
+  const handleViewDetails = (booking) => {
+    setViewingBooking(booking);
+    setShowViewModal(true);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -100,10 +129,6 @@ export function AdminBookings() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Refresh
-          </button>
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            <Plus className="w-5 h-5" />
-            New Booking
           </button>
         </div>
       </div>
@@ -231,7 +256,11 @@ export function AdminBookings() {
                     Rs. {booking.totalPrice?.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button className="text-blue-600 hover:text-blue-800 font-semibold transition-colors">
+                    <button 
+                      onClick={() => handleViewDetails(booking)}
+                      className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-semibold transition-colors hover:underline"
+                    >
+                      <Eye className="w-4 h-4" />
                       View Details
                     </button>
                   </td>
@@ -278,6 +307,180 @@ export function AdminBookings() {
           <Bed className="w-12 h-12 text-gray-200 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900">No reservations found</h3>
           <p className="text-gray-500">Try adjusting your search or filters</p>
+        </div>
+      )}
+
+      {/* ===== VIEW BOOKING DETAILS MODAL ===== */}
+      {showViewModal && viewingBooking && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+          onClick={() => setShowViewModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-xl">
+                  <Bed className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Booking Details</h2>
+                  <p className="text-blue-100 text-xs">Room Reservation</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowViewModal(false)}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5">
+
+              {/* Status Badge */}
+              <div className="flex items-center justify-between">
+                <span className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-full border ${getStatusColor(viewingBooking.status)}`}>
+                  <span className={`w-2 h-2 rounded-full ${getStatusDotColor(viewingBooking.status)}`}></span>
+                  {viewingBooking.status}
+                </span>
+                <span className="text-xs text-gray-400 font-mono">ID: {viewingBooking._id?.slice(-8).toUpperCase()}</span>
+              </div>
+
+              {/* Guest Info */}
+              <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <User className="w-4 h-4 text-blue-500" /> Guest Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Full Name</p>
+                    <p className="text-sm font-semibold text-gray-900">{viewingBooking.fullName || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Email</p>
+                    <p className="text-sm font-semibold text-gray-900 flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5 text-gray-400" />
+                      {viewingBooking.email || '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Phone</p>
+                    <p className="text-sm font-semibold text-gray-900 flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-gray-400" />
+                      {viewingBooking.phone || viewingBooking.contactNumber || '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Guests</p>
+                    <p className="text-sm font-semibold text-gray-900 flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5 text-gray-400" />
+                      {viewingBooking.guests || '—'} person(s)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Room & Dates */}
+              <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <Bed className="w-4 h-4 text-blue-500" /> Room & Dates
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Room</p>
+                    <p className="text-sm font-semibold text-gray-900">{viewingBooking.room?.name || 'N/A'}</p>
+                    {viewingBooking.room?.type && (
+                      <p className="text-xs text-gray-500">{viewingBooking.room.type}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Room Number</p>
+                    <p className="text-sm font-semibold text-gray-900">{viewingBooking.room?.roomNumber || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Check-In</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {new Date(viewingBooking.checkInDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                    </p>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                      viewingBooking.checkInType === 'Day' ? 'bg-orange-50 text-orange-600' : 'bg-indigo-50 text-indigo-600'
+                    }`}>
+                      {viewingBooking.checkInType || 'Day'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Check-Out</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {new Date(viewingBooking.checkOutDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                    </p>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                      viewingBooking.checkOutType === 'Night' ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'
+                    }`}>
+                      {viewingBooking.checkOutType || 'Night'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Add-ons */}
+              {viewingBooking.decorationItems && viewingBooking.decorationItems.length > 0 && (
+                <div className="bg-pink-50 rounded-xl p-4 space-y-2">
+                  <h3 className="text-xs font-black text-pink-400 uppercase tracking-widest flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" /> Add-ons / Decorations
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingBooking.decorationItems.map((item, idx) => (
+                      <span key={idx} className="text-xs px-2.5 py-1 bg-white text-pink-600 border border-pink-200 rounded-lg font-semibold">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Special Requests */}
+              {viewingBooking.specialRequests && (
+                <div className="bg-amber-50 rounded-xl p-4 space-y-2">
+                  <h3 className="text-xs font-black text-amber-500 uppercase tracking-widest">Special Requests</h3>
+                  <p className="text-sm text-gray-700">{viewingBooking.specialRequests}</p>
+                </div>
+              )}
+
+              {/* Payment Summary */}
+              <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-blue-500" /> Payment Summary
+                </h3>
+                <div className="flex items-center justify-between py-2 border-t border-gray-200">
+                  <span className="text-sm font-semibold text-gray-600">Total Amount</span>
+                  <span className="text-lg font-black text-gray-900">Rs. {viewingBooking.totalPrice?.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Booking Meta */}
+              {viewingBooking.createdAt && (
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Booked on {new Date(viewingBooking.createdAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
