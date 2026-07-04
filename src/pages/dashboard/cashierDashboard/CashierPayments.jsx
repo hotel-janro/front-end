@@ -153,7 +153,7 @@ export function CashierPayments() {
       trend: 'up'
     },
     {
-      label: 'Stream Count',
+      label: 'Total Payments',
       value: paymentRecords.length,
       icon: Activity,
       color: 'text-blue-400',
@@ -193,27 +193,26 @@ export function CashierPayments() {
         </div>
       </div>
 
-      {/* Luxury Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Refined Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className={`group relative p-8 rounded-[2.5rem] border bg-slate-50 border-slate-200 shadow-2xl hover:shadow-[0_25px_60px_-25px_rgba(212,175,55,0.15)] hover:border-[#D4AF37]/30 transition-all duration-500 hover:-translate-y-1`}>
-              <div className="flex items-start justify-between mb-6">
-                <div className={`p-4 rounded-2xl transition-transform duration-500 group-hover:rotate-12 ${stat.bg} ${stat.color}`}>
-                  <Icon className="w-6 h-6" />
+            <div key={stat.label} className="group relative p-6 bg-slate-50 border border-slate-200 rounded-3xl shadow-sm hover:shadow-xl hover:border-[#D4AF37]/30 transition-all duration-300">
+              <div className="flex items-start justify-between mb-4">
+                <div className={`p-3 rounded-2xl transition-transform duration-500 group-hover:scale-110 ${stat.bg} ${stat.color}`}>
+                  <Icon className="w-5 h-5" />
                 </div>
                 {stat.trend === 'up' && (
-                  <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg text-[8px] font-black uppercase border border-emerald-500/20">
-                    <ArrowUpRight className="w-2.5 h-2.5" /> Growth
+                  <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 px-2 py-1 rounded-md text-[8px] font-black uppercase">
+                    <ArrowUpRight className="w-3 h-3" /> Growth
                   </div>
                 )}
               </div>
               <div>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1.5">{stat.label}</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">{stat.label}</p>
                 <h3 className="text-2xl font-black text-slate-900 tracking-tight" style={{ fontFamily: 'DM Serif Display, serif' }}>{stat.value}</h3>
               </div>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-slate-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-bl-[100%] pointer-events-none" />
             </div>
           );
         })}
@@ -224,9 +223,9 @@ export function CashierPayments() {
         {Object.entries(methodCounts).map(([method, count]) => {
           const MIcon = getMethodIcon(method);
           return (
-            <div key={method} className="bg-slate-100 rounded-2xl border border-slate-200 p-4 px-6 flex items-center gap-4 shadow-sm hover:border-[#D4AF37]/30 transition-all group text-slate-900">
-              <div className={`p-2.5 rounded-xl transition-all group-hover:scale-110 ${getMethodStyles(method)}`}>
-                <MIcon className="w-5 h-5" />
+            <div key={method} className="bg-slate-100 rounded-xl border border-slate-200 px-5 py-3 flex items-center gap-4 shadow-sm hover:border-[#D4AF37]/30 transition-all group text-slate-900">
+              <div className={`p-2 rounded-lg transition-all group-hover:scale-110 ${getMethodStyles(method)}`}>
+                <MIcon className="w-4 h-4" />
               </div>
               <div>
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-0.5">{method}</p>
@@ -237,9 +236,9 @@ export function CashierPayments() {
         })}
       </div>
 
-      {/* Luxury Table Section */}
-      <div className="bg-slate-50 rounded-[3rem] border border-slate-200 shadow-2xl overflow-hidden">
-        <div className="p-8 border-b border-slate-200 flex flex-col lg:flex-row gap-6">
+      {/* Payment Table Section */}
+      <div className="bg-slate-50 rounded-3xl border border-slate-200 shadow-xl overflow-hidden mt-6">
+        <div className="p-6 border-b border-slate-200 flex flex-col lg:flex-row gap-4">
           <div className="flex-1 relative group">
             <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#D4AF37] transition-colors" />
             <input
@@ -307,63 +306,56 @@ export function CashierPayments() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-slate-50/20 border-b border-slate-200">
-                  <th className="px-10 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Transaction</th>
-                  <th className="px-10 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Boutique Guest</th>
-                  <th className="px-10 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Channel</th>
-                  <th className="px-10 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Timestamp</th>
-                  <th className="px-10 py-6 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Fulfillment</th>
-                  <th className="px-10 py-6 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Net Value</th>
+                  <th className="px-6 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Transaction</th>
+                  <th className="px-6 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Guest</th>
+                  <th className="px-6 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Channel</th>
+                  <th className="px-6 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Timestamp</th>
+                  <th className="px-6 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Fulfillment</th>
+                  <th className="px-6 py-4 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Net Value</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filtered.map((payment) => {
                   const MIcon = getMethodIcon(payment.method);
                   return (
-                    <tr key={payment.id} className="group hover:bg-slate-100/50 transition-all duration-500 cursor-default">
-                      <td className="px-10 py-7">
+                    <tr key={payment.id} className="group hover:bg-slate-100/50 transition-all duration-300 cursor-default">
+                      <td className="px-6 py-5">
                         <div>
                           <span className="text-xs font-black text-slate-900 tracking-widest uppercase group-hover:text-[#D4AF37] transition-colors">{payment.id}</span>
                           <p className="text-[9px] font-bold text-slate-500 mt-1 uppercase tracking-widest">{payment.orderId}</p>
                         </div>
+                        <span className="text-xs font-black text-slate-900 tracking-widest uppercase">{payment.id}</span>
                       </td>
-                      <td className="px-10 py-7">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[#D4AF37] group-hover:bg-[#D4AF37] group-hover:text-[#0F172A] transition-all duration-500">
-                            <User className="w-5 h-5" />
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[#D4AF37] group-hover:bg-[#D4AF37] group-hover:text-[#0F172A] transition-all duration-300">
+                            <User className="w-4 h-4" />
                           </div>
-                          <div>
-                            <span className="text-xs font-black text-slate-900 uppercase tracking-widest">{payment.customerName}</span>
-                            <p className="text-[9px] font-bold text-slate-500 mt-1 uppercase tracking-[0.1em]">{payment.type}</p>
-                          </div>
+                          <span className="text-xs font-black text-slate-900 uppercase tracking-widest">{payment.customerName}</span>
                         </div>
                       </td>
-                      <td className="px-10 py-7">
-                        <div className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] border ${getMethodStyles(payment.method)} shadow-sm`}>
-                          <MIcon className="w-3.5 h-3.5" />
-                          {payment.method}
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-1.5 rounded-lg ${getMethodStyles(payment.method)}`}>
+                            <MIcon className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{payment.method}</span>
                         </div>
                       </td>
-                      <td className="px-10 py-7">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2 text-[10px] font-black text-slate-900 uppercase tracking-widest">
-                            <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
-                            {new Date(payment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                          </div>
-                          <div className="flex items-center gap-2 text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] ml-5">
-                            {new Date(payment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                        </div>
+                      <td className="px-6 py-5">
+                        <p className="text-xs font-black text-slate-900 tracking-widest uppercase">{new Date(payment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        <p className="text-[9px] font-bold text-slate-500 mt-1 uppercase tracking-widest">{new Date(payment.date).toLocaleDateString()}</p>
                       </td>
-                      <td className="px-10 py-7">
-                        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                          payment.status === 'Settled' ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      <td className="px-6 py-5">
+                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                          payment.status === 'Settled' ? 'bg-emerald-500 text-slate-900' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                         }`}>
-                          {payment.status === 'Settled' ? <CheckCircle className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                          {payment.status === 'Settled' ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                           {payment.status}
                         </span>
                       </td>
-                      <td className="px-10 py-7 text-right">
-                        <p className="text-lg font-black text-slate-900 tracking-tighter" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(payment.amount)}</p>
+                      <td className="px-6 py-5 text-right">
+                        <p className="text-base font-black text-emerald-500 tracking-wider" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(payment.amount)}</p>
                         <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest mt-1">Svc: {formatCurrency(payment.tax)}</p>
                       </td>
                     </tr>
