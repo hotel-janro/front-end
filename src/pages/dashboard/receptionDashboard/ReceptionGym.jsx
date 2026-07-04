@@ -275,8 +275,8 @@ export function ReceptionGym() {
           try {
             const devices = await Html5Qrcode.getCameras();
             if (devices && devices.length > 0) {
-              const backCamera = devices.find(device => 
-                device.label.toLowerCase().includes('back') || 
+              const backCamera = devices.find(device =>
+                device.label.toLowerCase().includes('back') ||
                 device.label.toLowerCase().includes('environment') ||
                 device.label.toLowerCase().includes('rear')
               );
@@ -288,15 +288,15 @@ export function ReceptionGym() {
 
           if (isMounted) {
             if (cameraId) {
-              await html5QrCode.start(cameraId, config, onScanSuccess, () => {});
+              await html5QrCode.start(cameraId, config, onScanSuccess, () => { });
             } else {
               // Fallback to default facingMode if getCameras failed or returned empty
               try {
-                await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
+                await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => { });
               } catch (envError) {
                 console.log("Environment camera failing, attempting user camera...", envError);
                 if (isMounted) {
-                  await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, () => {});
+                  await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, () => { });
                 }
               }
             }
@@ -689,9 +689,8 @@ export function ReceptionGym() {
       <div className="flex flex-wrap border-b border-slate-200 gap-6">
         <button
           onClick={() => setActiveTab('gate')}
-          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === 'gate' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'gate' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
           type="button"
         >
           <QrCode className="w-5 h-5" />
@@ -703,9 +702,8 @@ export function ReceptionGym() {
 
         <button
           onClick={() => setActiveTab('passes')}
-          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === 'passes' ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'passes' ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
           type="button"
         >
           <Dumbbell className="w-5 h-5" />
@@ -714,9 +712,8 @@ export function ReceptionGym() {
 
         <button
           onClick={() => setActiveTab('members')}
-          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === 'members' ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'members' ? 'border-[#0F172A] text-[#0F172A]' : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
           type="button"
         >
           <Users className="w-5 h-5" />
@@ -762,17 +759,15 @@ export function ReceptionGym() {
             <div className="lg:col-span-7 flex flex-col gap-6">
               {scanResult && (
                 <div
-                  className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-350 ${
-                    scanResult.success
+                  className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-350 ${scanResult.success
                       ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-lg shadow-emerald-500/10'
                       : 'bg-red-50 border-red-200 text-red-800 shadow-lg shadow-red-500/10'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start gap-4">
                     <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                        scanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
-                      }`}
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${scanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                        }`}
                     >
                       {scanResult.success ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
                     </div>
@@ -1197,11 +1192,11 @@ export function ReceptionGym() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (formData.passType === 'Monthly Member' && !formData.guestName) {
-                  setSubmitError('A registered gym member is required to issue a Monthly Membership pass!');
-                  return;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
                 }
-                handleSubmitPass(e);
               }}
               className="p-8 overflow-y-auto space-y-5"
             >
@@ -1290,21 +1285,12 @@ export function ReceptionGym() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600 ml-1">Payment Status</label>
-                <select name="paymentStatus" value={formData.paymentStatus} onChange={handleFormChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800">
-                  <option value="Paid">Paid / Confirmed</option>
-                  <option value="Unpaid">Unpaid / Booked</option>
-                </select>
-              </div>
-
               {editId && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-600 ml-1">Activation Status</label>
                   <select name="status" value={formData.status} onChange={handleFormChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800">
                     <option value="Active">Active</option>
                     <option value="Expired">Expired</option>
-                    <option value="Cancelled">Cancelled</option>
                   </select>
                 </div>
               )}
@@ -1313,7 +1299,18 @@ export function ReceptionGym() {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition-colors">
                   Cancel
                 </button>
-                <button type="submit" disabled={isSubmitting} className="px-8 py-2.5 bg-[#D4AF37] hover:bg-[#b8962d] text-slate-900 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 shadow-md shadow-[#D4AF37]/20">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={(e) => {
+                    if (formData.passType === 'Monthly Member' && !formData.guestName) {
+                      setSubmitError('A registered gym member is required to issue a Monthly Membership pass!');
+                      return;
+                    }
+                    handleSubmitPass(e);
+                  }}
+                  className="px-8 py-2.5 bg-[#D4AF37] hover:bg-[#b8962d] text-slate-900 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 shadow-md shadow-[#D4AF37]/20"
+                >
                   {isSubmitting ? 'Submitting...' : editId ? 'Save Changes' : 'Issue Pass'}
                 </button>
               </div>
@@ -1355,9 +1352,6 @@ export function ReceptionGym() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (regStep === 3) {
-                  handleMemberSubmit(e);
-                }
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -1523,7 +1517,12 @@ export function ReceptionGym() {
                       Next Step
                     </button>
                   ) : (
-                    <button type="submit" disabled={isMemberSubmitting} className="px-8 py-2.5 bg-[#D4AF37] hover:bg-[#b8962d] text-slate-900 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 shadow-md shadow-[#D4AF37]/20">
+                    <button
+                      type="button"
+                      disabled={isMemberSubmitting}
+                      onClick={(e) => handleMemberSubmit(e)}
+                      className="px-8 py-2.5 bg-[#D4AF37] hover:bg-[#b8962d] text-slate-900 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 shadow-md shadow-[#D4AF37]/20"
+                    >
                       {isMemberSubmitting ? 'Registering...' : editMemberId ? 'Save Changes' : 'Complete Registration'}
                     </button>
                   )}
