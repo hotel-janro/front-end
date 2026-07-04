@@ -2,6 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { Users, Search, Filter, Mail, Phone, Calendar, Star, MoreVertical, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../../api';
 
+const getRoomTypeName = (roomName, roomNumberStr) => {
+  if (!roomName) return 'N/A';
+  const lower = roomName.toLowerCase();
+  if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
+    return 'Standard Room (Non-AC)';
+  }
+  if (lower.includes('ac standard room') || lower.includes('a/c standard room')) {
+    return 'Standard Room (AC)';
+  }
+  if (lower.includes('standard room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  return roomName;
+};
+
 export function AdminGuests() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
@@ -30,7 +49,9 @@ export function AdminGuests() {
               phone: booking.phone || 'N/A',
               totalStays: 1,
               lastStay: booking.createdAt || booking.checkInDate || new Date().toISOString(),
-              category: 'Regular'
+              category: 'Regular',
+              lastRoom: getRoomTypeName(booking.room?.name, booking.roomNumber),
+              lastRoomNumber: booking.roomNumber || '—'
             };
           } else {
             guestMap[key].totalStays += 1;
@@ -39,6 +60,8 @@ export function AdminGuests() {
             const thisStayDate = new Date(booking.createdAt || booking.checkInDate || new Date().toISOString());
             if (thisStayDate > currentLastStay) {
               guestMap[key].lastStay = thisStayDate.toISOString();
+              guestMap[key].lastRoom = getRoomTypeName(booking.room?.name, booking.roomNumber);
+              guestMap[key].lastRoomNumber = booking.roomNumber || '—';
             }
           }
         });
@@ -126,6 +149,8 @@ export function AdminGuests() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guest</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room No.</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Stays</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Stay</th>
               </tr>
@@ -133,13 +158,13 @@ export function AdminGuests() {
             <tbody className="divide-y divide-gray-100">
               {loading && guests.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
                     Loading guests...
                   </td>
                 </tr>
               ) : filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
                     No guests found.
                   </td>
                 </tr>
@@ -160,6 +185,16 @@ export function AdminGuests() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 flex items-center gap-1"><Mail className="w-3 h-3" /> {guest.email}</div>
                       <div className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" /> {guest.phone}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {guest.lastRoom}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {guest.lastRoomNumber !== '—' && guest.lastRoomNumber ? (
+                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-bold">{guest.lastRoomNumber}</span>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {guest.totalStays} trips

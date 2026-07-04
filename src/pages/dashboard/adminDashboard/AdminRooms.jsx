@@ -21,7 +21,9 @@ import {
   CheckCircle2,
   AlertCircle,
   ImagePlus,
-  Layers
+  Layers,
+  LogIn,
+  LogOut
 } from 'lucide-react';
 import { apiFetch, API_HOST } from '../../../api';
 import './AdminRooms.css';
@@ -64,9 +66,11 @@ export function AdminRooms() {
   
   const [formData, setFormData] = useState({
     name: '',
+    acVariant: 'ac', // default to AC
     description: '',
     price: '',
-    availableRooms: '',
+    availableRooms: 1,
+    totalRooms: 1,
     defaultGuests: 1,
     amenities: '',
     image: '',
@@ -279,9 +283,14 @@ export function AdminRooms() {
       return;
     }
     
+    let submitName = formData.name;
+    if (submitName === 'Standard Room' && !editingRoom) {
+      submitName = formData.acVariant === 'ac' ? 'AC Standard Room' : 'Non-AC Standard Room';
+    }
+
     try {
       // Find if this room type already exists in our database
-      const existingRoom = rooms.find(r => r.name === formData.name);
+      const existingRoom = rooms.find(r => r.name === submitName);
 
       if (existingRoom && !editingRoom) {
         // INCREMENT MODE: Type exists, just add 1 to the count
@@ -300,6 +309,7 @@ export function AdminRooms() {
         // EDIT MODE: Standard update
         const payload = {
           ...formData,
+          name: submitName,
           price: Number(formData.price),
           availableRooms: Number(formData.availableRooms),
           totalRooms: Number(formData.availableRooms) + getBookedCount(formData.name), // Sync total rooms
@@ -314,6 +324,7 @@ export function AdminRooms() {
         // NEW ENTRY MODE: Create with count 1 (The UI will add the Base Count)
         const payload = {
           ...formData,
+          name: submitName,
           price: Number(formData.price),
           availableRooms: 1,
           totalRooms: 1,
@@ -399,7 +410,18 @@ export function AdminRooms() {
     }
   };
 
-  // Count active bookings per room type
+  // Get booked room numbers per type (using actual roomNumber from bookings)
+  const getBookedRoomNumbers = (typeName) => {
+    return bookings
+      .filter(b =>
+        b.room?.name?.toLowerCase() === typeName.toLowerCase() &&
+        b.status !== 'cancelled' && b.status !== 'checked-out' &&
+        b.roomNumber
+      )
+      .map(b => b.roomNumber);
+  };
+
+  // Count active bookings per room type (legacy - kept for reference)
   const getBookedCount = (typeName) => {
     return bookings.filter(b => 
       b.room?.name?.toLowerCase() === typeName.toLowerCase() &&
@@ -439,10 +461,12 @@ export function AdminRooms() {
 
   // Starting room number for each room type (hotel room numbering)
   const ROOM_START_NUMBERS = {
-    'standard room': 1,   // Room 1 – 6
-    'family room': 7,     // Room 7 – 8
+    'ac standard room': 1,
+    'non-ac standard room': 4,
+    'standard room': 1,
+    'family room': 7,
     'family suite': 7,
-    'wedding couple suite': 9, // Room 9 – 10
+    'wedding couple suite': 9,
     'honeymoon suite': 9,
   };
 
@@ -459,17 +483,18 @@ export function AdminRooms() {
     const backendRoomsOfType = rooms.filter(r => 
       r.isActive && r.name === typeName
     );
-    const bookedCount = getBookedCount(typeName);
+    const bookedRoomNumbers = getBookedRoomNumbers(typeName);
+    const bookedCount = bookedRoomNumbers.length;
     
     if (backendRoomsOfType.length > 0) {
-      const dbAvailable = backendRoomsOfType.reduce((sum, r) => sum + (r.availableRooms || 0), 0);
       const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms || 1), 0);
       const firstRoom = backendRoomsOfType[0];
       return {
         ...firstRoom,
-        availableRooms: dbAvailable,
+        availableRooms: Math.max(0, dbTotal - bookedCount),
         totalRooms: dbTotal,
         bookedCount,
+        bookedRoomNumbers,
         isPlaceholder: false
       };
     }
@@ -663,7 +688,8 @@ export function AdminRooms() {
                           {/* Unified room list with hotel-wide continuous numbering */}
                           {Array.from({ length: totalInStock }).map((_, i) => {
                             const roomNumber = getRoomStartNumber(room.name) + i;
-                            const isBooked = i < bookedCount;
+                            const roomLabel = `Room ${roomNumber}`;
+                            const isBooked = (room.bookedRoomNumbers || []).includes(roomLabel);
                             // Any room that is not booked can be deleted
                             const canDelete = !isBooked;
 
@@ -676,7 +702,7 @@ export function AdminRooms() {
                                   <div className="flex items-center gap-2">
                                     <div className={`w-1.5 h-1.5 rounded-full ${isBooked ? 'bg-red-500' : 'bg-green-500'}`}></div>
                                     <span className={`font-medium ${isBooked ? 'text-red-600' : 'text-slate-600'}`}>
-                                      Room {roomNumber}
+                                      Room {roomNumber} {(room.name || '').toLowerCase().includes('standard room') ? (roomNumber >= 5 ? '(AC)' : '(Non-AC)') : ''}
                                     </span>
                                   </div>
                                 </td>
@@ -728,6 +754,7 @@ export function AdminRooms() {
                 <tr>
                   <th>Guest Details</th>
                   <th>Room Type</th>
+                  <th>Room No.</th>
                   <th>Dates</th>
                   <th>Guests</th>
                   <th>Status</th>
@@ -760,6 +787,13 @@ export function AdminRooms() {
                           </div>
                         )}
                       </div>
+                    </td>
+                    <td>
+                      {booking.roomNumber ? (
+                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-bold">{booking.roomNumber}</span>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
                     </td>
                     <td>
                       <div className="flex flex-col gap-1.5">
@@ -822,6 +856,24 @@ export function AdminRooms() {
                               <span className="hidden md:inline">Reject</span>
                             </button>
                           </>
+                        )}
+                        {booking.status?.toLowerCase() === 'confirmed' && (
+                            <button
+                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-in')}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
+                            >
+                                <LogIn className="w-3.5 h-3.5" />
+                                <span className="hidden md:inline">Check In</span>
+                            </button>
+                        )}
+                        {booking.status?.toLowerCase() === 'checked-in' && (
+                            <button
+                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-out')}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
+                            >
+                                <LogOut className="w-3.5 h-3.5" />
+                                <span className="hidden md:inline">Check Out</span>
+                            </button>
                         )}
                         <button 
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider flex-shrink-0"
@@ -935,6 +987,36 @@ export function AdminRooms() {
                     {!editingRoom && <p className="text-xs text-blue-600 mt-1">Selecting a type and clicking "Create" will add 1 room to your stock.</p>}
                   </div>
 
+                  {formData.name === 'Standard Room' && !editingRoom && (
+                    <div className="admin-rooms__form-group admin-rooms__form-group--full">
+                      <label className="admin-rooms__label">Variant <span style={{ color: '#ef4444' }}>*</span></label>
+                      <div className="flex gap-4 mt-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="acVariant" 
+                            value="ac" 
+                            checked={formData.acVariant === 'ac'} 
+                            onChange={(e) => setFormData({...formData, acVariant: 'ac'})} 
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-slate-700">AC Room</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="acVariant" 
+                            value="nonAc" 
+                            checked={formData.acVariant === 'nonAc'} 
+                            onChange={(e) => setFormData({...formData, acVariant: 'nonAc'})}
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-slate-700">Non-AC Room</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   {editingRoom && (
                     <div className="admin-rooms__form-group admin-rooms__form-group--full">
                       <label className="admin-rooms__label">Total Units in Stock</label>
@@ -983,13 +1065,29 @@ export function AdminRooms() {
                   </div>
                   <div className="admin-rooms__form-group admin-rooms__form-group--full">
                     <label className="admin-rooms__label">Amenities</label>
-                    <input 
-                      type="text" 
-                      className="admin-rooms__input" 
-                      placeholder="WiFi, AC, TV"
-                      value={formData.amenities}
-                      onChange={(e) => setFormData({...formData, amenities: e.target.value})}
-                    />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                      {AMENITIES_LIST.map((amenity) => {
+                        const isChecked = (formData.amenities || '')
+                          .split(',')
+                          .map((s) => s.trim())
+                          .includes(amenity);
+                        return (
+                          <label key={amenity} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() =>
+                                toggleAmenity(amenity, formData.amenities, (newVal) =>
+                                  setFormData({ ...formData, amenities: newVal })
+                                )
+                              }
+                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            {amenity}
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1151,13 +1249,29 @@ export function AdminRooms() {
                   {/* Amenities */}
                   <div className="admin-rooms__form-group admin-rooms__form-group--full">
                     <label className="admin-rooms__label">Amenities</label>
-                    <input
-                      type="text"
-                      className="admin-rooms__input"
-                      placeholder="WiFi, AC, TV, Mini Bar, Jacuzzi …  (comma-separated)"
-                      value={newTypeForm.amenities}
-                      onChange={e => setNewTypeForm(p => ({ ...p, amenities: e.target.value }))}
-                    />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                      {AMENITIES_LIST.map((amenity) => {
+                        const isChecked = (newTypeForm.amenities || '')
+                          .split(',')
+                          .map((s) => s.trim())
+                          .includes(amenity);
+                        return (
+                          <label key={amenity} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() =>
+                                toggleAmenity(amenity, newTypeForm.amenities, (newVal) =>
+                                  setNewTypeForm((p) => ({ ...p, amenities: newVal }))
+                                )
+                              }
+                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            {amenity}
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>

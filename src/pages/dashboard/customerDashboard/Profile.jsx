@@ -1,6 +1,6 @@
 // Profile.jsx 
 import React, { useState } from "react";
-import { User, Mail, Phone, MapPin, ShieldAlert, Camera, Star, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Phone, MapPin, Star, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import "./CustomerDashboard.css";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -25,7 +25,6 @@ export function Profile({ user }) {
     name: user?.name || "",
     phone: user?.phone || "",
     address: user?.address || "",
-    emergencyContact: user?.emergencyContact || "",
   });
 
   // Sync formData with user prop when it updates
@@ -35,7 +34,6 @@ export function Profile({ user }) {
         name: user.name || "",
         phone: user.phone || "",
         address: user.address || "",
-        emergencyContact: user.emergencyContact || "",
       });
     }
   }, [user]);
@@ -53,8 +51,8 @@ export function Profile({ user }) {
       return;
     }
 
-    if (!formData.address || formData.address.trim().length < 5) {
-      setMessage({ type: "error", text: "Please enter a valid home address" });
+    if (formData.address && formData.address.trim().length > 0 && formData.address.trim().length < 5) {
+      setMessage({ type: "error", text: "Home address must be at least 5 characters long" });
       return;
     }
 
@@ -123,7 +121,6 @@ export function Profile({ user }) {
     { label: "Email Address", value: user?.email || "guest@hoteljanro.com", icon: Mail, key: "email", disabled: true },
     { label: "Phone Number", value: formData.phone, icon: Phone, key: "phone" },
     { label: "Home Address", value: formData.address, icon: MapPin, key: "address" },
-    { label: "Emergency Contact", value: formData.emergencyContact, icon: ShieldAlert, key: "emergencyContact" },
   ];
 
   return (
@@ -141,22 +138,16 @@ export function Profile({ user }) {
                     {user?.name?.[0] || "G"}
                   </div>
                 </div>
-                <button className="absolute -bottom-2 -right-2 p-3 bg-[#D4AF37] text-[#0F172A] rounded-2xl shadow-xl hover:scale-110 transition-all cursor-pointer border-4 border-[#0F172A]">
-                  <Camera className="w-4 h-4" />
-                </button>
              </div>
              
              <div className="text-center md:text-left flex-1">
                 <p className="text-[#D4AF37] font-black uppercase tracking-[0.4em] text-[10px] mb-3 opacity-80">Guest Identity</p>
                 <h2 className="text-4xl md:text-5xl font-normal leading-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>{user?.name || "Guest User"}</h2>
-                <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-6">
-                   <span className="px-5 py-2 bg-white/5 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest border border-white/10 flex items-center gap-2 text-[#D4AF37]">
-                      <Star className="w-3.5 h-3.5 fill-current" /> Platinum Member
-                   </span>
-                   <span className="px-5 py-2 bg-emerald-500/10 backdrop-blur-md text-emerald-400 rounded-full text-[10px] font-bold uppercase tracking-widest border border-emerald-500/20 flex items-center gap-2">
-                      <ShieldCheck className="w-3.5 h-3.5" /> Verified Account
-                   </span>
-                </div>
+                 <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-6">
+                    <span className="px-5 py-2 bg-[#D4AF37]/10 backdrop-blur-md text-[#D4AF37] rounded-full text-[10px] font-bold uppercase tracking-widest border border-[#D4AF37]/20 flex items-center gap-2">
+                       <Star className="w-3.5 h-3.5 fill-current" /> {user?.role || "Customer"} Account
+                    </span>
+                 </div>
              </div>
 
              <div className="flex flex-col gap-3">
