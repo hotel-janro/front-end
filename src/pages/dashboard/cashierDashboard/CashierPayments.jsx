@@ -198,20 +198,20 @@ export function CashierPayments() {
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className="group relative p-6 bg-slate-50 border border-slate-200 rounded-3xl shadow-sm hover:shadow-xl hover:border-[#D4AF37]/30 transition-all duration-300">
-              <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-2xl transition-transform duration-500 group-hover:scale-110 ${stat.bg} ${stat.color}`}>
-                  <Icon className="w-5 h-5" />
+            <div key={stat.label} className="group relative p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm hover:shadow-lg hover:border-[#D4AF37]/30 transition-all duration-300">
+              <div className="flex items-start justify-between mb-3">
+                <div className={`p-2 rounded-xl transition-transform duration-300 group-hover:scale-110 ${stat.bg} ${stat.color}`}>
+                  <Icon className="w-4 h-4" />
                 </div>
                 {stat.trend === 'up' && (
-                  <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 px-2 py-1 rounded-md text-[8px] font-black uppercase">
-                    <ArrowUpRight className="w-3 h-3" /> Growth
+                  <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase">
+                    <ArrowUpRight className="w-2.5 h-2.5" /> Growth
                   </div>
                 )}
               </div>
               <div>
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">{stat.label}</p>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight" style={{ fontFamily: 'DM Serif Display, serif' }}>{stat.value}</h3>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{stat.label}</p>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight" style={{ fontFamily: 'DM Serif Display, serif' }}>{stat.value}</h3>
               </div>
             </div>
           );
@@ -259,8 +259,6 @@ export function CashierPayments() {
                 <option value="All">All Channels</option>
                 <option value="Card">Card</option>
                 <option value="Cash">Cash</option>
-                <option value="Online">Online</option>
-                <option value="Room Charge">Room Charge</option>
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
             </div>
