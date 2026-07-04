@@ -7,7 +7,9 @@ import { getImageUrl } from "../../api";
 
 export function FoodCard({ item, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
-  const [selectedPortion, setSelectedPortion] = useState('Full');
+  const [selectedPortion, setSelectedPortion] = useState(
+    item.hasPortions && item.portions?.length > 0 ? item.portions[0].portionType : ''
+  );
   const { settings } = useSettings();
 
   const imageUrl = getImageUrl(item.image);
@@ -57,19 +59,19 @@ export function FoodCard({ item, onAddToCart }) {
         </p>
 
         {/* Portion Selector */}
-        {item.hasPortions && (
-          <div className="flex gap-2 mb-6 animate-in fade-in slide-in-from-top-2 duration-500">
-            {['Full', 'Half'].map(p => (
+        {item.hasPortions && item.portions?.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6 animate-in fade-in slide-in-from-top-2 duration-500">
+            {item.portions.map(p => (
               <button
-                key={p}
-                onClick={() => setSelectedPortion(p)}
+                key={p.portionType}
+                onClick={() => setSelectedPortion(p.portionType)}
                 className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
-                  selectedPortion === p 
+                  selectedPortion === p.portionType
                     ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] shadow-[0_8px_20px_rgba(212,175,55,0.2)] scale-[1.02]' 
                     : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-[#D4AF37] hover:bg-slate-100/50 hover:text-[#0F172A]'
                 }`}
               >
-                {p}
+                {p.portionType}
               </button>
             ))}
           </div>

@@ -79,7 +79,11 @@ export function Restaurant({ onOrder, user }) {
       try {
         const data = await apiFetch("/menu?limit=100&populate=inventoryItem&isAvailable=true");
         // Handle both paginated and non-paginated responses
-        const items = Array.isArray(data) ? data : (data?.items || []);
+        let items = Array.isArray(data) ? data : (data?.items || []);
+        
+        // Randomly shuffle the items so the 'All' category looks different on each visit
+        items = items.sort(() => Math.random() - 0.5);
+        
         setMenuItems(items);
       } catch (err) {
         toast.error("Failed to load our menu");
@@ -384,7 +388,7 @@ export function Restaurant({ onOrder, user }) {
         body: JSON.stringify(orderData),
       });
 
-      toast.success("Exceptional choice! Your order is being prepared.");
+      toast.success("Exceptional choice! Your order has been placed and is pending confirmation.");
       setCart([]);
       setShowCart(false);
       if (onOrder) onOrder(result);

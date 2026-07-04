@@ -315,7 +315,7 @@ export function CashierOrders() {
       {/* Premium Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-[#0F172A] rounded-2xl flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(15,23,42,0.4)]">
+          <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(15,23,42,0.4)]">
             <Gem className="w-7 h-7 text-[#D4AF37]" />
           </div>
           <div>
@@ -326,28 +326,28 @@ export function CashierOrders() {
         <div className="flex flex-col items-end gap-1">
           <button 
             onClick={loadOrders}
-            className="group flex items-center gap-3 px-6 py-3 bg-slate-900 border border-white/5 text-slate-300 rounded-2xl hover:bg-[#0F172A] hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
+            className="group flex items-center gap-3 px-6 py-3 bg-slate-100 border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
           >
             <RefreshCcw className={`w-4 h-4 group-hover:rotate-180 transition-transform duration-700 ${loading ? 'animate-spin text-[#D4AF37]' : ''}`} />
             Refresh Live Stream
           </button>
-          <p className="text-[7px] font-black text-slate-300 uppercase tracking-widest pr-2">
+          <p className="text-[7px] font-black text-slate-600 uppercase tracking-widest pr-2">
             Last Sync: {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </p>
         </div>
       </div>
 
       {/* Luxury Search & Filters */}
-      <div className="bg-[#0F172A] rounded-[2.5rem] border border-white/5 shadow-2xl p-2 text-white">
+      <div className="bg-slate-50 rounded-[2.5rem] border border-slate-200 shadow-2xl p-2 text-slate-900">
         <div className="flex flex-col lg:flex-row gap-2">
           <div className="flex-1 relative group">
-            <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#D4AF37] transition-colors" />
+            <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#D4AF37] transition-colors" />
             <input
               type="text"
               placeholder="Locate an order or guest..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-6 py-4 bg-transparent border-none focus:ring-0 text-sm font-bold text-white placeholder:text-slate-500"
+              className="w-full pl-12 pr-6 py-4 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-900 placeholder:text-slate-400"
             />
           </div>
           <div className="h-12 w-px bg-white/5 hidden lg:block" />
@@ -356,7 +356,7 @@ export function CashierOrders() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="pl-6 pr-10 py-3 bg-slate-950 border border-white/10 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-300 cursor-pointer appearance-none min-w-[140px] text-center"
+                className="pl-6 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
               >
                 <option value="All">All Types</option>
                 <option value="Dine-in">Dine-in</option>
@@ -364,14 +364,14 @@ export function CashierOrders() {
                 <option value="Delivery">Delivery</option>
                 <option value="Take-away">Take-away</option>
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
             </div>
 
             <div className="relative group/select">
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="pl-6 pr-10 py-3 bg-slate-950 border border-white/10 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-300 cursor-pointer appearance-none min-w-[140px] text-center"
+                className="pl-6 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
               >
                 <option value="All">All Status</option>
                 <option value="Pending">Pending</option>
@@ -379,14 +379,14 @@ export function CashierOrders() {
                 <option value="Completed">Completed</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
             </div>
 
             <div className="relative group/select">
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="pl-6 pr-10 py-3 bg-slate-950 border border-white/10 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-300 cursor-pointer appearance-none min-w-[140px] text-center"
+                className="pl-6 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
               >
                 <option value="All">All Time</option>
                 <option value="Today">Today</option>
@@ -394,7 +394,7 @@ export function CashierOrders() {
                 <option value="Month">This Month</option>
                 <option value="Year">This Year</option>
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
             </div>
           </div>
         </div>
@@ -405,7 +405,7 @@ export function CashierOrders() {
         {loading && orders.length === 0 ? (
            <div className="py-32 text-center">
               <div className="w-16 h-16 border-4 border-slate-100 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6 shadow-inner" />
-              <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-[10px]">Syncing with Kitchen...</p>
+              <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[10px]">Syncing with Kitchen...</p>
            </div>
         ) : filteredOrders.map((order) => {
           const StatusIcon = getStatusIcon(order.orderStatus);
@@ -419,26 +419,26 @@ export function CashierOrders() {
           return (
             <div
               key={order._id}
-              className={`group bg-[#0F172A] rounded-[2.5rem] border transition-all duration-700 overflow-hidden relative ${isExpanded ? 'border-[#D4AF37]/30 shadow-[0_30px_70px_-20px_rgba(212,175,55,0.15)] ring-1 ring-[#D4AF37]/10' : 'border-white/5 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-20px_rgba(212,175,55,0.1)] hover:border-[#D4AF37]/20'}`}
+              className={`group bg-slate-50 rounded-[2.5rem] border transition-all duration-700 overflow-hidden relative ${isExpanded ? 'border-[#D4AF37]/30 shadow-[0_30px_70px_-20px_rgba(212,175,55,0.15)] ring-1 ring-[#D4AF37]/10' : 'border-slate-200 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-20px_rgba(212,175,55,0.1)] hover:border-[#D4AF37]/20'}`}
             >
               <div className={`absolute left-0 top-0 w-1.5 h-full bg-[#D4AF37] transition-all duration-700 ${isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}`} />
 
               {/* Order Header */}
               <div
-                className={`px-8 py-6 cursor-pointer select-none transition-colors ${isExpanded ? 'bg-slate-950/20' : 'bg-[#0F172A] hover:bg-slate-900/30'}`}
+                className={`px-8 py-6 cursor-pointer select-none transition-colors ${isExpanded ? 'bg-slate-50/20' : 'bg-slate-50 hover:bg-slate-100/30'}`}
                 onClick={() => setExpandedOrder(isExpanded ? null : order._id)}
               >
                 <div className="flex items-center justify-between gap-6">
                   <div className="flex items-center gap-6 flex-1 min-w-0">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${isExpanded ? 'bg-slate-900 text-[#D4AF37] rotate-[15deg] shadow-lg' : 'bg-slate-950 text-slate-400 group-hover:bg-slate-900 group-hover:shadow-sm group-hover:rotate-12'}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${isExpanded ? 'bg-slate-100 text-[#D4AF37] rotate-[15deg] shadow-lg' : 'bg-slate-50 text-slate-500 group-hover:bg-slate-100 group-hover:shadow-sm group-hover:rotate-12'}`}>
                       <ShoppingCart className="w-6 h-6" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <span className="px-3 py-1 bg-slate-950 text-[#D4AF37] text-[8px] font-black uppercase tracking-[0.2em] rounded-full border border-white/5">
+                        <span className="px-3 py-1 bg-slate-50 text-[#D4AF37] text-[8px] font-black uppercase tracking-[0.2em] rounded-full border border-slate-200">
                           Order {dailySequenceNum.toString().padStart(3, '0')}
                         </span>
-                        <p className="text-sm font-black text-slate-400 tracking-widest uppercase">#{order._id.slice(-8).toUpperCase()}</p>
+                        <p className="text-sm font-black text-slate-500 tracking-widest uppercase">#{order._id.slice(-8).toUpperCase()}</p>
                         <span className={`px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] rounded-full border ${getTypeStyles(order.orderType)}`}>
                           {order.orderType}
                         </span>
@@ -447,29 +447,29 @@ export function CashierOrders() {
                           {order.orderStatus}
                         </span>
                         {order.paymentStatus === 'Paid' ? (
-                          <span className="px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] rounded-full bg-emerald-500 text-white shadow-[0_5px_15px_-5px_rgba(16,185,129,0.5)]">Paid</span>
+                          <span className="px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] rounded-full bg-emerald-500 text-slate-900 shadow-[0_5px_15px_-5px_rgba(16,185,129,0.5)]">Paid</span>
                         ) : (
                           <span className="px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-400">Unpaid</span>
                         )}
                       </div>
                       <div className="flex items-center gap-4 mt-2">
                         <div className="flex items-center gap-1.5">
-                          <div className="w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center border border-white/5">
-                            <User className="w-2.5 h-2.5 text-slate-400" />
+                          <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                            <User className="w-2.5 h-2.5 text-slate-500" />
                           </div>
-                          <span className="text-[10px] font-black text-white uppercase tracking-wider">{order.customerName || 'Guest'}</span>
+                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">{order.customerName || 'Guest'}</span>
                         </div>
                         <span className="text-[10px] text-slate-500 font-bold">|</span>
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3 h-3 text-[#D4AF37]" />
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                             {new Date(order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                           </span>
                         </div>
                         <span className="text-[10px] text-slate-500 font-bold">|</span>
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3 h-3 text-[#D4AF37]" />
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                             {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
@@ -486,12 +486,12 @@ export function CashierOrders() {
                   </div>
                   <div className="flex items-center gap-8">
                     <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{order.items?.length || 0} Items</p>
-                      <p className="text-2xl font-black text-white tracking-tighter" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{order.items?.length || 0} Items</p>
+                      <p className="text-2xl font-black text-slate-900 tracking-tighter" style={{ fontFamily: 'DM Serif Display, serif' }}>
                         {formatCurrency(order.totalAmount)}
                       </p>
                     </div>
-                    <div className={`w-10 h-10 rounded-xl border border-white/5 flex items-center justify-center transition-all duration-500 ${isExpanded ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] rotate-180' : 'bg-slate-950 text-slate-400 group-hover:border-white/10'}`}>
+                    <div className={`w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center transition-all duration-500 ${isExpanded ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] rotate-180' : 'bg-slate-50 text-slate-500 group-hover:border-slate-200'}`}>
                       <ChevronDown className="w-5 h-5" />
                     </div>
                   </div>
@@ -500,26 +500,26 @@ export function CashierOrders() {
 
               {/* Expanded Luxury Details */}
               {isExpanded && (
-                <div className="px-8 pb-8 bg-slate-950/20 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-white/5">
+                <div className="px-8 pb-8 bg-slate-50/20 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-slate-200">
                     <div>
-                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
                         <Package className="w-3 h-3 text-[#D4AF37]" />
                         Boutique Selection
                       </h4>
                       <div className="space-y-2">
                         {order.items?.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between py-4 px-5 bg-slate-900 rounded-2xl border border-white/5 shadow-sm hover:border-[#D4AF37]/30 transition-all group/item">
+                          <div key={idx} className="flex items-center justify-between py-4 px-5 bg-slate-100 rounded-2xl border border-slate-200 shadow-sm hover:border-[#D4AF37]/30 transition-all group/item">
                             <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center group-hover/item:bg-[#D4AF37] transition-colors">
+                              <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center group-hover/item:bg-[#D4AF37] transition-colors">
                                 <span className="text-xs font-black text-[#D4AF37] group-hover/item:text-[#0F172A]">{item.quantity}x</span>
                               </div>
                               <div>
-                                <p className="text-xs font-black text-white uppercase tracking-wider group-hover/item:text-[#D4AF37] transition-colors">{item.name}</p>
+                                <p className="text-xs font-black text-slate-900 uppercase tracking-wider group-hover/item:text-[#D4AF37] transition-colors">{item.name}</p>
                                 {item.portion && <p className="text-[9px] font-bold text-[#D4AF37] uppercase mt-0.5">{item.portion}</p>}
                               </div>
                             </div>
-                            <p className="text-xs font-black text-white">
+                            <p className="text-xs font-black text-slate-900">
                               {formatCurrency(item.price * item.quantity)}
                             </p>
                           </div>
@@ -529,22 +529,22 @@ export function CashierOrders() {
 
                     <div className="flex flex-col justify-between">
                       <div>
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Financial Summary</h4>
-                        <div className="bg-slate-950 p-6 rounded-[2rem] border border-white/5 shadow-sm space-y-4">
-                          <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4">Financial Summary</h4>
+                        <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
+                          <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
                             <span>Subtotal</span>
-                            <span className="text-white">{formatCurrency(order.subtotal)}</span>
+                            <span className="text-slate-900">{formatCurrency(order.subtotal)}</span>
                           </div>
                           {order.serviceCharge > 0 && (
-                            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest">
+                            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
                               <span>Service (10%)</span>
-                              <span className="text-white">{formatCurrency(order.serviceCharge)}</span>
+                              <span className="text-slate-900">{formatCurrency(order.serviceCharge)}</span>
                             </div>
                           )}
                           {order.deliveryFee > 0 && (
-                            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest">
+                            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
                               <span>Delivery</span>
-                              <span className="text-white">{formatCurrency(order.deliveryFee)}</span>
+                              <span className="text-slate-900">{formatCurrency(order.deliveryFee)}</span>
                             </div>
                           )}
                           {order.discount > 0 && (
@@ -553,9 +553,9 @@ export function CashierOrders() {
                               <span>-{formatCurrency(order.discount)}</span>
                             </div>
                           )}
-                          <div className="pt-4 border-t border-dashed border-white/5 flex justify-between items-center">
-                            <span className="text-xs font-black text-white uppercase tracking-[0.2em]">Net Total</span>
-                            <span className="text-2xl font-black text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                          <div className="pt-4 border-t border-dashed border-slate-200 flex justify-between items-center">
+                            <span className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Net Total</span>
+                            <span className="text-2xl font-black text-slate-900" style={{ fontFamily: 'DM Serif Display, serif' }}>
                               {formatCurrency(order.totalAmount)}
                             </span>
                           </div>
@@ -563,7 +563,7 @@ export function CashierOrders() {
                       </div>
 
                       <div className="mt-6">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
                           <Activity className="w-3.5 h-3.5 text-[#D4AF37]" />
                           Update Order Status
                         </h4>
@@ -577,7 +577,7 @@ export function CashierOrders() {
                                 className={`flex-1 py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all duration-300 ${
                                   isCurrent
                                     ? 'bg-[#D4AF37] text-[#0F172A] border-[#D4AF37] shadow-[0_5px_15px_rgba(212,175,55,0.15)] scale-[1.02]'
-                                    : 'bg-slate-900 text-slate-400 border-white/5 hover:bg-slate-950 hover:text-white'
+                                    : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-900'
                                 }`}
                               >
                                 {status}
@@ -605,7 +605,7 @@ export function CashierOrders() {
                          ) : (
                            <button 
                              onClick={() => handlePrintReceipt(order)}
-                             className="flex-1 py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
+                             className="flex-1 py-4 bg-slate-50 text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-slate-100 transition-all active:scale-95 flex items-center justify-center gap-2"
                            >
                              <Printer className="w-4 h-4" />
                              Print Receipt
@@ -613,7 +613,7 @@ export function CashierOrders() {
                          )}
                          <button 
                            onClick={() => handleCancelOrder(order._id)}
-                           className="px-6 py-4 border border-white/5 bg-slate-900 text-slate-400 rounded-2xl hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-95"
+                           className="px-6 py-4 border border-slate-200 bg-slate-100 text-slate-500 rounded-2xl hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-95"
                          >
                            <XCircle className="w-5 h-5" />
                          </button>
@@ -627,11 +627,11 @@ export function CashierOrders() {
         })}
 
         {!loading && filteredOrders.length === 0 && (
-          <div className="bg-[#0F172A] rounded-[3rem] border border-white/5 shadow-2xl p-24 text-center">
-            <div className="w-20 h-20 bg-slate-950 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-white/5">
+          <div className="bg-slate-50 rounded-[3rem] border border-slate-200 shadow-2xl p-24 text-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-slate-200">
               <ShoppingCart className="w-10 h-10 text-slate-600" />
             </div>
-            <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-xs">No active orders found</p>
+            <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-xs">No active orders found</p>
             <p className="text-[10px] text-slate-500 font-bold uppercase mt-2">Adjust filters or sync to refresh</p>
           </div>
         )}
@@ -644,47 +644,47 @@ export function CashierOrders() {
 
         return (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setSettlingOrder(null)} />
-            <div className="relative bg-[#0F172A] w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500 border border-white/5">
+            <div className="absolute inset-0 bg-slate-50/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setSettlingOrder(null)} />
+            <div className="relative bg-slate-50 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500 border border-slate-200">
               {/* Modal Header */}
-              <div className="bg-slate-950/40 px-8 py-6 flex items-center justify-between border-b border-white/5">
+              <div className="bg-slate-50/40 px-8 py-6 flex items-center justify-between border-b border-slate-200">
                 <div>
-                  <h2 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Settle <span className="text-[#D4AF37]">Order</span></h2>
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                  <h2 className="text-xl text-slate-900 font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Settle <span className="text-[#D4AF37]">Order</span></h2>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">
                     {isMultiple ? `${relatedOrders.length} Linked Orders` : `#${settlingOrder._id.slice(-8).toUpperCase()}`}
                   </p>
                 </div>
-                <button onClick={() => setSettlingOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-white hover:bg-white/10 transition-all">
+                <button onClick={() => setSettlingOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-900 hover:bg-white/10 transition-all">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Modal Content */}
               <div className="p-8 space-y-6">
-                <div className="flex justify-between items-end border-b border-white/5 pb-6">
+                <div className="flex justify-between items-end border-b border-slate-200 pb-6">
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{isMultiple ? 'Combined Total' : 'Total Amount Due'}</p>
-                    <h3 className="text-4xl font-black text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(combinedTotal)}</h3>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{isMultiple ? 'Combined Total' : 'Total Amount Due'}</p>
+                    <h3 className="text-4xl font-black text-slate-900" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(combinedTotal)}</h3>
                   </div>
                   <div className="text-right">
                      <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{settlingOrder.orderType}</p>
-                     <p className="text-xs font-black text-white">{settlingOrder.tableNumber ? `Table ${settlingOrder.tableNumber}` : settlingOrder.roomNumber ? `Room ${settlingOrder.roomNumber}` : settlingOrder.customerName}</p>
+                     <p className="text-xs font-black text-slate-900">{settlingOrder.tableNumber ? `Table ${settlingOrder.tableNumber}` : settlingOrder.roomNumber ? `Room ${settlingOrder.roomNumber}` : settlingOrder.customerName}</p>
                   </div>
                 </div>
 
                 {isMultiple && (
-                  <div className="bg-slate-950 rounded-2xl p-4 border border-white/5">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Order Group Summary</p>
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Order Group Summary</p>
                     <div className="space-y-3">
                       {relatedOrders.map(o => (
                         <div key={o._id} className="space-y-1">
-                          <div className="flex justify-between text-[9px] font-black text-slate-300 uppercase tracking-wider border-b border-white/5 pb-1">
+                          <div className="flex justify-between text-[9px] font-black text-slate-600 uppercase tracking-wider border-b border-slate-200 pb-1">
                             <span>{new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} Order</span>
                             <span className="text-[#D4AF37]">{formatCurrency(o.totalAmount)}</span>
                           </div>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {(o.items || []).map((it, idx) => (
-                              <span key={idx} className="text-[7px] font-bold text-slate-400 bg-slate-900 border border-white/5 px-1.5 py-0.5 rounded uppercase">{it.quantity}x {it.name}</span>
+                              <span key={idx} className="text-[7px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded uppercase">{it.quantity}x {it.name}</span>
                             ))}
                           </div>
                         </div>
@@ -695,7 +695,7 @@ export function CashierOrders() {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash Received (Rs)</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cash Received (Rs)</label>
                     <div className="relative">
                       <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
                       <input
@@ -704,7 +704,7 @@ export function CashierOrders() {
                         placeholder="Enter amount..."
                         value={cashReceived}
                         onChange={(e) => setCashReceived(e.target.value)}
-                        className="w-full pl-14 pr-6 py-5 bg-slate-950 border border-white/10 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-white outline-none"
+                        className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
                       />
                     </div>
                   </div>
