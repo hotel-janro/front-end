@@ -329,21 +329,8 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
           alt={room.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
-        <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">
+        <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm font-bold shadow-sm">
           {settings.currency.symbol} {formattedPrice}
-        </div>
-        <div className="absolute top-4 left-4 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-[#0F172A] shadow-sm">
-          {loadingRooms
-            ? "Checking availability..."
-            : !showBookingForm
-              ? (() => {
-                  const total = room.availableRooms ?? 0;
-                  return `${total} ${total === 1 ? "room" : "rooms"} available`;
-                })()
-              : !isDateRangeInvalid
-                ? `${availableRoomNumbers.length} ${availableRoomNumbers.length === 1 ? "room" : "rooms"} available`
-                : `${activeVariantRoom.availableRooms ?? 0} ${Number(activeVariantRoom.availableRooms) === 1 ? "room" : "rooms"} in total`
-          }
         </div>
       </div>
       <div className="p-6">
