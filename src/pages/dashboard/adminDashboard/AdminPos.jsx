@@ -127,7 +127,7 @@ const [posForm, setPosForm] = useState({
   deliveryAddress: '',
   contactNumber: '',
   customerName: '',
-  discount: '0',
+  discount: '',
   coordinates: null,
   deliveryFee: 0,
   paymentMethod: 'Cash'
@@ -413,6 +413,10 @@ const handlePlaceOrder = async () => {
     return;
   }
 
+  if (posForm.paymentMethod === 'Cash' && !isPaidToggle) {
+    toast.error("Please tick the 'Paid' checkbox to confirm a Cash payment.");
+    return;
+  }
 
   setSavingPosOrder(true);
   try {
@@ -500,7 +504,7 @@ const handlePlaceOrder = async () => {
     setIsPaidToggle(false);
     setPosForm(prev => ({
       ...prev,
-      discount: '0',
+      discount: '',
       paymentMethod: 'Cash'
     }));
     await loadOrders();
@@ -1183,7 +1187,7 @@ const renderTerminal = () => (
             </div>
             <div className="space-y-1">
               <label className="text-[7px] text-slate-500 uppercase tracking-widest">Discount</label>
-              <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full h-[26px] bg-white/5 border border-slate-200 rounded-lg px-2 text-[10px] outline-none text-slate-900 font-bold" />
+              <input type="number" placeholder="" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full h-[26px] bg-white/5 border border-slate-200 rounded-lg px-2 text-[10px] outline-none text-slate-900 font-bold" />
             </div>
             <div className="flex flex-col justify-center items-center gap-1">
               <label className="text-[7px] text-slate-500 uppercase tracking-widest">Paid</label>
@@ -1195,7 +1199,7 @@ const renderTerminal = () => (
             <div className="grid grid-cols-2 gap-2 mt-2">
               <div className="space-y-1">
                 <label className="text-[7px] text-slate-500 uppercase tracking-widest">Received (Rs)</label>
-                <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] outline-none text-slate-900 font-bold" />
+                <input type="number" placeholder="" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] outline-none text-slate-900 font-bold" />
               </div>
               <div className="text-right flex flex-col justify-center">
                 <label className="text-[7px] text-slate-500 uppercase tracking-widest">Balance</label>
