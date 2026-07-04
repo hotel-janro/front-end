@@ -218,6 +218,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
                 )}
               </div>
             )}
+            <p className="text-xs font-medium text-emerald-600 mb-6 bg-emerald-50 py-2 px-3 rounded-lg border border-emerald-100">
+              A confirmation email will be sent to your inbox shortly by the hotel.
+            </p>
             <button
               onClick={() => setBookingSuccess(null)}
               className="w-full py-3 rounded-xl font-semibold text-white"

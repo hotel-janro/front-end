@@ -535,21 +535,33 @@ export function MyBookings() {
                   <span className="text-sm font-semibold text-slate-500">Item</span>
                   <span className="text-sm font-bold text-slate-900">{viewingBooking.roomName || viewingBooking.hallName || "N/A"}</span>
                 </div>
-                <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                  <span className="text-sm font-semibold text-slate-500">Date In</span>
-                  <span className="text-sm font-bold text-slate-900">
-                    {new Date(viewingBooking.checkInDate || viewingBooking.eventDate).toLocaleDateString()}
-                    {viewingBooking.checkInType ? ` (${viewingBooking.checkInType})` : ""}
-                  </span>
-                </div>
-                {viewingBooking.checkOutDate && (
+                {viewingBooking.checkInDate && viewingBooking.checkOutDate && new Date(viewingBooking.checkInDate).toLocaleDateString() === new Date(viewingBooking.checkOutDate).toLocaleDateString() && viewingBooking.checkInType === viewingBooking.checkOutType ? (
                   <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                    <span className="text-sm font-semibold text-slate-500">Date Out</span>
+                    <span className="text-sm font-semibold text-slate-500">Date</span>
                     <span className="text-sm font-bold text-slate-900">
-                      {new Date(viewingBooking.checkOutDate).toLocaleDateString()}
-                      {viewingBooking.checkOutType ? ` (${viewingBooking.checkOutType})` : ""}
+                      {new Date(viewingBooking.checkInDate).toLocaleDateString()}
+                      {viewingBooking.checkInType ? ` (Only ${viewingBooking.checkInType})` : ""}
                     </span>
                   </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                      <span className="text-sm font-semibold text-slate-500">Date In</span>
+                      <span className="text-sm font-bold text-slate-900">
+                        {new Date(viewingBooking.checkInDate || viewingBooking.eventDate).toLocaleDateString()}
+                        {viewingBooking.checkInType ? ` (${viewingBooking.checkInType})` : ""}
+                      </span>
+                    </div>
+                    {viewingBooking.checkOutDate && (
+                      <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                        <span className="text-sm font-semibold text-slate-500">Date Out</span>
+                        <span className="text-sm font-bold text-slate-900">
+                          {new Date(viewingBooking.checkOutDate).toLocaleDateString()}
+                          {viewingBooking.checkOutType ? ` (${viewingBooking.checkOutType})` : ""}
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
                 <div className="flex justify-between items-center py-3 border-b border-slate-100">
                   <span className="text-sm font-semibold text-slate-500">Guests</span>
