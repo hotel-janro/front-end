@@ -5,7 +5,7 @@ import {
   LayoutGrid,
   ShoppingCart,
   CreditCard,
-  Receipt,
+  ScrollText,
   LogOut,
   User,
 } from "lucide-react";
@@ -16,7 +16,7 @@ const navItems = [
   { label: "POS Dashboard", icon: LayoutGrid, path: "/cashier" },
   { label: "Orders", icon: ShoppingCart, path: "/cashier/orders" },
   { label: "Payments", icon: CreditCard, path: "/cashier/payments" },
-  { label: "Receipts", icon: Receipt, path: "/cashier/receipts" },
+  { label: "Receipts", icon: ScrollText, path: "/cashier/receipts" },
   { label: "Profile", icon: User, path: "/cashier/profile" },
 ];
 

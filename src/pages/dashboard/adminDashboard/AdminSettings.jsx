@@ -51,6 +51,14 @@ export function AdminSettings() {
     staffUpdates: true
   });
 
+  // Bank Details State
+  const [bankDetails, setBankDetails] = useState({
+    bankName: '',
+    branchName: '',
+    accountNumber: '',
+    accountHolderName: ''
+  });
+
   useEffect(() => {
     const storedUser = localStorage.getItem('janro_user');
     if (storedUser) {
@@ -75,6 +83,12 @@ export function AdminSettings() {
         paymentReceived: settings.notifications?.paymentReceived !== false,
         lowInventory: settings.notifications?.lowInventory !== false,
         staffUpdates: settings.notifications?.staffUpdates !== false
+      });
+      setBankDetails({
+        bankName: settings.bankDetails?.bankName || '',
+        branchName: settings.bankDetails?.branchName || '',
+        accountNumber: settings.bankDetails?.accountNumber || '',
+        accountHolderName: settings.bankDetails?.accountHolderName || ''
       });
     }
   }, [settings]);
@@ -204,6 +218,16 @@ export function AdminSettings() {
       return;
     }
 
+    if (passwordData.newPassword === passwordData.currentPassword) {
+      setMessage({ type: 'error', text: 'New password cannot be the same as your current password' });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'New password must be at least 6 characters long' });
+      return;
+    }
+
     setIsSaving(true);
     setMessage({ type: '', text: '' });
     try {
@@ -231,6 +255,34 @@ export function AdminSettings() {
     }
   };
 
+  const handlePaymentSave = async () => {
+    setIsSaving(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const token = localStorage.getItem('janro_token');
+      const response = await fetch(`${API_BASE}/api/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ bankDetails })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Bank details updated successfully!' });
+        fetchSettings(); // Refresh global settings
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Failed to update bank details' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An error occurred while saving bank details' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const onSave = () => {
     if (activeTab === 'profile') {
       handleProfileSave();
@@ -240,6 +292,8 @@ export function AdminSettings() {
       handleSecuritySave();
     } else if (activeTab === 'notifications') {
       handleNotificationsSave();
+    } else if (activeTab === 'payment') {
+      handlePaymentSave();
     }
   };
 
@@ -527,12 +581,114 @@ export function AdminSettings() {
               </div>
             )}
 
-            {activeTab === 'payment' && <div className="p-4 text-gray-500 italic">Payment gateway settings content (static)</div>}
+            {activeTab === 'payment' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Bank Transfer Details</h2>
+                    <p className="text-sm text-gray-500">Configure the hotel bank accounts for direct payments and wire transfers.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left: Input Form */}
+                  <div className="lg:col-span-2 space-y-4">
+                    <div>
+                      <label className="admin-settings-label">Account Holder Name</label>
+                      <input 
+                        type="text" 
+                        value={bankDetails.accountHolderName}
+                        onChange={(e) => setBankDetails(prev => ({ ...prev, accountHolderName: e.target.value }))}
+                        className="admin-settings-control"
+                        placeholder="e.g. Hotel Janro (Pvt) Ltd"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="admin-settings-label">Bank Name</label>
+                        <input 
+                          type="text" 
+                          value={bankDetails.bankName}
+                          onChange={(e) => setBankDetails(prev => ({ ...prev, bankName: e.target.value }))}
+                          className="admin-settings-control"
+                          placeholder="e.g. Bank of Ceylon (BOC)"
+                        />
+                      </div>
+                      <div>
+                        <label className="admin-settings-label">Branch Name</label>
+                        <input 
+                          type="text" 
+                          value={bankDetails.branchName}
+                          onChange={(e) => setBankDetails(prev => ({ ...prev, branchName: e.target.value }))}
+                          className="admin-settings-control"
+                          placeholder="e.g. Dompe Branch"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="admin-settings-label">Account Number</label>
+                      <input 
+                        type="text" 
+                        value={bankDetails.accountNumber}
+                        onChange={(e) => setBankDetails(prev => ({ ...prev, accountNumber: e.target.value }))}
+                        className="admin-settings-control"
+                        placeholder="e.g. 1234567890"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right: Live Preview Card Graphic */}
+                  <div className="lg:col-span-1">
+                    <div className="admin-settings-card-preview relative overflow-hidden bg-gradient-to-br from-[#0F172A] to-[#1E293B] text-white p-6 rounded-2xl shadow-xl border border-white/10 flex flex-col justify-between h-56">
+                      {/* Decorative elements */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-3xl pointer-events-none"></div>
+                      <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl pointer-events-none"></div>
+
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-[10px] text-[#D4AF37] uppercase tracking-[0.2em] font-semibold">Official Bank Account</p>
+                          <h4 className="text-sm font-bold text-white mt-1 uppercase tracking-wider truncate max-w-[180px]">
+                            {bankDetails.bankName || 'BANK NAME'}
+                          </h4>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                          <CreditCard className="w-4 h-4 text-[#D4AF37]" />
+                        </div>
+                      </div>
+
+                      <div className="my-4">
+                        <p className="text-[9px] text-slate-400 uppercase tracking-wider">Account Number</p>
+                        <p className="text-lg font-mono font-bold tracking-widest text-[#F5E7B2] truncate">
+                          {bankDetails.accountNumber ? bankDetails.accountNumber.replace(/(\d{4})/g, '$1 ').trim() : '•••• •••• •••• ••••'}
+                        </p>
+                      </div>
+
+                      <div className="flex justify-between items-end gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[8px] text-slate-400 uppercase tracking-wider">Account Holder</p>
+                          <p className="text-xs font-semibold uppercase truncate text-white">
+                            {bankDetails.accountHolderName || 'HOTEL JANRO PVT LTD'}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[8px] text-slate-400 uppercase tracking-wider">Branch</p>
+                          <p className="text-xs font-semibold text-white">
+                            {bankDetails.branchName || 'BRANCH'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end pt-6 border-t border-gray-200 mt-6">
               <button 
                 onClick={onSave}
-                disabled={isSaving || (activeTab !== 'profile' && activeTab !== 'general' && activeTab !== 'security' && activeTab !== 'notifications')}
+                disabled={isSaving || (activeTab !== 'profile' && activeTab !== 'general' && activeTab !== 'security' && activeTab !== 'notifications' && activeTab !== 'payment')}
                 className={`admin-settings-primary-btn ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}

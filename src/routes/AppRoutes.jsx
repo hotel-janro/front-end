@@ -21,7 +21,7 @@ import { AdminRooms } from "../pages/dashboard/adminDashboard/AdminRooms.jsx";
 import { AdminRestaurant } from "../pages/dashboard/adminDashboard/AdminRestaurant.jsx";
 import { AdminPOS } from "../pages/dashboard/adminDashboard/AdminPos.jsx";
 import { AdminReports } from "../pages/dashboard/adminDashboard/AdminReports.jsx";
-import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayemnts.jsx";
+import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayments.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 import { AdminGym } from "../pages/dashboard/adminDashboard/AdminGym.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
@@ -38,6 +38,7 @@ import { ReceptionGym } from "../pages/dashboard/receptionDashboard/ReceptionGym
 import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
 import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionRooms.jsx";
 import { ReceptionWedding } from "../pages/dashboard/receptionDashboard/ReceptionWedding.jsx";
+import { ReceptionProfile } from "../pages/dashboard/receptionDashboard/ReceptionProfile.jsx";
 import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
 import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
@@ -48,12 +49,13 @@ import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
 
-export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onGoogleLogin }) {
+export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onGoogleLogin, onUpdateUser }) {
   const navigate = useNavigate();
-  const isAdmin = user?.role === "admin";
-  const isReception = user?.role === "reception" || user?.role === "receptionist";
-  const isCashier = user?.role === "cashier";
-  const isCustomer = user?.role === "customer";
+  const roleLower = user?.role?.toLowerCase().trim();
+  const isAdmin = roleLower === "admin";
+  const isReception = roleLower === "reception" || roleLower === "receptionist";
+  const isCashier = roleLower === "cashier";
+  const isCustomer = roleLower === "customer";
 
   const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : isCashier ? "/cashier" : "/";
 
@@ -86,19 +88,85 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
         });
 
         if (response.success) {
-          const decorationText = data.decorationItems?.length
-            ? data.decorationItems.join(", ")
-            : null;
+          const booking = response.data; // The returned booking object
 
-          setBookingSuccess({
-            name: user?.name || "Guest",
-            roomName: data.room.name,
-            guests: data.guests,
-            decorations: decorationText
-          });
-          
-          // Refresh room counts after short delay
-          setTimeout(() => window.location.reload(), 3000);
+          const showSuccessModal = () => {
+            const decorationText = data.decorationItems?.length
+              ? data.decorationItems.join(", ")
+              : null;
+
+            setBookingSuccess({
+              name: user?.name || "Guest",
+              roomName: data.room.name,
+              guests: data.guests,
+              decorations: decorationText
+            });
+            
+            // Refresh room counts after short delay
+            setTimeout(() => window.location.reload(), 3000);
+          };
+
+          if (data.paymentMethod === "Card") {
+            try {
+              const hashRes = await apiFetch("/payments/payhere-hash", {
+                method: "POST",
+                body: JSON.stringify({
+                  orderId: booking._id,
+                  amount: booking.totalPrice
+                })
+              });
+
+              if (!hashRes || !hashRes.success) {
+                throw new Error("Failed to generate payment signature for booking.");
+              }
+
+              const { merchantId, currency, hash, amount } = hashRes.data;
+              const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "").replace(/\/$/, "");
+
+              const payment = {
+                sandbox: true,
+                merchant_id: merchantId,
+                return_url: `${window.location.origin}/my-bookings`,
+                cancel_url: `${window.location.origin}/rooms`,
+                notify_url: `${API_BASE}/api/payments/payhere-notify`,
+                order_id: booking._id,
+                items: `Room Booking - ${data.room.name}`,
+                amount: amount,
+                currency: currency,
+                hash: hash,
+                first_name: user?.name?.split(" ")[0] || "Valued",
+                last_name: user?.name?.split(" ")[1] || "Guest",
+                email: user?.email || data.email,
+                phone: user?.phone || data.phone,
+                address: "Hotel Janro Guest",
+                city: "Colombo",
+                country: "Sri Lanka",
+                custom_1: "room" // Signal to backend that this is a room booking
+              };
+
+              window.payhere.onCompleted = async function onCompleted(orderId) {
+                showSuccessModal();
+              };
+
+              window.payhere.onDismissed = function onDismissed() {
+                alert("Payment window closed. Your booking is saved as Unpaid in your dashboard.");
+                window.location.href = "/my-bookings";
+              };
+
+              window.payhere.onError = function onError(error) {
+                alert("Payment failed: " + error);
+                window.location.href = "/my-bookings";
+              };
+
+              window.payhere.startPayment(payment);
+            } catch (err) {
+              alert("Could not start payment: " + err.message);
+              window.location.href = "/my-bookings";
+            }
+          } else {
+            // Cash payment - directly show success
+            showSuccessModal();
+          }
         }
       } catch (error) {
         alert(`Booking failed: ${error.message}`);
@@ -211,7 +279,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
       {/* Reception & Cashier */}
       <Route
         path="/reception"
-        element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
+        element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<ReceptionDashboard />} />
         <Route path="rooms" element={<ReceptionRooms isLoggedIn={isLoggedIn} onBook={protectedBook} />} />

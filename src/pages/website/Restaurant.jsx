@@ -40,8 +40,30 @@ export function Restaurant({ onOrder, user }) {
   const [specialNotes, setSpecialNotes] = useState("");
   const [coordinates, setCoordinates] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("Card"); // Card or Cash
   const [validationErrors, setValidationErrors] = useState({});
+  const [myRooms, setMyRooms] = useState([]);
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      if (user) {
+        try {
+          const res = await apiFetch("/bookings/my");
+          if (res?.data) {
+            const active = res.data.filter(b => b.status?.toLowerCase() === 'checked-in');
+            setMyRooms(active);
+          }
+        } catch (e) {
+          console.error("Failed to fetch my rooms", e);
+        }
+      } else {
+        setMyRooms([]);
+      }
+    };
+    if (showCart) fetchRooms();
+  }, [user, showCart]);
 
   const clearError = (field) => {
     if (validationErrors[field]) {
@@ -178,9 +200,18 @@ export function Restaurant({ onOrder, user }) {
     const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, coordinates.lat, coordinates.lng);
     // Apply a 1.2x winding factor to estimate actual road distance
     distance = straightDist * 1.2;
-    if (distance > 1 && distance <= 15) {
-      // 1km free, then 10% per 1km
-      deliveryFee = subtotal * 0.1 * Math.ceil(distance - 1);
+    if (distance > 0 && distance <= 1) {
+      deliveryFee = 0;
+    } else if (distance > 1 && distance <= 3) {
+      deliveryFee = 150;
+    } else if (distance > 3 && distance <= 6) {
+      deliveryFee = 250;
+    } else if (distance > 6 && distance <= 9) {
+      deliveryFee = 350;
+    } else if (distance > 9 && distance <= 12) {
+      deliveryFee = 450;
+    } else if (distance > 12 && distance <= 15) {
+      deliveryFee = 550;
     }
   }
 
@@ -188,15 +219,26 @@ export function Restaurant({ onOrder, user }) {
   const isDistanceTooFar = orderType === "Delivery" && distance > 15;
 
   const autoGeocode = async (address) => {
-    if (!address || address.length < 5) return;
+    if (!address || address.trim().length < 5) {
+      toast.error("Please enter a longer address to search.");
+      return;
+    }
+    setIsSearchingAddress(true);
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=LK`);
       const data = await response.json();
       if (data && data.length > 0) {
         const { lat, lon } = data[0];
         setCoordinates({ lat: parseFloat(lat), lng: parseFloat(lon) });
+        toast.success("Location found and pinned!");
+      } else {
+        toast.error("Address not found. Please drag the pin on the map to your exact location.");
       }
-    } catch (e) { /* Ignore */ }
+    } catch (e) {
+      toast.error("Search failed. Please drag the pin manually.");
+    } finally {
+      setIsSearchingAddress(false);
+    }
   };
 
   const handleMapCoordinatesChange = async (coords) => {
@@ -292,9 +334,8 @@ export function Restaurant({ onOrder, user }) {
     }
 
     if (orderType === "Room") {
-      const rNum = Number(roomNumber);
-      if (!roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
-        errors.roomNumber = "Select a valid room (1-10)";
+      if (!roomNumber || myRooms.length === 0) {
+        errors.roomNumber = "Please select your booked room";
       }
     }
     if (orderType === "Dine-in" && !tableNumber) {
@@ -337,6 +378,7 @@ export function Restaurant({ onOrder, user }) {
         deliveryFee,
         specialNotes,
         totalAmount: grandTotal,
+        paymentMethod
       };
 
       const result = await apiFetch("/orders", {
@@ -344,10 +386,82 @@ export function Restaurant({ onOrder, user }) {
         body: JSON.stringify(orderData),
       });
 
-      toast.success("Exceptional choice! Your order is being prepared.");
-      setCart([]);
-      setShowCart(false);
-      if (onOrder) onOrder(result);
+      const order = result.data || result; // Fallback in case backend returns plain order
+
+      const completeSuccess = () => {
+        toast.success("Exceptional choice! Your order is being prepared.");
+        setCart([]);
+        setShowCart(false);
+        if (onOrder) onOrder(result);
+      };
+
+      if (paymentMethod === "Card") {
+        try {
+          const hashRes = await apiFetch("/payments/payhere-hash", {
+            method: "POST",
+            body: JSON.stringify({
+              orderId: order._id,
+              amount: grandTotal
+            })
+          });
+
+          if (!hashRes || !hashRes.success) {
+            throw new Error("Failed to generate payment signature.");
+          }
+
+          const { merchantId, currency, hash, amount } = hashRes.data;
+          
+          const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "").replace(/\/$/, "");
+
+          const payment = {
+            sandbox: true,
+            merchant_id: merchantId,
+            return_url: `${window.location.origin}/my-orders`,
+            cancel_url: `${window.location.origin}/restaurant`,
+            notify_url: `${API_BASE}/api/payments/payhere-notify`,
+            order_id: order._id,
+            items: `Restaurant Order - ${cart.length} items`,
+            amount: amount,
+            currency: currency,
+            hash: hash,
+            first_name: customerName.split(" ")[0] || "Valued",
+            last_name: customerName.split(" ")[1] || "Guest",
+            email: user?.email || "guest@hoteljanro.com",
+            phone: contactNumber,
+            address: orderType === "Delivery" ? deliveryAddress : "Hotel Janro",
+            city: "Colombo",
+            country: "Sri Lanka",
+            custom_1: "order" // Signal to backend that this is a restaurant order
+          };
+
+          window.payhere.onCompleted = function onCompleted(orderId) {
+            completeSuccess();
+            // Optional: redirect to my orders page if you prefer
+            // window.location.href = "/my-orders";
+          };
+
+          window.payhere.onDismissed = function onDismissed() {
+            toast.error("Payment window closed. Order is saved as Unpaid in your dashboard.");
+            setCart([]);
+            setShowCart(false);
+          };
+
+          window.payhere.onError = function onError(error) {
+            toast.error("Payment failed: " + error);
+            setCart([]);
+            setShowCart(false);
+          };
+
+          window.payhere.startPayment(payment);
+        } catch (err) {
+          toast.error("Could not start payment: " + err.message);
+          setCart([]);
+          setShowCart(false);
+        }
+      } else {
+        // Cash payment
+        completeSuccess();
+      }
     } catch (err) {
       toast.error(err.message || "Something went wrong");
     } finally {
@@ -562,7 +676,7 @@ export function Restaurant({ onOrder, user }) {
                         <span>{formatCurrency(deliveryFee)}</span>
                       </div>
                       <span className="text-[7px] text-sky-400/60 text-right uppercase tracking-widest font-bold">
-                        {distance.toFixed(1)} km (1km free, 10% subtotal/km)
+                        {distance.toFixed(1)} km (Distance-based fixed rate)
                       </span>
                     </div>
                   )}
@@ -701,42 +815,68 @@ export function Restaurant({ onOrder, user }) {
                       )}
                       {orderType === "Room" && (
                         <>
-                          <div className="relative">
-                            <select value={roomNumber} onChange={e => { setRoomNumber(e.target.value); clearError('roomNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.roomNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
-                              <option value="">Select Room Number</option>
-                              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map(r => <option key={r} value={r}>Room {r}</option>)}
-                            </select>
-                            <Building2 className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
-                          </div>
+                          {myRooms.length === 0 ? (
+                            <div className="bg-rose-50 border border-rose-100 p-4 rounded-xl flex items-start gap-3">
+                               <Info className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                               <div>
+                                 <p className="text-xs font-bold text-rose-700">No Active Reservations</p>
+                                 <p className="text-[10px] text-rose-600 mt-1">You must be checked into a room to order food to it.</p>
+                               </div>
+                            </div>
+                          ) : (
+                            <div className="relative">
+                              <select value={roomNumber} onChange={e => { setRoomNumber(e.target.value); clearError('roomNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.roomNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
+                                <option value="">Select Your Booked Room</option>
+                                {myRooms.map(r => (
+                                  <option key={r._id} value={r.room?.name || 'Standard Room'}>
+                                    {r.room?.name || "Room"} (Check-in: {new Date(r.checkInDate).toLocaleDateString()})
+                                  </option>
+                                ))}
+                              </select>
+                              <Building2 className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
+                            </div>
+                          )}
                           {validationErrors.roomNumber && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.roomNumber}</p>}
                         </>
                       )}
                       {orderType === "Delivery" && (
                         <>
-                          <div className="flex gap-3">
-                            <textarea
-                              value={deliveryAddress}
-                              onChange={e => { setDeliveryAddress(e.target.value); clearError('deliveryAddress'); }}
-                              onBlur={(e) => autoGeocode(e.target.value)}
-                              className="flex-1 bg-slate-50/50 border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold outline-none h-16 resize-none text-slate-700"
-                              placeholder="Type delivery address here..."
-                            />
-                            <button
-                              onClick={handleGetLocation}
-                              className={`w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all duration-500 shadow-lg group ${coordinates
-                                  ? 'bg-emerald-500 text-white shadow-emerald-200'
-                                  : 'bg-[#0F172A] text-[#D4AF37] hover:bg-slate-800'
-                                }`}
-                            >
-                              {isLocating ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                              ) : (
-                                coordinates ? <CheckCircle className="w-5 h-5" /> : <MapPin className="w-5 h-5 group-hover:animate-bounce" />
-                              )}
-                              <span className="text-[7px] font-black uppercase tracking-widest mt-1">
-                                {isLocating ? "Loading" : (coordinates ? "Pinned" : "Pin Location")}
-                              </span>
-                            </button>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                              <textarea
+                                value={deliveryAddress}
+                                onChange={e => { setDeliveryAddress(e.target.value); clearError('deliveryAddress'); }}
+                                className="flex-1 bg-slate-50/50 border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold outline-none h-12 resize-none text-slate-700"
+                                placeholder="Type your full address here..."
+                              />
+                              <button
+                                onClick={() => autoGeocode(deliveryAddress)}
+                                disabled={isSearchingAddress}
+                                className="w-16 h-12 bg-[#0F172A] text-[#D4AF37] rounded-xl flex flex-col items-center justify-center hover:bg-slate-800 transition-all shadow-md disabled:opacity-50"
+                              >
+                                {isSearchingAddress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                <span className="text-[7px] font-black uppercase tracking-widest mt-1">Search</span>
+                              </button>
+                              <button
+                                onClick={handleGetLocation}
+                                className={`w-16 h-12 rounded-xl flex flex-col items-center justify-center transition-all duration-500 shadow-md group ${coordinates
+                                    ? 'bg-emerald-500 text-white shadow-emerald-200'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  }`}
+                              >
+                                {isLocating ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  coordinates ? <CheckCircle className="w-4 h-4" /> : <MapPin className="w-4 h-4 group-hover:animate-bounce" />
+                                )}
+                                <span className="text-[7px] font-black uppercase tracking-widest mt-1">
+                                  {isLocating ? "Wait" : "Auto"}
+                                </span>
+                              </button>
+                            </div>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider px-1">
+                              * You can search your address or click "Auto". Then drag the pin below to your exact location.
+                            </p>
                           </div>
                           <MapPicker coordinates={coordinates} onChange={handleMapCoordinatesChange} />
                           {coordinates && distance > 0 && (
@@ -762,6 +902,60 @@ export function Restaurant({ onOrder, user }) {
                       <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">04. Special Notes (Optional)</h3>
                     </div>
                     <input value={specialNotes} onChange={e => setSpecialNotes(e.target.value)} className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-[#D4AF37] text-slate-700 shadow-sm" placeholder="Any special requests or allergies?" />
+                  </div>
+
+                  {/* Step 5: Payment Method */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
+                      <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">05. Payment Method</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          paymentMethod === "Card"
+                            ? "border-[#0F172A] bg-slate-50 shadow-inner"
+                            : "border-slate-100 hover:border-slate-300 bg-white"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="Card"
+                          checked={paymentMethod === "Card"}
+                          onChange={() => setPaymentMethod("Card")}
+                          className="hidden"
+                        />
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'Card' ? 'border-[#0F172A]' : 'border-slate-300'}`}>
+                          {paymentMethod === 'Card' && <div className="w-2 h-2 rounded-full bg-[#0F172A]" />}
+                        </div>
+                        <span className={`text-sm font-bold ${paymentMethod === 'Card' ? 'text-[#0F172A]' : 'text-slate-500'}`}>
+                          Pay Online
+                        </span>
+                      </label>
+                      <label
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          paymentMethod === "Cash"
+                            ? "border-[#0F172A] bg-slate-50 shadow-inner"
+                            : "border-slate-100 hover:border-slate-300 bg-white"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="Cash"
+                          checked={paymentMethod === "Cash"}
+                          onChange={() => setPaymentMethod("Cash")}
+                          className="hidden"
+                        />
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'Cash' ? 'border-[#0F172A]' : 'border-slate-300'}`}>
+                          {paymentMethod === 'Cash' && <div className="w-2 h-2 rounded-full bg-[#0F172A]" />}
+                        </div>
+                        <span className={`text-sm font-bold ${paymentMethod === 'Cash' ? 'text-[#0F172A]' : 'text-slate-500'}`}>
+                          Pay by Cash
+                        </span>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="px-6 md:px-8 py-4 md:py-6 bg-white border-t border-slate-50 mt-auto shrink-0">

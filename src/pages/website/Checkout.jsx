@@ -108,7 +108,7 @@ export function Checkout() {
       } else {
         // 2b. PayHere Card flow
         // Fetch generated MD5 hash signature
-        const hashRes = await apiFetch("/api/payments/payhere-hash", {
+        const hashRes = await apiFetch("/payments/payhere-hash", {
           method: "POST",
           body: JSON.stringify({
             orderId: order._id,
@@ -128,7 +128,7 @@ export function Checkout() {
           merchant_id: merchantId,
           return_url: `${window.location.origin}/my-orders`,
           cancel_url: `${window.location.origin}/checkout`,
-          notify_url: "https://sandbox.payhere.lk/pay/checkout", // Note: fallback check updates locally below
+          notify_url: `${API_BASE}/api/payments/payhere-notify`, // Note: fallback check updates locally below
           order_id: order._id,
           items: `Hotel Food Order #${order.orderNumber || order._id.slice(-6)}`,
           amount: amount,

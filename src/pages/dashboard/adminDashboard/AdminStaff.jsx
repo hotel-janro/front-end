@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Users as UsersIcon, Briefcase, DollarSign, X, Eye, EyeOff } from 'lucide-react';
+import { Search, UserPlus, Users as UsersIcon, Briefcase, DollarSign, X, Eye, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 import { apiFetch } from '../../../api';
 import './AdminStaff.css';
@@ -720,9 +720,37 @@ export function AdminStaff() {
                   <td className="admin-staff-table-cell">{new Date(staff.joinDate).toLocaleDateString()}</td>
                   <td className="admin-staff-table-cell"><span className={`admin-staff-status-badge ${getStatusColor(staff.status)}`}>{staff.status ? staff.status.charAt(0).toUpperCase() + staff.status.slice(1).toLowerCase() : ''}</span></td>
                   <td className="admin-staff-table-cell">
-                    <button className="admin-staff-action-link admin-staff-action-link--edit" onClick={() => openEditModal(staff)}>Edit</button>
-                    <button className="admin-staff-action-link admin-staff-action-link--toggle" onClick={() => handleToggleStatus(staff)}>{staff.status === 'Active' ? 'Disable' : 'Enable'}</button>
-                    <button className="admin-staff-action-link admin-staff-action-link--delete" onClick={() => handleDeleteStaff(staff)}>Delete</button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        className="p-2 text-slate-500 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg transition-colors"
+                        onClick={() => openEditModal(staff)}
+                        title="Edit Staff"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleStatus(staff)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          staff.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-200'
+                        }`}
+                        title={staff.status === 'Active' ? 'Disable Staff' : 'Enable Staff'}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            staff.status === 'Active' ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+
+                      <button 
+                        className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        onClick={() => handleDeleteStaff(staff)}
+                        title="Delete Staff"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
