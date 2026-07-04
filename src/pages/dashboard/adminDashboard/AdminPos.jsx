@@ -129,7 +129,8 @@ const [posForm, setPosForm] = useState({
   customerName: '',
   discount: '0',
   coordinates: null,
-  deliveryFee: 0
+  deliveryFee: 0,
+  paymentMethod: 'Cash'
 });
 const [cart, setCart] = useState([]);
 const [selectedPosMenuItemId, setSelectedPosMenuItemId] = useState('');
@@ -415,7 +416,7 @@ const handlePlaceOrder = async () => {
 
   setSavingPosOrder(true);
   try {
-    const receivedNum = Number(amountReceived || 0);
+    const receivedNum = posForm.paymentMethod === 'Card' ? grandTotal : Number(amountReceived || 0);
     const isPaid = isPaidToggle || (receivedNum >= grandTotal && grandTotal > 0) || (grandTotal === 0);
 
     const newItems = cart.map(i => ({
@@ -447,6 +448,7 @@ const handlePlaceOrder = async () => {
         serviceCharge: mergedServiceCharge,
         totalAmount: mergedTotal,
         paymentStatus: isPaid ? 'Paid' : 'Unpaid',
+        paymentMethod: isPaid ? posForm.paymentMethod : 'Cash',
         amountReceived: isPaid ? mergedTotal : (existingOrder.amountReceived || 0)
       };
 
@@ -477,8 +479,9 @@ const handlePlaceOrder = async () => {
         subtotal,
         totalAmount: grandTotal,
         paymentStatus: isPaid ? 'Paid' : 'Unpaid',
+        paymentMethod: isPaid ? posForm.paymentMethod : 'Cash',
         amountReceived: receivedNum,
-        balance: balance
+        balance: posForm.paymentMethod === 'Card' ? 0 : balance
       };
 
       const response = await apiFetch('/orders', {
@@ -497,7 +500,8 @@ const handlePlaceOrder = async () => {
     setIsPaidToggle(false);
     setPosForm(prev => ({
       ...prev,
-      discount: '0'
+      discount: '0',
+      paymentMethod: 'Cash'
     }));
     await loadOrders();
   } catch (e) {
@@ -1170,23 +1174,40 @@ const renderTerminal = () => (
           </div>
 
           <div className="grid grid-cols-4 gap-2">
-            <div className="space-y-1">
-              <label className="text-[7px] text-slate-500 uppercase tracking-widest">Discount</label>
-              <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full bg-white/5 border border-slate-200 rounded-lg px-2 py-1 text-[10px] outline-none text-slate-900 font-bold" />
+            <div className="space-y-1 col-span-2">
+              <label className="text-[7px] text-slate-500 uppercase tracking-widest">Payment Method</label>
+              <div className="flex gap-1 h-[26px]">
+                <button type="button" onClick={() => { setPosForm({...posForm, paymentMethod: 'Cash'}); setAmountReceived(''); setIsPaidToggle(false); }} className={`flex-1 rounded-md text-[9px] font-black uppercase transition-all ${posForm.paymentMethod === 'Cash' ? 'bg-[#D4AF37] text-slate-900' : 'bg-white/5 text-slate-500 border border-slate-200 hover:bg-white/10'}`}>Cash</button>
+                <button type="button" onClick={() => { setPosForm({...posForm, paymentMethod: 'Card'}); setAmountReceived(grandTotal); setIsPaidToggle(true); }} className={`flex-1 rounded-md text-[9px] font-black uppercase transition-all ${posForm.paymentMethod === 'Card' ? 'bg-blue-500 text-white' : 'bg-white/5 text-slate-500 border border-slate-200 hover:bg-white/10'}`}>Card</button>
+              </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[7px] text-slate-500 uppercase tracking-widest">Received</label>
-              <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-slate-200 rounded-lg px-2 py-1 text-[10px] outline-none text-slate-900 font-bold" />
+              <label className="text-[7px] text-slate-500 uppercase tracking-widest">Discount</label>
+              <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full h-[26px] bg-white/5 border border-slate-200 rounded-lg px-2 text-[10px] outline-none text-slate-900 font-bold" />
             </div>
             <div className="flex flex-col justify-center items-center gap-1">
               <label className="text-[7px] text-slate-500 uppercase tracking-widest">Paid</label>
-              <input type="checkbox" checked={isPaidToggle} onChange={e => setIsPaidToggle(e.target.checked)} className="w-4 h-4 accent-[#D4AF37] cursor-pointer" />
-            </div>
-            <div className="text-right">
-              <label className="text-[7px] text-slate-500 uppercase tracking-widest">Balance</label>
-              <p className="text-sm font-black text-emerald-400">{formatCurrency(balance)}</p>
+              <input type="checkbox" checked={isPaidToggle} onChange={e => setIsPaidToggle(e.target.checked)} className="w-4 h-4 accent-[#D4AF37] cursor-pointer mt-1" />
             </div>
           </div>
+          
+          {posForm.paymentMethod === 'Cash' ? (
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div className="space-y-1">
+                <label className="text-[7px] text-slate-500 uppercase tracking-widest">Received (Rs)</label>
+                <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] outline-none text-slate-900 font-bold" />
+              </div>
+              <div className="text-right flex flex-col justify-center">
+                <label className="text-[7px] text-slate-500 uppercase tracking-widest">Balance</label>
+                <p className="text-sm font-black text-emerald-400">{formatCurrency(balance)}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-right flex flex-col justify-center mt-2 p-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <label className="text-[7px] text-blue-400 uppercase tracking-widest">Charge Amount</label>
+                <p className="text-sm font-black text-blue-500">{formatCurrency(grandTotal)}</p>
+            </div>
+          )}
 
           <button onClick={handlePlaceOrder} disabled={savingPosOrder} className="w-full bg-[#D4AF37] text-[#0F172A] py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white transition-all shadow-lg active:scale-95">
             {savingPosOrder ? 'Saving Order...' : 'Confirm & Print'}
