@@ -25,6 +25,7 @@ import "./CustomerDashboard.css";
 const getRoomTypeName = (roomName, roomNumberStr) => {
   if (!roomName) return 'Refined Luxury Suite';
   const lower = roomName.toLowerCase();
+  
   if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
     return 'Standard Room (Non-AC)';
   }
@@ -38,6 +39,21 @@ const getRoomTypeName = (roomName, roomNumberStr) => {
       return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
     }
   }
+
+  if (lower.includes('non-ac family room') || lower.includes('non ac family room')) {
+    return 'Family Room (Non-AC)';
+  }
+  if (lower.includes('ac family room') || lower.includes('a/c family room')) {
+    return 'Family Room (AC)';
+  }
+  if (lower.includes('family room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Family Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  
   return roomName;
 };
 

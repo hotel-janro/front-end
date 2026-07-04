@@ -16,7 +16,8 @@ import {
   ShoppingBag,
   Bed,
   ListFilter,
-  ChevronDown
+  ChevronDown,
+  ScrollText as Receipt
 } from 'lucide-react';
 import { apiFetch } from '../../../api.js';
 import { useSettings } from '../../../context/SettingsContext.jsx';
@@ -418,7 +419,10 @@ export function CashierReceipts() {
                     <html>
                       <head>
                         <style>
-                          @media print { @page { margin: 0; } body { margin: 0.2cm; } }
+                          @media print { 
+                            @page { size: 80mm auto; margin: 0; } 
+                            body { margin: 0; padding: 2mm; width: 75mm; } 
+                          }
                           body { 
                             font-family: 'Courier New', Courier, monospace; 
                             font-size: 11px; 

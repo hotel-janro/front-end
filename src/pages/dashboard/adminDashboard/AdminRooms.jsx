@@ -28,6 +28,41 @@ import {
 import { apiFetch, API_HOST } from '../../../api';
 import './AdminRooms.css';
 
+const getRoomTypeName = (roomName, roomNumberStr) => {
+  if (!roomName) return 'N/A';
+  const lower = roomName.toLowerCase();
+  
+  if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
+    return 'Standard Room (Non-AC)';
+  }
+  if (lower.includes('ac standard room') || lower.includes('a/c standard room')) {
+    return 'Standard Room (AC)';
+  }
+  if (lower.includes('standard room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+
+  if (lower.includes('non-ac family room') || lower.includes('non ac family room')) {
+    return 'Family Room (Non-AC)';
+  }
+  if (lower.includes('ac family room') || lower.includes('a/c family room')) {
+    return 'Family Room (AC)';
+  }
+  if (lower.includes('family room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Family Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  
+  return roomName;
+};
+
 export function AdminRooms() {
   const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'bookings'
   const [rooms, setRooms] = useState([]);
@@ -523,26 +558,57 @@ export function AdminRooms() {
     return <span className="admin-rooms__status-badge admin-rooms__status-badge--maintenance">{status}</span>;
   };
 
+  const totalUnits = aggregatedRooms.reduce(
+    (sum, room) => sum + (Number(room.totalRooms) || 0),
+    0
+  );
+
+  const activeBookings = bookings.filter(b =>
+    !['cancelled', 'rejected', 'checked-out'].includes(String(b.status || '').toLowerCase())
+  ).length;
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Room Management</h1>
-          <p className="text-slate-500">Add rooms to your inventory. The count below shows your total hotel stock (Base + Added).</p>
-        </div>
-        <div className="flex flex-wrap gap-3 items-center">
-          <button
-            className="admin-rooms__action-button"
-            onClick={handleOpenNewTypeModal}
-          >
-            <Layers className="w-5 h-5" />
-            <span>Create Room Type</span>
-          </button>
-          <button className="admin-rooms__action-button" onClick={() => handleOpenModal()}>
-            <Plus className="w-5 h-5" />
-            <span>Create Room</span>
-          </button>
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 shadow-[0_20px_60px_rgba(15,23,42,0.18)] mb-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+            <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
+              Room Management
+            </h1>
+            <p className="text-slate-300 mt-2 max-w-2xl">
+              Add rooms to your inventory. The count below shows your total hotel stock (Base + Added).
+            </p>
+            <div className="flex flex-wrap gap-3 items-center mt-6">
+              <button
+                className="admin-rooms__action-button"
+                onClick={handleOpenNewTypeModal}
+              >
+                <Layers className="w-5 h-5" />
+                <span>Create Room Type</span>
+              </button>
+              <button className="admin-rooms__action-button" onClick={() => handleOpenModal()}>
+                <Plus className="w-5 h-5" />
+                <span>Create Room</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[320px] lg:mt-0 mt-4">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Room Type</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{aggregatedRooms.length}</p>
+            </div>
+            <div className="rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-[#F5E7B2]">Active Bookings</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{activeBookings}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm col-span-2">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Total Units</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{totalUnits}</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -567,10 +633,6 @@ export function AdminRooms() {
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Total</p>
                     <h3 className="text-xl font-bold text-slate-900">{totalInStock}</h3>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-green-500 font-bold">Available</p>
-                    <h3 className="text-xl font-bold text-green-600">{freeCount}</h3>
                   </div>
                 </div>
               </div>
@@ -773,7 +835,7 @@ export function AdminRooms() {
                     </td>
                     <td>
                       <div className="flex flex-col">
-                        <span className="font-medium">{booking.room?.name || 'N/A'}</span>
+                        <span className="font-medium">{getRoomTypeName(booking.room?.name, booking.roomNumber)}</span>
                         {booking.decorationItems && booking.decorationItems.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {booking.decorationItems.map((item, idx) => (
@@ -997,7 +1059,14 @@ export function AdminRooms() {
                             name="acVariant" 
                             value="ac" 
                             checked={formData.acVariant === 'ac'} 
-                            onChange={(e) => setFormData({...formData, acVariant: 'ac'})} 
+                            onChange={(e) => {
+                              const currentPrice = Number(formData.price) || 8500;
+                              setFormData({
+                                ...formData, 
+                                acVariant: 'ac', 
+                                price: formData.acVariant === 'nonAc' ? String(currentPrice + 2000) : formData.price
+                              });
+                            }} 
                             className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm font-medium text-slate-700">AC Room</span>
@@ -1008,7 +1077,14 @@ export function AdminRooms() {
                             name="acVariant" 
                             value="nonAc" 
                             checked={formData.acVariant === 'nonAc'} 
-                            onChange={(e) => setFormData({...formData, acVariant: 'nonAc'})}
+                            onChange={(e) => {
+                              const currentPrice = Number(formData.price) || 10500;
+                              setFormData({
+                                ...formData, 
+                                acVariant: 'nonAc', 
+                                price: formData.acVariant === 'ac' ? String(currentPrice - 2000) : formData.price
+                              });
+                            }}
                             className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm font-medium text-slate-700">Non-AC Room</span>
