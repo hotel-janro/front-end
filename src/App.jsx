@@ -199,6 +199,11 @@ function AppInner() {
         try {
             const result = await parseApiError(response, "Registration failed");
 
+            if (result.requireVerification) {
+                navigate("/verify-otp", { state: { email } });
+                return;
+            }
+
             const { token, refreshToken, ...userData } = result.data || {};
             if (token && refreshToken) {
                 const nextUser = normalizeUser(userData);
