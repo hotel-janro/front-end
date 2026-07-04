@@ -49,7 +49,7 @@ import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
 
-export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onGoogleLogin, onUpdateUser }) {
+export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, onLogout, onGoogleLogin, onUpdateUser }) {
   const navigate = useNavigate();
   const roleLower = user?.role?.toLowerCase().trim();
   const isAdmin = roleLower === "admin";
@@ -243,7 +243,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
 
       <Route
         path="/login"
-        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Login onLogin={onLogin} onGoogleLogin={onGoogleLogin} />}
+        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Login onLogin={onLogin} onVerify2FA={onVerify2FA} onGoogleLogin={onGoogleLogin} />}
       />
       <Route
         path="/register"
