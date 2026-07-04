@@ -1,62 +1,45 @@
-/**
- * CashierOrders.jsx
- * Boutique Cashier Management Interface.
- * Real-time order monitoring, settlement processing, and receipt generation.
- */
 import React, { useState, useEffect } from 'react';
-import {
-  ShoppingCart,
-  Search,
-  Plus,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Eye,
-  ChevronDown,
-  ChevronUp,
-  Package,
-  Gem,
-  RefreshCcw,
-  User,
-  CreditCard,
-  Banknote,
-  X,
-  Calendar,
-  Printer,
-  Trash2
+import { 
+  Search, Clock, CheckCircle, XCircle, ChevronDown, 
+  ChevronUp, Check, X, Coffee, MapPin, Printer, Zap,
+  RefreshCcw, Gem, Banknote, Calendar, User, ShoppingCart, Package, Activity
 } from 'lucide-react';
-import { apiFetch } from '../../../api.js';
 import { toast } from 'sonner';
+import { apiFetch } from '../../../api.js';
 
+// CashierOrders.jsx - Live order management for Cashiers
+// Handles tracking, settling, and printing orders
 export function CashierOrders() {
-  // Component State
+  // Page and filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [dateFilter, setDateFilter] = useState('All');
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Settlement States
+  // Payment settlement state
   const [settlingOrder, setSettlingOrder] = useState(null);
   const [cashReceived, setCashReceived] = useState('');
   const [isSettling, setIsSettling] = useState(false);
   const [lastPollTime, setLastPollTime] = useState(new Date());
 
+  // Load orders and start polling
   useEffect(() => {
     loadOrders();
-    const interval = setInterval(loadOrders, 30000); // Poll every 30s
+    const interval = setInterval(loadOrders, 30000); 
     return () => clearInterval(interval);
   }, []);
 
-  // Data Actions
+  // Fetch orders from API
   const loadOrders = async () => {
     try {
       const data = await apiFetch('/orders');
       setOrders(Array.isArray(data) ? data : []);
       setLastPollTime(new Date());
     } catch (error) {
-      /* error logged */
+      console.error("Failed to load orders:", error);
     } finally {
       setLoading(false);
     }
@@ -64,16 +47,39 @@ export function CashierOrders() {
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
+  // Filter orders based on search and dropdowns
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       (order.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order._id || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'All' || order.orderType === filterType;
     const matchesStatus = filterStatus === 'All' || order.orderStatus === filterStatus;
-    return matchesSearch && matchesType && matchesStatus;
+    
+    const matchesDate = (() => {
+      if (dateFilter === 'All') return true;
+      const orderDate = new Date(order.createdAt);
+      const now = new Date();
+      if (dateFilter === 'Today') {
+        return orderDate.toDateString() === now.toDateString();
+      }
+      if (dateFilter === 'Week') {
+        const diffTime = Math.abs(now - orderDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      }
+      if (dateFilter === 'Month') {
+        return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
+      }
+      if (dateFilter === 'Year') {
+        return orderDate.getFullYear() === now.getFullYear();
+      }
+      return true;
+    })();
+
+    return matchesSearch && matchesType && matchesStatus && matchesDate;
   });
 
-  // UI Style Helpers
+  // UI helpers for status and icons
   const getStatusStyles = (status) => {
     switch (status) {
       case 'Pending': return 'bg-amber-50 text-amber-600 border-amber-100';
@@ -104,48 +110,71 @@ export function CashierOrders() {
     }
   };
 
-  // Business Logic (Settlement & Cancellation)
+  // Mark order(s) as paid
   const handleSettleOrder = async () => {
     if (!settlingOrder) return;
-    const received = Number(cashReceived || 0);
-    const balance = Math.max(received - settlingOrder.totalAmount, 0);
+    
+    // Find all related unpaid orders for this table/room
+    const relatedOrders = orders.filter(o => 
+      o.paymentStatus === 'Unpaid' && 
+      ((settlingOrder.tableNumber && o.tableNumber === settlingOrder.tableNumber) || 
+       (settlingOrder.roomNumber && o.roomNumber === settlingOrder.roomNumber))
+    );
 
-    if (received < settlingOrder.totalAmount) {
+    const combinedTotal = relatedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const received = Number(cashReceived || 0);
+    const balance = Math.max(received - combinedTotal, 0);
+
+    if (received < combinedTotal) {
       toast.error("Insufficient amount received");
       return;
     }
 
     try {
       setIsSettling(true);
-      await apiFetch(`/orders/${settlingOrder._id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          paymentStatus: 'Paid',
-          paymentMethod: 'Cash',
-          amountReceived: received,
-          balance: balance,
-          orderStatus: settlingOrder.orderStatus === 'Pending' ? 'Preparing' : settlingOrder.orderStatus
+      
+      // Update each related order (sequential updates as backend handles single ID)
+      await Promise.all(relatedOrders.map(o => 
+        apiFetch(`/orders/${o._id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            paymentStatus: 'Paid',
+            paymentMethod: 'Cash',
+            amountReceived: o._id === settlingOrder._id ? received : o.totalAmount,
+            balance: o._id === settlingOrder._id ? balance : 0,
+            orderStatus: 'Completed'
+          })
         })
-      });
+      ));
 
-      toast.success(`Order ${settlingOrder._id.slice(-6).toUpperCase()} settled successfully!`);
+      toast.success(`${relatedOrders.length > 1 ? 'All group orders' : 'Order'} settled successfully!`);
       setSettlingOrder(null);
       setCashReceived('');
       loadOrders();
     } catch (error) {
-      toast.error("Failed to settle order");
+      toast.error("Failed to settle order(s)");
     } finally {
       setIsSettling(false);
     }
   };
 
-  // Thermal Printing Logic
+  // Generate and print receipt
   const handlePrintReceipt = (order) => {
     if (!order) return toast.error("No order data provided");
-    const printWindow = window.open('', '_blank');
+
+    const relatedOrders = [order];
+    const combinedItems = relatedOrders.flatMap(o => o.items || []);
+    const combinedSubtotal = relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0);
+    const combinedServiceCharge = relatedOrders.reduce((s, o) => s + (o.serviceCharge || 0), 0);
+    const combinedDeliveryFee = relatedOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
+    const combinedDiscount = relatedOrders.reduce((s, o) => s + (o.discount || 0), 0);
+    const combinedTotalAmount = relatedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const totalQty = combinedItems.reduce((s, it) => s + (it?.quantity || 0), 0);
+
+    const printWindow = window.open('', '_blank', 'width=350,height=600');
     if (!printWindow) return toast.error('Pop-up blocked! Please click the icon in your browser address bar to allow pop-ups.');
 
-    const itemsHtml = (order.items || []).map(it => `
+    const itemsHtml = combinedItems.map(it => `
       <tr>
         <td style="padding: 2px 0;">
           ${it?.name || 'Item'}
@@ -196,14 +225,16 @@ export function CashierOrders() {
           </div>
           <div class="divider"></div>
           <div style="display:flex; justify-content:space-between;">
-            <span>ID: #${(order?._id || "").slice(-6).toUpperCase()}</span>
-            <span>${order?.createdAt ? new Date(order.createdAt).toLocaleDateString() : ""}</span>
+            <span>ID: #${order._id.slice(-6).toUpperCase()}</span>
+            <span>${new Date().toLocaleDateString()}</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
-             <span>Time: ${order?.createdAt ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</span>
-             <span class="badge">${(order?.orderType || "").toUpperCase()}</span>
+             <span>Time: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+             <span class="badge">${order.orderType.toUpperCase()}</span>
           </div>
-          ${order?.customerName ? `<div>Guest: ${order.customerName}</div>` : ''}
+          ${order.tableNumber ? `<div>TABLE: ${order.tableNumber}</div>` : ''}
+          ${order.roomNumber ? `<div>ROOM: ${order.roomNumber}</div>` : ''}
+          <div>GUEST: ${order.customerName.toUpperCase()}</div>
           <div class="divider"></div>
           <table>
             <thead>
@@ -219,12 +250,20 @@ export function CashierOrders() {
           </table>
           <div class="divider"></div>
           <div style="text-align: right; space-y: 2px;">
-            <div>Subtotal: Rs ${(order.subtotal || 0).toLocaleString()}</div>
-            ${order.serviceCharge > 0 ? `<div>Service (10%): Rs ${order.serviceCharge.toLocaleString()}</div>` : ''}
-            ${order.deliveryFee > 0 ? `<div>Delivery Fee: Rs ${order.deliveryFee.toLocaleString()}</div>` : ''}
-            ${order.discount > 0 ? `<div>Discount: -Rs ${order.discount.toLocaleString()}</div>` : ''}
+            <div>Items Count: ${totalQty}</div>
+            <div>Subtotal Sum: Rs ${(combinedSubtotal || 0).toLocaleString()}</div>
+            ${combinedServiceCharge > 0 ? `<div>Service (10%): Rs ${combinedServiceCharge.toLocaleString()}</div>` : ''}
+            ${combinedDeliveryFee > 0 ? `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>` : ''}
+            ${combinedDiscount > 0 ? `<div>Discount: -Rs ${combinedDiscount.toLocaleString()}</div>` : ''}
             <div class="divider"></div>
-            <div class="total-row">NET TOTAL: Rs ${(order.totalAmount || 0).toLocaleString()}</div>
+            <div class="total-row">GROUP TOTAL: Rs ${(combinedTotalAmount || 0).toLocaleString()}</div>
+            <div class="divider"></div>
+            ${(order?.amountReceived || 0) > 0 ? `
+              <div>Cash Paid: Rs ${(order?.amountReceived || 0).toLocaleString()}</div>
+              <div style="font-weight:bold; font-size: 13px;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
+            ` : `
+              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending</div>
+            `}
           </div>
           <div class="footer">
             <p style="margin: 5px 0;">*** Thank You! ***</p>
@@ -257,8 +296,22 @@ export function CashierOrders() {
     }
   };
 
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    try {
+      await apiFetch(`/orders/${orderId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ orderStatus: newStatus })
+      });
+      toast.success(`Order status updated to ${newStatus}`);
+      loadOrders();
+    } catch (error) {
+      toast.error("Failed to update order status");
+    }
+  };
+
+
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-8 pb-20 animate-in fade-in duration-700">
       {/* Premium Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div className="flex items-center gap-4">
@@ -273,7 +326,7 @@ export function CashierOrders() {
         <div className="flex flex-col items-end gap-1">
           <button 
             onClick={loadOrders}
-            className="group flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl hover:bg-[#0F172A] hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
+            className="group flex items-center gap-3 px-6 py-3 bg-slate-900 border border-white/5 text-slate-300 rounded-2xl hover:bg-[#0F172A] hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
           >
             <RefreshCcw className={`w-4 h-4 group-hover:rotate-180 transition-transform duration-700 ${loading ? 'animate-spin text-[#D4AF37]' : ''}`} />
             Refresh Live Stream
@@ -285,7 +338,7 @@ export function CashierOrders() {
       </div>
 
       {/* Luxury Search & Filters */}
-      <div className="bg-white/70 backdrop-blur-md rounded-[2rem] border border-white shadow-[0_10px_50px_-20px_rgba(0,0,0,0.05)] p-2">
+      <div className="bg-[#0F172A] rounded-[2.5rem] border border-white/5 shadow-2xl p-2 text-white">
         <div className="flex flex-col lg:flex-row gap-2">
           <div className="flex-1 relative group">
             <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#D4AF37] transition-colors" />
@@ -294,33 +347,55 @@ export function CashierOrders() {
               placeholder="Locate an order or guest..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-6 py-4 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-800 placeholder:text-slate-300"
+              className="w-full pl-12 pr-6 py-4 bg-transparent border-none focus:ring-0 text-sm font-bold text-white placeholder:text-slate-500"
             />
           </div>
-          <div className="h-12 w-px bg-slate-100 hidden lg:block" />
+          <div className="h-12 w-px bg-white/5 hidden lg:block" />
           <div className="flex gap-2 p-1">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-6 py-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
-            >
-              <option value="All">All Types</option>
-              <option value="Dine-in">Dine-in</option>
-              <option value="Room">Room Service</option>
-              <option value="Delivery">Delivery</option>
-              <option value="Take-away">Take-away</option>
-            </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-6 py-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
-            >
-              <option value="All">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Preparing">Preparing</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
+            <div className="relative group/select">
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="pl-6 pr-10 py-3 bg-slate-950 border border-white/10 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-300 cursor-pointer appearance-none min-w-[140px] text-center"
+              >
+                <option value="All">All Types</option>
+                <option value="Dine-in">Dine-in</option>
+                <option value="Room">Room Service</option>
+                <option value="Delivery">Delivery</option>
+                <option value="Take-away">Take-away</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
+            </div>
+
+            <div className="relative group/select">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="pl-6 pr-10 py-3 bg-slate-950 border border-white/10 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-300 cursor-pointer appearance-none min-w-[140px] text-center"
+              >
+                <option value="All">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Preparing">Preparing</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
+            </div>
+
+            <div className="relative group/select">
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="pl-6 pr-10 py-3 bg-slate-950 border border-white/10 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-300 cursor-pointer appearance-none min-w-[140px] text-center"
+              >
+                <option value="All">All Time</option>
+                <option value="Today">Today</option>
+                <option value="Week">This Week</option>
+                <option value="Month">This Month</option>
+                <option value="Year">This Year</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
+            </div>
           </div>
         </div>
       </div>
@@ -344,23 +419,23 @@ export function CashierOrders() {
           return (
             <div
               key={order._id}
-              className={`group bg-white rounded-[2.5rem] border transition-all duration-700 overflow-hidden relative ${isExpanded ? 'border-[#D4AF37]/30 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.1)] ring-1 ring-[#D4AF37]/10' : 'border-slate-50 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.08)] hover:border-[#D4AF37]/20'}`}
+              className={`group bg-[#0F172A] rounded-[2.5rem] border transition-all duration-700 overflow-hidden relative ${isExpanded ? 'border-[#D4AF37]/30 shadow-[0_30px_70px_-20px_rgba(212,175,55,0.15)] ring-1 ring-[#D4AF37]/10' : 'border-white/5 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-20px_rgba(212,175,55,0.1)] hover:border-[#D4AF37]/20'}`}
             >
               <div className={`absolute left-0 top-0 w-1.5 h-full bg-[#D4AF37] transition-all duration-700 ${isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}`} />
 
               {/* Order Header */}
               <div
-                className={`px-8 py-6 cursor-pointer select-none transition-colors ${isExpanded ? 'bg-slate-50/50' : 'bg-white hover:bg-slate-50/30'}`}
+                className={`px-8 py-6 cursor-pointer select-none transition-colors ${isExpanded ? 'bg-slate-950/20' : 'bg-[#0F172A] hover:bg-slate-900/30'}`}
                 onClick={() => setExpandedOrder(isExpanded ? null : order._id)}
               >
                 <div className="flex items-center justify-between gap-6">
                   <div className="flex items-center gap-6 flex-1 min-w-0">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${isExpanded ? 'bg-[#0F172A] text-[#D4AF37] rotate-[15deg] shadow-lg' : 'bg-slate-50 text-slate-400 group-hover:bg-white group-hover:shadow-sm group-hover:rotate-12'}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${isExpanded ? 'bg-slate-900 text-[#D4AF37] rotate-[15deg] shadow-lg' : 'bg-slate-950 text-slate-400 group-hover:bg-slate-900 group-hover:shadow-sm group-hover:rotate-12'}`}>
                       <ShoppingCart className="w-6 h-6" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <span className="px-3 py-1 bg-[#0F172A] text-[#D4AF37] text-[8px] font-black uppercase tracking-[0.2em] rounded-full border border-[#D4AF37]/20">
+                        <span className="px-3 py-1 bg-slate-950 text-[#D4AF37] text-[8px] font-black uppercase tracking-[0.2em] rounded-full border border-white/5">
                           Order {dailySequenceNum.toString().padStart(3, '0')}
                         </span>
                         <p className="text-sm font-black text-slate-400 tracking-widest uppercase">#{order._id.slice(-8).toUpperCase()}</p>
@@ -374,34 +449,34 @@ export function CashierOrders() {
                         {order.paymentStatus === 'Paid' ? (
                           <span className="px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] rounded-full bg-emerald-500 text-white shadow-[0_5px_15px_-5px_rgba(16,185,129,0.5)]">Paid</span>
                         ) : (
-                          <span className="px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] rounded-full border border-rose-100 bg-rose-50 text-rose-600">Unpaid</span>
+                          <span className="px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-400">Unpaid</span>
                         )}
                       </div>
                       <div className="flex items-center gap-4 mt-2">
                         <div className="flex items-center gap-1.5">
-                          <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">
+                          <div className="w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center border border-white/5">
                             <User className="w-2.5 h-2.5 text-slate-400" />
                           </div>
-                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">{order.customerName || 'Guest'}</span>
+                          <span className="text-[10px] font-black text-white uppercase tracking-wider">{order.customerName || 'Guest'}</span>
                         </div>
-                        <span className="text-[10px] text-slate-300 font-bold">|</span>
+                        <span className="text-[10px] text-slate-500 font-bold">|</span>
                         <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3 h-3 text-slate-300" />
+                          <Calendar className="w-3 h-3 text-[#D4AF37]" />
                           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             {new Date(order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                           </span>
                         </div>
-                        <span className="text-[10px] text-slate-300 font-bold">|</span>
+                        <span className="text-[10px] text-slate-500 font-bold">|</span>
                         <div className="flex items-center gap-1.5">
-                          <Clock className="w-3 h-3 text-slate-300" />
+                          <Clock className="w-3 h-3 text-[#D4AF37]" />
                           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                         {(order.tableNumber || order.roomNumber) && (
                            <>
-                             <span className="text-[10px] text-slate-300 font-bold">|</span>
-                             <span className={`text-[10px] font-black uppercase tracking-[0.1em] ${order.tableNumber ? 'text-orange-500' : 'text-purple-500'}`}>
+                             <span className="text-[10px] text-slate-500 font-bold">|</span>
+                             <span className={`text-[10px] font-black uppercase tracking-[0.1em] ${order.tableNumber ? 'text-orange-400' : 'text-purple-400'}`}>
                                {order.tableNumber ? `Table ${order.tableNumber}` : `Room ${order.roomNumber}`}
                              </span>
                            </>
@@ -411,12 +486,12 @@ export function CashierOrders() {
                   </div>
                   <div className="flex items-center gap-8">
                     <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">{order.items?.length || 0} Items</p>
-                      <p className="text-2xl font-black text-[#0F172A] tracking-tighter" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{order.items?.length || 0} Items</p>
+                      <p className="text-2xl font-black text-white tracking-tighter" style={{ fontFamily: 'DM Serif Display, serif' }}>
                         {formatCurrency(order.totalAmount)}
                       </p>
                     </div>
-                    <div className={`w-10 h-10 rounded-xl border border-slate-100 flex items-center justify-center transition-all duration-500 ${isExpanded ? 'bg-[#D4AF37] border-[#D4AF37] text-white rotate-180' : 'bg-white text-slate-300'}`}>
+                    <div className={`w-10 h-10 rounded-xl border border-white/5 flex items-center justify-center transition-all duration-500 ${isExpanded ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] rotate-180' : 'bg-slate-950 text-slate-400 group-hover:border-white/10'}`}>
                       <ChevronDown className="w-5 h-5" />
                     </div>
                   </div>
@@ -425,8 +500,8 @@ export function CashierOrders() {
 
               {/* Expanded Luxury Details */}
               {isExpanded && (
-                <div className="px-8 pb-8 bg-slate-50/50 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-slate-100">
+                <div className="px-8 pb-8 bg-slate-950/20 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-white/5">
                     <div>
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
                         <Package className="w-3 h-3 text-[#D4AF37]" />
@@ -434,17 +509,17 @@ export function CashierOrders() {
                       </h4>
                       <div className="space-y-2">
                         {order.items?.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between py-4 px-5 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group/item">
+                          <div key={idx} className="flex items-center justify-between py-4 px-5 bg-slate-900 rounded-2xl border border-white/5 shadow-sm hover:border-[#D4AF37]/30 transition-all group/item">
                             <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center group-hover/item:bg-[#0F172A] transition-colors">
-                                <span className="text-xs font-black text-[#D4AF37]">{item.quantity}x</span>
+                              <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center group-hover/item:bg-[#D4AF37] transition-colors">
+                                <span className="text-xs font-black text-[#D4AF37] group-hover/item:text-[#0F172A]">{item.quantity}x</span>
                               </div>
                               <div>
-                                <p className="text-xs font-black text-slate-900 uppercase tracking-wider">{item.name}</p>
+                                <p className="text-xs font-black text-white uppercase tracking-wider group-hover/item:text-[#D4AF37] transition-colors">{item.name}</p>
                                 {item.portion && <p className="text-[9px] font-bold text-[#D4AF37] uppercase mt-0.5">{item.portion}</p>}
                               </div>
                             </div>
-                            <p className="text-xs font-black text-slate-900">
+                            <p className="text-xs font-black text-white">
                               {formatCurrency(item.price * item.quantity)}
                             </p>
                           </div>
@@ -455,43 +530,74 @@ export function CashierOrders() {
                     <div className="flex flex-col justify-between">
                       <div>
                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Financial Summary</h4>
-                        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
-                          <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
+                        <div className="bg-slate-950 p-6 rounded-[2rem] border border-white/5 shadow-sm space-y-4">
+                          <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest">
                             <span>Subtotal</span>
-                            <span>{formatCurrency(order.subtotal)}</span>
+                            <span className="text-white">{formatCurrency(order.subtotal)}</span>
                           </div>
                           {order.serviceCharge > 0 && (
-                            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
+                            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest">
                               <span>Service (10%)</span>
-                              <span>{formatCurrency(order.serviceCharge)}</span>
+                              <span className="text-white">{formatCurrency(order.serviceCharge)}</span>
                             </div>
                           )}
                           {order.deliveryFee > 0 && (
-                            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
+                            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest">
                               <span>Delivery</span>
-                              <span>{formatCurrency(order.deliveryFee)}</span>
+                              <span className="text-white">{formatCurrency(order.deliveryFee)}</span>
                             </div>
                           )}
                           {order.discount > 0 && (
-                            <div className="flex justify-between text-xs font-bold text-rose-500 uppercase tracking-widest">
+                            <div className="flex justify-between text-xs font-bold text-rose-400 uppercase tracking-widest">
                               <span>Discount</span>
                               <span>-{formatCurrency(order.discount)}</span>
                             </div>
                           )}
-                          <div className="pt-4 border-t border-dashed border-slate-100 flex justify-between items-center">
-                            <span className="text-xs font-black text-[#0F172A] uppercase tracking-[0.2em]">Net Total</span>
-                            <span className="text-2xl font-black text-[#0F172A]" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                          <div className="pt-4 border-t border-dashed border-white/5 flex justify-between items-center">
+                            <span className="text-xs font-black text-white uppercase tracking-[0.2em]">Net Total</span>
+                            <span className="text-2xl font-black text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
                               {formatCurrency(order.totalAmount)}
                             </span>
                           </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-6">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
+                          <Activity className="w-3.5 h-3.5 text-[#D4AF37]" />
+                          Update Order Status
+                        </h4>
+                        <div className="flex gap-2">
+                          {['Pending', 'Preparing', 'Completed'].map((status) => {
+                            const isCurrent = order.orderStatus === status;
+                            return (
+                              <button
+                                key={status}
+                                onClick={() => handleUpdateOrderStatus(order._id, status)}
+                                className={`flex-1 py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all duration-300 ${
+                                  isCurrent
+                                    ? 'bg-[#D4AF37] text-[#0F172A] border-[#D4AF37] shadow-[0_5px_15px_rgba(212,175,55,0.15)] scale-[1.02]'
+                                    : 'bg-slate-900 text-slate-400 border-white/5 hover:bg-slate-950 hover:text-white'
+                                }`}
+                              >
+                                {status}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                       
                       <div className="mt-6 flex gap-3">
                          {order.paymentStatus === 'Unpaid' ? (
                            <button 
-                             onClick={() => setSettlingOrder(order)}
-                             className="flex-1 py-4 bg-[#D4AF37] text-[#0F172A] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-[#0F172A] hover:text-[#D4AF37] transition-all active:scale-95 flex items-center justify-center gap-2"
+                             onClick={() => {
+                               if (order.orderStatus !== 'Completed') {
+                                 toast.error("Please mark the order as 'Completed' before settling the bill");
+                               } else {
+                                 setSettlingOrder(order);
+                               }
+                             }}
+                             className="flex-1 py-4 bg-[#D4AF37] text-[#0F172A] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-white hover:text-[#0F172A] transition-all active:scale-95 flex items-center justify-center gap-2"
                            >
                              <Banknote className="w-4 h-4" />
                              Settle Bill
@@ -499,14 +605,15 @@ export function CashierOrders() {
                          ) : (
                            <button 
                              onClick={() => handlePrintReceipt(order)}
-                             className="flex-1 py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-slate-800 transition-all active:scale-95"
+                             className="flex-1 py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
                            >
+                             <Printer className="w-4 h-4" />
                              Print Receipt
                            </button>
                          )}
                          <button 
                            onClick={() => handleCancelOrder(order._id)}
-                           className="px-6 py-4 border border-slate-200 text-slate-400 rounded-2xl hover:text-rose-500 hover:border-rose-100 hover:bg-rose-50 transition-all active:scale-95"
+                           className="px-6 py-4 border border-white/5 bg-slate-900 text-slate-400 rounded-2xl hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-95"
                          >
                            <XCircle className="w-5 h-5" />
                          </button>
@@ -520,81 +627,109 @@ export function CashierOrders() {
         })}
 
         {!loading && filteredOrders.length === 0 && (
-          <div className="bg-white rounded-[3rem] border border-slate-50 shadow-sm p-24 text-center">
-            <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
-              <ShoppingCart className="w-10 h-10 text-slate-200" />
+          <div className="bg-[#0F172A] rounded-[3rem] border border-white/5 shadow-2xl p-24 text-center">
+            <div className="w-20 h-20 bg-slate-950 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-white/5">
+              <ShoppingCart className="w-10 h-10 text-slate-600" />
             </div>
             <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-xs">No active orders found</p>
-            <p className="text-[10px] text-slate-300 font-bold uppercase mt-2">Adjust filters or sync to refresh</p>
+            <p className="text-[10px] text-slate-500 font-bold uppercase mt-2">Adjust filters or sync to refresh</p>
           </div>
         )}
       </div>
 
-      {/* Settle Bill Modal */}
-      {settlingOrder && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setSettlingOrder(null)} />
-          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden animate-in zoom-in-95 duration-500 border border-slate-100">
-            {/* Modal Header */}
-            <div className="bg-[#0F172A] px-8 py-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Settle <span className="text-[#D4AF37]">Order</span></h2>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">#{settlingOrder._id.slice(-8).toUpperCase()}</p>
-              </div>
-              <button onClick={() => setSettlingOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {settlingOrder && (() => {
+        const relatedOrders = [settlingOrder];
+        const combinedTotal = settlingOrder.totalAmount || 0;
+        const isMultiple = false;
 
-            {/* Modal Content */}
-            <div className="p-8 space-y-6">
-              <div className="flex justify-between items-end border-b border-dashed border-slate-100 pb-6">
+        return (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setSettlingOrder(null)} />
+            <div className="relative bg-[#0F172A] w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500 border border-white/5">
+              {/* Modal Header */}
+              <div className="bg-slate-950/40 px-8 py-6 flex items-center justify-between border-b border-white/5">
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount Due</p>
-                  <h3 className="text-4xl font-black text-[#0F172A]" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(settlingOrder.totalAmount)}</h3>
+                  <h2 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Settle <span className="text-[#D4AF37]">Order</span></h2>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                    {isMultiple ? `${relatedOrders.length} Linked Orders` : `#${settlingOrder._id.slice(-8).toUpperCase()}`}
+                  </p>
                 </div>
-                <div className="text-right">
-                   <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{settlingOrder.orderType}</p>
-                   <p className="text-xs font-black text-slate-900">{settlingOrder.customerName}</p>
-                </div>
+                <button onClick={() => setSettlingOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-white hover:bg-white/10 transition-all">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash Received (Rs)</label>
-                  <div className="relative">
-                    <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
-                    <input
-                      autoFocus
-                      type="number"
-                      placeholder="Enter amount..."
-                      value={cashReceived}
-                      onChange={(e) => setCashReceived(e.target.value)}
-                      className="w-full pl-14 pr-6 py-5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xl font-black text-[#0F172A]"
-                    />
+              {/* Modal Content */}
+              <div className="p-8 space-y-6">
+                <div className="flex justify-between items-end border-b border-white/5 pb-6">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{isMultiple ? 'Combined Total' : 'Total Amount Due'}</p>
+                    <h3 className="text-4xl font-black text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(combinedTotal)}</h3>
+                  </div>
+                  <div className="text-right">
+                     <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{settlingOrder.orderType}</p>
+                     <p className="text-xs font-black text-white">{settlingOrder.tableNumber ? `Table ${settlingOrder.tableNumber}` : settlingOrder.roomNumber ? `Room ${settlingOrder.roomNumber}` : settlingOrder.customerName}</p>
                   </div>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-100 flex justify-between items-center">
-                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Balance to Return</span>
-                  <span className="text-2xl font-black text-emerald-700" style={{ fontFamily: 'DM Serif Display, serif' }}>
-                    {formatCurrency(Math.max((Number(cashReceived) || 0) - settlingOrder.totalAmount, 0))}
-                  </span>
-                </div>
-              </div>
+                {isMultiple && (
+                  <div className="bg-slate-950 rounded-2xl p-4 border border-white/5">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Order Group Summary</p>
+                    <div className="space-y-3">
+                      {relatedOrders.map(o => (
+                        <div key={o._id} className="space-y-1">
+                          <div className="flex justify-between text-[9px] font-black text-slate-300 uppercase tracking-wider border-b border-white/5 pb-1">
+                            <span>{new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} Order</span>
+                            <span className="text-[#D4AF37]">{formatCurrency(o.totalAmount)}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {(o.items || []).map((it, idx) => (
+                              <span key={idx} className="text-[7px] font-bold text-slate-400 bg-slate-900 border border-white/5 px-1.5 py-0.5 rounded uppercase">{it.quantity}x {it.name}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              <button
-                disabled={isSettling || (Number(cashReceived) || 0) < settlingOrder.totalAmount}
-                onClick={handleSettleOrder}
-                className="w-full py-5 rounded-2xl bg-[#0F172A] text-[#D4AF37] font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] active:scale-95 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {isSettling ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                Confirm Settlement
-              </button>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash Received (Rs)</label>
+                    <div className="relative">
+                      <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+                      <input
+                        autoFocus
+                        type="number"
+                        placeholder="Enter amount..."
+                        value={cashReceived}
+                        onChange={(e) => setCashReceived(e.target.value)}
+                        className="w-full pl-14 pr-6 py-5 bg-slate-950 border border-white/10 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-white outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/20 flex justify-between items-center">
+                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Balance to Return</span>
+                    <span className="text-2xl font-black text-emerald-400" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                      {formatCurrency(Math.max((Number(cashReceived) || 0) - combinedTotal, 0))}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  disabled={isSettling || (Number(cashReceived) || 0) < combinedTotal}
+                  onClick={handleSettleOrder}
+                  className="w-full py-5 rounded-2xl bg-[#D4AF37] text-[#0F172A] font-black text-xs uppercase tracking-[0.3em] transition-all hover:bg-white hover:text-[#0F172A] active:scale-95 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  {isSettling ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                  {isMultiple ? `Confirm Group Settle` : `Confirm Settlement`}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
-}
+}

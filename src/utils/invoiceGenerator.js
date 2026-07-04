@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 /**
  * Generates a premium PDF Invoice/Receipt for Hotel Janro Stays, Events, or Orders.
@@ -15,8 +15,8 @@ export const generateInvoicePDF = (invoiceData, settings = {}) => {
   });
 
   const hotelName = settings.hotelName || "Hotel Janro";
-  const hotelAddress = settings.address || "123 Luxury Avenue, Paradise City";
-  const hotelPhone = settings.phone || "+94 11 234 5678";
+  const hotelAddress = settings.address || "No: 10/2, B, Medagodawatta, Malwana-Dompe Road, Dompe 11680, Sri Lanka";
+  const hotelPhone = settings.phone || "+94 76 360 0041";
   const hotelEmail = settings.email || "info@hoteljanro.com";
   const hotelWebsite = settings.website || "www.hoteljanro.com";
   const currencySymbol = settings.currency?.symbol || "Rs.";
@@ -91,7 +91,11 @@ export const generateInvoicePDF = (invoiceData, settings = {}) => {
   const paymentStatus = (invoiceData.paymentStatus || invoiceData.status || "Paid").toUpperCase();
   doc.text(`Payment Status: `, 15, 90);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(paymentStatus === "PAID" || paymentStatus === "CONFIRMED" || paymentStatus === "FULLY PAID" ? [16, 185, 129] : [245, 158, 11]);
+  if (paymentStatus === "PAID" || paymentStatus === "CONFIRMED" || paymentStatus === "FULLY PAID") {
+    doc.setTextColor(16, 185, 129);
+  } else {
+    doc.setTextColor(245, 158, 11);
+  }
   doc.text(paymentStatus, 42, 90);
 
   // Right Column - Billed To
@@ -130,7 +134,7 @@ export const generateInvoicePDF = (invoiceData, settings = {}) => {
   ];
 
   // Render Items Table
-  doc.autoTable({
+  autoTable(doc, {
     startY: 104,
     head: tableHeaders,
     body: tableRows,

@@ -1,10 +1,11 @@
 // RoomCard.jsx - Room Card Component (Pure JavaScript)
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Users, Calendar } from "lucide-react";
 import { Button } from "../common/Button.jsx";
 import { ImageWithFallback } from "../common/ImageWithFallback.jsx";
 import { useSettings } from "../../context/SettingsContext";
+import { apiFetch } from "../../api";
 
 const getRoomOptionPrice = (roomName, isAc, stayMode) => {
   const norm = (roomName || '').toLowerCase().replace(/[^a-z]/g, '');
@@ -47,7 +48,9 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
   const navigate = useNavigate();
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [fullName, setFullName] = useState("");
+  const [nameError, setNameError] = useState("");
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
@@ -60,6 +63,10 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
   const isFamilySuite = (room.name || "").toLowerCase().includes("family");
   const isHoneymoonSuite = (room.name || "").toLowerCase().includes("honeymoon") || (room.name || "").toLowerCase().includes("wedding couple");
   const hideCheckoutFields = isHoneymoonSuite;
+
+  const [availableRoomNumbers, setAvailableRoomNumbers] = useState([]);
+  const [selectedRoomNumber, setSelectedRoomNumber] = useState("");
+  const [loadingRooms, setLoadingRooms] = useState(false);
 
   // AC/Non-AC variant selector (only for merged Standard Room cards)
   const hasAcVariants = !!acVariants && (acVariants.ac || acVariants.nonAc);
@@ -140,6 +147,14 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
     return d.toISOString().split("T")[0];
   };
 
+  useEffect(() => {
+    if (stayMode === "custom" && checkIn && checkOut && checkIn === checkOut) {
+      if (checkInType === "Night" && checkOutType === "Day") {
+        setCheckOut(getNextDay(checkIn));
+      }
+    }
+  }, [checkIn, checkOut, checkInType, checkOutType, stayMode]);
+
   const toggleDecoration = (itemName) => {
     setSelectedDecorations((prev) =>
       prev.includes(itemName) ? prev.filter((value) => value !== itemName) : [...prev, itemName]
@@ -156,15 +171,84 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
     ? (Number(getRoomOptionPrice(activeVariantRoom.name, isAc, "custom") || 0) + decorationTotal)
     : (Number(displayRoomPrice || 0) * slots) + decorationTotal;
 
+  useEffect(() => {
+    const fetchAvailableRoomNumbers = async () => {
+      const effectiveCheckIn = checkIn || todayStr;
+      const actualCheckOut = hideCheckoutFields ? effectiveCheckIn : (checkOut || todayStr);
+
+      if (stayMode === "custom" && isDateRangeInvalid && checkIn) {
+        setAvailableRoomNumbers([]);
+        setSelectedRoomNumber("");
+        return;
+      }
+
+      setLoadingRooms(true);
+      try {
+        const roomId = activeVariantRoom._id || activeVariantRoom.id;
+        const actualCheckOutType = hideCheckoutFields ? checkInType : checkOutType;
+        const response = await apiFetch(
+          `/rooms/${roomId}/available-numbers?checkInDate=${effectiveCheckIn}&checkOutDate=${actualCheckOut}&checkInType=${checkInType}&checkOutType=${actualCheckOutType}&stayMode=${stayMode}&variant=${selectedAcType}`
+        );
+        if (response.success) {
+          setAvailableRoomNumbers(response.data || []);
+          if (response.data?.length > 0) {
+            setSelectedRoomNumber((prev) => {
+              if (prev && response.data.includes(prev)) return prev;
+              return response.data[0];
+            });
+          } else {
+            setSelectedRoomNumber("");
+          }
+        } else {
+          setAvailableRoomNumbers([]);
+          setSelectedRoomNumber((prev) => prev ? "" : "");
+        }
+      } catch (err) {
+        console.error("Failed to fetch available room numbers", err);
+        setAvailableRoomNumbers([]);
+        setSelectedRoomNumber("");
+      } finally {
+        setLoadingRooms(false);
+      }
+    };
+
+    fetchAvailableRoomNumbers();
+  }, [checkIn, checkOut, checkInType, checkOutType, stayMode, hideCheckoutFields, activeVariantRoom, isDateRangeInvalid, todayStr]);
+
   const handleSubmitBooking = () => {
+    setNameError("");
+    setEmailError("");
+    setPhoneError("");
+
+    let isValid = true;
+
     if (!fullName || fullName.trim() === "") {
-      alert("Please enter the guest's full name.");
-      return;
+      setNameError("Please enter the guest's full name.");
+      isValid = false;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || email.trim() === "") {
-      alert("Please enter the guest's email address.");
-      return;
+      setEmailError("Please enter the guest's email address.");
+      isValid = false;
+    } else if (!emailRegex.test(email.trim())) {
+      setEmailError("Please enter a valid email address.");
+      isValid = false;
     }
+
+    if (!phone || phone.trim() === "") {
+      setPhoneError("Please enter your phone number.");
+      isValid = false;
+    } else {
+      const phoneRegex = /^\d{10}$/;
+      if (!phoneRegex.test(phone.trim())) {
+        setPhoneError("Please enter a valid 10-digit phone number.");
+        isValid = false;
+      }
+    }
+
+    if (!isValid) return;
+
     if (!checkIn) {
       alert("Please select a check-in date.");
       return;
@@ -177,13 +261,9 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
       alert("Check-out date/time cannot be before check-in date/time.");
       return;
     }
-    if (!phone || phone.trim() === "") {
-      setPhoneError("Please enter your phone number.");
-      return;
-    }
-    const phoneRegex = /^\d{10}$/;
-    if (!phoneRegex.test(phone.trim())) {
-      setPhoneError("this is invalid");
+
+    if (!selectedRoomNumber) {
+      alert("Please select an available room.");
       return;
     }
 
@@ -195,6 +275,7 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
       checkInType,
       checkOutType: hideCheckoutFields ? checkInType : checkOutType,
       stayMode,
+      roomNumber: selectedRoomNumber,
       checkInDate: checkIn,
       checkOutDate: hideCheckoutFields ? (checkIn || todayStr) : checkOut,
       guests,
@@ -250,7 +331,17 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
           {settings.currency.symbol} {formattedPrice}
         </div>
         <div className="absolute top-4 left-4 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-[#0F172A] shadow-sm">
-          {activeVariantRoom.availableRooms ?? 0} {Number(activeVariantRoom.availableRooms) === 1 ? "room" : "rooms"} available
+          {loadingRooms
+            ? "Checking availability..."
+            : !showBookingForm
+              ? (() => {
+                  const total = room.availableRooms ?? 0;
+                  return `${total} ${total === 1 ? "room" : "rooms"} available`;
+                })()
+              : !isDateRangeInvalid
+                ? `${availableRoomNumbers.length} ${availableRoomNumbers.length === 1 ? "room" : "rooms"} available`
+                : `${activeVariantRoom.availableRooms ?? 0} ${Number(activeVariantRoom.availableRooms) === 1 ? "room" : "rooms"} in total`
+          }
         </div>
       </div>
       <div className="p-6">
@@ -308,25 +399,27 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
               )}
 
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Full Name</label>
+                <label className="text-xs text-gray-500 block mb-1">Full Name <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => { setFullName(e.target.value); setNameError(""); }}
                   placeholder="John Doe"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] ${nameError ? 'border-red-500' : 'border-gray-200'}`}
                 />
+                {nameError && <p className="text-red-500 text-xs mt-1">{nameError}</p>}
               </div>
 
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Email</label>
+                <label className="text-xs text-gray-500 block mb-1">Email <span className="text-red-500">*</span></label>
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
                   placeholder="john@example.com"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] ${emailError ? 'border-red-500' : 'border-gray-200'}`}
                 />
+                {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
               </div>
 
               <div>
@@ -445,7 +538,7 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                   <input
                     type="date"
                     value={checkOut}
-                    min={checkIn || todayStr}
+                    min={checkInType === "Night" ? (checkIn ? getNextDay(checkIn) : getNextDay(todayStr)) : (checkIn || todayStr)}
                     readOnly={stayMode !== "custom"}
                     onChange={(e) => {
                       if (stayMode === "custom") {
@@ -471,7 +564,13 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                     <label className="text-xs text-gray-500 block mb-1 font-semibold">Check-in</label>
                     <select
                       value={checkInType}
-                      onChange={(e) => setCheckInType(e.target.value)}
+                      onChange={(e) => {
+                        const newType = e.target.value;
+                        setCheckInType(newType);
+                        if (newType === "Night" && checkIn === checkOut && checkIn) {
+                          setCheckOut(getNextDay(checkIn));
+                        }
+                      }}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
                     >
                       <option value="Day">Day (9AM)</option>
@@ -491,12 +590,6 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                       )}
                     </select>
                   </div>
-                </div>
-              )}
-
-              {isDateRangeInvalid && (
-                <div className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2.5 animate-in fade-in duration-300">
-                  ⚠️ Check-out date/time cannot be before check-in date/time.
                 </div>
               )}
 
@@ -528,6 +621,28 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                   </div>
                 )
               )}
+
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Select Room <span className="text-red-500">*</span></label>
+                <select
+                  value={selectedRoomNumber}
+                  onChange={(e) => setSelectedRoomNumber(e.target.value)}
+                  disabled={loadingRooms || availableRoomNumbers.length === 0}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
+                >
+                  {loadingRooms ? (
+                    <option value="">Loading available rooms...</option>
+                  ) : availableRoomNumbers.length > 0 ? (
+                    availableRoomNumbers.map((num) => (
+                      <option key={num} value={num}>{num}</option>
+                    ))
+                  ) : (!checkIn || (!hideCheckoutFields && !checkOut)) ? (
+                    <option value="">Please select dates to view rooms</option>
+                  ) : (
+                    <option value="">No rooms available for selected dates</option>
+                  )}
+                </select>
+              </div>
 
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Special Requests</label>

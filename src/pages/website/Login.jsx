@@ -25,7 +25,7 @@ export function Login({ onLogin, onVerify2FA, onGoogleLogin }) {
       if (window.google && window.google.accounts && window.google.accounts.id) {
         try {
           window.google.accounts.id.initialize({
-            client_id: "909686127278-er1uoibsf4do6sgd7pbj692cbr89np83.apps.googleusercontent.com",
+            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "909686127278-er1uoibsf4do6sgd7pbj692cbr89np83.apps.googleusercontent.com",
             callback: async (response) => {
               try {
                 setError("");

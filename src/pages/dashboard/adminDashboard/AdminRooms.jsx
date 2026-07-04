@@ -21,10 +21,47 @@ import {
   CheckCircle2,
   AlertCircle,
   ImagePlus,
-  Layers
+  Layers,
+  LogIn,
+  LogOut
 } from 'lucide-react';
 import { apiFetch, API_HOST } from '../../../api';
 import './AdminRooms.css';
+
+const getRoomTypeName = (roomName, roomNumberStr) => {
+  if (!roomName) return 'N/A';
+  const lower = roomName.toLowerCase();
+  
+  if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
+    return 'Standard Room (Non-AC)';
+  }
+  if (lower.includes('ac standard room') || lower.includes('a/c standard room')) {
+    return 'Standard Room (AC)';
+  }
+  if (lower.includes('standard room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+
+  if (lower.includes('non-ac family room') || lower.includes('non ac family room')) {
+    return 'Family Room (Non-AC)';
+  }
+  if (lower.includes('ac family room') || lower.includes('a/c family room')) {
+    return 'Family Room (AC)';
+  }
+  if (lower.includes('family room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Family Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  
+  return roomName;
+};
 
 export function AdminRooms() {
   const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'bookings'
@@ -62,14 +99,16 @@ export function AdminRooms() {
     setExpandedTypes(newExpanded);
   };
   
-  // Form State
   const [formData, setFormData] = useState({
     name: '',
+    acVariant: 'ac', // default to AC
     description: '',
     price: '',
-    availableRooms: '',
+    availableRooms: 1,
+    totalRooms: 1,
     defaultGuests: 1,
     amenities: '',
+    image: '',
     isActive: true
   });
 
@@ -105,8 +144,10 @@ export function AdminRooms() {
         price: existingRoom.price,
         description: existingRoom.description,
         defaultGuests: existingRoom.defaultGuests,
-        amenities: existingRoom.amenities.join(', ')
+        amenities: (existingRoom.amenities && Array.isArray(existingRoom.amenities)) ? existingRoom.amenities.join(', ') : '',
+        image: existingRoom.image || ''
       });
+      setImagePreview(existingRoom.image || null);
     } else {
       setFormData({
         ...formData,
@@ -114,8 +155,10 @@ export function AdminRooms() {
         price: '',
         description: '',
         defaultGuests: 1,
-        amenities: ''
+        amenities: '',
+        image: ''
       });
+      setImagePreview(null);
     }
   };
 
@@ -150,8 +193,10 @@ export function AdminRooms() {
         totalRooms: room.totalRooms,
         defaultGuests: room.defaultGuests,
         amenities: (room.amenities && Array.isArray(room.amenities)) ? room.amenities.join(', ') : '',
+        image: room.image || '',
         isActive: room.isActive
       });
+      setImagePreview(room.image || null);
     } else {
       const defaultData = rooms.find(r => r.name === preSelectedType);
       setEditingRoom(null);
@@ -162,8 +207,10 @@ export function AdminRooms() {
         availableRooms: '',
         defaultGuests: defaultData ? defaultData.defaultGuests : 1,
         amenities: (defaultData?.amenities && Array.isArray(defaultData.amenities)) ? defaultData.amenities.join(', ') : '',
+        image: defaultData ? defaultData.image || '' : '',
         isActive: true
       });
+      setImagePreview(defaultData ? defaultData.image || null : null);
     }
     setIsModalOpen(true);
   };
@@ -171,6 +218,7 @@ export function AdminRooms() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingRoom(null);
+    setImagePreview(null);
   };
 
   // ── New Room Type handlers ──────────────────────────────────────────
@@ -198,6 +246,7 @@ export function AdminRooms() {
       const res = await apiFetch('/upload', { method: 'POST', body: fd });
       if (res.success && res.url) {
         setNewTypeForm(prev => ({ ...prev, image: res.url }));
+        setFormData(prev => ({ ...prev, image: res.url }));
       }
     } catch (err) {
       alert('Image upload failed: ' + err.message);
@@ -211,6 +260,10 @@ export function AdminRooms() {
     const trimmedName = (newTypeForm.name || '').trim();
     if (!trimmedName) { alert('Please enter a room type name.'); return; }
     if (!newTypeForm.price || Number(newTypeForm.price) <= 0) { alert('Please enter a valid price.'); return; }
+    if (!newTypeForm.defaultGuests || Number(newTypeForm.defaultGuests) < 1) { alert('Please enter a valid Max Guests number.'); return; }
+    if (!newTypeForm.initialRooms || Number(newTypeForm.initialRooms) < 1) { alert('Please enter a valid Initial Room Count.'); return; }
+    if (!newTypeForm.description || newTypeForm.description.trim() === '') { alert('Please enter a room description.'); return; }
+    if (!newTypeForm.amenities || newTypeForm.amenities.trim() === '') { alert('Please select at least one amenity.'); return; }
     // Prevent duplicate type names
     const duplicate = rooms.find(r => r.name.toLowerCase() === trimmedName.toLowerCase());
     if (duplicate) { alert(`A room type named "${trimmedName}" already exists. Use the existing "Create Room" button to add more units.`); return; }
@@ -242,14 +295,37 @@ export function AdminRooms() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validations
     if (!formData.name) {
-      alert('Please select a room type');
+      alert('Please select a room type.');
+      return;
+    }
+    if (!formData.price || isNaN(formData.price) || Number(formData.price) <= 0) {
+      alert('Please enter a valid Price per Night (must be greater than 0).');
+      return;
+    }
+    if (!formData.defaultGuests || isNaN(formData.defaultGuests) || Number(formData.defaultGuests) < 1) {
+      alert('Please enter a valid Max Guests number (must be at least 1).');
+      return;
+    }
+    if (editingRoom && (!formData.description || formData.description.trim() === '')) {
+      alert('Please enter a room description.');
+      return;
+    }
+    if (editingRoom && (!formData.amenities || formData.amenities.trim() === '')) {
+      alert('Please select at least one amenity.');
       return;
     }
     
+    let submitName = formData.name;
+    if (submitName === 'Standard Room' && !editingRoom) {
+      submitName = formData.acVariant === 'ac' ? 'AC Standard Room' : 'Non-AC Standard Room';
+    }
+
     try {
       // Find if this room type already exists in our database
-      const existingRoom = rooms.find(r => r.name === formData.name);
+      const existingRoom = rooms.find(r => r.name === submitName);
 
       if (existingRoom && !editingRoom) {
         // INCREMENT MODE: Type exists, just add 1 to the count
@@ -268,6 +344,7 @@ export function AdminRooms() {
         // EDIT MODE: Standard update
         const payload = {
           ...formData,
+          name: submitName,
           price: Number(formData.price),
           availableRooms: Number(formData.availableRooms),
           totalRooms: Number(formData.availableRooms) + getBookedCount(formData.name), // Sync total rooms
@@ -282,6 +359,7 @@ export function AdminRooms() {
         // NEW ENTRY MODE: Create with count 1 (The UI will add the Base Count)
         const payload = {
           ...formData,
+          name: submitName,
           price: Number(formData.price),
           availableRooms: 1,
           totalRooms: 1,
@@ -367,12 +445,70 @@ export function AdminRooms() {
     }
   };
 
-  // Count active bookings per room type
+  // Get booked room numbers per type (using actual roomNumber from bookings)
+  const getBookedRoomNumbers = (typeName) => {
+    return bookings
+      .filter(b =>
+        b.room?.name?.toLowerCase() === typeName.toLowerCase() &&
+        b.status !== 'cancelled' && b.status !== 'checked-out' &&
+        b.roomNumber
+      )
+      .map(b => b.roomNumber);
+  };
+
+  // Count active bookings per room type (legacy - kept for reference)
   const getBookedCount = (typeName) => {
     return bookings.filter(b => 
       b.room?.name?.toLowerCase() === typeName.toLowerCase() &&
       b.status !== 'cancelled' && b.status !== 'checked-out'
     ).length;
+  };
+
+
+  // Predefined amenity options for checkbox selection
+  const AMENITIES_LIST = [
+    'WiFi', 'Air Conditioning', 'TV', 'Hot Water', 'Balcony',
+    'Pool Access', 'Bathtub', 'Work Desk'
+  ];
+
+  const toggleAmenity = (amenity, currentVal, setter) => {
+    const current = (currentVal || '').split(',').map(s => s.trim()).filter(Boolean);
+    const updated = current.includes(amenity)
+      ? current.filter(a => a !== amenity)
+      : [...current, amenity];
+    setter(updated.join(', '));
+  };
+
+  // Custom sort order for room types
+  const ROOM_TYPE_ORDER = [
+    'standard room',
+    'family room',
+    'family suite',
+    'wedding couple suite',
+    'honeymoon suite',
+  ];
+
+  const getRoomSortIndex = (name) => {
+    const lower = (name || '').toLowerCase();
+    const idx = ROOM_TYPE_ORDER.findIndex(t => lower.includes(t) || t.includes(lower));
+    return idx === -1 ? 999 : idx;
+  };
+
+  // Starting room number for each room type (hotel room numbering)
+  const ROOM_START_NUMBERS = {
+    'ac standard room': 1,
+    'non-ac standard room': 4,
+    'standard room': 1,
+    'family room': 7,
+    'family suite': 7,
+    'wedding couple suite': 9,
+    'honeymoon suite': 9,
+  };
+
+  const getRoomStartNumber = (name) => {
+    const lower = (name || '').toLowerCase();
+    const key = Object.keys(ROOM_START_NUMBERS).find(k => lower.includes(k) || k.includes(lower));
+    return key ? ROOM_START_NUMBERS[key] : 1;
   };
 
   // ENSURE ALL TYPES ARE SHOWN IN THE TABLE
@@ -382,22 +518,24 @@ export function AdminRooms() {
     const backendRoomsOfType = rooms.filter(r => 
       r.isActive && r.name === typeName
     );
-    const bookedCount = getBookedCount(typeName);
+    const bookedRoomNumbers = getBookedRoomNumbers(typeName);
+    const bookedCount = bookedRoomNumbers.length;
     
     if (backendRoomsOfType.length > 0) {
-      const dbAvailable = backendRoomsOfType.reduce((sum, r) => sum + (r.availableRooms || 0), 0);
       const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms || 1), 0);
       const firstRoom = backendRoomsOfType[0];
       return {
         ...firstRoom,
-        availableRooms: dbAvailable,
+        availableRooms: Math.max(0, dbTotal - bookedCount),
         totalRooms: dbTotal,
         bookedCount,
+        bookedRoomNumbers,
         isPlaceholder: false
       };
     }
     return null;
-  }).filter(Boolean);
+  }).filter(Boolean).sort((a, b) => getRoomSortIndex(a.name) - getRoomSortIndex(b.name));
+
 
   const filteredRooms = aggregatedRooms.filter(room => 
     (room.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -420,26 +558,57 @@ export function AdminRooms() {
     return <span className="admin-rooms__status-badge admin-rooms__status-badge--maintenance">{status}</span>;
   };
 
+  const totalUnits = aggregatedRooms.reduce(
+    (sum, room) => sum + (Number(room.totalRooms) || 0),
+    0
+  );
+
+  const activeBookings = bookings.filter(b =>
+    !['cancelled', 'rejected', 'checked-out'].includes(String(b.status || '').toLowerCase())
+  ).length;
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Room Management</h1>
-          <p className="text-slate-500">Add rooms to your inventory. The count below shows your total hotel stock (Base + Added).</p>
-        </div>
-        <div className="flex flex-wrap gap-3 items-center">
-          <button
-            className="admin-rooms__action-button"
-            onClick={handleOpenNewTypeModal}
-          >
-            <Layers className="w-5 h-5" />
-            <span>Create Room Type</span>
-          </button>
-          <button className="admin-rooms__action-button" onClick={() => handleOpenModal()}>
-            <Plus className="w-5 h-5" />
-            <span>Create Room</span>
-          </button>
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 shadow-[0_20px_60px_rgba(15,23,42,0.18)] mb-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+            <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
+              Room Management
+            </h1>
+            <p className="text-slate-300 mt-2 max-w-2xl">
+              Add rooms to your inventory. The count below shows your total hotel stock (Base + Added).
+            </p>
+            <div className="flex flex-wrap gap-3 items-center mt-6">
+              <button
+                className="admin-rooms__action-button"
+                onClick={handleOpenNewTypeModal}
+              >
+                <Layers className="w-5 h-5" />
+                <span>Create Room Type</span>
+              </button>
+              <button className="admin-rooms__action-button" onClick={() => handleOpenModal()}>
+                <Plus className="w-5 h-5" />
+                <span>Create Room</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[320px] lg:mt-0 mt-4">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Room Type</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{aggregatedRooms.length}</p>
+            </div>
+            <div className="rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-[#F5E7B2]">Active Bookings</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{activeBookings}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm col-span-2">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Total Units</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{totalUnits}</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -464,10 +633,6 @@ export function AdminRooms() {
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Total</p>
                     <h3 className="text-xl font-bold text-slate-900">{totalInStock}</h3>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-green-500 font-bold">Available</p>
-                    <h3 className="text-xl font-bold text-green-600">{freeCount}</h3>
                   </div>
                 </div>
               </div>
@@ -582,10 +747,11 @@ export function AdminRooms() {
                       </tr>
                       {isExpanded && (
                         <>
-                          {/* Unified room list with continuous numbering */}
+                          {/* Unified room list with hotel-wide continuous numbering */}
                           {Array.from({ length: totalInStock }).map((_, i) => {
-                            const roomNumber = i + 1;
-                            const isBooked = i < bookedCount;
+                            const roomNumber = getRoomStartNumber(room.name) + i;
+                            const roomLabel = `Room ${roomNumber}`;
+                            const isBooked = (room.bookedRoomNumbers || []).includes(roomLabel);
                             // Any room that is not booked can be deleted
                             const canDelete = !isBooked;
 
@@ -598,7 +764,7 @@ export function AdminRooms() {
                                   <div className="flex items-center gap-2">
                                     <div className={`w-1.5 h-1.5 rounded-full ${isBooked ? 'bg-red-500' : 'bg-green-500'}`}></div>
                                     <span className={`font-medium ${isBooked ? 'text-red-600' : 'text-slate-600'}`}>
-                                      Room {roomNumber}
+                                      Room {roomNumber} {(room.name || '').toLowerCase().includes('standard room') ? (roomNumber >= 5 ? '(AC)' : '(Non-AC)') : ''}
                                     </span>
                                   </div>
                                 </td>
@@ -650,6 +816,7 @@ export function AdminRooms() {
                 <tr>
                   <th>Guest Details</th>
                   <th>Room Type</th>
+                  <th>Room No.</th>
                   <th>Dates</th>
                   <th>Guests</th>
                   <th>Status</th>
@@ -668,7 +835,7 @@ export function AdminRooms() {
                     </td>
                     <td>
                       <div className="flex flex-col">
-                        <span className="font-medium">{booking.room?.name || 'N/A'}</span>
+                        <span className="font-medium">{getRoomTypeName(booking.room?.name, booking.roomNumber)}</span>
                         {booking.decorationItems && booking.decorationItems.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {booking.decorationItems.map((item, idx) => (
@@ -682,6 +849,13 @@ export function AdminRooms() {
                           </div>
                         )}
                       </div>
+                    </td>
+                    <td>
+                      {booking.roomNumber ? (
+                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-bold">{booking.roomNumber}</span>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
                     </td>
                     <td>
                       <div className="flex flex-col gap-1.5">
@@ -728,27 +902,47 @@ export function AdminRooms() {
                         {(!booking.status || booking.status === 'pending') && (
                           <>
                             <button
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
                               title="Confirm Booking"
                               onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}
                             >
-                              <CheckCircle className="w-4 h-4" />
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              <span className="hidden md:inline">Confirm</span>
                             </button>
                             <button
-                              className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-md transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-500 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
                               title="Reject Booking"
                               onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}
                             >
-                              <XCircle className="w-4 h-4" />
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span className="hidden md:inline">Reject</span>
                             </button>
                           </>
                         )}
+                        {booking.status?.toLowerCase() === 'confirmed' && (
+                            <button
+                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-in')}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
+                            >
+                                <LogIn className="w-3.5 h-3.5" />
+                                <span className="hidden md:inline">Check In</span>
+                            </button>
+                        )}
+                        {booking.status?.toLowerCase() === 'checked-in' && (
+                            <button
+                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-out')}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
+                            >
+                                <LogOut className="w-3.5 h-3.5" />
+                                <span className="hidden md:inline">Check Out</span>
+                            </button>
+                        )}
                         <button 
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider flex-shrink-0"
                           title="Delete Booking"
                           onClick={() => handleDeleteBooking(booking._id)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
@@ -777,6 +971,66 @@ export function AdminRooms() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="admin-rooms__modal-body">
+                {/* Image Upload for Edit Mode */}
+                <div className="admin-rooms__form-group admin-rooms__form-group--full" style={{ marginBottom: '16px' }}>
+                  <label className="admin-rooms__label">Room Photo</label>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: '2px dashed #c4b5fd',
+                      borderRadius: '14px',
+                      background: imagePreview ? 'transparent' : '#faf5ff',
+                      minHeight: '160px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      position: 'relative',
+                      transition: 'border-color 0.2s'
+                    }}
+                  >
+                    {imagePreview ? (
+                      <img
+                        src={imagePreview}
+                        alt="preview"
+                        style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '12px' }}
+                      />
+                    ) : (
+                      <div style={{ textAlign: 'center', color: '#7c3aed' }}>
+                        <ImagePlus style={{ width: '36px', height: '36px', margin: '0 auto 8px' }} />
+                        <p style={{ fontWeight: '600', fontSize: '14px' }}>Click to upload room photo</p>
+                        <p style={{ fontSize: '11px', color: '#a78bfa', marginTop: '4px' }}>JPG, PNG, WEBP — recommended 800×600px</p>
+                      </div>
+                    )}
+                    {imageUploading && (
+                      <div style={{
+                        position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.8)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '13px', color: '#7c3aed', fontWeight: '600'
+                      }}>
+                        Uploading…
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleImageFileChange}
+                  />
+                  {imagePreview && (
+                    <button
+                      type="button"
+                      onClick={() => { setImagePreview(null); setFormData(p => ({ ...p, image: '' })); setNewTypeForm(p => ({...p, image: ''})); }}
+                      style={{ fontSize: '11px', color: '#ef4444', marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    >
+                      Remove photo
+                    </button>
+                  )}
+                </div>
+
                 <div className="admin-rooms__form-grid">
                   <div className="admin-rooms__form-group admin-rooms__form-group--full">
                     <label className="admin-rooms__label">Select Room Type</label>
@@ -794,6 +1048,50 @@ export function AdminRooms() {
                     </select>
                     {!editingRoom && <p className="text-xs text-blue-600 mt-1">Selecting a type and clicking "Create" will add 1 room to your stock.</p>}
                   </div>
+
+                  {formData.name === 'Standard Room' && !editingRoom && (
+                    <div className="admin-rooms__form-group admin-rooms__form-group--full">
+                      <label className="admin-rooms__label">Variant <span style={{ color: '#ef4444' }}>*</span></label>
+                      <div className="flex gap-4 mt-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="acVariant" 
+                            value="ac" 
+                            checked={formData.acVariant === 'ac'} 
+                            onChange={(e) => {
+                              const currentPrice = Number(formData.price) || 8500;
+                              setFormData({
+                                ...formData, 
+                                acVariant: 'ac', 
+                                price: formData.acVariant === 'nonAc' ? String(currentPrice + 2000) : formData.price
+                              });
+                            }} 
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-slate-700">AC Room</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="acVariant" 
+                            value="nonAc" 
+                            checked={formData.acVariant === 'nonAc'} 
+                            onChange={(e) => {
+                              const currentPrice = Number(formData.price) || 10500;
+                              setFormData({
+                                ...formData, 
+                                acVariant: 'nonAc', 
+                                price: formData.acVariant === 'ac' ? String(currentPrice - 2000) : formData.price
+                              });
+                            }}
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-slate-700">Non-AC Room</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
                   {editingRoom && (
                     <div className="admin-rooms__form-group admin-rooms__form-group--full">
@@ -843,13 +1141,29 @@ export function AdminRooms() {
                   </div>
                   <div className="admin-rooms__form-group admin-rooms__form-group--full">
                     <label className="admin-rooms__label">Amenities</label>
-                    <input 
-                      type="text" 
-                      className="admin-rooms__input" 
-                      placeholder="WiFi, AC, TV"
-                      value={formData.amenities}
-                      onChange={(e) => setFormData({...formData, amenities: e.target.value})}
-                    />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                      {AMENITIES_LIST.map((amenity) => {
+                        const isChecked = (formData.amenities || '')
+                          .split(',')
+                          .map((s) => s.trim())
+                          .includes(amenity);
+                        return (
+                          <label key={amenity} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() =>
+                                toggleAmenity(amenity, formData.amenities, (newVal) =>
+                                  setFormData({ ...formData, amenities: newVal })
+                                )
+                              }
+                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            {amenity}
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1011,13 +1325,29 @@ export function AdminRooms() {
                   {/* Amenities */}
                   <div className="admin-rooms__form-group admin-rooms__form-group--full">
                     <label className="admin-rooms__label">Amenities</label>
-                    <input
-                      type="text"
-                      className="admin-rooms__input"
-                      placeholder="WiFi, AC, TV, Mini Bar, Jacuzzi …  (comma-separated)"
-                      value={newTypeForm.amenities}
-                      onChange={e => setNewTypeForm(p => ({ ...p, amenities: e.target.value }))}
-                    />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                      {AMENITIES_LIST.map((amenity) => {
+                        const isChecked = (newTypeForm.amenities || '')
+                          .split(',')
+                          .map((s) => s.trim())
+                          .includes(amenity);
+                        return (
+                          <label key={amenity} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() =>
+                                toggleAmenity(amenity, newTypeForm.amenities, (newVal) =>
+                                  setNewTypeForm((p) => ({ ...p, amenities: newVal }))
+                                )
+                              }
+                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            {amenity}
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>

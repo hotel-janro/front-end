@@ -1,5 +1,5 @@
 // Home.jsx - Home Page (Pure JavaScript)
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/common/Button.jsx";
 import { ImageWithFallback } from "../../components/common/ImageWithFallback.jsx";
@@ -8,6 +8,7 @@ import {
   ArrowRight, Quote,
 } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext.jsx";
+import { apiFetch } from "../../api";
 
 const DeliveryBikeIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -20,12 +21,12 @@ const DeliveryBikeIcon = ({ className }) => (
   </svg>
 );
 
-const HERO_IMG = "https://images.unsplash.com/photo-1764148716678-40a4b8c5b812?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBob3RlbCUyMGxvYmJ5JTIwZ3JhbmQlMjBlbnRyYW5jZXxlbnwxfHx8fDE3NzI0ODIyNjV8MA&ixlib=rb-4.1.0&q=80&w=1080";
+const HERO_IMG = "https://res.cloudinary.com/dhuirf8i9/image/upload/v1783022207/hotel_janro/hotel_hero.jpg";
 const ROOM_IMG = "https://images.unsplash.com/photo-1759223198981-661cadbbff36?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBob3RlbCUyMHN1aXRlJTIwYmVkcm9vbXxlbnwxfHx8fDE3NzI0NDEzMjN8MA&ixlib=rb-4.1.0&q=80&w=1080";
 const ROOM_IMG2 = "https://images.unsplash.com/photo-1708920326697-b219695c89ba?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZWx1eGUlMjBob3RlbCUyMHJvb20lMjBvY2VhbiUyMHZpZXd8ZW58MXx8fHwxNzcyNDgyMjY2fDA&ixlib=rb-4.1.0&q=80&w=1080";
 const ROOM_IMG3 = "https://images.unsplash.com/photo-1642976975710-1d8890dbf5ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxleGVjdXRpdmUlMjBob3RlbCUyMHBlbnRob3VzZSUyMHJvb218ZW58MXx8fHwxNzcyNDgyMjc1fDA&ixlib=rb-4.1.0&q=80&w=1080";
-const EVENT_IMG = "https://images.unsplash.com/photo-1759519238029-689e99c6d19e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBiYWxscm9vbSUyMHdlZGRpbmclMjB2ZW51ZXxlbnwxfHx8fDE3NzI0ODIyNzV8MA&ixlib=rb-4.1.0&q=80&w=1080";
-const FOOD_IMG = "https://images.unsplash.com/photo-1543353071-873f17a7a088?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmaW5lJTIwZGluaW5nJTIwcmVzdGF1cmFudCUyMHBsYXRlZCUyMGZvb2R8ZW58MXx8fHwxNzcyNDgyMjY4fDA&ixlib=rb-4.1.0&q=80&w=1080";
+const EVENT_IMG = "https://res.cloudinary.com/dhuirf8i9/image/upload/v1783026236/hotel_janro/hotel_event.jpg";
+const FOOD_IMG = "https://res.cloudinary.com/dhuirf8i9/image/upload/v1783025961/hotel_janro/hotel_food.jpg";
 
 const facilities = [
   { icon: Bed, label: "Rooms" },
@@ -36,19 +37,32 @@ const facilities = [
 ];
 
 const testimonials = [
-  { name: "Sarah Johnson", role: "Business Traveler", text: "An absolutely stunning hotel with impeccable service. The rooms are beautifully decorated and the staff goes above and beyond.", rating: 5 },
-  { name: "Michael Chen", role: "Honeymoon Guest", text: "We had our honeymoon here and it was magical. The wedding hall was breathtaking and the food was world-class.", rating: 5 },
-  { name: "Emily Williams", role: "Family Vacation", text: "Perfect for families! The kids loved the pool and we enjoyed the fine dining. Will definitely return next year.", rating: 5 },
+  { name: "Chaminda Vitharana", role: "Local Guide", text: "Excellent location for a family gathering or a day outing with friends. The dishes are tasty and in good portions. The rates are very reasonable. BYOB allowed and no corkage charges. There’s a medium size pool with plenty playing options for kids. The hotel has a large banquet hall, guest rooms and a cabana.", rating: 5 },
+  { name: "Dilan Perera", role: "Regular Customer", text: "Good service. Delicious food. Very pleasant manager (Mr. Suresh), he's very skillful man with attractive customer service. Also they have well maintained beautiful garden. That place situated at greenish environment. They have 2 modern reception halls. They have their own DJ entertainer. I proof that all because I'm regular customer here.", rating: 5 },
+  { name: "Shalitha Senanayaka", role: "Local Guide", text: "Nice place to spending free time or a get a relax.. highly recommended for family outing and groups. Swimming pool is bit small but its awesome. Maximum deep is 5ft. We can see small bar out there but they are not serving any alcohols.", rating: 5 },
 ];
 
 export function Home() {
   const { settings } = useSettings();
-  
-  const featuredRooms = [
-    { name: "Royal Suite", price: 350, image: ROOM_IMG },
-    { name: "Deluxe Ocean View", price: 250, image: ROOM_IMG2 },
-    { name: "Penthouse", price: 500, image: ROOM_IMG3 },
-  ];
+  const [featuredRooms, setFeaturedRooms] = useState([]);
+
+  useEffect(() => {
+    const fetchFeaturedRooms = async () => {
+      try {
+        const response = await apiFetch("/rooms");
+        if (response.success && response?.data) {
+          // Filter out photo locations and take the first 3 rooms to feature
+          const filtered = (response.data || [])
+            .filter((r) => r.name.toLowerCase().replace(/[^a-z]/g, "") !== "photolocation")
+            .slice(0, 3);
+          setFeaturedRooms(filtered);
+        }
+      } catch (error) {
+        console.error("Error fetching featured rooms:", error);
+      }
+    };
+    fetchFeaturedRooms();
+  }, []);
 
   return (
     <div>
@@ -93,7 +107,7 @@ export function Home() {
             A Legacy of Luxury & Elegance
           </h2>
           <p className="text-gray-500 max-w-3xl mx-auto leading-relaxed">
-            Nestled in the heart of Paradise City, {settings.hotelName} has been the epitome of luxury hospitality for over two decades. Our commitment to excellence, attention to detail, and personalized service ensure every guest experience is nothing short of extraordinary.
+            Nestled in the lush, green surroundings of Dompe, Sri Lanka, {settings.hotelName} has been the epitome of luxury hospitality for over two decades. Our commitment to excellence, attention to detail, and personalized service ensure every guest experience is nothing short of extraordinary.
           </p>
         </div>
       </section>
@@ -116,7 +130,7 @@ export function Home() {
                 </div>
                 <div className="p-6">
                   <h3 className="text-[#0F172A] mb-2" style={{ fontFamily: "DM Serif Display, serif" }}>{room.name}</h3>
-                  <p className="text-gray-500 text-sm mb-4">Experience comfort and elegance in our beautifully appointed room.</p>
+                  <p className="text-gray-500 text-sm mb-4">{room.description}</p>
                   <Link to="/rooms">
                     <Button variant="ghost" className="!px-0 text-sm">
                       View Details <ArrowRight className="w-4 h-4" />
@@ -146,10 +160,10 @@ export function Home() {
                 Weddings & Events
               </h2>
               <p className="text-gray-500 mb-6 leading-relaxed">
-                Make your special day truly unforgettable at our magnificent event venues. From intimate gatherings to grand celebrations, our dedicated team ensures every detail is perfect.
+                Make your special day truly unforgettable at Hotel Janro's magnificent wedding venues. From intimate gatherings to grand banquets, our dedicated team ensures every detail is perfect.
               </p>
               <ul className="space-y-3 mb-8">
-                {["Grand Ballroom - Up to 500 guests", "Garden Terrace - Outdoor ceremonies", "Conference Center - Corporate events"].map((item) => (
+                {["Royal Grand Hall – Up to 300 guests", "Garden Celebration Hall – Up to 200 guests", "Pearl Banquet Hall – Up to 150 guests", "Emerald Pool Terrace – Intimate gatherings"].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm text-gray-600">
                     <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
                     {item}
@@ -172,7 +186,7 @@ export function Home() {
                 Fine Dining Experience
               </h2>
               <p className="text-gray-500 mb-6 leading-relaxed">
-                Savor extraordinary cuisines crafted by our world-renowned chefs. From lavish breakfast buffets to intimate candlelit dinners, every meal is a masterpiece.
+                Savor authentic Sri Lankan and international cuisines crafted by our talented kitchen team. Enjoy hearty breakfast spreads, flavourful rice & curry buffets, grilled specialties, and refreshing poolside bites — all made with fresh, locally sourced ingredients.
               </p>
               <Link to="/restaurant"><Button variant="secondary">View Menu</Button></Link>
             </div>
