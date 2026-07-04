@@ -19,7 +19,7 @@ export function AdminPayments() {
 
   const fetchPayments = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('janro_token');
       const res = await fetch(`${API_BASE}/api/payments`, {
         headers: {
           'Authorization': `Bearer ${token}`

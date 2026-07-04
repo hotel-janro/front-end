@@ -2124,8 +2124,14 @@ export function AdminWedding() {
                       autoFocus
                       required 
                       type="number" 
+                      min="1"
                       value={paymentAmount} 
-                      onChange={e => setPaymentAmount(e.target.value)} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '' || Number(val) >= 0) {
+                          setPaymentAmount(val);
+                        }
+                      }} 
                       placeholder="Enter amount..."
                       className="w-full pl-14 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] focus:bg-white outline-none transition-all text-lg font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
