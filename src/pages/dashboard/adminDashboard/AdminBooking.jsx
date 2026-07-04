@@ -23,6 +23,27 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../../../api';
 
+const getRoomTypeName = (roomName, roomNumberStr) => {
+  if (!roomName) return 'N/A';
+  const lower = roomName.toLowerCase();
+  // If DB already stores 'AC Standard Room' or 'Non-AC Standard Room'
+  if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
+    return 'Standard Room (Non-AC)';
+  }
+  if (lower.includes('ac standard room') || lower.includes('a/c standard room')) {
+    return 'Standard Room (AC)';
+  }
+  // Fallback: determine from room number
+  if (lower.includes('standard room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  return roomName;
+};
+
 export function AdminBookings() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -55,7 +76,7 @@ export function AdminBookings() {
     const matchesSearch =
       (booking.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (booking.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (booking.room?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+      getRoomTypeName(booking.room?.name, booking.roomNumber).toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'All' || booking.status.toLowerCase() === filterStatus.toLowerCase();
     return matchesSearch && matchesFilter;
   });
@@ -174,6 +195,7 @@ export function AdminBookings() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guest</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room & Add-ons</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room No.</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guests</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -192,7 +214,7 @@ export function AdminBookings() {
                   </td>
                   <td className="px-6 py-4">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{booking.room?.name || 'N/A'}</div>
+                      <div className="text-sm font-medium text-gray-900">{getRoomTypeName(booking.room?.name, booking.roomNumber)}</div>
                       {booking.decorationItems && booking.decorationItems.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {booking.decorationItems.map((item, idx) => (
@@ -206,6 +228,13 @@ export function AdminBookings() {
                         </div>
                       )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {booking.roomNumber ? (
+                      <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-bold">{booking.roomNumber}</span>
+                    ) : (
+                      <span className="text-slate-300 text-xs">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="space-y-1.5">
@@ -393,14 +422,14 @@ export function AdminBookings() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Room</p>
-                    <p className="text-sm font-semibold text-gray-900">{viewingBooking.room?.name || 'N/A'}</p>
+                    <p className="text-sm font-semibold text-gray-900">{getRoomTypeName(viewingBooking.room?.name, viewingBooking.roomNumber)}</p>
                     {viewingBooking.room?.type && (
                       <p className="text-xs text-gray-500">{viewingBooking.room.type}</p>
                     )}
                   </div>
                   <div>
                     <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Room Number</p>
-                    <p className="text-sm font-semibold text-gray-900">{viewingBooking.room?.roomNumber || '—'}</p>
+                    <p className="text-sm font-semibold text-gray-900">{viewingBooking.roomNumber || '—'}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Check-In</p>

@@ -19,7 +19,9 @@ import {
   PlusCircle,
   Home,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  LogIn,
+  LogOut
 } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 import { apiFetch } from '../../../api';
@@ -148,6 +150,17 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
     }
   };
 
+  // Get booked room numbers per type (using actual roomNumber from bookings)
+  const getBookedRoomNumbers = (typeName) => {
+    return bookings
+      .filter(b =>
+        b.room?.name?.toLowerCase() === typeName.toLowerCase() &&
+        b.status !== 'cancelled' && b.status !== 'checked-out' &&
+        b.roomNumber
+      )
+      .map(b => b.roomNumber);
+  };
+
   // Count active bookings per room type
   const getBookedCount = (typeName) => {
     return bookings.filter(b => 
@@ -161,17 +174,18 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
   const uniqueTypes = [...new Set(activeRooms.map(r => r.name).filter(Boolean))];
   const aggregatedRooms = uniqueTypes.map(typeName => {
     const backendRoomsOfType = activeRooms.filter(r => r.name === typeName);
-    const bookedCount = getBookedCount(typeName);
+    const bookedRoomNumbers = getBookedRoomNumbers(typeName);
+    const bookedCount = bookedRoomNumbers.length;
     
     if (backendRoomsOfType.length > 0) {
-      const dbAvailable = backendRoomsOfType.reduce((sum, r) => sum + (r.availableRooms || 0), 0);
       const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms || 1), 0);
       const firstRoom = backendRoomsOfType[0];
       return {
         ...firstRoom,
-        availableRooms: dbAvailable,
+        availableRooms: Math.max(0, dbTotal - bookedCount),
         totalRooms: dbTotal,
         bookedCount,
+        bookedRoomNumbers,
         isPlaceholder: false
       };
     }
@@ -376,8 +390,20 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                         <>
                           {/* Unified room list with continuous numbering */}
                           {Array.from({ length: totalInStock }).map((_, i) => {
-                            const roomNumber = i + 1;
-                            const isBooked = i < bookedCount;
+                            const ROOM_START_NUMBERS = {
+                              'ac standard room': 1,
+                              'non-ac standard room': 4,
+                              'standard room': 1,
+                              'family room': 7,
+                              'family suite': 7,
+                              'wedding couple suite': 9,
+                              'honeymoon suite': 9,
+                            };
+                            const lower = (room.name || '').toLowerCase();
+                            const key = Object.keys(ROOM_START_NUMBERS).find(k => lower.includes(k) || k.includes(lower));
+                            const startNum = key ? ROOM_START_NUMBERS[key] : 1;
+                            const roomLabel = `Room ${startNum + i}`;
+                            const isBooked = (room.bookedRoomNumbers || []).includes(roomLabel);
 
                             return (
                               <tr 
@@ -388,7 +414,7 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                                   <div className="flex items-center gap-2">
                                     <div className={`w-1.5 h-1.5 rounded-full ${isBooked ? 'bg-red-500' : 'bg-green-500'}`}></div>
                                     <span className={`font-medium ${isBooked ? 'text-red-600' : 'text-slate-600'}`}>
-                                      Room {roomNumber}
+                                      {roomLabel} {(room.name || '').toLowerCase().includes('standard room') ? ((startNum + i) >= 5 ? '(AC)' : '(Non-AC)') : ''}
                                     </span>
                                   </div>
                                 </td>
@@ -422,6 +448,7 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                 <tr>
                   <th>Guest Details</th>
                   <th>Room Type</th>
+                  <th>Room No.</th>
                   <th>Dates</th>
                   <th>Guests</th>
                   <th>Status</th>
@@ -454,6 +481,13 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                           </div>
                         )}
                       </div>
+                    </td>
+                    <td>
+                      {booking.roomNumber ? (
+                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-bold">{booking.roomNumber}</span>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
                     </td>
                     <td>
                       <div className="flex flex-col gap-1.5">
@@ -516,6 +550,24 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                               <span className="hidden md:inline">Reject</span>
                             </button>
                           </>
+                        )}
+                        {booking.status?.toLowerCase() === 'confirmed' && (
+                            <button
+                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-in')}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
+                            >
+                                <LogIn className="w-3.5 h-3.5" />
+                                <span className="hidden md:inline">Check In</span>
+                            </button>
+                        )}
+                        {booking.status?.toLowerCase() === 'checked-in' && (
+                            <button
+                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-out')}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
+                            >
+                                <LogOut className="w-3.5 h-3.5" />
+                                <span className="hidden md:inline">Check Out</span>
+                            </button>
                         )}
                         <button 
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider flex-shrink-0"

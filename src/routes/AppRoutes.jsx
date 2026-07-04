@@ -1,5 +1,5 @@
 // AppRoutes.jsx - Application Routes 
-import React from "react";
+import React, { useState } from "react";
 import { apiFetch } from "../api";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Home } from "../pages/website/Home.jsx";
@@ -56,6 +56,8 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
 
   const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : isCashier ? "/cashier" : "/";
 
+  const [bookingSuccess, setBookingSuccess] = useState(null); // { name, roomName, guests }
+
   const protectedBook = async (data) => {
     if (!isLoggedIn) {
       navigate("/login");
@@ -67,6 +69,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
           method: "POST",
           body: JSON.stringify({
             roomId: data.room._id,
+            roomNumber: data.roomNumber,
             checkInDate: data.checkInDate,
             checkOutDate: data.checkOutDate,
             guests: data.guests,
@@ -83,20 +86,25 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
 
         if (response.success) {
           const decorationText = data.decorationItems?.length
-            ? `\nHoneymoon decorations: ${data.decorationItems.join(", ")}`
-            : "";
+            ? data.decorationItems.join(", ")
+            : null;
 
-          alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}.\n\nRoom: ${data.room.name}\nGuests: ${data.guests}${decorationText}`);
+          setBookingSuccess({
+            name: user?.name || "Guest",
+            roomName: data.room.name,
+            guests: data.guests,
+            decorations: decorationText
+          });
           
-          // Refresh the page to update room counts
-          window.location.reload();
+          // Refresh room counts after short delay
+          setTimeout(() => window.location.reload(), 3000);
         }
       } catch (error) {
         alert(`Booking failed: ${error.message}`);
       }
       return;
     }
-    alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}. Your booking details have been saved.`);
+    setBookingSuccess({ name: user?.name || "Guest", roomName: null, guests: null, decorations: null });
   };
 
   const protectedOrder = (data) => {
@@ -110,7 +118,49 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
   };
 
   return (
-    <Routes>
+    <>
+      {bookingSuccess && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center" style={{ animation: 'fadeInScale 0.3s ease' }}>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Booking Confirmed!</h2>
+            <p className="text-gray-500 mb-4">Thank you, <span className="font-semibold text-gray-800">{bookingSuccess.name}</span></p>
+            {bookingSuccess.roomName && (
+              <div className="bg-gray-50 rounded-xl p-4 text-left space-y-2 mb-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Room</span>
+                  <span className="font-medium text-gray-800">{bookingSuccess.roomName}</span>
+                </div>
+                {bookingSuccess.guests && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Guests</span>
+                    <span className="font-medium text-gray-800">{bookingSuccess.guests}</span>
+                  </div>
+                )}
+                {bookingSuccess.decorations && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Decorations</span>
+                    <span className="font-medium text-gray-800">{bookingSuccess.decorations}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => setBookingSuccess(null)}
+              className="w-full py-3 rounded-xl font-semibold text-white"
+              style={{ background: 'linear-gradient(135deg, #0F172A, #1e293b)' }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+      <style>{`@keyframes fadeInScale { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }`}</style>
+      <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/rooms" element={<Rooms onBook={protectedBook} isLoggedIn={isLoggedIn} />} />
       <Route path="/events" element={<Events onBook={protectedBook} isLoggedIn={isLoggedIn} user={user} />} />
@@ -184,5 +234,6 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
