@@ -86,7 +86,8 @@ export function AdminStaff() {
           hourlyRate: u.hourlyRate || 0,
           startTime: u.startTime || '',
           endTime: u.endTime || '',
-          additionalHours: u.additionalHours || 0
+          additionalHours: u.additionalHours || 0,
+          bonus: u.bonus || 0
         }));
 
         setStaffList(formattedStaff);
@@ -233,6 +234,7 @@ export function AdminStaff() {
       case 'admin': return 'bg-amber-100 text-amber-800';
       case 'manager': return 'bg-purple-100 text-purple-800';
       case 'receptionist': return 'bg-blue-100 text-blue-800';
+      case 'cashier': return 'bg-teal-100 text-teal-800';
       case 'chef': return 'bg-orange-100 text-orange-800';
       case 'waiter': return 'bg-cyan-100 text-cyan-800';
       case 'housekeeping': return 'bg-pink-100 text-pink-800';
@@ -244,7 +246,23 @@ export function AdminStaff() {
 
   const totalStaff = staffList.length;
   const activeStaff = staffList.filter((s) => s.status === 'Active').length;
-  const totalSalary = staffList.reduce((sum, staff) => sum + staff.salary, 0);
+  
+  const calculateMonthlySalary = (staff) => {
+    if (!staff) return 0;
+    if (staff.employmentType === 'temporary') {
+      const duration = calculateDuration(staff.startTime, staff.endTime);
+      const basePay = (staff.hourlyRate || 0) * duration;
+      const otPay = (staff.additionalHours || 0) * 300;
+      return basePay + otPay;
+    } else {
+      const basePay = Number(staff.salary) || 0;
+      const otPay = (staff.additionalHours || 0) * 300;
+      const bonusPay = Number(staff.bonus) || 0;
+      return basePay + otPay + bonusPay;
+    }
+  };
+
+  const totalSalary = staffList.reduce((sum, staff) => sum + calculateMonthlySalary(staff), 0);
 
   const handleOpenModal = () => {
     setFormError('');
@@ -261,7 +279,8 @@ export function AdminStaff() {
       hourlyRate: '',
       startTime: '',
       endTime: '',
-      additionalHours: ''
+      additionalHours: '',
+      bonus: ''
     });
     setIsAddModalOpen(true);
   };
@@ -298,7 +317,8 @@ export function AdminStaff() {
       hourlyRate: staff.hourlyRate || '',
       startTime: staff.startTime || '',
       endTime: staff.endTime || '',
-      additionalHours: staff.additionalHours || ''
+      additionalHours: staff.additionalHours || '',
+      bonus: staff.bonus || ''
     });
     setIsEditModalOpen(true);
   };
@@ -313,8 +333,13 @@ export function AdminStaff() {
     e.preventDefault();
     if (!editStaff) return;
 
-    if (!editStaff.name || !editStaff.email) {
-      setFormError('Name and email are required');
+    if (!editStaff.name || !editStaff.email || !editStaff.nic || !editStaff.joinDate) {
+      setFormError('Name, email, NIC, and Join Date are required');
+      return;
+    }
+
+    if (new Date(editStaff.joinDate) > new Date()) {
+      setFormError('Join date cannot be in the future.');
       return;
     }
 
@@ -345,7 +370,8 @@ export function AdminStaff() {
         hourlyRate: Number(editStaff.hourlyRate) || 0,
         startTime: editStaff.startTime,
         endTime: editStaff.endTime,
-        additionalHours: Number(editStaff.additionalHours) || 0
+        additionalHours: Number(editStaff.additionalHours) || 0,
+        bonus: Number(editStaff.bonus) || 0
       };
 
       const data = await apiFetch(`/auth/users/${editStaff._id}`, {
@@ -370,7 +396,8 @@ export function AdminStaff() {
         hourlyRate: updated.hourlyRate,
         startTime: updated.startTime,
         endTime: updated.endTime,
-        additionalHours: updated.additionalHours
+        additionalHours: updated.additionalHours,
+        bonus: updated.bonus
       }} : s)));
 
       closeEditModal();
@@ -424,8 +451,13 @@ export function AdminStaff() {
   const handleAddStaff = (e) => {
     e.preventDefault();
 
-    if (!newStaff.name || !newStaff.email || !newStaff.phone || !newStaff.joinDate) {
-      setFormError('Please fill all required fields.');
+    if (!newStaff.name || !newStaff.email || !newStaff.phone || !newStaff.joinDate || !newStaff.nic) {
+      setFormError('Please fill all required fields (including NIC).');
+      return;
+    }
+
+    if (new Date(newStaff.joinDate) > new Date()) {
+      setFormError('Join date cannot be in the future.');
       return;
     }
     
@@ -466,7 +498,8 @@ export function AdminStaff() {
           hourlyRate: Number(newStaff.hourlyRate) || 0,
           startTime: newStaff.startTime,
           endTime: newStaff.endTime,
-          additionalHours: Number(newStaff.additionalHours) || 0
+          additionalHours: Number(newStaff.additionalHours) || 0,
+          bonus: Number(newStaff.bonus) || 0
         };
 
         const data = await apiFetch('/auth/users', {
@@ -500,11 +533,19 @@ export function AdminStaff() {
           hourlyRate: user.hourlyRate || Number(newStaff.hourlyRate),
           startTime: user.startTime || newStaff.startTime,
           endTime: user.endTime || newStaff.endTime,
-          additionalHours: user.additionalHours || Number(newStaff.additionalHours)
+          additionalHours: user.additionalHours || Number(newStaff.additionalHours),
+          bonus: user.bonus || Number(newStaff.bonus) || 0
         };
 
         setStaffList((prev) => [createdStaff, ...prev]);
         handleCloseModal();
+        if (user.tempPassword) {
+          if (data.emailSent) {
+            alert(`Staff member added successfully!\n\nTemporary Password: ${user.tempPassword}\n\nA welcome email containing these credentials has been sent successfully to: ${user.email}`);
+          } else {
+            alert(`Staff member added successfully, but the welcome email could not be sent (SMTP email configuration may be missing or offline).\n\nTemporary Password: ${user.tempPassword}\n\nIMPORTANT: Please copy and save this password now and share it directly with the staff member, as they did not receive the email.`);
+          }
+        }
       } catch (err) {
         setFormError(err.message || 'Unable to add staff');
       }
@@ -601,7 +642,7 @@ export function AdminStaff() {
               </div>
             </div>
             <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="admin-staff-select lg:w-48">
-              <option>All</option><option>Manager</option><option>Receptionist</option><option>Chef</option><option>Waiter</option><option>Housekeeping</option><option>Security</option><option>Maintenance</option>
+              <option>All</option><option>Manager</option><option>Receptionist</option><option>Cashier</option><option>Chef</option><option>Waiter</option><option>Housekeeping</option><option>Security</option><option>Maintenance</option>
             </select>
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="admin-staff-select lg:w-40">
               <option>All</option><option>Active</option><option>Inactive</option><option>On Leave</option>
@@ -649,7 +690,7 @@ export function AdminStaff() {
                       <div className="flex flex-col">
                         <span className="admin-staff-salary">
                           {settings.currency.symbol}
-                          {((staff.hourlyRate * calculateDuration(staff.startTime, staff.endTime)) + ((staff.additionalHours || 0) * 300)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {calculateMonthlySalary(staff).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                         <span className="text-xs text-gray-500">
                           {staff.startTime && staff.endTime ? `${staff.startTime} - ${staff.endTime} (${calculateDuration(staff.startTime, staff.endTime)}h)` : 'No times set'}
@@ -659,10 +700,21 @@ export function AdminStaff() {
                         )}
                       </div>
                     ) : (
-                      <span className="admin-staff-salary">
-                        {settings.currency.symbol}
-                        {(staff.salary || 0).toLocaleString()}/mo
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="admin-staff-salary">
+                          {settings.currency.symbol}
+                          {calculateMonthlySalary(staff).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          Base: {settings.currency.symbol}{(staff.salary || 0).toLocaleString()}
+                        </span>
+                        {(staff.additionalHours > 0) && (
+                          <span className="text-xs text-orange-500 font-medium">+ {staff.additionalHours}h OT ({settings.currency.symbol}{(staff.additionalHours * 300).toLocaleString()})</span>
+                        )}
+                        {(staff.bonus > 0) && (
+                          <span className="text-xs text-green-600 font-medium">+ Bonus: {settings.currency.symbol}{(staff.bonus || 0).toLocaleString()}</span>
+                        )}
+                      </div>
                     )}
                   </td>
                   <td className="admin-staff-table-cell">{new Date(staff.joinDate).toLocaleDateString()}</td>
@@ -740,6 +792,7 @@ export function AdminStaff() {
                   >
                     <option>Manager</option>
                     <option>Receptionist</option>
+                    <option>Cashier</option>
                     <option>Chef</option>
                     <option>Waiter</option>
                     <option>Housekeeping</option>
@@ -779,18 +832,66 @@ export function AdminStaff() {
                 </label>
 
                 {newStaff.employmentType === 'permanent' ? (
-                  <label className="admin-staff-form-label">
-                    Monthly Salary
-                    <input
-                      type="number"
-                      min="0"
-                      className="admin-staff-form-input"
-                      value={newStaff.salary}
-                      onChange={(e) => handleFieldChange('salary', e.target.value)}
-                      placeholder="90000"
-                      required
-                    />
-                  </label>
+                  <>
+                    <label className="admin-staff-form-label">
+                      Monthly Salary
+                      <input
+                        type="number"
+                        min="0"
+                        className="admin-staff-form-input"
+                        value={newStaff.salary}
+                        onChange={(e) => handleFieldChange('salary', e.target.value)}
+                        placeholder="90000"
+                        required
+                      />
+                    </label>
+                    <label className="admin-staff-form-label">
+                      OT Hours (Rs. 300/hr)
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        className="admin-staff-form-input"
+                        value={newStaff.additionalHours}
+                        onChange={(e) => handleFieldChange('additionalHours', e.target.value)}
+                        placeholder="e.g. 10"
+                      />
+                    </label>
+                    <label className="admin-staff-form-label">
+                      Monthly Bonus
+                      <input
+                        type="number"
+                        min="0"
+                        className="admin-staff-form-input"
+                        value={newStaff.bonus}
+                        onChange={(e) => handleFieldChange('bonus', e.target.value)}
+                        placeholder="e.g. 5000"
+                      />
+                    </label>
+                    <div className="admin-staff-form-label col-span-1 sm:col-span-2 md:col-span-1 p-3 bg-blue-50 border border-blue-100 rounded-lg flex flex-col justify-center">
+                       <span className="text-sm font-medium text-blue-900 mb-1">Payment Summary</span>
+                       <div className="flex justify-between items-center">
+                         <span className="text-xs text-blue-700">Base Salary:</span>
+                         <span className="text-sm font-semibold text-blue-900">{settings.currency.symbol}{(Number(newStaff.salary) || 0).toLocaleString()}</span>
+                       </div>
+                       {(newStaff.additionalHours > 0) && (
+                       <div className="flex justify-between items-center mt-1">
+                         <span className="text-xs text-orange-600">OT Pay (Rs. 300/hr):</span>
+                         <span className="text-sm font-semibold text-orange-600">+{settings.currency.symbol}{(newStaff.additionalHours * 300).toLocaleString()}</span>
+                       </div>
+                       )}
+                       {(newStaff.bonus > 0) && (
+                       <div className="flex justify-between items-center mt-1">
+                         <span className="text-xs text-green-600">Bonus:</span>
+                         <span className="text-sm font-semibold text-green-600">+{settings.currency.symbol}{(Number(newStaff.bonus) || 0).toLocaleString()}</span>
+                       </div>
+                       )}
+                       <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
+                         <span className="text-xs text-blue-700">Total Month's Pay:</span>
+                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((Number(newStaff.salary) || 0) + (Number(newStaff.additionalHours || 0) * 300) + (Number(newStaff.bonus || 0))).toLocaleString()}</span>
+                       </div>
+                    </div>
+                  </>
                 ) : (
                   <>
                     <label className="admin-staff-form-label">
@@ -864,6 +965,7 @@ export function AdminStaff() {
                     className="admin-staff-form-input"
                     value={newStaff.joinDate}
                     onChange={(e) => handleFieldChange('joinDate', e.target.value)}
+                    max={new Date().toISOString().slice(0, 10)}
                     required
                   />
                 </label>
@@ -882,24 +984,17 @@ export function AdminStaff() {
                 </label>
 
                 <label className="admin-staff-form-label">
-                  NIC Number
+                  NIC Number *
                   <input
                     className="admin-staff-form-input"
                     value={newStaff.nic}
                     onChange={(e) => handleFieldChange('nic', e.target.value)}
                     placeholder="e.g. 19XXXXXXXXXX"
+                    required
                   />
                 </label>
 
-                <label className="admin-staff-form-label">
-                  Employee ID
-                  <input
-                    className="admin-staff-form-input"
-                    value={newStaff.employeeId}
-                    onChange={(e) => handleFieldChange('employeeId', e.target.value)}
-                    placeholder="e.g. STF-001"
-                  />
-                </label>
+
 
                 <label className="admin-staff-form-label col-span-2">
                   Address
@@ -1002,6 +1097,7 @@ export function AdminStaff() {
                   >
                     <option>Manager</option>
                     <option>Receptionist</option>
+                    <option>Cashier</option>
                     <option>Chef</option>
                     <option>Waiter</option>
                     <option>Housekeeping</option>
@@ -1041,18 +1137,66 @@ export function AdminStaff() {
                 </label>
 
                 {editStaff.employmentType === 'permanent' ? (
-                  <label className="admin-staff-form-label">
-                    Monthly Salary
-                    <input
-                      type="number"
-                      min="0"
-                      className="admin-staff-form-input"
-                      value={editStaff.salary}
-                      onChange={(e) => setEditStaff((p) => ({ ...p, salary: e.target.value }))}
-                      placeholder="90000"
-                      required
-                    />
-                  </label>
+                  <>
+                    <label className="admin-staff-form-label">
+                      Monthly Salary
+                      <input
+                        type="number"
+                        min="0"
+                        className="admin-staff-form-input"
+                        value={editStaff.salary}
+                        onChange={(e) => setEditStaff((p) => ({ ...p, salary: e.target.value }))}
+                        placeholder="90000"
+                        required
+                      />
+                    </label>
+                    <label className="admin-staff-form-label">
+                      OT Hours (Rs. 300/hr)
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        className="admin-staff-form-input"
+                        value={editStaff.additionalHours}
+                        onChange={(e) => setEditStaff((p) => ({ ...p, additionalHours: e.target.value }))}
+                        placeholder="e.g. 10"
+                      />
+                    </label>
+                    <label className="admin-staff-form-label">
+                      Monthly Bonus
+                      <input
+                        type="number"
+                        min="0"
+                        className="admin-staff-form-input"
+                        value={editStaff.bonus}
+                        onChange={(e) => setEditStaff((p) => ({ ...p, bonus: e.target.value }))}
+                        placeholder="e.g. 5000"
+                      />
+                    </label>
+                    <div className="admin-staff-form-label col-span-1 sm:col-span-2 md:col-span-1 p-3 bg-blue-50 border border-blue-100 rounded-lg flex flex-col justify-center">
+                       <span className="text-sm font-medium text-blue-900 mb-1">Payment Summary</span>
+                       <div className="flex justify-between items-center">
+                         <span className="text-xs text-blue-700">Base Salary:</span>
+                         <span className="text-sm font-semibold text-blue-900">{settings.currency.symbol}{(Number(editStaff.salary) || 0).toLocaleString()}</span>
+                       </div>
+                       {(editStaff.additionalHours > 0) && (
+                       <div className="flex justify-between items-center mt-1">
+                         <span className="text-xs text-orange-600">OT Pay (Rs. 300/hr):</span>
+                         <span className="text-sm font-semibold text-orange-600">+{settings.currency.symbol}{(editStaff.additionalHours * 300).toLocaleString()}</span>
+                       </div>
+                       )}
+                       {(editStaff.bonus > 0) && (
+                       <div className="flex justify-between items-center mt-1">
+                         <span className="text-xs text-green-600">Bonus:</span>
+                         <span className="text-sm font-semibold text-green-600">+{settings.currency.symbol}{(Number(editStaff.bonus) || 0).toLocaleString()}</span>
+                       </div>
+                       )}
+                       <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
+                         <span className="text-xs text-blue-700">Total Month's Pay:</span>
+                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((Number(editStaff.salary) || 0) + (Number(editStaff.additionalHours || 0) * 300) + (Number(editStaff.bonus || 0))).toLocaleString()}</span>
+                       </div>
+                    </div>
+                  </>
                 ) : (
                   <>
                     <label className="admin-staff-form-label">
@@ -1126,6 +1270,7 @@ export function AdminStaff() {
                     className="admin-staff-form-input"
                     value={editStaff.joinDate}
                     onChange={(e) => setEditStaff((p) => ({ ...p, joinDate: e.target.value }))}
+                    max={new Date().toISOString().slice(0, 10)}
                     required
                   />
                 </label>
@@ -1144,24 +1289,17 @@ export function AdminStaff() {
                 </label>
 
                 <label className="admin-staff-form-label">
-                  NIC Number
+                  NIC Number *
                   <input
                     className="admin-staff-form-input"
                     value={editStaff.nic}
                     onChange={(e) => setEditStaff((p) => ({ ...p, nic: e.target.value }))}
                     placeholder="e.g. 19XXXXXXXXXX"
+                    required
                   />
                 </label>
 
-                <label className="admin-staff-form-label">
-                  Employee ID
-                  <input
-                    className="admin-staff-form-input"
-                    value={editStaff.employeeId}
-                    onChange={(e) => setEditStaff((p) => ({ ...p, employeeId: e.target.value }))}
-                    placeholder="e.g. STF-001"
-                  />
-                </label>
+
 
                 <label className="admin-staff-form-label col-span-2">
                   Address

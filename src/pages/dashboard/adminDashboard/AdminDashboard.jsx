@@ -120,7 +120,6 @@ export function AdminDashboard() {
       return { change: "0.0%", trend: "up" };
     }
     let diff = ((current - previous) / previous) * 100;
-    if (diff > 100) diff = 100;
     const sign = diff >= 0 ? "+" : "";
     return {
       change: `${sign}${diff.toFixed(1)}%`,

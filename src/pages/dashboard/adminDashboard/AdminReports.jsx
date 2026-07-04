@@ -149,6 +149,23 @@ export function AdminReports() {
     metrics
   } = reportData;
 
+  const getMetricStyleColor = (colorClass) => {
+    switch (colorClass) {
+      case 'bg-blue-600':
+        return '#3B82F6';
+      case 'bg-orange-600':
+        return '#F97316';
+      case 'bg-cyan-600':
+        return '#06B6D4';
+      case 'bg-pink-600':
+        return '#EC4899';
+      case 'bg-red-600':
+        return '#EF4444';
+      default:
+        return '#3B82F6';
+    }
+  };
+
   const filteredServiceData = serviceData.filter(s => serviceType === 'All Services' || s.name === serviceType);
   const showRevenue = reportType === 'All Reports' || reportType === 'Revenue';
   const showBookings = reportType === 'All Reports' || reportType === 'Bookings';
@@ -295,7 +312,7 @@ export function AdminReports() {
                   <span className="font-semibold text-gray-900">{metric.value}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className={`${metric.color} h-2 rounded-full`} style={{ width: metric.width }} />
+                  <div className="h-2 rounded-full" style={{ width: metric.width, backgroundColor: getMetricStyleColor(metric.color) }} />
                 </div>
               </div>
             ))}
