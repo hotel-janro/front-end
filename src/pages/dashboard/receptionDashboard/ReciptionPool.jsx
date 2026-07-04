@@ -353,6 +353,13 @@ export function ReceptionPool() {
       return;
     }
 
+    const phoneRegex = /^(?:\+94|0)?7[0-9]{8}$/;
+    if (!phoneRegex.test(formData.guestPhone)) {
+      setSubmitError('Invalid phone number. Please enter a valid Sri Lankan mobile number (e.g., 0771234567 or +94771234567).');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const isEditing = !!editingBooking;
       const url = isEditing 
