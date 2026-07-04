@@ -22,7 +22,9 @@ import {
   Truck,
   Printer,
   Banknote,
-  TrendingUp
+  TrendingUp,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast, Toaster } from 'sonner';
@@ -105,7 +107,7 @@ const [selectedCategory, setSelectedCategory] = useState('All');
 const [menuSearch, setMenuSearch] = useState('');
 const [portionModalItem, setPortionModalItem] = useState(null);
 const [currentPage, setCurrentPage] = useState(1);
-const itemsPerPage = 12;
+const itemsPerPage = 8;
 
 const clearError = (field) => {
   if (validationErrors[field]) {
@@ -415,40 +417,79 @@ const handlePlaceOrder = async () => {
     const receivedNum = Number(amountReceived || 0);
     const isPaid = isPaidToggle || (receivedNum >= grandTotal && grandTotal > 0) || (grandTotal === 0);
 
-    const payload = {
-      orderType: posForm.orderType,
-      items: cart.map(i => ({
-        menuItemId: i.menuItemId,
-        name: i.name,
-        quantity: i.quantity,
-        portion: i.portion || "",
-        price: i.price
-      })),
-      discount: discountValue,
-      customerName: posForm.customerName || "Walk-in Guest",
-      tableNumber: posForm.tableNumber,
-      roomNumber: posForm.roomNumber,
-      deliveryAddress: posForm.deliveryAddress,
-      contactNumber: posForm.contactNumber,
-      coordinates: posForm.coordinates,
-      serviceCharge,
-      deliveryFee,
-      subtotal,
-      totalAmount: grandTotal,
-      paymentStatus: isPaid ? 'Paid' : 'Unpaid',
-      amountReceived: receivedNum,
-      balance: balance
-    };
+    const newItems = cart.map(i => ({
+      menuItemId: i.menuItemId,
+      name: i.name,
+      quantity: i.quantity,
+      portion: i.portion || "",
+      price: i.price
+    }));
 
-    const response = await apiFetch('/orders', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
+    // Check for existing unpaid order for this table/room
+    let existingOrder = null;
+    if (posForm.orderType === 'Dine-in' && posForm.tableNumber) {
+      existingOrder = orders.find(o => o.tableNumber === posForm.tableNumber && o.paymentStatus === 'Unpaid' && o.orderStatus !== 'Cancelled');
+    } else if (posForm.orderType === 'Room' && posForm.roomNumber) {
+      existingOrder = orders.find(o => o.roomNumber === posForm.roomNumber && o.paymentStatus === 'Unpaid' && o.orderStatus !== 'Cancelled');
+    }
 
-    if (!response?._id) throw new Error("Failed to create order");
+    if (existingOrder) {
+      // Merge items and recalculate
+      const mergedItems = [...(existingOrder.items || []), ...newItems];
+      const mergedSubtotal = mergedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const mergedServiceCharge = (mergedSubtotal * 10) / 100;
+      const mergedTotal = mergedSubtotal + mergedServiceCharge + (existingOrder.deliveryFee || 0) - (existingOrder.discount || discountValue);
 
-    toast.success(`Order #${response._id.slice(-6).toUpperCase()} placed!`);
-    handlePrintReceipt(response);
+      const payload = {
+        items: mergedItems,
+        subtotal: mergedSubtotal,
+        serviceCharge: mergedServiceCharge,
+        totalAmount: mergedTotal,
+        paymentStatus: isPaid ? 'Paid' : 'Unpaid',
+        amountReceived: isPaid ? mergedTotal : (existingOrder.amountReceived || 0)
+      };
+
+      const response = await apiFetch(`/orders/${existingOrder._id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+
+      if (!response?._id) throw new Error("Failed to update existing order");
+
+      toast.success(`Order #${response._id.slice(-6).toUpperCase()} updated with new items!`);
+      handlePrintReceipt(response);
+
+    } else {
+      // Create new order
+      const payload = {
+        orderType: posForm.orderType,
+        items: newItems,
+        discount: discountValue,
+        customerName: posForm.customerName || "Walk-in Guest",
+        tableNumber: posForm.tableNumber,
+        roomNumber: posForm.roomNumber,
+        deliveryAddress: posForm.deliveryAddress,
+        contactNumber: posForm.contactNumber,
+        coordinates: posForm.coordinates,
+        serviceCharge,
+        deliveryFee,
+        subtotal,
+        totalAmount: grandTotal,
+        paymentStatus: isPaid ? 'Paid' : 'Unpaid',
+        amountReceived: receivedNum,
+        balance: balance
+      };
+
+      const response = await apiFetch('/orders', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      if (!response?._id) throw new Error("Failed to create order");
+
+      toast.success(`Order #${response._id.slice(-6).toUpperCase()} placed!`);
+      handlePrintReceipt(response);
+    }
 
     setCart([]);
     setAmountReceived('');
@@ -472,32 +513,7 @@ const handlePrintReceipt = (order) => {
   // Basic safety check
   if (!order) return toast.error("No order data provided");
 
-  // Find related orders to combine into a single bill if it's a table/room order
-  let relatedOrders = [order];
-  if (order.tableNumber || order.roomNumber) {
-    if (order.paymentStatus === 'Unpaid') {
-      // Find other unpaid for the same table/room
-      const existingUnpaid = (orders || []).filter(o =>
-        o.paymentStatus === 'Unpaid' &&
-        ((order.tableNumber && o.tableNumber === order.tableNumber) ||
-          (order.roomNumber && o.roomNumber === order.roomNumber)) &&
-        o._id !== order._id
-      );
-      relatedOrders = [...existingUnpaid, order];
-    } else if (order.paymentStatus === 'Paid') {
-      // Find other paid for the same table/room that were likely settled together
-      // same table/room and very close updatedAt (within 10 seconds)
-      const orderTime = new Date(order.updatedAt || order.createdAt).getTime();
-      const existingPaid = (orders || []).filter(o =>
-        o.paymentStatus === 'Paid' &&
-        ((order.tableNumber && o.tableNumber === order.tableNumber) ||
-          (order.roomNumber && o.roomNumber === order.roomNumber)) &&
-        Math.abs(new Date(o.updatedAt || o.createdAt).getTime() - orderTime) < 10000 &&
-        o._id !== order._id
-      );
-      relatedOrders = [...existingPaid, order];
-    }
-  }
+  const relatedOrders = [order];
 
   const combinedItems = relatedOrders.flatMap(o => o.items || []);
   const combinedSubtotal = relatedOrders.reduce((s, o) => s + (o.subtotal || 0), 0);
@@ -655,7 +671,7 @@ const handlePrintReceipt = (order) => {
               <div>Cash Paid: Rs ${(order?.amountReceived || 0).toLocaleString()}</div>
               <div style="font-weight:bold; font-size: 13px;">Balance: Rs ${(order?.balance || 0).toLocaleString()}</div>
             ` : `
-              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending / Group Settle</div>
+              <div style="font-style: italic; font-size: 8px; color: #666;">Payment Pending</div>
             `}
           </div>
 
@@ -848,30 +864,31 @@ const renderTerminal = () => (
     {/* Left Column: Culinary Grid */}
     <div className="flex-1 space-y-4 min-w-0 w-full">
       {/* Search & Categories (Sticky) */}
-      <div className="sticky top-0 z-20 bg-[#0F172A] p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <div className="sticky top-0 z-20 bg-[#0F172A] p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
           <input
             type="text"
             placeholder="Search dishes..."
             value={menuSearch}
             onChange={e => setMenuSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-white/5 text-white placeholder:text-slate-500 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/20 transition-all"
+            className="w-full pl-11 pr-4 py-3 bg-[#0F172A] border border-[#D4AF37]/30 text-white placeholder:text-slate-500 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all hover:border-[#D4AF37]/60"
           />
         </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto py-1 custom-scrollbar">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-300 border whitespace-nowrap ${selectedCategory === cat
-                ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/15'
-                : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="relative w-full sm:w-auto min-w-[200px]">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full appearance-none bg-[#0F172A] border border-[#D4AF37]/30 text-white rounded-xl pl-11 pr-10 py-3 text-[10px] font-black uppercase tracking-wider outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/50 transition-all hover:border-[#D4AF37]/60 cursor-pointer"
+          >
+            {categories.map(cat => (
+              <option key={cat} value={cat} className="bg-[#0F172A] text-white font-semibold">
+                {cat}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37] pointer-events-none" />
         </div>
       </div>
 
@@ -883,7 +900,7 @@ const renderTerminal = () => (
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
             {paginatedMenuItems.map(item => (
               <PosMenuItem key={item._id} item={item} handleAddVisualItem={handleAddVisualItem} />
             ))}
@@ -924,7 +941,7 @@ const renderTerminal = () => (
     </div>
 
     {/* Right Column: Checkout Cart */}
-    <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0 bg-[#0F172A] p-4 rounded-2xl shadow-lg border border-white/5 text-white flex flex-col sticky top-6 max-h-[calc(100vh-120px)] h-fit z-10">
+    <div className="w-full lg:w-[400px] xl:w-[480px] shrink-0 bg-[#0F172A] p-4 rounded-2xl shadow-lg border border-white/5 text-white flex flex-col sticky top-6 max-h-[calc(100vh-120px)] h-fit z-10">
       <div className="flex flex-col max-h-[calc(100vh-160px)] space-y-4 overflow-hidden">
         <div className="flex items-center justify-between border-b border-white/5 pb-2 shrink-0">
           <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Order <span className="text-[#D4AF37]">Checkout</span></h3>
@@ -1150,17 +1167,25 @@ const renderTerminal = () => (
 );
 
 const renderKitchen = () => (
-  <div className="bg-[#0F172A] rounded-[2rem] border border-white/5 flex flex-col overflow-hidden shadow-sm p-6">
-    <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-      <h3 className="text-md font-bold text-white" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-[#D4AF37]">Sync Monitor</span></h3>
-      <div className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+  <div className="bg-white rounded-[2rem] border border-slate-200 flex flex-col overflow-hidden shadow-sm p-6">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+        <h3 className="text-md font-bold text-slate-900 shrink-0" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-[#D4AF37]">Sync Monitor</span></h3>
+        <div className="flex flex-wrap items-center gap-3 text-[9px] font-black uppercase tracking-widest">
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" /><span className="text-amber-600">Pending</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" /><span className="text-blue-600">Preparing</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" /><span className="text-emerald-600">Completed</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" /><span className="text-rose-600">Cancelled</span></div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 text-[8px] text-slate-500 font-bold uppercase tracking-widest shrink-0">
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
         Live {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
       </div>
     </div>
 
     {orders.length === 0 ? (
-      <div className="py-24 text-center text-slate-500 uppercase tracking-widest font-bold text-xs opacity-45">No Incoming Orders</div>
+      <div className="py-24 text-center text-slate-400 uppercase tracking-widest font-bold text-xs opacity-80">No Incoming Orders</div>
     ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {orders.map((order, idx) => {
@@ -1170,12 +1195,12 @@ const renderKitchen = () => (
 
           const statusStyles =
             order.orderStatus === 'Completed' ? { border: 'border-emerald-500/20', hover: 'hover:border-emerald-500/60', bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-500', borderLight: 'border-emerald-500/20' } :
-              order.orderStatus === 'Preparing' ? { border: 'border-blue-500/20', hover: 'hover:border-blue-500/60', bg: 'bg-blue-505/10', text: 'text-blue-400', dot: 'bg-blue-500', borderLight: 'border-blue-500/20' } :
-                order.orderStatus === 'Cancelled' ? { border: 'border-rose-500/20', hover: 'hover:border-rose-500/60', bg: 'bg-rose-505/10', text: 'text-rose-400', dot: 'bg-rose-500', borderLight: 'border-rose-500/20' } :
-                  { border: 'border-amber-500/20', hover: 'hover:border-amber-500/60', bg: 'bg-amber-505/10', text: 'text-amber-400', dot: 'bg-amber-500', borderLight: 'border-amber-500/20' };
+              order.orderStatus === 'Preparing' ? { border: 'border-blue-500/20', hover: 'hover:border-blue-500/60', bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-500', borderLight: 'border-blue-500/20' } :
+                order.orderStatus === 'Cancelled' ? { border: 'border-rose-500/20', hover: 'hover:border-rose-500/60', bg: 'bg-rose-500/10', text: 'text-rose-400', dot: 'bg-rose-500', borderLight: 'border-rose-500/20' } :
+                  { border: 'border-amber-500/20', hover: 'hover:border-amber-500/60', bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-500', borderLight: 'border-amber-500/20' };
 
           return (
-            <div key={order._id} className={`relative group p-5 rounded-[2rem] border bg-slate-900 hover:bg-slate-950 transition-all duration-500 ${statusStyles.border} ${statusStyles.hover}`}>
+            <div key={order._id} className={`relative group p-5 rounded-[2rem] border bg-slate-900 hover:bg-slate-950 transition-all duration-500 shadow-md ${statusStyles.border} ${statusStyles.hover}`}>
               <div className={`absolute left-0 top-1/4 bottom-1/4 w-1.5 rounded-r-full ${statusStyles.dot} shadow-[0_0_15px_${statusStyles.dot}]`} />
 
               <div className="pl-3 space-y-4">
@@ -1243,7 +1268,7 @@ const renderKitchen = () => (
                       }}
                       className="px-3 py-1 bg-[#D4AF37] hover:bg-[#b08d27] text-[#0F172A] text-[9px] font-black uppercase rounded-lg transition-all shadow-sm"
                     >
-                      Group Settle
+                      Settle Bill
                     </button>
                   )}
                 </div>
@@ -1299,144 +1324,71 @@ const renderAnalyticsTab = () => (
 const renderGroupSettleModal = () => {
   if (!settleModalOrder) return null;
   const total = settleModalOrder.totalAmount || 0;
-  const received = settleModalOrder.amountReceived || 0;
-  const balance = Math.max(total - received, 0);
-
-  let paymentAmount = 0;
-  if (settleTab === 'full') paymentAmount = balance;
-  if (settleTab === 'equal') paymentAmount = balance / splitWays;
-  if (settleTab === 'custom') paymentAmount = Number(customAmount) || 0;
-  if (settleTab === 'item') {
-    paymentAmount = settleModalOrder.items.reduce((sum, item, idx) => {
-      return itemSplitChecked[idx] ? sum + (item.price * item.quantity) : sum;
-    }, 0);
-    paymentAmount = Math.min(paymentAmount, balance);
-  }
 
   const handlePay = () => {
-    if (paymentAmount <= 0) return toast.error("Enter a valid amount");
-    if (paymentAmount > balance + 0.01) return toast.error(`Amount exceeds balance of ${formatCurrency(balance)}`);
+    const cashValue = Number(customAmount) || 0;
+    if (paymentMethod === 'Cash' && cashValue < total) return toast.error("Cash received must be greater than or equal to total amount.");
     
     updatePaymentStatus(settleModalOrder._id, {
-      amount: paymentAmount,
+      amount: total,
       method: paymentMethod,
-      note: `Split: ${settleTab}`
+      note: 'Normal Settlement'
     });
   };
 
+  const cashValue = Number(customAmount) || 0;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSettleModalOrder(null)} />
-      <div className="relative bg-[#0F172A] w-full max-w-xl rounded-[2rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#0F172A]/90 backdrop-blur-sm" onClick={() => setSettleModalOrder(null)} />
+      <div className="relative w-full max-w-lg bg-[#0F172A] rounded-[2rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col">
         
-        <div className="p-6 border-b border-white/5 flex justify-between items-center">
+        <div className="bg-slate-950/40 px-8 py-6 flex items-center justify-between border-b border-white/5">
           <div>
-            <h2 className="text-xl font-normal text-white leading-none" style={{ fontFamily: "DM Serif Display, serif" }}>
-              Group <span className="text-[#D4AF37]">Settle</span>
-            </h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
-              Order #{settleModalOrder._id.slice(-6).toUpperCase()} • Balance: {formatCurrency(balance)}
+            <h2 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Order <span className="text-[#D4AF37]">Settlement</span></h2>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">
+              #{settleModalOrder._id.slice(-8).toUpperCase()}
             </p>
           </div>
-          <button onClick={() => setSettleModalOrder(null)} className="p-2 rounded-full hover:bg-white/5 text-slate-400 hover:text-white transition-colors">
+          <button onClick={() => setSettleModalOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-white hover:bg-white/10 transition-all">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex border-b border-white/5 overflow-x-auto custom-scrollbar">
-          {['full', 'equal', 'custom', 'item'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setSettleTab(tab)}
-              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${settleTab === tab ? 'border-[#D4AF37] text-[#D4AF37] bg-white/5' : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-6 space-y-6">
-          {settleModalOrder.splitPayments && settleModalOrder.splitPayments.length > 0 && (
-            <div className="bg-slate-900 rounded-xl p-3 border border-white/5 space-y-2 max-h-32 overflow-y-auto custom-scrollbar-dark">
-              <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">Previous Payments</h4>
-              {settleModalOrder.splitPayments.map((p, i) => (
-                <div key={i} className="flex justify-between items-center text-[10px] text-slate-300">
-                  <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-emerald-400"/> {p.method} ({new Date(p.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})</span>
-                  <span className="font-bold text-white">{formatCurrency(p.amount)}</span>
-                </div>
-              ))}
+        <div className="p-8 space-y-6">
+          <div className="flex justify-between items-end border-b border-white/5 pb-6">
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount Due</p>
+              <h3 className="text-4xl font-black text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(total)}</h3>
             </div>
-          )}
+            <div className="text-right">
+                <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{settleModalOrder.orderType}</p>
+                <p className="text-xs font-black text-white">{settleModalOrder.tableNumber ? `Table ${settleModalOrder.tableNumber}` : settleModalOrder.roomNumber ? `Room ${settleModalOrder.roomNumber}` : settleModalOrder.customerName}</p>
+            </div>
+          </div>
 
-          <div className="min-h-[100px]">
-            {settleTab === 'full' && (
-              <div className="text-center py-4">
-                <p className="text-sm text-slate-400 mb-2">Pay Remaining Balance</p>
-                <p className="text-3xl font-black text-[#D4AF37]" style={{ fontFamily: "DM Serif Display, serif" }}>{formatCurrency(balance)}</p>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash Received (Rs)</label>
+              <div className="relative">
+                <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+                <input 
+                  autoFocus
+                  type="number" 
+                  value={customAmount} 
+                  onChange={e => setCustomAmount(e.target.value)}
+                  placeholder="Enter amount..."
+                  className="w-full pl-14 pr-6 py-5 bg-slate-950 border border-white/10 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-white outline-none"
+                />
               </div>
-            )}
+            </div>
 
-            {settleTab === 'equal' && (
-              <div className="space-y-4 text-center">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-3">Split How Many Ways?</label>
-                  <div className="flex items-center justify-center gap-4">
-                    <button onClick={() => setSplitWays(Math.max(2, splitWays - 1))} className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-[#D4AF37] hover:text-[#0F172A] transition-colors font-bold text-lg">-</button>
-                    <span className="text-2xl font-black text-white w-8">{splitWays}</span>
-                    <button onClick={() => setSplitWays(splitWays + 1)} className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-[#D4AF37] hover:text-[#0F172A] transition-colors font-bold text-lg">+</button>
-                  </div>
-                </div>
-                <div className="pt-2 border-t border-white/5">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Amount Per Person</p>
-                  <p className="text-2xl font-black text-[#D4AF37]" style={{ fontFamily: "DM Serif Display, serif" }}>{formatCurrency(balance / splitWays)}</p>
-                </div>
-              </div>
-            )}
-
-            {settleTab === 'custom' && (
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Enter Custom Amount</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black">Rs</span>
-                  <input 
-                    type="number" 
-                    value={customAmount} 
-                    onChange={e => setCustomAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full bg-slate-900 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white font-black outline-none focus:border-[#D4AF37]"
-                  />
-                </div>
-              </div>
-            )}
-
-            {settleTab === 'item' && (
-              <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar-dark pr-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Select Items to Pay</label>
-                {settleModalOrder.items.map((item, idx) => (
-                  <label key={idx} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${itemSplitChecked[idx] ? 'bg-[#D4AF37]/10 border-[#D4AF37] text-white' : 'bg-slate-900 border-white/5 text-slate-400'}`}>
-                    <div className="flex items-center gap-3">
-                      <input 
-                        type="checkbox" 
-                        checked={!!itemSplitChecked[idx]}
-                        onChange={(e) => setItemSplitChecked(prev => ({...prev, [idx]: e.target.checked}))}
-                        className="w-4 h-4 accent-[#D4AF37]"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-[11px] font-bold uppercase">{item.name}</span>
-                        <span className="text-[9px]">{item.quantity}x • {item.portion || 'Full'}</span>
-                      </div>
-                    </div>
-                    <span className="font-black text-sm">{formatCurrency(item.price * item.quantity)}</span>
-                  </label>
-                ))}
-                {paymentAmount > 0 && (
-                  <div className="pt-2 text-right">
-                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">Selected Total</p>
-                    <p className="text-xl font-black text-[#D4AF37]" style={{ fontFamily: "DM Serif Display, serif" }}>{formatCurrency(paymentAmount)}</p>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/20 flex justify-between items-center">
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Balance to Return</span>
+              <span className="text-2xl font-black text-emerald-400" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                {formatCurrency(Math.max(cashValue - total, 0))}
+              </span>
+            </div>
           </div>
 
           <div className="pt-6 border-t border-white/5 space-y-4">
@@ -1445,17 +1397,19 @@ const renderGroupSettleModal = () => {
                 <button
                   key={method}
                   onClick={() => setPaymentMethod(method)}
-                  className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${paymentMethod === method ? 'bg-white text-black border-white shadow-lg' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30'}`}
+                  className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${paymentMethod === method ? 'bg-white text-black border-white shadow-lg' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30'}`}
                 >
                   {method}
                 </button>
               ))}
             </div>
             <button 
+              disabled={paymentMethod === 'Cash' && cashValue < total}
               onClick={handlePay}
-              className="w-full py-4 bg-[#D4AF37] text-[#0F172A] rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:scale-[1.02] transition-transform"
+              className="w-full py-5 rounded-2xl bg-[#D4AF37] text-[#0F172A] font-black text-xs uppercase tracking-[0.3em] transition-all hover:bg-white hover:text-[#0F172A] active:scale-95 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
             >
-              Process Payment • {formatCurrency(paymentAmount)}
+              <CheckCircle className="w-4 h-4" />
+              Confirm Settlement
             </button>
           </div>
         </div>

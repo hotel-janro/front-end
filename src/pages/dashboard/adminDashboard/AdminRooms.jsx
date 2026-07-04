@@ -221,6 +221,10 @@ export function AdminRooms() {
     const trimmedName = (newTypeForm.name || '').trim();
     if (!trimmedName) { alert('Please enter a room type name.'); return; }
     if (!newTypeForm.price || Number(newTypeForm.price) <= 0) { alert('Please enter a valid price.'); return; }
+    if (!newTypeForm.defaultGuests || Number(newTypeForm.defaultGuests) < 1) { alert('Please enter a valid Max Guests number.'); return; }
+    if (!newTypeForm.initialRooms || Number(newTypeForm.initialRooms) < 1) { alert('Please enter a valid Initial Room Count.'); return; }
+    if (!newTypeForm.description || newTypeForm.description.trim() === '') { alert('Please enter a room description.'); return; }
+    if (!newTypeForm.amenities || newTypeForm.amenities.trim() === '') { alert('Please select at least one amenity.'); return; }
     // Prevent duplicate type names
     const duplicate = rooms.find(r => r.name.toLowerCase() === trimmedName.toLowerCase());
     if (duplicate) { alert(`A room type named "${trimmedName}" already exists. Use the existing "Create Room" button to add more units.`); return; }
@@ -252,8 +256,26 @@ export function AdminRooms() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validations
     if (!formData.name) {
-      alert('Please select a room type');
+      alert('Please select a room type.');
+      return;
+    }
+    if (!formData.price || isNaN(formData.price) || Number(formData.price) <= 0) {
+      alert('Please enter a valid Price per Night (must be greater than 0).');
+      return;
+    }
+    if (!formData.defaultGuests || isNaN(formData.defaultGuests) || Number(formData.defaultGuests) < 1) {
+      alert('Please enter a valid Max Guests number (must be at least 1).');
+      return;
+    }
+    if (editingRoom && (!formData.description || formData.description.trim() === '')) {
+      alert('Please enter a room description.');
+      return;
+    }
+    if (editingRoom && (!formData.amenities || formData.amenities.trim() === '')) {
+      alert('Please select at least one amenity.');
       return;
     }
     
@@ -385,6 +407,51 @@ export function AdminRooms() {
     ).length;
   };
 
+
+  // Predefined amenity options for checkbox selection
+  const AMENITIES_LIST = [
+    'WiFi', 'Air Conditioning', 'TV', 'Hot Water', 'Balcony',
+    'Pool Access', 'Bathtub', 'Work Desk'
+  ];
+
+  const toggleAmenity = (amenity, currentVal, setter) => {
+    const current = (currentVal || '').split(',').map(s => s.trim()).filter(Boolean);
+    const updated = current.includes(amenity)
+      ? current.filter(a => a !== amenity)
+      : [...current, amenity];
+    setter(updated.join(', '));
+  };
+
+  // Custom sort order for room types
+  const ROOM_TYPE_ORDER = [
+    'standard room',
+    'family room',
+    'family suite',
+    'wedding couple suite',
+    'honeymoon suite',
+  ];
+
+  const getRoomSortIndex = (name) => {
+    const lower = (name || '').toLowerCase();
+    const idx = ROOM_TYPE_ORDER.findIndex(t => lower.includes(t) || t.includes(lower));
+    return idx === -1 ? 999 : idx;
+  };
+
+  // Starting room number for each room type (hotel room numbering)
+  const ROOM_START_NUMBERS = {
+    'standard room': 1,   // Room 1 – 6
+    'family room': 7,     // Room 7 – 8
+    'family suite': 7,
+    'wedding couple suite': 9, // Room 9 – 10
+    'honeymoon suite': 9,
+  };
+
+  const getRoomStartNumber = (name) => {
+    const lower = (name || '').toLowerCase();
+    const key = Object.keys(ROOM_START_NUMBERS).find(k => lower.includes(k) || k.includes(lower));
+    return key ? ROOM_START_NUMBERS[key] : 1;
+  };
+
   // ENSURE ALL TYPES ARE SHOWN IN THE TABLE
   const uniqueTypes = [...new Set(rooms.map(r => r.name).filter(Boolean))];
   const aggregatedRooms = uniqueTypes.map(typeName => {
@@ -407,7 +474,8 @@ export function AdminRooms() {
       };
     }
     return null;
-  }).filter(Boolean);
+  }).filter(Boolean).sort((a, b) => getRoomSortIndex(a.name) - getRoomSortIndex(b.name));
+
 
   const filteredRooms = aggregatedRooms.filter(room => 
     (room.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -592,9 +660,9 @@ export function AdminRooms() {
                       </tr>
                       {isExpanded && (
                         <>
-                          {/* Unified room list with continuous numbering */}
+                          {/* Unified room list with hotel-wide continuous numbering */}
                           {Array.from({ length: totalInStock }).map((_, i) => {
-                            const roomNumber = i + 1;
+                            const roomNumber = getRoomStartNumber(room.name) + i;
                             const isBooked = i < bookedCount;
                             // Any room that is not booked can be deleted
                             const canDelete = !isBooked;
@@ -738,27 +806,29 @@ export function AdminRooms() {
                         {(!booking.status || booking.status === 'pending') && (
                           <>
                             <button
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
                               title="Confirm Booking"
                               onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}
                             >
-                              <CheckCircle className="w-4 h-4" />
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              <span className="hidden md:inline">Confirm</span>
                             </button>
                             <button
-                              className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-md transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-500 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
                               title="Reject Booking"
                               onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}
                             >
-                              <XCircle className="w-4 h-4" />
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span className="hidden md:inline">Reject</span>
                             </button>
                           </>
                         )}
                         <button 
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider flex-shrink-0"
                           title="Delete Booking"
                           onClick={() => handleDeleteBooking(booking._id)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
