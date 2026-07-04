@@ -111,17 +111,17 @@ export function CashierReceipts() {
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
       {/* Premium Header */}
-      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-200 mb-8">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-[80px] -mr-32 -mt-32" />
-        <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]">
-              <Gem className="w-7 h-7 text-[#D4AF37]" />
+      <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-200 mb-8">
+        <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-[#D4AF37]/10 rounded-full blur-[60px] -mr-16 -mt-16" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 text-[#D4AF37] text-[9px] font-black uppercase tracking-[0.3em] mb-2">
+              <Gem className="w-3 h-3 animate-pulse" /> Boutique Transaction History
             </div>
-            <div>
-              <h1 className="text-3xl md:text-5xl font-normal leading-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>Receipt Archive</h1>
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Boutique Transaction History</p>
-            </div>
+            <h2 className="text-2xl text-white font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
+              Receipt <span className="text-[#D4AF37]">Archive</span>
+            </h2>
           </div>
           <div className="flex flex-col items-end gap-1">
             <button

@@ -154,22 +154,23 @@ export function CashierProfile() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header Section */}
-      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-lg">
-        <div className="flex items-center gap-6">
-          <div className="w-20 h-20 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-2xl flex items-center justify-center text-3xl font-bold text-[#D4AF37] shadow-inner">
-            {user?.name?.charAt(0).toUpperCase() || "C"}
+      <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-200 mb-8">
+        <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-purple-500/10 rounded-full blur-[60px] -mr-16 -mt-16" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-xl flex items-center justify-center text-xl font-bold text-[#D4AF37] shadow-inner">
+              {user?.name?.charAt(0).toUpperCase() || "C"}
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-2 text-[#D4AF37] text-[9px] font-black uppercase tracking-[0.3em] mb-2">
+                <User className="w-3 h-3 animate-pulse" /> Cashier Identity
+              </div>
+              <h2 className="text-2xl text-white font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
+                {user?.name || "Cashier User"}
+              </h2>
+            </div>
           </div>
-          <div>
-            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-2">Cashier Identity</p>
-            <h1 className="text-3xl md:text-4xl text-white font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>
-              {user?.name || "Cashier User"}
-            </h1>
-            <p className="text-slate-400 text-sm mt-1 flex items-center gap-2">
-              <Mail className="w-4 h-4 text-[#D4AF37]/70" />
-              {user?.email || "cashier@hoteljanro.com"}
-            </p>
-          </div>
-        </div>
 
         {/* Status Badge */}
         <div className="flex items-center gap-3 px-5 py-3 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md self-start md:self-center">
