@@ -6,54 +6,12 @@ import { Crown, Mail, Lock, User, Eye, EyeOff, Phone } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext";
 
 
-export function Register({ onRegister, onGoogleLogin }) {
+export function Register({ onRegister }) {
   const { settings } = useSettings();
 
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirmPassword: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-
-  /* global google */
-  useEffect(() => {
-    const initializeGoogleSignUp = () => {
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        try {
-          window.google.accounts.id.initialize({
-            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "909686127278-er1uoibsf4do6sgd7pbj692cbr89np83.apps.googleusercontent.com",
-            callback: async (response) => {
-              try {
-                setError("");
-                await onGoogleLogin(response.credential);
-              } catch (err) {
-                setError(err.message || "Google sign up failed");
-              }
-            }
-          });
-
-          window.google.accounts.id.renderButton(
-            document.getElementById("google-register-btn"),
-            { 
-              theme: "outline", 
-              size: "large", 
-              width: "360",
-              shape: "rectangular",
-              text: "signup_with"
-            }
-          );
-        } catch (err) {
-          console.error("Google accounts initialisation error", err);
-        }
-      } else {
-        const timer = setTimeout(initializeGoogleSignUp, 100);
-        return () => clearTimeout(timer);
-      }
-    };
-
-    const cleanup = initializeGoogleSignUp();
-    return () => {
-      if (cleanup) cleanup();
-    };
-  }, [onGoogleLogin]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -167,16 +125,6 @@ export function Register({ onRegister, onGoogleLogin }) {
             Create Account
           </Button>
         </form>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-gray-200" />
-          <span className="text-sm text-gray-400">or sign up with</span>
-          <div className="flex-1 h-px bg-gray-200" />
-        </div>
-
-        {/* Google Sign Up */}
-        <div id="google-register-btn" className="w-full flex justify-center"></div>
 
         <p className="text-center text-sm text-gray-400 mt-6">
           Already have an account?{" "}
