@@ -41,6 +41,26 @@ export function Restaurant({ onOrder, user }) {
   const [isLocating, setIsLocating] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [myRooms, setMyRooms] = useState([]);
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      if (user) {
+        try {
+          const res = await apiFetch("/bookings/my");
+          if (res?.data) {
+            const active = res.data.filter(b => b.status !== 'cancelled' && b.status !== 'rejected');
+            setMyRooms(active);
+          }
+        } catch (e) {
+          console.error("Failed to fetch my rooms", e);
+        }
+      } else {
+        setMyRooms([]);
+      }
+    };
+    if (showCart) fetchRooms();
+  }, [user, showCart]);
 
   const clearError = (field) => {
     if (validationErrors[field]) {
@@ -291,9 +311,8 @@ export function Restaurant({ onOrder, user }) {
     }
 
     if (orderType === "Room") {
-      const rNum = Number(roomNumber);
-      if (!roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
-        errors.roomNumber = "Select a valid room (1-10)";
+      if (!roomNumber || myRooms.length === 0) {
+        errors.roomNumber = "Please select your booked room";
       }
     }
     if (orderType === "Dine-in" && !tableNumber) {
@@ -673,13 +692,27 @@ export function Restaurant({ onOrder, user }) {
                       )}
                       {orderType === "Room" && (
                         <>
-                          <div className="relative">
-                            <select value={roomNumber} onChange={e => { setRoomNumber(e.target.value); clearError('roomNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.roomNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
-                              <option value="">Select Room Number</option>
-                              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map(r => <option key={r} value={r}>Room {r}</option>)}
-                            </select>
-                            <Building2 className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
-                          </div>
+                          {myRooms.length === 0 ? (
+                            <div className="bg-rose-50 border border-rose-100 p-4 rounded-xl flex items-start gap-3">
+                               <Info className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                               <div>
+                                 <p className="text-xs font-bold text-rose-700">No Active Reservations</p>
+                                 <p className="text-[10px] text-rose-600 mt-1">You need an active room booking to order food to a room.</p>
+                               </div>
+                            </div>
+                          ) : (
+                            <div className="relative">
+                              <select value={roomNumber} onChange={e => { setRoomNumber(e.target.value); clearError('roomNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.roomNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
+                                <option value="">Select Your Booked Room</option>
+                                {myRooms.map(r => (
+                                  <option key={r._id} value={r.room?.name || 'Standard Room'}>
+                                    {r.room?.name || "Room"} (Check-in: {new Date(r.checkInDate).toLocaleDateString()})
+                                  </option>
+                                ))}
+                              </select>
+                              <Building2 className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
+                            </div>
+                          )}
                           {validationErrors.roomNumber && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.roomNumber}</p>}
                         </>
                       )}
