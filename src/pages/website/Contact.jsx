@@ -1,19 +1,41 @@
 // Contact.jsx - Contact Page (Pure JavaScript)
 import React, { useState } from "react";
 import { Button } from "../../components/common/Button.jsx";
-import { Phone, Mail, MapPin, Clock, Send } from "lucide-react";
+import { Phone, Mail, MapPin, Clock, Send, Loader2 } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext";
+import { apiFetch } from "../../api";
 
 export function Contact() {
   const { settings } = useSettings();
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
-    setForm({ name: "", email: "", message: "" });
+    setIsSending(true);
+    setErrorMsg("");
+    setSubmitted(false);
+
+    try {
+      const res = await apiFetch("/contact", {
+        method: "POST",
+        body: JSON.stringify(form)
+      });
+
+      if (res.success) {
+        setSubmitted(true);
+        setForm({ name: "", email: "", message: "" });
+        setTimeout(() => setSubmitted(false), 5000);
+      } else {
+        setErrorMsg(res.message || "Failed to send message. Please try again.");
+      }
+    } catch (err) {
+      setErrorMsg(err.message || "Something went wrong. Please check your internet connection.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -35,25 +57,38 @@ export function Contact() {
               Send Us a Message
             </h2>
             {submitted && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 text-sm">
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 text-sm font-semibold">
                 Thank you! Your message has been sent successfully.
+              </div>
+            )}
+            {errorMsg && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm font-semibold">
+                {errorMsg}
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">Full Name</label>
-                <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Doe" className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] transition-colors" />
+                <input type="text" required disabled={isSending} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Doe" className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] transition-colors disabled:opacity-50" />
               </div>
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">Email Address</label>
-                <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@example.com" className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] transition-colors" />
+                <input type="email" required disabled={isSending} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@example.com" className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] transition-colors disabled:opacity-50" />
               </div>
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">Message</label>
-                <textarea required rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="How can we help you?" className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] transition-colors resize-none" />
+                <textarea required rows={5} disabled={isSending} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="How can we help you?" className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] transition-colors resize-none disabled:opacity-50" />
               </div>
-              <Button type="submit" variant="secondary" className="w-full">
-                <Send className="w-4 h-4" /> Send Message
+              <Button type="submit" variant="secondary" className="w-full flex items-center justify-center gap-2" disabled={isSending}>
+                {isSending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" /> Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" /> Send Message
+                  </>
+                )}
               </Button>
             </form>
           </div>
@@ -85,7 +120,7 @@ export function Contact() {
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
               <iframe
                 title={`${settings.hotelName} Location`}
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3960.5!2d80.1!3d7.0!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ae2ff911e29b8b7%3A0x7e8e89d1a3c3c1e!2sHotel+Janro!5e0!3m2!1sen!2slk!4v1700000000000!5m2!1sen!2slk"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3960.4160097785643!2d80.0418666!3d6.950317!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ae255ae1245d795%3A0x36b7963848f72f34!2sHotel+Janro!5e0!3m2!1sen!2slk!4v1720000000000!5m2!1sen!2slk"
                 width="100%"
                 height="280"
                 style={{ border: 0 }}

@@ -18,7 +18,8 @@ import {
   Crown,
   Boxes,
   UserCircle,
-  Dumbbell
+  Dumbbell,
+  Mail
 } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext";
 
@@ -36,6 +37,7 @@ const adminItems = [
   { label: "Users & Staff", icon: Users, path: "/admin/staff" },
   { label: "Reports", icon: BarChart3, path: "/admin/reports" },
   { label: "Payments", icon: CreditCard, path: "/admin/payments" },
+  { label: "Messages", icon: Mail, path: "/admin/messages" },
   { label: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 

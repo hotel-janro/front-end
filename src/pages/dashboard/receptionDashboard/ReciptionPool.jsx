@@ -564,10 +564,10 @@ export function ReceptionPool() {
                     <td className="admin-pool__table-cell"><span className="admin-pool__amount">{settings?.currency?.symbol || 'Rs.'}{booking.totalAmount}</span></td>
                     <td className="admin-pool__table-cell text-right">
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => handleEditClick(booking)} className="p-1 text-gray-500 hover:text-blue-600 transition-colors" title="Edit Booking">
+                        <button onClick={() => handleEditClick(booking)} className="admin-pool__action-btn admin-pool__action-btn--edit" title="Edit Booking">
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDeleteBooking(booking._id || booking.id)} className="p-1 text-gray-500 hover:text-red-600 transition-colors" title="Delete Booking">
+                        <button onClick={() => handleDeleteBooking(booking._id || booking.id)} className="admin-pool__action-btn admin-pool__action-btn--delete" title="Delete Booking">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
