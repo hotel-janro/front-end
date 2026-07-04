@@ -143,10 +143,7 @@ export function ReceptionBookings() {
             Check-in, check-out, and manage guest reservations
           </p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap">
-          <Plus className="w-5 h-5" />
-          Walk-in Booking
-        </button>
+
       </div>
 
       {/* Filters */}
