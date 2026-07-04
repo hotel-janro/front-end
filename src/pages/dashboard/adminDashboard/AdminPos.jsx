@@ -557,7 +557,10 @@ const handlePrintReceipt = (order) => {
         <head>
           <title>${settings.hotelName} - Receipt #${order._id.slice(-8)}</title>
           <style>
-            @media print { @page { margin: 0; } body { margin: 0.2cm; } }
+            @media print { 
+              @page { size: 80mm auto; margin: 0; } 
+              body { margin: 0; padding: 2mm; width: 75mm; } 
+            }
             body { 
               font-family: 'Courier New', Courier, monospace; 
               font-size: 11px; 
@@ -844,7 +847,7 @@ const renderStats = () => (
     {[
       { label: 'Today Orders', value: todayOrders.length, icon: ShoppingCart, color: 'blue' },
       { label: 'Active Kitchen', value: activeOrdersCount, icon: Clock, color: 'amber' },
-      { label: 'Net Revenue', value: formatCurrency(todayRevenue), icon: Gem, color: 'emerald' }
+      { label: 'Today Net Revenue', value: formatCurrency(todayRevenue), icon: Gem, color: 'emerald' }
     ].map((stat, i) => (
       <div key={i} className="bg-[#0F172A] p-3 rounded-xl shadow-sm border border-white/5 flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-900 text-[#D4AF37] border border-white/5">

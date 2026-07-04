@@ -49,6 +49,16 @@ export function CashierProfile() {
       return;
     }
 
+    if (passwordData.newPassword === passwordData.currentPassword) {
+      setMessage({ type: "error", text: "New password cannot be the same as your current password." });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setMessage({ type: "error", text: "New password must be at least 6 characters long." });
+      return;
+    }
+
     setIsSaving(true);
     setMessage({ type: "", text: "" });
 
@@ -57,7 +67,8 @@ export function CashierProfile() {
         method: "PUT",
         body: JSON.stringify({
           currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
+          newPassword: passwordData.newPassword,
+          confirmPassword: passwordData.confirmPassword
         })
       });
       setMessage({ type: "success", text: "Password updated successfully!" });
