@@ -5,6 +5,7 @@ import { apiFetch } from '../../../api';
 const getRoomTypeName = (roomName, roomNumberStr) => {
   if (!roomName) return 'N/A';
   const lower = roomName.toLowerCase();
+  
   if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
     return 'Standard Room (Non-AC)';
   }
@@ -18,6 +19,21 @@ const getRoomTypeName = (roomName, roomNumberStr) => {
       return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
     }
   }
+
+  if (lower.includes('non-ac family room') || lower.includes('non ac family room')) {
+    return 'Family Room (Non-AC)';
+  }
+  if (lower.includes('ac family room') || lower.includes('a/c family room')) {
+    return 'Family Room (AC)';
+  }
+  if (lower.includes('family room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Family Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  
   return roomName;
 };
 
@@ -108,15 +124,20 @@ export function AdminGuests() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 shadow-[0_20px_60px_rgba(15,23,42,0.18)] mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Guests</h1>
-          <p className="text-gray-500 mt-1">Manage your guest profiles and history</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
+            Guests
+          </h1>
+          <p className="text-slate-300 mt-2 max-w-2xl">
+            Manage your guest profiles and history
+          </p>
         </div>
         <button 
           onClick={fetchGuests}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-70"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 whitespace-nowrap disabled:opacity-70"
         >
           <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           {loading ? 'Refreshing...' : 'Refresh'}
