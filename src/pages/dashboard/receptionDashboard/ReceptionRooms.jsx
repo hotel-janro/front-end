@@ -28,6 +28,25 @@ import { apiFetch } from '../../../api';
 import '../adminDashboard/AdminRooms.css';
 import { Rooms } from '../../website/Rooms.jsx';
 
+const getRoomTypeName = (roomName, roomNumberStr) => {
+  if (!roomName) return 'N/A';
+  const lower = roomName.toLowerCase();
+  if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
+    return 'Standard Room (Non-AC)';
+  }
+  if (lower.includes('ac standard room') || lower.includes('a/c standard room')) {
+    return 'Standard Room (AC)';
+  }
+  if (lower.includes('standard room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  return roomName;
+};
+
 const ROOM_TYPES = {
   'Standard Room': {
     price: 5000,
@@ -467,7 +486,7 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                     </td>
                     <td>
                       <div className="flex flex-col">
-                        <span className="font-medium">{booking.room?.name || 'N/A'}</span>
+                        <span className="font-medium">{getRoomTypeName(booking.room?.name, booking.roomNumber)}</span>
                         {booking.decorationItems && booking.decorationItems.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {booking.decorationItems.map((item, idx) => (

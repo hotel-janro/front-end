@@ -15,12 +15,15 @@ import {
   ArrowUpRight,
   Star,
   X,
-  Edit2
+  Edit2,
+  CreditCard
 } from "lucide-react";
 import { apiFetch, getImageUrl } from "../../../api.js";
 import { useSettings } from "../../../context/SettingsContext.jsx";
 import { generateInvoicePDF } from "../../../utils/invoiceGenerator.js";
 import "./CustomerDashboard.css";
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const getRoomTypeName = (roomName, roomNumberStr) => {
   if (!roomName) return 'Refined Luxury Suite';
@@ -156,6 +159,84 @@ export function MyBookings() {
       fetchData();
     } catch (error) {
       alert("Error updating booking: " + error.message);
+    }
+  };
+
+  const handlePayNow = async (booking, type) => {
+    try {
+      const payAmount = type === 'wedding' 
+        ? (booking.amount - (booking.advancePaid || 0)) 
+        : (booking.amount || booking.totalPrice || booking.totalAmount);
+
+      const res = await apiFetch('/payments/payhere-hash', {
+        method: 'POST',
+        body: JSON.stringify({
+          orderId: booking._id || booking.id,
+          amount: payAmount
+        })
+      });
+
+      if (!res.success) {
+        alert("Failed to initialize payment");
+        return;
+      }
+
+      const { hash, merchantId, currency, amount } = res.data;
+
+      const paymentObj = {
+        sandbox: true,
+        merchant_id: merchantId,
+        return_url: `${window.location.origin}/my-bookings`,
+        cancel_url: `${window.location.origin}/my-bookings`,
+        notify_url: `${API_BASE}/api/payments/payhere-notify`,
+        order_id: booking._id || booking.id,
+        items: `${type === 'room' ? 'Room' : 'Wedding'} Booking #${(booking._id || booking.id).slice(-6)}`,
+        amount: amount,
+        currency: currency,
+        hash: hash,
+        first_name: booking.fullName || settings.hotelName,
+        last_name: "Customer",
+        email: booking.email || "customer@janro.com",
+        phone: booking.phone || "0000000000",
+        address: "Sri Lanka",
+        city: "Colombo",
+        country: "Sri Lanka",
+        custom_1: type
+      };
+
+      window.payhere.onCompleted = async function onCompleted(orderId) {
+        // Fallback update in case webhook fails (e.g. running on localhost)
+        try {
+          if (type === 'room') {
+            await apiFetch(`/bookings/${booking._id || booking.id}`, {
+              method: 'PUT',
+              body: JSON.stringify({ paymentStatus: 'Paid', status: 'confirmed', paymentMethod: 'Online' })
+            });
+          } else if (type === 'wedding') {
+            await apiFetch(`/wedding/bookings/${booking._id || booking.id}/payment`, {
+              method: 'PUT',
+              body: JSON.stringify({ paymentAmount: payAmount, method: 'Online' })
+            });
+          }
+          alert("Payment Completed Successfully!");
+          fetchData();
+        } catch (err) {
+          console.error("Post payment update error:", err);
+          alert("Payment completed but status update failed locally: " + err.message);
+        }
+      };
+
+      window.payhere.onDismissed = function onDismissed() {
+        console.log("Payment window closed");
+      };
+
+      window.payhere.onError = function onError(error) {
+        alert("Payment Error: " + error);
+      };
+
+      window.payhere.startPayment(paymentObj);
+    } catch (error) {
+      alert("Payment initialization failed: " + error.message);
     }
   };
 
@@ -335,11 +416,21 @@ export function MyBookings() {
                         </div>
 
                         <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-6 pt-6 md:pt-0 border-t md:border-t-0 border-slate-100">
-                          <div className="text-left md:text-right">
+          <div className="text-left md:text-right">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
                             <p className="text-2xl font-black text-slate-900">Rs. {amount.toLocaleString()}</p>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-3 justify-end">
+                            {(!item.paymentStatus || (item.paymentStatus.toLowerCase() !== 'paid' && item.paymentStatus.toLowerCase() !== 'fully paid')) && bookingStatus !== 'cancelled' && bookingStatus !== 'rejected' && !isRoomBooking && (
+                              <button
+                                onClick={() => handlePayNow(item, isRoomBooking ? 'room' : 'wedding')}
+                                className="px-4 py-2 bg-gradient-to-r from-[#D4AF37] to-[#F1C40F] hover:from-[#C5A028] hover:to-[#E5B50A] text-[#0F172A] font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-[#D4AF37]/20 flex items-center gap-2 transition-all transform hover:scale-105"
+                                title="Pay Securely Online"
+                              >
+                                <CreditCard className="w-4 h-4" />
+                                Pay Now
+                              </button>
+                            )}
                             {isRoomBooking ? (
                               <>
                                 {canModify ? (
