@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, Clock, CheckCircle, XCircle, ChevronDown, 
   ChevronUp, Check, X, Coffee, MapPin, Printer, Zap,
-  RefreshCcw, Gem, Banknote, Calendar, User, ShoppingCart, Package, Activity
+  RefreshCcw, Gem, Banknote, Calendar, User, ShoppingCart, Package, Activity, CreditCard
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../api.js';
@@ -22,6 +22,7 @@ export function CashierOrders() {
   // Payment settlement state
   const [settlingOrder, setSettlingOrder] = useState(null);
   const [cashReceived, setCashReceived] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isSettling, setIsSettling] = useState(false);
   const [lastPollTime, setLastPollTime] = useState(new Date());
 
@@ -122,8 +123,8 @@ export function CashierOrders() {
     );
 
     const combinedTotal = relatedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-    const received = Number(cashReceived || 0);
-    const balance = Math.max(received - combinedTotal, 0);
+    const received = paymentMethod === 'Card' ? combinedTotal : Number(cashReceived || 0);
+    const balance = paymentMethod === 'Card' ? 0 : Math.max(received - combinedTotal, 0);
 
     if (received < combinedTotal) {
       toast.error("Insufficient amount received");
@@ -139,7 +140,7 @@ export function CashierOrders() {
           method: 'PUT',
           body: JSON.stringify({
             paymentStatus: 'Paid',
-            paymentMethod: 'Cash',
+            paymentMethod: paymentMethod,
             amountReceived: o._id === settlingOrder._id ? received : o.totalAmount,
             balance: o._id === settlingOrder._id ? balance : 0,
             orderStatus: 'Completed'
@@ -150,6 +151,7 @@ export function CashierOrders() {
       toast.success(`${relatedOrders.length > 1 ? 'All group orders' : 'Order'} settled successfully!`);
       setSettlingOrder(null);
       setCashReceived('');
+      setPaymentMethod('Cash');
       loadOrders();
     } catch (error) {
       toast.error("Failed to settle order(s)");
@@ -697,31 +699,66 @@ export function CashierOrders() {
                 )}
 
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cash Received (Rs)</label>
-                    <div className="relative">
-                      <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
-                      <input
-                        autoFocus
-                        type="number"
-                        placeholder="Enter amount..."
-                        value={cashReceived}
-                        onChange={(e) => setCashReceived(e.target.value)}
-                        className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
-                      />
-                    </div>
+                  {/* Payment Method Selector */}
+                  <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('Cash')}
+                      className={`flex-1 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${paymentMethod === 'Cash' ? 'bg-white text-emerald-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <Banknote className="w-4 h-4" /> Cash
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('Card');
+                        setCashReceived('');
+                      }}
+                      className={`flex-1 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${paymentMethod === 'Card' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <CreditCard className="w-4 h-4" /> Card
+                    </button>
                   </div>
 
-                  <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/20 flex justify-between items-center">
-                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Balance to Return</span>
-                    <span className="text-2xl font-black text-emerald-400" style={{ fontFamily: 'DM Serif Display, serif' }}>
-                      {formatCurrency(Math.max((Number(cashReceived) || 0) - combinedTotal, 0))}
-                    </span>
-                  </div>
+                  {paymentMethod === 'Cash' ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cash Received (Rs)</label>
+                        <div className="relative">
+                          <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+                          <input
+                            autoFocus
+                            type="number"
+                            placeholder="Enter amount..."
+                            value={cashReceived}
+                            onChange={(e) => setCashReceived(e.target.value)}
+                            className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/20 flex justify-between items-center">
+                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Balance to Return</span>
+                        <span className="text-2xl font-black text-emerald-400" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                          {formatCurrency(Math.max((Number(cashReceived) || 0) - combinedTotal, 0))}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="p-8 rounded-2xl bg-blue-50 border border-blue-100 flex flex-col items-center justify-center gap-3 text-center">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 mb-2">
+                        <CreditCard className="w-8 h-8" />
+                      </div>
+                      <p className="text-xs font-black text-blue-600 uppercase tracking-widest">Amount to Charge</p>
+                      <p className="text-3xl font-black text-slate-900" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                        {formatCurrency(combinedTotal)}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <button
-                  disabled={isSettling || (Number(cashReceived) || 0) < combinedTotal}
+                  disabled={isSettling || (paymentMethod === 'Cash' && (Number(cashReceived) || 0) < combinedTotal)}
                   onClick={handleSettleOrder}
                   className="w-full py-5 rounded-2xl bg-[#D4AF37] text-[#0F172A] font-black text-xs uppercase tracking-[0.3em] transition-all hover:bg-white hover:text-[#0F172A] active:scale-95 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
                 >
