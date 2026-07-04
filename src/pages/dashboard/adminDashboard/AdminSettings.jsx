@@ -116,15 +116,13 @@ export function AdminSettings() {
       
       const result = await response.json();
       if (result.success) {
-        setMessage({ type: 'success', text: 'Profile updated successfully! Refreshing...' });
+        setMessage({ type: 'success', text: 'Profile updated successfully!' });
         // Update local storage user data
         const storedUser = JSON.parse(localStorage.getItem('janro_user'));
         localStorage.setItem('janro_user', JSON.stringify({ ...storedUser, ...profileData }));
         
-        // Force reload to update sidebar and other components
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        // Dispatch an event so other components (like topbar) can update if they listen
+        window.dispatchEvent(new Event('storage'));
       } else {
         setMessage({ type: 'error', text: result.message || 'Failed to update profile' });
       }
@@ -273,7 +271,6 @@ export function AdminSettings() {
                 { id: 'general', label: 'Hotel Settings', icon: Building2 },
                 { id: 'notifications', label: 'Notifications', icon: Bell },
                 { id: 'security', label: 'Security', icon: Lock },
-                { id: 'payment', label: 'Payments', icon: CreditCard },
               ].map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -370,9 +367,10 @@ export function AdminSettings() {
                       name="hotelName"
                       value={formData.hotelName} 
                       onChange={handleChange}
-                      className="admin-settings-control" 
+                      readOnly
+                      className="admin-settings-control bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200 focus:ring-0 focus:border-gray-200" 
                     />
-                    <p className="text-xs text-gray-400 mt-1">This name will be displayed across the website and in emails.</p>
+                    <p className="text-xs text-gray-400 mt-1">This name is permanent and displayed across the website and in emails.</p>
                   </div>
                   <div>
                     <label className="admin-settings-label">Address</label>
@@ -381,7 +379,8 @@ export function AdminSettings() {
                       name="address"
                       value={formData.address}
                       onChange={handleChange}
-                      className="admin-settings-control" 
+                      readOnly
+                      className="admin-settings-control bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200 focus:ring-0 focus:border-gray-200" 
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -526,8 +525,6 @@ export function AdminSettings() {
                 </div>
               </div>
             )}
-
-            {activeTab === 'payment' && <div className="p-4 text-gray-500 italic">Payment gateway settings content (static)</div>}
 
             <div className="flex justify-end pt-6 border-t border-gray-200 mt-6">
               <button 
