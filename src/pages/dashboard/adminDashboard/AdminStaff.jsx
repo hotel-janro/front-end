@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Users as UsersIcon, Briefcase, DollarSign, X } from 'lucide-react';
+import { Search, UserPlus, Users as UsersIcon, Briefcase, DollarSign, X, Eye, EyeOff } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 import { apiFetch } from '../../../api';
 import './AdminStaff.css';
@@ -44,49 +44,168 @@ export function AdminStaff() {
   const [formError, setFormError] = useState('');
   const [editStaff, setEditStaff] = useState(null);
 
+  // Co-Admin State and Modals
+  const [coAdmin, setCoAdmin] = useState(null);
+  const [isCoAdminModalOpen, setIsCoAdminModalOpen] = useState(false);
+  const [isEditingCoAdmin, setIsEditingCoAdmin] = useState(false);
+  const [coAdminForm, setCoAdminForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: ''
+  });
+
+  const [showCoAdminPassword, setShowCoAdminPassword] = useState(false);
+
+  const fetchStaff = async () => {
+    try {
+      const data = await apiFetch('/auth/users');
+      if (data.success && data.data) {
+        // Filter to show only staff/non-customer users
+        const staffRoles = ['staff', 'manager', 'receptionist', 'chef', 'waiter', 'housekeeping', 'security', 'maintenance', 'cashier'];
+        const filteredStaff = data.data.filter((u) => staffRoles.includes(u.role?.toLowerCase()));
+        
+        // Map API data to match frontend format with id field
+        const formattedStaff = filteredStaff.map((u, idx) => ({
+          id: String(idx + 1).padStart(3, '0'),
+          _id: u._id,
+          name: u.name,
+          email: u.email,
+          phone: u.phone || '',
+          role: u.role,
+          department: u.department || 'Front Office',
+          salary: u.salary || 0,
+          joinDate: u.joinDate,
+          status: u.status || 'Active',
+          nic: u.nic || '',
+          employeeId: u.employeeId || '',
+          address: u.address || '',
+          emergencyContact: u.emergencyContact || '',
+          emergencyContactPhone: u.emergencyContactPhone || '',
+          employmentType: u.employmentType || 'permanent',
+          hourlyRate: u.hourlyRate || 0,
+          startTime: u.startTime || '',
+          endTime: u.endTime || '',
+          additionalHours: u.additionalHours || 0
+        }));
+
+        setStaffList(formattedStaff);
+
+        // Find the co-admin
+        const currentUser = JSON.parse(localStorage.getItem('janro_user') || '{}');
+        const otherAdmins = data.data.filter(u => u.role?.toLowerCase() === 'admin' && u.email !== currentUser.email);
+        setCoAdmin(otherAdmins[0] || null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch staff:', err);
+    }
+  };
+
   // Fetch staff from backend on component mount
   useEffect(() => {
-    const fetchStaff = async () => {
-      try {
-        const data = await apiFetch('/auth/users');
-        if (data.success && data.data) {
-          // Filter to show only staff/non-customer users
-          const staffRoles = ['staff', 'manager', 'receptionist', 'chef', 'waiter', 'housekeeping', 'security', 'maintenance', 'cashier'];
-          const filteredStaff = data.data.filter((u) => staffRoles.includes(u.role?.toLowerCase()));
-          
-          // Map API data to match frontend format with id field
-          const formattedStaff = filteredStaff.map((u, idx) => ({
-            id: String(idx + 1).padStart(3, '0'),
-            _id: u._id,
-            name: u.name,
-            email: u.email,
-            phone: u.phone || '',
-            role: u.role,
-            department: u.department || 'Front Office',
-            salary: u.salary || 0,
-            joinDate: u.joinDate,
-            status: u.status || 'Active',
-            nic: u.nic || '',
-            employeeId: u.employeeId || '',
-            address: u.address || '',
-            emergencyContact: u.emergencyContact || '',
-            emergencyContactPhone: u.emergencyContactPhone || '',
-            employmentType: u.employmentType || 'permanent',
-            hourlyRate: u.hourlyRate || 0,
-            startTime: u.startTime || '',
-            endTime: u.endTime || '',
-            additionalHours: u.additionalHours || 0
-          }));
-
-          setStaffList(formattedStaff);
-        }
-      } catch (err) {
-        console.error('Failed to fetch staff:', err);
-      }
-    };
-
     fetchStaff();
   }, []);
+
+  const handleCreateCoAdminClick = () => {
+    setFormError('');
+    setCoAdminForm({
+      name: '',
+      email: '',
+      phone: '',
+      password: ''
+    });
+    setIsEditingCoAdmin(false);
+    setIsCoAdminModalOpen(true);
+  };
+
+  const handleEditCoAdminClick = () => {
+    setFormError('');
+    setCoAdminForm({
+      name: coAdmin.name || '',
+      email: coAdmin.email || '',
+      phone: coAdmin.phone || '',
+      password: ''
+    });
+    setIsEditingCoAdmin(true);
+    setIsCoAdminModalOpen(true);
+  };
+
+  const handleDeleteCoAdminClick = async () => {
+    if (!coAdmin) return;
+    if (!confirm(`Are you sure you want to delete the co-admin account for ${coAdmin.name}? This action cannot be undone.`)) return;
+
+    try {
+      const data = await apiFetch(`/auth/users/${coAdmin._id}`, {
+        method: 'DELETE'
+      });
+      if (!data.success) throw new Error(data.message || 'Failed to delete co-admin');
+      
+      setCoAdmin(null);
+      alert('Co-Admin account deleted successfully.');
+    } catch (err) {
+      console.error('Delete co-admin error', err);
+      alert(err.message || 'Unable to delete co-admin');
+    }
+  };
+
+  const handleSaveCoAdmin = async (e) => {
+    e.preventDefault();
+    if (!coAdminForm.name || !coAdminForm.email || (!isEditingCoAdmin && !coAdminForm.password)) {
+      setFormError('Name, Email, and Password are required.');
+      return;
+    }
+
+    try {
+      setFormError('');
+      if (isEditingCoAdmin) {
+        // Edit existing co-admin
+        const body = {
+          name: coAdminForm.name.trim(),
+          email: coAdminForm.email.trim(),
+          phone: coAdminForm.phone.trim(),
+          role: 'admin'
+        };
+        if (coAdminForm.password) {
+          body.password = coAdminForm.password;
+          body.confirmPassword = coAdminForm.password;
+        }
+
+        const data = await apiFetch(`/auth/users/${coAdmin._id}`, {
+          method: 'PUT',
+          body: JSON.stringify(body)
+        });
+        if (!data.success) throw new Error(data.message || 'Failed to update co-admin');
+        
+        await fetchStaff();
+        setIsCoAdminModalOpen(false);
+        alert('Co-Admin account updated successfully.');
+      } else {
+        // Create new co-admin
+        const body = {
+          name: coAdminForm.name.trim(),
+          email: coAdminForm.email.trim(),
+          phone: coAdminForm.phone.trim(),
+          role: 'admin',
+          password: coAdminForm.password,
+          confirmPassword: coAdminForm.password,
+          status: 'active',
+          joinDate: new Date().toISOString().split('T')[0]
+        };
+
+        const data = await apiFetch('/auth/users', {
+          method: 'POST',
+          body: JSON.stringify(body)
+        });
+        if (!data.success) throw new Error(data.message || 'Failed to create co-admin');
+        
+        await fetchStaff();
+        setIsCoAdminModalOpen(false);
+        alert('Co-Admin account created successfully.');
+      }
+    } catch (err) {
+      setFormError(err.message || 'Unable to save co-admin account');
+    }
+  };
 
   const filteredStaff = staffList.filter((staff) => {
     const matchesSearch =
@@ -111,6 +230,7 @@ export function AdminStaff() {
   const getRoleBadgeColor = (role) => {
     if (!role) return 'bg-gray-100 text-gray-800';
     switch (role.toLowerCase()) {
+      case 'admin': return 'bg-amber-100 text-amber-800';
       case 'manager': return 'bg-purple-100 text-purple-800';
       case 'receptionist': return 'bg-blue-100 text-blue-800';
       case 'chef': return 'bg-orange-100 text-orange-800';
@@ -434,6 +554,43 @@ export function AdminStaff() {
         </div>
       </div>
 
+      {/* Co-Admin Account Card */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Co-Admin Account</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            {coAdmin 
+              ? `A secondary admin account is active: ${coAdmin.name} (${coAdmin.email})` 
+              : "No secondary admin account has been created yet. You can create exactly one co-admin account."}
+          </p>
+        </div>
+        <div>
+          {coAdmin ? (
+            <div className="flex gap-2">
+              <button 
+                onClick={handleEditCoAdminClick}
+                className="px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors border border-slate-200"
+              >
+                Edit Co-Admin
+              </button>
+              <button 
+                onClick={handleDeleteCoAdminClick}
+                className="px-4 py-2 text-sm bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg transition-colors border border-red-100"
+              >
+                Delete Co-Admin
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={handleCreateCoAdminClick}
+              className="px-4 py-2 text-sm bg-[#D4AF37] hover:bg-[#b5952f] text-white font-medium rounded-lg transition-colors shadow-sm"
+            >
+              Create Co-Admin
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
           <div className="flex flex-col lg:flex-row gap-4">
@@ -492,7 +649,7 @@ export function AdminStaff() {
                       <div className="flex flex-col">
                         <span className="admin-staff-salary">
                           {settings.currency.symbol}
-                          {((staff.hourlyRate * calculateDuration(staff.startTime, staff.endTime)) + ((staff.additionalHours || 0) * 500)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {((staff.hourlyRate * calculateDuration(staff.startTime, staff.endTime)) + ((staff.additionalHours || 0) * 300)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                         <span className="text-xs text-gray-500">
                           {staff.startTime && staff.endTime ? `${staff.startTime} - ${staff.endTime} (${calculateDuration(staff.startTime, staff.endTime)}h)` : 'No times set'}
@@ -688,13 +845,13 @@ export function AdminStaff() {
                        </div>
                        {(newStaff.additionalHours > 0) && (
                        <div className="flex justify-between items-center mt-1">
-                         <span className="text-xs text-orange-600">Extra Pay (Rs. 500/hr):</span>
-                         <span className="text-sm font-bold text-orange-600">+{settings.currency.symbol}{((newStaff.additionalHours || 0) * 500).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                         <span className="text-xs text-orange-600">Extra Pay (Rs. 300/hr):</span>
+                         <span className="text-sm font-bold text-orange-600">+{settings.currency.symbol}{((newStaff.additionalHours || 0) * 300).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                        </div>
                        )}
                        <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
                          <span className="text-xs text-blue-700">Total Shift Pay:</span>
-                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((newStaff.hourlyRate * calculateDuration(newStaff.startTime, newStaff.endTime)) + ((newStaff.additionalHours || 0) * 500)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((newStaff.hourlyRate * calculateDuration(newStaff.startTime, newStaff.endTime)) + ((newStaff.additionalHours || 0) * 300)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                        </div>
                     </div>
                   </>
@@ -950,13 +1107,13 @@ export function AdminStaff() {
                        </div>
                        {(editStaff.additionalHours > 0) && (
                        <div className="flex justify-between items-center mt-1">
-                         <span className="text-xs text-orange-600">Extra Pay (Rs. 500/hr):</span>
-                         <span className="text-sm font-bold text-orange-600">+{settings.currency.symbol}{((editStaff.additionalHours || 0) * 500).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                         <span className="text-xs text-orange-600">Extra Pay (Rs. 300/hr):</span>
+                         <span className="text-sm font-bold text-orange-600">+{settings.currency.symbol}{((editStaff.additionalHours || 0) * 300).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                        </div>
                        )}
                        <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
                          <span className="text-xs text-blue-700">Total Shift Pay:</span>
-                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((editStaff.hourlyRate * calculateDuration(editStaff.startTime, editStaff.endTime)) + ((editStaff.additionalHours || 0) * 500)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((editStaff.hourlyRate * calculateDuration(editStaff.startTime, editStaff.endTime)) + ((editStaff.additionalHours || 0) * 300)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                        </div>
                     </div>
                   </>
@@ -1041,6 +1198,106 @@ export function AdminStaff() {
               <div className="admin-staff-modal-actions">
                 <button type="button" className="admin-staff-secondary-button" onClick={closeEditModal}>Cancel</button>
                 <button type="submit" className="admin-staff-primary-button">Update Staff</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Co-Admin Create/Edit Modal */}
+      {isCoAdminModalOpen && (
+        <div className="admin-staff-modal-overlay">
+          <div className="admin-staff-modal-content max-w-lg">
+            <div className="admin-staff-modal-header">
+              <h2 className="admin-staff-modal-title">{isEditingCoAdmin ? 'Edit Co-Admin Account' : 'Create Co-Admin Account'}</h2>
+              <button className="admin-staff-modal-close" onClick={() => setIsCoAdminModalOpen(false)}>
+                <X />
+              </button>
+            </div>
+            
+            {formError && (
+              <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 border border-red-200 rounded-lg">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveCoAdmin}>
+              <div className="grid grid-cols-1 gap-4 py-4">
+                <label className="admin-staff-form-label">
+                  Name *
+                  <input
+                    type="text"
+                    className="admin-staff-form-input"
+                    value={coAdminForm.name}
+                    onChange={(e) => setCoAdminForm(p => ({ ...p, name: e.target.value }))}
+                    required
+                  />
+                </label>
+
+                <label className="admin-staff-form-label">
+                  Email Address *
+                  <input
+                    type="email"
+                    className="admin-staff-form-input"
+                    value={coAdminForm.email}
+                    onChange={(e) => setCoAdminForm(p => ({ ...p, email: e.target.value }))}
+                    required
+                    disabled={isEditingCoAdmin}
+                  />
+                </label>
+
+                <label className="admin-staff-form-label">
+                  Phone Number
+                  <input
+                    type="tel"
+                    className="admin-staff-form-input"
+                    value={coAdminForm.phone}
+                    onChange={(e) => setCoAdminForm(p => ({ ...p, phone: e.target.value }))}
+                    placeholder="e.g. 0771234567"
+                  />
+                </label>
+
+                    <label className="admin-staff-form-label">
+                      Password {isEditingCoAdmin ? '(Leave blank to keep current)' : '*'}
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                          type={showCoAdminPassword ? "text" : "password"}
+                          className="admin-staff-form-input"
+                          style={{ paddingRight: '40px', width: '100%' }}
+                          value={coAdminForm.password}
+                          onChange={(e) => setCoAdminForm(p => ({ ...p, password: e.target.value }))}
+                          required={!isEditingCoAdmin}
+                          placeholder={isEditingCoAdmin ? "••••••••" : "Enter password"}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCoAdminPassword(!showCoAdminPassword)}
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#64748B'
+                          }}
+                        >
+                          {showCoAdminPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </label>
+              </div>
+
+              <div className="admin-staff-modal-actions mt-4">
+                <button type="button" className="admin-staff-secondary-button" onClick={() => setIsCoAdminModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="admin-staff-primary-button">
+                  {isEditingCoAdmin ? 'Save Changes' : 'Create Admin'}
+                </button>
               </div>
             </form>
           </div>

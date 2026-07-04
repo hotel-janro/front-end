@@ -17,6 +17,8 @@ export function AdminReports() {
   const [isExporting, setIsExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportEmail, setExportEmail] = useState('');
+  const [activeTab, setActiveTab] = useState('email'); // 'email' or 'download'
+  const [downloadCategory, setDownloadCategory] = useState('rooms'); // 'rooms', 'pool', 'wedding', 'restaurant'
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -70,6 +72,50 @@ export function AdminReports() {
       }
     } catch (err) {
       alert(err.message || 'Error exporting report');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDownload = async (e) => {
+    if (e) e.preventDefault();
+    
+    try {
+      setIsExporting(true);
+      const token = localStorage.getItem('janro_token') || localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/reports/download?dateRange=${encodeURIComponent(dateRange)}&category=${downloadCategory}`, {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to download report');
+      }
+      
+      const disposition = res.headers.get('content-disposition');
+      let filename = `${downloadCategory}_report_${dateRange.replace(/\s+/g, '_')}.csv`;
+      if (disposition && disposition.indexOf('attachment') !== -1) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) { 
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setShowExportModal(false);
+    } catch (err) {
+      alert(err.message || 'Error downloading report');
     } finally {
       setIsExporting(false);
     }
@@ -192,11 +238,11 @@ export function AdminReports() {
             <Calendar className="w-5 h-5 text-gray-400" />
           </div>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={revenueData}>
+            <LineChart data={revenueData} margin={{ top: 10, right: 10, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" stroke="#888" />
-              <YAxis stroke="#888" />
-              <Tooltip formatter={(value) => [`${settings.currency.symbol}${value}`, "Revenue"]} />
+              <YAxis stroke="#888" width={80} tickFormatter={(value) => value.toLocaleString()} />
+              <Tooltip formatter={(value) => [`${settings.currency.symbol}${Number(value).toFixed(2)}`, "Revenue"]} />
               <Line type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
@@ -214,7 +260,7 @@ export function AdminReports() {
               <Pie data={filteredServiceData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
                 {filteredServiceData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
               </Pie>
-              <Tooltip formatter={(value) => [`${settings.currency.symbol}${value}`, "Revenue"]} />
+              <Tooltip formatter={(value) => [`${settings.currency.symbol}${Number(value).toFixed(2)}`, "Revenue"]} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -292,59 +338,124 @@ export function AdminReports() {
         </div>
       </div>
       )}
-      {/* Export Email Modal to selected mail */}
+      {/* Export/Download Modal */}
       {showExportModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-6 border-b border-gray-100 bg-gray-50">
-              <div className="flex items-center gap-3 mb-2">
+            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
-                  <Mail className="w-5 h-5 text-blue-600" />
+                  <FileText className="w-5 h-5 text-blue-600" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900">Export Business Report</h3>
               </div>
-              <p className="text-sm text-gray-500">
-                Enter the recipient's email address to send the <strong>{dateRange}</strong> report.
+              <p className="text-sm text-gray-500 mt-1">
+                Select export option for the <strong>{dateRange}</strong> report.
               </p>
             </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-100 bg-gray-50/50">
+              <button
+                type="button"
+                onClick={() => setActiveTab('email')}
+                className={`flex-1 py-3 text-center text-sm font-semibold border-b-2 transition-all ${
+                  activeTab === 'email'
+                    ? 'border-blue-600 text-blue-600 bg-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Send via Email
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('download')}
+                className={`flex-1 py-3 text-center text-sm font-semibold border-b-2 transition-all ${
+                  activeTab === 'download'
+                    ? 'border-blue-600 text-blue-600 bg-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Download to Device
+              </button>
+            </div>
             
-            <form onSubmit={handleExport} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Recipient Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. manager@hoteljanro.com"
-                    value={exportEmail}
-                    onChange={(e) => setExportEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                  />
+            {activeTab === 'email' ? (
+              <form onSubmit={handleExport} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Recipient Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. manager@hoteljanro.com"
+                      value={exportEmail}
+                      onChange={(e) => setExportEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-2">
+                    * A professional HTML report will be sent immediately to this address.
+                  </p>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-2">
-                  * A professional HTML report will be sent immediately to this address.
-                </p>
-              </div>
-              
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowExportModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isExporting}
-                  className="flex-1 px-4 py-2.5 bg-[#0F172A] text-white rounded-xl font-medium hover:bg-[#1E293B] transition-all shadow-lg shadow-gray-200 disabled:opacity-70 flex items-center justify-center gap-2"
-                >
-                  {isExporting ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                  {isExporting ? 'Sending...' : 'Send Report'}
-                </button>
-              </div>
-            </form>
+                
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowExportModal(false)}
+                    className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isExporting}
+                    className="flex-1 px-4 py-2.5 bg-[#0F172A] text-white rounded-xl font-medium hover:bg-[#1E293B] transition-all shadow-lg shadow-gray-200 disabled:opacity-70 flex items-center justify-center gap-2"
+                  >
+                    {isExporting ? <Loader className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                    {isExporting ? 'Sending...' : 'Send Email'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleDownload} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Report Category</label>
+                  <select
+                    value={downloadCategory}
+                    onChange={(e) => setDownloadCategory(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all"
+                  >
+                    <option value="rooms">Room Bookings CSV</option>
+                    <option value="pool">Pool Bookings CSV</option>
+                    <option value="wedding">Wedding Bookings CSV</option>
+                    <option value="restaurant">Restaurant Orders CSV</option>
+                  </select>
+                  <p className="text-[11px] text-gray-400 mt-2">
+                    * Detailed transaction listing for {dateRange} will be downloaded as a CSV sheet.
+                  </p>
+                </div>
+                
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowExportModal(false)}
+                    className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isExporting}
+                    className="flex-1 px-4 py-2.5 bg-[#0F172A] text-white rounded-xl font-medium hover:bg-[#1E293B] transition-all shadow-lg shadow-gray-200 disabled:opacity-70 flex items-center justify-center gap-2"
+                  >
+                    {isExporting ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    {isExporting ? 'Downloading...' : 'Download CSV'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

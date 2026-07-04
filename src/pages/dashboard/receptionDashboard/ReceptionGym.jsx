@@ -22,6 +22,7 @@ import {
   X
 } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
+import { Html5Qrcode } from 'html5-qrcode';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -61,6 +62,7 @@ export function ReceptionGym() {
   const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
   const [attendanceFetchError, setAttendanceFetchError] = useState('');
   const [cameraActive, setCameraActive] = useState(true);
+  const [cameraError, setCameraError] = useState('');
 
   const [passes, setPasses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,7 +80,7 @@ export function ReceptionGym() {
   const [members, setMembers] = useState([]);
   const [isMembersLoading, setIsMembersLoading] = useState(true);
   const [membersFetchError, setMembersFetchError] = useState('');
-  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+  const scannerStateRef = useRef('idle'); // Initialize scanner state
   const [memberFormData, setMemberFormData] = useState(defaultMemberForm);
   const [isMemberSubmitting, setIsMemberSubmitting] = useState(false);
   const [memberSubmitError, setMemberSubmitError] = useState('');
@@ -89,6 +91,7 @@ export function ReceptionGym() {
   const [newMember, setNewMember] = useState(null);
 
   const scanInputRef = useRef(null);
+  const scannerRef = useRef(null);
 
   const fetchAttendance = async () => {
     try {
@@ -186,51 +189,193 @@ export function ReceptionGym() {
     }
   };
 
-  const handleScanSubmit = async (event) => {
-    if (event) event.preventDefault();
-    if (!qrInput.trim()) return;
-
+  const verifyScannedCode = async (code) => {
+    if (!code || !code.trim()) return;
     setIsVerifying(true);
     setScanResult(null);
-
     try {
       const response = await fetch(`${API_BASE}/api/gym/verify-scan`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ qrCodeKey: qrInput.trim() })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qrCodeKey: code.trim() })
       });
-
       const result = await response.json();
       const isSuccess = response.ok && result.success;
-
       playVerificationSound(isSuccess);
-
-      setScanResult({
-        success: isSuccess,
-        message: result.message || 'Verification failed.'
-      });
-
-      if (isSuccess) {
-        setAttendance((prev) => [result.attendance, ...prev]);
-        setTimeout(() => setScanResult(null), 4000);
+      setScanResult({ success: isSuccess, message: result.message || 'Verification failed.' });
+      if (isSuccess && result.attendance) {
+        setAttendance((prev) => {
+          const exists = prev.some((log) => log._id === result.attendance._id);
+          if (exists) {
+            return prev.map((log) => log._id === result.attendance._id ? result.attendance : log);
+          } else {
+            return [result.attendance, ...prev];
+          }
+        });
+        setTimeout(() => setScanResult(null), 5000);
       }
-
-      setQrInput('');
-      setTimeout(() => {
-        if (scanInputRef.current) scanInputRef.current.focus();
-      }, 50);
     } catch (error) {
       playVerificationSound(false);
-      setScanResult({
-        success: false,
-        message: error.message || 'Network connection failed.'
-      });
+      setScanResult({ success: false, message: error.message || 'Network connection failed.' });
     } finally {
       setIsVerifying(false);
     }
   };
+
+  const handleScanSubmit = async (event) => {
+    if (event) event.preventDefault();
+    if (!qrInput.trim()) return;
+    await verifyScannedCode(qrInput);
+    setQrInput('');
+    setTimeout(() => { if (scanInputRef.current) scanInputRef.current.focus(); }, 50);
+  };
+
+  // Handle Gate Camera Scanner
+  useEffect(() => {
+    let isMounted = true;
+
+    if (activeTab === 'gate' && cameraActive) {
+      const startScanner = async () => {
+        // If we are already starting or scanning, do not start again
+        if (scannerStateRef.current === 'starting' || scannerStateRef.current === 'scanning') {
+          return;
+        }
+
+        setCameraError('');
+
+        try {
+          const container = document.getElementById("gym-scanner-viewport");
+          if (!container) return;
+
+          scannerStateRef.current = 'starting';
+          const html5QrCode = new Html5Qrcode("gym-scanner-viewport");
+          scannerRef.current = html5QrCode;
+
+          let lastScannedCode = "";
+          let lastScanTime = 0;
+
+          const onScanSuccess = (qrCodeMessage) => {
+            const now = Date.now();
+            if (qrCodeMessage === lastScannedCode && (now - lastScanTime) < 5000) {
+              return; // ignore duplicates for 5 seconds
+            }
+            if (qrCodeMessage) {
+              lastScannedCode = qrCodeMessage;
+              lastScanTime = now;
+              setQrInput(qrCodeMessage);
+              verifyScannedCode(qrCodeMessage);
+            }
+          };
+
+          const config = { fps: 20 };
+
+          // Try to get available cameras to select rear/back camera
+          let cameraId = null;
+          try {
+            const devices = await Html5Qrcode.getCameras();
+            if (devices && devices.length > 0) {
+              const backCamera = devices.find(device => 
+                device.label.toLowerCase().includes('back') || 
+                device.label.toLowerCase().includes('environment') ||
+                device.label.toLowerCase().includes('rear')
+              );
+              cameraId = backCamera ? backCamera.id : devices[0].id;
+            }
+          } catch (devicesError) {
+            console.warn("Failed to get cameras, attempting fallback configuration...", devicesError);
+          }
+
+          if (isMounted) {
+            if (cameraId) {
+              await html5QrCode.start(cameraId, config, onScanSuccess, () => {});
+            } else {
+              // Fallback to default facingMode if getCameras failed or returned empty
+              try {
+                await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
+              } catch (envError) {
+                console.log("Environment camera failing, attempting user camera...", envError);
+                if (isMounted) {
+                  await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, () => {});
+                }
+              }
+            }
+
+            if (isMounted) {
+              scannerStateRef.current = 'scanning';
+            } else {
+              // Component was unmounted or state changed while starting
+              scannerStateRef.current = 'stopping';
+              if (html5QrCode.isScanning) {
+                await html5QrCode.stop();
+              }
+              scannerStateRef.current = 'idle';
+              scannerRef.current = null;
+            }
+          }
+        } catch (err) {
+          scannerStateRef.current = 'idle';
+          scannerRef.current = null;
+          console.error("Failed to start gym scanner camera:", err);
+
+          let errMsg = err.message || String(err);
+          if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            errMsg = "Camera access requires HTTPS or localhost (Secure Context). Please access the system via http://localhost:5174/ or configure HTTPS.";
+          } else if (errMsg.includes("NotAllowedError") || errMsg.includes("Permission denied")) {
+            errMsg = "Camera access was denied. Please grant camera permission in your browser's site settings.";
+          } else if (errMsg.includes("NotFoundError") || errMsg.includes("Requested device not found")) {
+            errMsg = "No camera hardware detected. Ensure a working camera is connected.";
+          } else if (errMsg.includes("NotReadableError") || errMsg.includes("Could not start video source")) {
+            errMsg = "Camera is already in use by another tab or application.";
+          }
+          setCameraError(errMsg);
+        }
+      };
+
+      const timer = setTimeout(startScanner, 250);
+
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+
+        const stopScanner = async () => {
+          const html5QrCode = scannerRef.current;
+          if (html5QrCode) {
+            scannerStateRef.current = 'stopping';
+            try {
+              if (html5QrCode.isScanning) {
+                await html5QrCode.stop();
+              }
+            } catch (err) {
+              console.error("Failed to stop scanner in cleanup:", err);
+            } finally {
+              scannerStateRef.current = 'idle';
+              scannerRef.current = null;
+            }
+          }
+        };
+        stopScanner();
+      };
+    } else {
+      setCameraError('');
+      const stopScanner = async () => {
+        const html5QrCode = scannerRef.current;
+        if (html5QrCode) {
+          scannerStateRef.current = 'stopping';
+          try {
+            if (html5QrCode.isScanning) {
+              await html5QrCode.stop();
+            }
+          } catch (err) {
+            console.error("Failed to stop scanner:", err);
+          } finally {
+            scannerStateRef.current = 'idle';
+            scannerRef.current = null;
+          }
+        }
+      };
+      stopScanner();
+    }
+  }, [activeTab, cameraActive]);
 
   const handleFormChange = (event) => {
     const { name, value } = event.target;
@@ -261,6 +406,25 @@ export function ReceptionGym() {
   const handleSubmitPass = async (event) => {
     event.preventDefault();
     setSubmitError('');
+
+    // Validate email and phone
+    if (!formData.guestPhone || !formData.guestEmail) {
+      setSubmitError('Phone number and Email are required.');
+      return;
+    }
+
+    const phoneRegex = /^(?:\+94|0)?7[0-9]{8}$/;
+    if (!phoneRegex.test(formData.guestPhone)) {
+      setSubmitError('Please enter a valid Sri Lankan mobile number (e.g. 0771234567 or +94771234567).');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.guestEmail)) {
+      setSubmitError('Please enter a valid email address.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -595,34 +759,95 @@ export function ReceptionGym() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-7 flex flex-col gap-6">
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between aspect-video group">
-                {cameraActive && <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent animate-pulse pointer-events-none" />}
+              {scanResult && (
+                <div
+                  className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-350 ${
+                    scanResult.success
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-lg shadow-emerald-500/10'
+                      : 'bg-red-50 border-red-200 text-red-800 shadow-lg shadow-red-500/10'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                        scanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                      }`}
+                    >
+                      {scanResult.success ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
+                    </div>
+                    <div className="flex-grow">
+                      <h3 className="text-base font-bold uppercase tracking-wider">{scanResult.success ? 'Access Granted' : 'Access Denied'}</h3>
+                      <p className="text-sm font-semibold mt-1 text-slate-700">{scanResult.message}</p>
+                    </div>
+                    <button
+                      onClick={() => setScanResult(null)}
+                      className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+                      type="button"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
+              {attendanceFetchError && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold flex justify-between items-center animate-in fade-in slide-in-from-top-4 duration-350">
+                  <span>{attendanceFetchError}</span>
+                  <button
+                    onClick={() => setAttendanceFetchError(null)}
+                    className="text-red-500 hover:text-red-700 transition-colors p-1"
+                    type="button"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between aspect-video group" style={{ minHeight: '320px' }}>
+                <style>{`
+                  #gym-scanner-viewport video {
+                    width: 100% !important;
+                    height: 100% !important;
+                    object-fit: cover !important;
+                    border-radius: 1.5rem !important;
+                  }
+                `}</style>
+                <div id="gym-scanner-viewport" className="absolute inset-0 w-full h-full bg-slate-950" style={{ opacity: cameraActive ? 1 : 0 }} />
+                {cameraActive && (
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent animate-pulse pointer-events-none z-10" />
+                )}
                 <div className="flex justify-between items-center z-10">
                   <span className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-white">
                     <span className={`w-2 h-2 rounded-full ${cameraActive ? 'bg-emerald-500 animate-ping' : 'bg-red-500'}`} />
-                    {cameraActive ? 'CAMERA_ACTIVE' : 'CAMERA_STANDBY'}
+                    {cameraActive ? 'CAMERA ACTIVE' : 'CAMERA STANDBY'}
                   </span>
                   <button
                     onClick={() => setCameraActive(!cameraActive)}
-                    className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl text-slate-300 transition-colors"
+                    className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl text-slate-300 transition-colors z-10"
                     title="Toggle Viewfinder"
                     type="button"
                   >
                     <Camera className="w-4 h-4" />
                   </button>
                 </div>
-
                 <div className="flex flex-col items-center justify-center py-6 flex-grow z-10">
                   {cameraActive ? (
-                    <div className="w-44 h-44 border-2 border-dashed border-[#D4AF37] rounded-3xl flex items-center justify-center relative animate-pulse">
-                      <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#D4AF37] rounded-tl" />
-                      <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#D4AF37] rounded-tr" />
-                      <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#D4AF37] rounded-bl" />
-                      <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#D4AF37] rounded-br" />
-                      <div className="w-full h-0.5 bg-[#D4AF37]/80 absolute top-1/2 left-0 shadow-lg shadow-[#D4AF37]/50" style={{ transform: 'translateY(-50%)' }} />
-                      <QrCode className="w-16 h-16 text-[#D4AF37]/45" />
-                    </div>
+                    cameraError ? (
+                      <div className="flex flex-col items-center gap-2 text-center px-6 py-4 bg-red-950/85 border border-red-500/50 rounded-2xl max-w-xs shadow-lg shadow-red-950/50">
+                        <ShieldAlert className="w-10 h-10 text-red-400 font-bold animate-bounce" />
+                        <h4 className="text-xs font-bold text-red-200 uppercase tracking-wider">Scanner Error</h4>
+                        <p className="text-[10px] font-semibold text-red-300/90 leading-relaxed">{cameraError}</p>
+                      </div>
+                    ) : (
+                      <div className="w-44 h-44 border-2 border-dashed border-[#D4AF37] rounded-3xl flex items-center justify-center relative animate-pulse">
+                        <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#D4AF37] rounded-tl" />
+                        <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#D4AF37] rounded-tr" />
+                        <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#D4AF37] rounded-bl" />
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#D4AF37] rounded-br" />
+                        <div className="w-full h-0.5 bg-[#D4AF37]/80 absolute top-1/2 left-0 shadow-lg shadow-[#D4AF37]/50" style={{ transform: 'translateY(-50%)' }} />
+                        <QrCode className="w-16 h-16 text-[#D4AF37]/45" />
+                      </div>
+                    )
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-slate-500 py-10">
                       <Play className="w-10 h-10 text-slate-600" />
@@ -630,9 +855,8 @@ export function ReceptionGym() {
                     </div>
                   )}
                 </div>
-
-                <div className="text-center z-10">
-                  <p className="text-xs font-semibold text-slate-400">Position QR Code in scanner box for automatic entry check-in</p>
+                <div className="text-center z-10 bg-black/40 backdrop-blur-sm py-2 rounded-xl">
+                  <p className="text-xs font-semibold text-slate-200">Position QR Code in scanner box for automatic entry check-in</p>
                 </div>
               </div>
 
@@ -660,34 +884,6 @@ export function ReceptionGym() {
                     {isVerifying ? 'Checking...' : <><span>Verify</span><ArrowRight className="w-4 h-4" /></>}
                   </button>
                 </form>
-
-                {scanResult && (
-                  <div
-                    className={`p-6 rounded-2xl border transition-all ${
-                      scanResult.success
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-lg shadow-emerald-500/10'
-                        : 'bg-red-50 border-red-200 text-red-800 shadow-lg shadow-red-500/10'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                          scanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
-                        }`}
-                      >
-                        {scanResult.success ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold uppercase tracking-wider">{scanResult.success ? 'Access Granted' : 'Access Denied'}</h3>
-                        <p className="text-sm font-semibold mt-1 text-slate-700">{scanResult.message}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {attendanceFetchError && (
-                  <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold">{attendanceFetchError}</div>
-                )}
               </div>
             </div>
 
@@ -716,7 +912,8 @@ export function ReceptionGym() {
                       <div className="text-right shrink-0">
                         <span className="text-xs font-bold text-slate-600 block">{log.roomNumber ? `Room ${log.roomNumber}` : 'Walk-in'}</span>
                         <span className="text-[10px] text-slate-400 mt-0.5 block">
-                          {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          In: {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {log.checkOutTime && ` | Out: ${new Date(log.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                         </span>
                       </div>
                     </div>
@@ -1061,13 +1258,13 @@ export function ReceptionGym() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-600 ml-1">Contact Phone Number</label>
+                    <label className="text-xs font-bold text-slate-700 ml-1">Contact Phone Number <span className="text-red-500">*</span></label>
                     <input type="tel" name="guestPhone" value={formData.guestPhone} onChange={handleFormChange} required placeholder="e.g. +94771234567" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800" />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-600 ml-1">Contact Email Address (Optional)</label>
-                    <input type="email" name="guestEmail" value={formData.guestEmail} onChange={handleFormChange} placeholder="e.g. guest@example.com" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800" />
+                    <label className="text-xs font-bold text-slate-700 ml-1">Contact Email Address <span className="text-red-500">*</span></label>
+                    <input type="email" name="guestEmail" value={formData.guestEmail} onChange={handleFormChange} required placeholder="e.g. guest@example.com" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800" />
                   </div>
                 </>
               ) : (
@@ -1188,7 +1385,7 @@ export function ReceptionGym() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-600 ml-1">Email Address</label>
+                    <label className="text-xs font-bold text-slate-700 ml-1">Email Address <span className="text-red-500">*</span></label>
                     <input type="email" name="email" value={memberFormData.email} onChange={handleMemberFormChange} placeholder="e.g. member@email.com" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800" />
                   </div>
                 </div>
@@ -1203,7 +1400,7 @@ export function ReceptionGym() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-600 ml-1">NIC / Passport Number</label>
+                      <label className="text-xs font-bold text-slate-700 ml-1">NIC / Passport Number <span className="text-red-500">*</span></label>
                       <input type="text" name="nic" value={memberFormData.nic} onChange={handleMemberFormChange} placeholder="e.g. 199512345678 or N123456" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800" />
                     </div>
 
@@ -1218,7 +1415,7 @@ export function ReceptionGym() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-600 ml-1">Date of Birth</label>
+                    <label className="text-xs font-bold text-slate-700 ml-1">Date of Birth <span className="text-red-500">*</span></label>
                     <input type="date" name="dob" value={memberFormData.dob} onChange={handleMemberFormChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800 text-slate-500" />
                   </div>
 
@@ -1281,10 +1478,42 @@ export function ReceptionGym() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (regStep === 1 && (!memberFormData.name || !memberFormData.phone)) {
-                          setMemberSubmitError('Name and Phone are mandatory to proceed!');
-                          return;
+                        if (regStep === 1) {
+                          if (!memberFormData.name || !memberFormData.phone || !memberFormData.email) {
+                            setMemberSubmitError('Name, Phone number, and Email address are required!');
+                            return;
+                          }
+                          const phoneRegex = /^(?:\+94|0)?7[0-9]{8}$/;
+                          if (!phoneRegex.test(memberFormData.phone)) {
+                            setMemberSubmitError('Please enter a valid Sri Lankan mobile number (e.g. 0771234567 or +94771234567).');
+                            return;
+                          }
+                          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                          if (!emailRegex.test(memberFormData.email)) {
+                            setMemberSubmitError('Please enter a valid email address.');
+                            return;
+                          }
                         }
+
+                        if (regStep === 2) {
+                          if (!memberFormData.nic || !memberFormData.dob) {
+                            setMemberSubmitError('NIC/Passport number and Date of Birth are required!');
+                            return;
+                          }
+                          const nicOrPassport = memberFormData.nic.trim();
+                          const nicRegex = /^(?:\d{9}[vVxX]|\d{12})$/;
+                          const passportRegex = /^[A-Za-z0-9]{7,12}$/;
+                          if (!nicRegex.test(nicOrPassport) && !passportRegex.test(nicOrPassport)) {
+                            setMemberSubmitError('Please enter a valid NIC (e.g. 9 digits + V/X or 12 digits) or a valid Passport number (7-12 alphanumeric characters).');
+                            return;
+                          }
+                          const birthDate = new Date(memberFormData.dob);
+                          if (isNaN(birthDate.getTime()) || birthDate > new Date()) {
+                            setMemberSubmitError('Date of Birth cannot be in the future.');
+                            return;
+                          }
+                        }
+
                         setMemberSubmitError('');
                         setRegStep((prev) => prev + 1);
                       }}
