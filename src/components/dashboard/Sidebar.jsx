@@ -33,7 +33,7 @@ const adminItems = [
   { label: "Pool", icon: Waves, path: "/admin/pool" },
   { label: "Gym", icon: Dumbbell, path: "/admin/gym" },
   { label: "Inventory", icon: Boxes, path: "/admin/inventory" },
-  { label: "Users & Staff", icon: Users, path: "/admin/staff" },
+  { label: "Staff", icon: Users, path: "/admin/staff" },
   { label: "Reports", icon: BarChart3, path: "/admin/reports" },
   { label: "Payments", icon: CreditCard, path: "/admin/payments" },
   { label: "Settings", icon: Settings, path: "/admin/settings" },
@@ -87,10 +87,9 @@ export function Sidebar({ user, onLogout }) {
               to={item.path}
               end={item.path === "/admin" || item.path === "/my-bookings"}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-[#D4AF37]/20 text-[#F5E7B2] border border-[#D4AF37]/40"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
+                  ? "bg-[#D4AF37]/20 text-[#F5E7B2] border border-[#D4AF37]/40"
+                  : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`
               }
             >
@@ -108,10 +107,10 @@ export function Sidebar({ user, onLogout }) {
             <div className="w-10 h-10 bg-[#D4AF37] rounded-full flex items-center justify-center text-sm font-bold text-[#0F172A]">
               {user?.name
                 ? user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
                 : "JA"}
             </div>
             <div className="flex-1 min-w-0">

@@ -33,10 +33,10 @@ const defaultMemberForm = {
 
 export function AdminGym() {
   const { settings } = useSettings();
-  
+
   // Navigation tab
   const [activeTab, setActiveTab] = useState('passes'); // 'passes', 'members', or 'gate'
-  
+
   // State for Passes
   const [passes, setPasses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -257,8 +257,8 @@ export function AdminGym() {
           try {
             const devices = await Html5Qrcode.getCameras();
             if (devices && devices.length > 0) {
-              const backCamera = devices.find(device => 
-                device.label.toLowerCase().includes('back') || 
+              const backCamera = devices.find(device =>
+                device.label.toLowerCase().includes('back') ||
                 device.label.toLowerCase().includes('environment') ||
                 device.label.toLowerCase().includes('rear')
               );
@@ -270,15 +270,15 @@ export function AdminGym() {
 
           if (isMounted) {
             if (cameraId) {
-              await html5QrCode.start(cameraId, config, onScanSuccess, () => {});
+              await html5QrCode.start(cameraId, config, onScanSuccess, () => { });
             } else {
               // Fallback to default facingMode if getCameras failed or returned empty
               try {
-                await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
+                await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => { });
               } catch (envError) {
                 console.log("Environment camera failing, attempting user camera...", envError);
                 if (isMounted) {
-                  await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, () => {});
+                  await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, () => { });
                 }
               }
             }
@@ -638,10 +638,10 @@ export function AdminGym() {
             Issue passes, register recurring members, and track daily gate check-ins
           </p>
         </div>
-        
+
         {/* Dual Actions based on active tab */}
         <div className="flex gap-3">
-          <button 
+          <button
             className="flex items-center gap-2 px-5 py-3 bg-white/10 hover:bg-white/20 border border-white/15 text-white rounded-xl font-medium transition-all transform hover:-translate-y-0.5 whitespace-nowrap"
             onClick={() => {
               setEditMemberId(null);
@@ -654,8 +654,8 @@ export function AdminGym() {
             <UserPlus className="w-5 h-5 text-[#D4AF37]" />
             Register Member
           </button>
-          
-          <button 
+
+          <button
             className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-slate-900 rounded-xl font-bold transition-all transform hover:-translate-y-0.5 shadow-lg shadow-[#D4AF37]/20 whitespace-nowrap"
             onClick={() => {
               setEditId(null);
@@ -674,23 +674,21 @@ export function AdminGym() {
       <div className="flex border-b border-slate-200 gap-6">
         <button
           onClick={() => setActiveTab('passes')}
-          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === 'passes' 
-              ? 'border-[#0F172A] text-[#0F172A]' 
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'passes'
+              ? 'border-[#0F172A] text-[#0F172A]'
               : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
+            }`}
         >
           <Dumbbell className="w-5 h-5" />
           Passes & Bookings ({passes.length})
         </button>
-        
+
         <button
           onClick={() => setActiveTab('members')}
-          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === 'members' 
-              ? 'border-[#0F172A] text-[#0F172A]' 
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'members'
+              ? 'border-[#0F172A] text-[#0F172A]'
               : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
+            }`}
         >
           <Users className="w-5 h-5" />
           Gym Members Registry ({members.length})
@@ -698,11 +696,10 @@ export function AdminGym() {
 
         <button
           onClick={() => setActiveTab('gate')}
-          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === 'gate' 
-              ? 'border-emerald-500 text-emerald-700' 
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'gate'
+              ? 'border-emerald-500 text-emerald-700'
               : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
+            }`}
         >
           <QrCode className="w-5 h-5" />
           Entrance Gate
@@ -772,17 +769,17 @@ export function AdminGym() {
             <div className="border-b border-slate-100 p-6 flex flex-col gap-4 lg:flex-row lg:items-center">
               <div className="relative flex-1">
                 <Search className="absolute top-1/2 left-3 w-5 h-5 text-slate-400 -translate-y-1/2" />
-                <input 
-                  type="text" 
-                  placeholder="Search by guest name, pass ID, or room number..." 
-                  value={searchTerm} 
-                  onChange={(e) => setSearchTerm(e.target.value)} 
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm" 
+                <input
+                  type="text"
+                  placeholder="Search by guest name, pass ID, or room number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm"
                 />
               </div>
-              <select 
-                value={filterType} 
-                onChange={(e) => setFilterType(e.target.value)} 
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
                 className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-600"
               >
                 <option value="All">All Pass Types</option>
@@ -814,9 +811,8 @@ export function AdminGym() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-800">{pass.guestName}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">{pass.guestPhone}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          pass.passType === 'Day Pass' ? 'bg-amber-50 text-amber-700' : 'bg-indigo-50 text-indigo-700'
-                        }`}>
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${pass.passType === 'Day Pass' ? 'bg-amber-50 text-amber-700' : 'bg-indigo-50 text-indigo-700'
+                          }`}>
                           {pass.passType}
                         </span>
                       </td>
@@ -825,15 +821,14 @@ export function AdminGym() {
                         {new Date(pass.validDate).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          pass.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${pass.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                          }`}>
                           {pass.status === 'Active' ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                           {pass.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <button 
+                        <button
                           onClick={() => {
                             setNewPass(pass);
                             setIsQrModalOpen(true);
@@ -844,15 +839,15 @@ export function AdminGym() {
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm flex justify-end gap-1.5">
-                        <button 
-                          onClick={() => handleEditClick(pass)} 
+                        <button
+                          onClick={() => handleEditClick(pass)}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
                           title="Edit Pass"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDeletePass(pass._id)} 
+                        <button
+                          onClick={() => handleDeletePass(pass._id)}
                           className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
                           title="Delete Pass"
                         >
@@ -877,7 +872,7 @@ export function AdminGym() {
       {/* RENDER MEMBERS REGISTRY TAB */}
       {activeTab === 'members' && (
         <div className="space-y-6">
-          
+
           {/* Members Stats */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
@@ -925,12 +920,12 @@ export function AdminGym() {
             <div className="border-b border-slate-100 p-6">
               <div className="relative">
                 <Search className="absolute top-1/2 left-3 w-5 h-5 text-slate-400 -translate-y-1/2" />
-                <input 
-                  type="text" 
-                  placeholder="Search members by name, phone, or Member ID..." 
-                  value={memberSearchTerm} 
-                  onChange={(e) => setMemberSearchTerm(e.target.value)} 
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm" 
+                <input
+                  type="text"
+                  placeholder="Search members by name, phone, or Member ID..."
+                  value={memberSearchTerm}
+                  onChange={(e) => setMemberSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm"
                 />
               </div>
             </div>
@@ -977,23 +972,22 @@ export function AdminGym() {
                         {new Date(member.joinedDate).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          member.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${member.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                          }`}>
                           {member.status === 'Active' ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                           {member.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm flex justify-end gap-1.5">
-                        <button 
-                          onClick={() => handleEditMemberClick(member)} 
+                        <button
+                          onClick={() => handleEditMemberClick(member)}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
                           title="Edit Profile"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDeleteMember(member._id)} 
+                        <button
+                          onClick={() => handleDeleteMember(member._id)}
                           className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
                           title="Delete Member"
                         >
@@ -1055,15 +1049,13 @@ export function AdminGym() {
             {/* Scanner Console */}
             <div className="lg:col-span-7 flex flex-col gap-6">
               {scanResult && (
-                <div className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-350 ${
-                  scanResult.success
+                <div className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-350 ${scanResult.success
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-lg shadow-emerald-500/10'
                     : 'bg-red-50 border-red-200 text-red-800 shadow-lg shadow-red-500/10'
-                }`}>
+                  }`}>
                   <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                      scanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
-                    }`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${scanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                      }`}>
                       {scanResult.success ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
                     </div>
                     <div className="flex-grow">
@@ -1234,24 +1226,24 @@ export function AdminGym() {
                 <h2 className="text-2xl" style={{ fontFamily: "DM Serif Display, serif" }}>{editId ? 'Edit Gym Pass' : 'Issue Gym Pass'}</h2>
                 <p className="text-[#D4AF37] text-xs uppercase tracking-widest mt-1">{editId ? 'Modify Details' : 'Gym Management'}</p>
               </div>
-              <button 
-                type="button" 
-                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white" 
+              <button
+                type="button"
+                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white"
                 onClick={() => setIsModalOpen(false)}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form 
+            <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (formData.passType === 'Monthly Member' && !formData.guestName) {
-                  setSubmitError('A registered gym member is required to issue a Monthly Membership pass!');
-                  return;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
                 }
-                handleSubmitPass(e);
-              }} 
+              }}
               className="p-8 overflow-y-auto space-y-5"
             >
               {submitError && (
@@ -1262,9 +1254,9 @@ export function AdminGym() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-600 ml-1">Pass / Membership Type</label>
-                <select 
-                  name="passType" 
-                  value={formData.passType} 
+                <select
+                  name="passType"
+                  value={formData.passType}
                   onChange={(e) => {
                     handleFormChange(e);
                     // Clear autofills on switch
@@ -1276,7 +1268,7 @@ export function AdminGym() {
                       guestEmail: '',
                       validDays: e.target.value === 'Day Pass' ? '1' : '30'
                     }));
-                  }} 
+                  }}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                 >
                   <option value="Day Pass">One-Day Gym Pass (Rs. 1,000)</option>
@@ -1288,7 +1280,7 @@ export function AdminGym() {
               {!editId && formData.passType === 'Monthly Member' && (
                 <div className="flex flex-col gap-1.5 bg-amber-500/5 border border-amber-500/10 p-4 rounded-xl">
                   <label className="text-xs font-bold text-slate-700 ml-1">Select Registered Active Member <span className="text-red-500">*</span></label>
-                  <select 
+                  <select
                     onChange={handleMemberSelectChange}
                     required
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
@@ -1298,7 +1290,7 @@ export function AdminGym() {
                       <option key={m._id} value={m._id}>{m.name} ({m.phone})</option>
                     ))}
                   </select>
-                  
+
                   {formData.guestName && (
                     <div className="mt-3 p-3 bg-white border border-slate-100 rounded-xl text-xs space-y-1">
                       <div>👤 <span className="font-bold text-slate-700">Selected:</span> {formData.guestName}</div>
@@ -1315,39 +1307,39 @@ export function AdminGym() {
                 <>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-600 ml-1">Guest Full Name</label>
-                    <input 
-                      type="text" 
-                      name="guestName" 
-                      value={formData.guestName} 
-                      onChange={handleFormChange} 
-                      required 
-                      placeholder="Enter guest's full name (no registration required)" 
+                    <input
+                      type="text"
+                      name="guestName"
+                      value={formData.guestName}
+                      onChange={handleFormChange}
+                      required
+                      placeholder="Enter guest's full name (no registration required)"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">Contact Phone Number <span className="text-red-500">*</span></label>
-                    <input 
-                      type="tel" 
-                      name="guestPhone" 
-                      value={formData.guestPhone} 
-                      onChange={handleFormChange} 
-                      required 
-                      placeholder="e.g. +94771234567" 
+                    <input
+                      type="tel"
+                      name="guestPhone"
+                      value={formData.guestPhone}
+                      onChange={handleFormChange}
+                      required
+                      placeholder="e.g. +94771234567"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">Contact Email Address <span className="text-red-500">*</span></label>
-                    <input 
-                      type="email" 
-                      name="guestEmail" 
-                      value={formData.guestEmail} 
-                      onChange={handleFormChange} 
+                    <input
+                      type="email"
+                      name="guestEmail"
+                      value={formData.guestEmail}
+                      onChange={handleFormChange}
                       required
-                      placeholder="e.g. guest@example.com" 
+                      placeholder="e.g. guest@example.com"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
@@ -1365,25 +1357,25 @@ export function AdminGym() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-600 ml-1">Room Number (Optional)</label>
-                  <input 
-                    type="text" 
-                    name="roomNumber" 
-                    value={formData.roomNumber} 
-                    onChange={handleFormChange} 
-                    placeholder="e.g. 102" 
+                  <input
+                    type="text"
+                    name="roomNumber"
+                    value={formData.roomNumber}
+                    onChange={handleFormChange}
+                    placeholder="e.g. 102"
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-600 ml-1">{editId ? 'Extend Validity (Days)' : 'Validity (Days)'}</label>
-                  <input 
-                    type="number" 
-                    name="validDays" 
-                    value={formData.validDays} 
-                    onChange={handleFormChange} 
-                    min="0" 
-                    required 
+                  <input
+                    type="number"
+                    name="validDays"
+                    value={formData.validDays}
+                    onChange={handleFormChange}
+                    min="0"
+                    required
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                   />
                 </div>
@@ -1391,10 +1383,10 @@ export function AdminGym() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-600 ml-1">Payment Status</label>
-                <select 
-                  name="paymentStatus" 
-                  value={formData.paymentStatus} 
-                  onChange={handleFormChange} 
+                <select
+                  name="paymentStatus"
+                  value={formData.paymentStatus}
+                  onChange={handleFormChange}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                 >
                   <option value="Paid">Paid / Confirmed</option>
@@ -1405,30 +1397,37 @@ export function AdminGym() {
               {editId && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-600 ml-1">Activation Status</label>
-                  <select 
-                    name="status" 
-                    value={formData.status} 
-                    onChange={handleFormChange} 
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleFormChange}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                   >
                     <option value="Active">Active</option>
                     <option value="Expired">Expired</option>
-                    <option value="Cancelled">Cancelled</option>
+
                   </select>
                 </div>
               )}
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)} 
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
                   className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="button"
                   disabled={isSubmitting}
+                  onClick={(e) => {
+                    if (formData.passType === 'Monthly Member' && !formData.guestName) {
+                      setSubmitError('A registered gym member is required to issue a Monthly Membership pass!');
+                      return;
+                    }
+                    handleSubmitPass(e);
+                  }}
                   className="px-8 py-2.5 bg-[#D4AF37] hover:bg-[#b8962d] text-slate-900 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 shadow-md shadow-[#D4AF37]/20"
                 >
                   {isSubmitting ? 'Submitting...' : editId ? 'Save Changes' : 'Issue Pass'}
@@ -1449,9 +1448,9 @@ export function AdminGym() {
                 <h2 className="text-2xl" style={{ fontFamily: "DM Serif Display, serif" }}>{editMemberId ? 'Edit Gym Member' : 'Register Gym Member'}</h2>
                 <p className="text-[#D4AF37] text-xs uppercase tracking-widest mt-1">{editMemberId ? 'Modify Member Profile' : 'Gym Registry'}</p>
               </div>
-              <button 
-                type="button" 
-                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white" 
+              <button
+                type="button"
+                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white"
                 onClick={() => setIsMemberModalOpen(false)}
               >
                 <X className="w-5 h-5" />
@@ -1463,18 +1462,16 @@ export function AdminGym() {
               {[1, 2, 3].map((s) => (
                 <React.Fragment key={s}>
                   <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
-                      regStep === s 
-                        ? 'bg-[#0F172A] text-[#D4AF37] ring-4 ring-[#D4AF37]/20 shadow-md' 
-                        : regStep > s 
-                        ? 'bg-emerald-500 text-white shadow-sm' 
-                        : 'bg-slate-200 text-slate-500'
-                    }`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${regStep === s
+                        ? 'bg-[#0F172A] text-[#D4AF37] ring-4 ring-[#D4AF37]/20 shadow-md'
+                        : regStep > s
+                          ? 'bg-emerald-500 text-white shadow-sm'
+                          : 'bg-slate-200 text-slate-500'
+                      }`}>
                       {regStep > s ? <Check className="w-4 h-4" /> : s}
                     </div>
-                    <span className={`text-xs font-bold ${
-                      regStep === s ? 'text-slate-800' : 'text-slate-400'
-                    }`}>
+                    <span className={`text-xs font-bold ${regStep === s ? 'text-slate-800' : 'text-slate-400'
+                      }`}>
                       {s === 1 ? 'Contact Info' : s === 2 ? 'Identity & Address' : 'Health & Emergency'}
                     </span>
                   </div>
@@ -1483,12 +1480,9 @@ export function AdminGym() {
               ))}
             </div>
 
-            <form 
+            <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (regStep === 3) {
-                  handleMemberSubmit(e);
-                }
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -1510,41 +1504,41 @@ export function AdminGym() {
                     <h3 className="text-sm font-bold text-slate-800">Step 1: Contact details</h3>
                     <p className="text-xs text-slate-500 mt-0.5">Please provide the member's full name and mobile phone numbers to create their communication logs.</p>
                   </div>
-                  
+
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">Member Full Name <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
-                      name="name" 
-                      value={memberFormData.name} 
-                      onChange={handleMemberFormChange} 
-                      required 
-                      placeholder="Enter full name" 
+                    <input
+                      type="text"
+                      name="name"
+                      value={memberFormData.name}
+                      onChange={handleMemberFormChange}
+                      required
+                      placeholder="Enter full name"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">Phone Number <span className="text-red-500">*</span></label>
-                    <input 
-                      type="tel" 
-                      name="phone" 
-                      value={memberFormData.phone} 
-                      onChange={handleMemberFormChange} 
-                      required 
-                      placeholder="e.g. +94771234567" 
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={memberFormData.phone}
+                      onChange={handleMemberFormChange}
+                      required
+                      placeholder="e.g. +94771234567"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">Email Address <span className="text-red-500">*</span></label>
-                    <input 
-                      type="email" 
-                      name="email" 
-                      value={memberFormData.email} 
-                      onChange={handleMemberFormChange} 
-                      placeholder="e.g. member@email.com" 
+                    <input
+                      type="email"
+                      name="email"
+                      value={memberFormData.email}
+                      onChange={handleMemberFormChange}
+                      placeholder="e.g. member@email.com"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
@@ -1562,22 +1556,22 @@ export function AdminGym() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-slate-700 ml-1">NIC / Passport Number <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" 
-                        name="nic" 
-                        value={memberFormData.nic} 
-                        onChange={handleMemberFormChange} 
-                        placeholder="e.g. 199512345678 or N123456" 
+                      <input
+                        type="text"
+                        name="nic"
+                        value={memberFormData.nic}
+                        onChange={handleMemberFormChange}
+                        placeholder="e.g. 199512345678 or N123456"
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-600 ml-1">Gender</label>
-                      <select 
-                        name="gender" 
-                        value={memberFormData.gender} 
-                        onChange={handleMemberFormChange} 
+                      <select
+                        name="gender"
+                        value={memberFormData.gender}
+                        onChange={handleMemberFormChange}
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                       >
                         <option value="Male">Male</option>
@@ -1589,23 +1583,23 @@ export function AdminGym() {
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">Date of Birth <span className="text-red-500">*</span></label>
-                    <input 
-                      type="date" 
-                      name="dob" 
-                      value={memberFormData.dob} 
-                      onChange={handleMemberFormChange} 
+                    <input
+                      type="date"
+                      name="dob"
+                      value={memberFormData.dob}
+                      onChange={handleMemberFormChange}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800 text-slate-500"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-600 ml-1">Home Address</label>
-                    <input 
-                      type="text" 
-                      name="address" 
-                      value={memberFormData.address} 
-                      onChange={handleMemberFormChange} 
-                      placeholder="Enter residential address" 
+                    <input
+                      type="text"
+                      name="address"
+                      value={memberFormData.address}
+                      onChange={handleMemberFormChange}
+                      placeholder="Enter residential address"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
@@ -1623,24 +1617,24 @@ export function AdminGym() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-amber-500/5 p-4 rounded-xl border border-amber-500/10">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-amber-950 ml-1">Emergency Contact Name</label>
-                      <input 
-                        type="text" 
-                        name="emergencyName" 
-                        value={memberFormData.emergencyName} 
-                        onChange={handleMemberFormChange} 
-                        placeholder="Person name" 
+                      <input
+                        type="text"
+                        name="emergencyName"
+                        value={memberFormData.emergencyName}
+                        onChange={handleMemberFormChange}
+                        placeholder="Person name"
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-amber-950 ml-1">Emergency Phone</label>
-                      <input 
-                        type="tel" 
-                        name="emergencyPhone" 
-                        value={memberFormData.emergencyPhone} 
-                        onChange={handleMemberFormChange} 
-                        placeholder="Contact number" 
+                      <input
+                        type="tel"
+                        name="emergencyPhone"
+                        value={memberFormData.emergencyPhone}
+                        onChange={handleMemberFormChange}
+                        placeholder="Contact number"
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                       />
                     </div>
@@ -1648,22 +1642,22 @@ export function AdminGym() {
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-600 ml-1">Medical/Health Notes</label>
-                    <input 
-                      type="text" 
-                      name="medicalNotes" 
-                      value={memberFormData.medicalNotes} 
-                      onChange={handleMemberFormChange} 
-                      placeholder="e.g. cardiac conditions, allergies, bone issues..." 
+                    <input
+                      type="text"
+                      name="medicalNotes"
+                      value={memberFormData.medicalNotes}
+                      onChange={handleMemberFormChange}
+                      placeholder="e.g. cardiac conditions, allergies, bone issues..."
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-600 ml-1">Membership Status</label>
-                    <select 
-                      name="status" 
-                      value={memberFormData.status} 
-                      onChange={handleMemberFormChange} 
+                    <select
+                      name="status"
+                      value={memberFormData.status}
+                      onChange={handleMemberFormChange}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     >
                       <option value="Active">Active / Registered</option>
@@ -1677,9 +1671,9 @@ export function AdminGym() {
               <div className="flex justify-between items-center pt-6 border-t border-slate-100 mt-6">
                 <div>
                   {regStep > 1 && (
-                    <button 
-                      type="button" 
-                      onClick={() => setRegStep(prev => prev - 1)} 
+                    <button
+                      type="button"
+                      onClick={() => setRegStep(prev => prev - 1)}
                       className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition-colors"
                     >
                       Back
@@ -1688,17 +1682,17 @@ export function AdminGym() {
                 </div>
 
                 <div className="flex gap-3">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsMemberModalOpen(false)} 
+                  <button
+                    type="button"
+                    onClick={() => setIsMemberModalOpen(false)}
                     className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition-colors"
                   >
                     Cancel
                   </button>
 
                   {regStep < 3 ? (
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => {
                         if (regStep === 1) {
                           if (!memberFormData.name || !memberFormData.phone || !memberFormData.email) {
@@ -1744,9 +1738,10 @@ export function AdminGym() {
                       Next Step
                     </button>
                   ) : (
-                    <button 
-                      type="submit" 
+                    <button
+                      type="button"
                       disabled={isMemberSubmitting}
+                      onClick={(e) => handleMemberSubmit(e)}
                       className="px-8 py-2.5 bg-[#D4AF37] hover:bg-[#b8962d] text-slate-900 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 shadow-md shadow-[#D4AF37]/20"
                     >
                       {isMemberSubmitting ? 'Registering...' : editMemberId ? 'Save Changes' : 'Complete Registration'}
@@ -1769,9 +1764,9 @@ export function AdminGym() {
                 <h2 className="text-xl" style={{ fontFamily: "DM Serif Display, serif" }}>Pass QR Generated</h2>
                 <p className="text-[#D4AF37] text-xs uppercase tracking-widest mt-1">Ready for Entrance Scan</p>
               </div>
-              <button 
-                type="button" 
-                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white" 
+              <button
+                type="button"
+                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white"
                 onClick={() => setIsQrModalOpen(false)}
               >
                 <X className="w-5 h-5" />
@@ -1780,9 +1775,9 @@ export function AdminGym() {
 
             <div className="p-8 flex flex-col items-center text-center space-y-6">
               <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 shadow-inner flex justify-center items-center">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${newPass.qrCodeKey}`} 
-                  alt="Guest Gym Pass QR Code" 
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${newPass.qrCodeKey}`}
+                  alt="Guest Gym Pass QR Code"
                   className="w-48 h-48 block"
                 />
               </div>
@@ -1800,7 +1795,7 @@ export function AdminGym() {
                 <div>📅 <span className="font-bold text-slate-700">Expires:</span> {new Date(newPass.validDate).toLocaleString()}</div>
               </div>
 
-              <button 
+              <button
                 onClick={() => window.print()}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#0F172A] hover:bg-slate-800 text-white rounded-xl font-bold text-sm transition-colors shadow-lg"
               >
