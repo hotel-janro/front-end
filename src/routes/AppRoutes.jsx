@@ -37,6 +37,7 @@ import { ReceptionGym } from "../pages/dashboard/receptionDashboard/ReceptionGym
 import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
 import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionRooms.jsx";
 import { ReceptionWedding } from "../pages/dashboard/receptionDashboard/ReceptionWedding.jsx";
+import { ReceptionProfile } from "../pages/dashboard/receptionDashboard/ReceptionProfile.jsx";
 import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
 import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
 import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
@@ -47,12 +48,13 @@ import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
 
-export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onGoogleLogin }) {
+export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onGoogleLogin, onUpdateUser }) {
   const navigate = useNavigate();
-  const isAdmin = user?.role === "admin";
-  const isReception = user?.role === "reception" || user?.role === "receptionist";
-  const isCashier = user?.role === "cashier";
-  const isCustomer = user?.role === "customer";
+  const roleLower = user?.role?.toLowerCase().trim();
+  const isAdmin = roleLower === "admin";
+  const isReception = roleLower === "reception" || roleLower === "receptionist";
+  const isCashier = roleLower === "cashier";
+  const isCustomer = roleLower === "customer";
 
   const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : isCashier ? "/cashier" : "/";
 
@@ -159,7 +161,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
       {/* Reception & Cashier */}
       <Route
         path="/reception"
-        element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
+        element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<ReceptionDashboard />} />
         <Route path="rooms" element={<ReceptionRooms isLoggedIn={isLoggedIn} onBook={protectedBook} />} />
@@ -167,6 +169,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
         <Route path="bookings" element={<ReceptionBookings />} />
         <Route path="pool" element={<ReceptionPool />} />
         <Route path="gym" element={<ReceptionGym />} />
+        <Route path="profile" element={<ReceptionProfile />} />
       </Route>
 
       <Route

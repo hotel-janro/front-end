@@ -80,6 +80,7 @@ export function ReceptionGym() {
   const [members, setMembers] = useState([]);
   const [isMembersLoading, setIsMembersLoading] = useState(true);
   const [membersFetchError, setMembersFetchError] = useState('');
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const scannerStateRef = useRef('idle'); // Initialize scanner state
   const [memberFormData, setMemberFormData] = useState(defaultMemberForm);
   const [isMemberSubmitting, setIsMemberSubmitting] = useState(false);

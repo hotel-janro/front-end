@@ -121,12 +121,13 @@ function AppInner() {
 
             setUser(nextUser);
             setIsLoggedIn(true);
+            const roleLower = nextUser.role?.toLowerCase().trim();
             navigate(
-                nextUser.role === "admin"
+                roleLower === "admin"
                     ? "/admin"
-                    : (nextUser.role === "reception" || nextUser.role === "receptionist")
+                    : (roleLower === "reception" || roleLower === "receptionist")
                     ? "/reception"
-                    : nextUser.role === "cashier"
+                    : roleLower === "cashier"
                     ? "/cashier"
                     : "/"
             );
@@ -161,12 +162,13 @@ function AppInner() {
                 localStorage.setItem("janro_user", JSON.stringify(nextUser));
                 setUser(nextUser);
                 setIsLoggedIn(true);
+                const roleLower = nextUser.role?.toLowerCase().trim();
                 navigate(
-                    nextUser.role === "admin"
+                    roleLower === "admin"
                         ? "/admin"
-                        : (nextUser.role === "reception" || nextUser.role === "receptionist")
+                        : (roleLower === "reception" || roleLower === "receptionist")
                         ? "/reception"
-                        : nextUser.role === "cashier"
+                        : roleLower === "cashier"
                         ? "/cashier"
                         : "/"
                 );
@@ -199,12 +201,13 @@ function AppInner() {
 
             setUser(nextUser);
             setIsLoggedIn(true);
+            const roleLower = nextUser.role?.toLowerCase().trim();
             navigate(
-                nextUser.role === "admin"
+                roleLower === "admin"
                     ? "/admin"
-                    : (nextUser.role === "reception" || nextUser.role === "receptionist")
+                    : (roleLower === "reception" || roleLower === "receptionist")
                     ? "/reception"
-                    : nextUser.role === "cashier"
+                    : roleLower === "cashier"
                     ? "/cashier"
                     : "/"
             );
@@ -221,6 +224,11 @@ function AppInner() {
         localStorage.removeItem("janro_user");
         navigate("/");
     };
+    const handleUpdateUser = (updatedUser) => {
+        setUser(updatedUser);
+        localStorage.setItem("janro_user", JSON.stringify(updatedUser));
+    };
+
     const location = useLocation();
     
     // Check if current route is a management dashboard
@@ -232,7 +240,7 @@ function AppInner() {
         <div className="min-h-screen flex flex-col" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
             {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout} authChecked={authChecked}/>}
             <main className="flex-1">
-                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout} onGoogleLogin={handleGoogleLogin}/>
+                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout} onGoogleLogin={handleGoogleLogin} onUpdateUser={handleUpdateUser}/>
             </main>
             {!isDashboardRoute && <Footer />}
         </div>

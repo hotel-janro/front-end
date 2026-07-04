@@ -218,6 +218,16 @@ export function AdminSettings() {
       return;
     }
 
+    if (passwordData.newPassword === passwordData.currentPassword) {
+      setMessage({ type: 'error', text: 'New password cannot be the same as your current password' });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'New password must be at least 6 characters long' });
+      return;
+    }
+
     setIsSaving(true);
     setMessage({ type: '', text: '' });
     try {
