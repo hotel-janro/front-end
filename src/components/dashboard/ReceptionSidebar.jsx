@@ -7,10 +7,10 @@ import {
   Bed,
   Heart,
   Waves,
-  Users2,
   LogOut,
   Crown,
-  Dumbbell
+  Dumbbell,
+  User
 } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext";
 
@@ -22,7 +22,7 @@ const navItems = [
   { label: "Wedding Events", icon: Heart, path: "/reception/wedding" },
   { label: "Pool Access", icon: Waves, path: "/reception/pool" },
   { label: "Gym Entrance", icon: Dumbbell, path: "/reception/gym" },
-  { label: "Customers", icon: Users2, path: "/reception/customers" },
+  { label: "Profile", icon: User, path: "/reception/profile" },
 ];
 
 export function ReceptionSidebar({ user, onLogout }) {
