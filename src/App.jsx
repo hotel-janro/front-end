@@ -139,6 +139,10 @@ function AppInner() {
         try {
             const result = await parseApiError(response, "Login failed");
 
+            if (result.twoFactorRequired) {
+                return result; // returns { success: true, twoFactorRequired: true, userId: ... }
+            }
+
             const { token, refreshToken, ...apiUserData } = result.data;
 
             const nextUser = normalizeUser(apiUserData);
@@ -150,12 +154,52 @@ function AppInner() {
 
             setUser(nextUser);
             setIsLoggedIn(true);
+            const roleLower = nextUser.role?.toLowerCase().trim();
             navigate(
-                nextUser.role === "admin"
+                roleLower === "admin"
                     ? "/admin"
-                    : (nextUser.role === "reception" || nextUser.role === "receptionist")
+                    : (roleLower === "reception" || roleLower === "receptionist")
                     ? "/reception"
-                    : nextUser.role === "cashier"
+                    : roleLower === "cashier"
+                    ? "/cashier"
+                    : "/"
+            );
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    const handleVerifyLogin2FA = async (userId, code) => {
+        const response = await fetch(`${API_BASE}/api/auth/login-2fa`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ userId, code })
+        });
+
+        try {
+            const result = await parseApiError(response, "2FA Verification failed");
+
+            const { token, refreshToken, ...apiUserData } = result.data;
+
+            const nextUser = normalizeUser(apiUserData);
+
+            localStorage.setItem("janro_token", token);
+            localStorage.setItem("janro_refresh_token", refreshToken);
+
+            localStorage.setItem("janro_user", JSON.stringify(nextUser));
+
+            setUser(nextUser);
+            setIsLoggedIn(true);
+            const roleLower = nextUser.role?.toLowerCase().trim();
+            navigate(
+                roleLower === "admin"
+                    ? "/admin"
+                    : (roleLower === "reception" || roleLower === "receptionist")
+                    ? "/reception"
+                    : roleLower === "cashier"
                     ? "/cashier"
                     : "/"
             );
@@ -190,12 +234,13 @@ function AppInner() {
                 localStorage.setItem("janro_user", JSON.stringify(nextUser));
                 setUser(nextUser);
                 setIsLoggedIn(true);
+                const roleLower = nextUser.role?.toLowerCase().trim();
                 navigate(
-                    nextUser.role === "admin"
+                    roleLower === "admin"
                         ? "/admin"
-                        : (nextUser.role === "reception" || nextUser.role === "receptionist")
+                        : (roleLower === "reception" || roleLower === "receptionist")
                         ? "/reception"
-                        : nextUser.role === "cashier"
+                        : roleLower === "cashier"
                         ? "/cashier"
                         : "/"
                 );
@@ -228,12 +273,13 @@ function AppInner() {
 
             setUser(nextUser);
             setIsLoggedIn(true);
+            const roleLower = nextUser.role?.toLowerCase().trim();
             navigate(
-                nextUser.role === "admin"
+                roleLower === "admin"
                     ? "/admin"
-                    : (nextUser.role === "reception" || nextUser.role === "receptionist")
+                    : (roleLower === "reception" || roleLower === "receptionist")
                     ? "/reception"
-                    : nextUser.role === "cashier"
+                    : roleLower === "cashier"
                     ? "/cashier"
                     : "/"
             );
@@ -250,6 +296,11 @@ function AppInner() {
         localStorage.removeItem("janro_user");
         navigate("/");
     };
+    const handleUpdateUser = (updatedUser) => {
+        setUser(updatedUser);
+        localStorage.setItem("janro_user", JSON.stringify(updatedUser));
+    };
+
     const location = useLocation();
     
     // Check if current route is a management dashboard
@@ -262,7 +313,7 @@ function AppInner() {
             <Toaster position="top-right" richColors />
             {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout} authChecked={authChecked}/>}
             <main className="flex-1">
-                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout} onGoogleLogin={handleGoogleLogin}/>
+                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onVerify2FA={handleVerifyLogin2FA} onRegister={handleRegister} onLogout={handleLogout} onGoogleLogin={handleGoogleLogin} onUpdateUser={handleUpdateUser}/>
             </main>
             {!isDashboardRoute && <Footer />}
         </div>

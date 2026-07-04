@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Users as UsersIcon, Briefcase, DollarSign, X, Eye, EyeOff } from 'lucide-react';
+import { Search, UserPlus, Users as UsersIcon, Briefcase, DollarSign, X, Eye, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 import { apiFetch } from '../../../api';
 import './AdminStaff.css';
@@ -64,7 +64,7 @@ export function AdminStaff() {
         // Filter to show only staff/non-customer users
         const staffRoles = ['staff', 'manager', 'receptionist', 'chef', 'waiter', 'housekeeping', 'security', 'maintenance', 'cashier'];
         const filteredStaff = data.data.filter((u) => staffRoles.includes(u.role?.toLowerCase()));
-        
+
         // Map API data to match frontend format with id field
         const formattedStaff = filteredStaff.map((u, idx) => ({
           id: String(idx + 1).padStart(3, '0'),
@@ -140,7 +140,7 @@ export function AdminStaff() {
         method: 'DELETE'
       });
       if (!data.success) throw new Error(data.message || 'Failed to delete co-admin');
-      
+
       setCoAdmin(null);
       alert('Co-Admin account deleted successfully.');
     } catch (err) {
@@ -176,7 +176,7 @@ export function AdminStaff() {
           body: JSON.stringify(body)
         });
         if (!data.success) throw new Error(data.message || 'Failed to update co-admin');
-        
+
         await fetchStaff();
         setIsCoAdminModalOpen(false);
         alert('Co-Admin account updated successfully.');
@@ -198,7 +198,7 @@ export function AdminStaff() {
           body: JSON.stringify(body)
         });
         if (!data.success) throw new Error(data.message || 'Failed to create co-admin');
-        
+
         await fetchStaff();
         setIsCoAdminModalOpen(false);
         alert('Co-Admin account created successfully.');
@@ -246,7 +246,7 @@ export function AdminStaff() {
 
   const totalStaff = staffList.length;
   const activeStaff = staffList.filter((s) => s.status === 'Active').length;
-  
+
   const calculateMonthlySalary = (staff) => {
     if (!staff) return 0;
     if (staff.employmentType === 'temporary') {
@@ -306,7 +306,7 @@ export function AdminStaff() {
       role: staff.role || 'Receptionist',
       department: staff.department || 'Front Office',
       salary: staff.salary || '',
-      joinDate: staff.joinDate ? new Date(staff.joinDate).toISOString().slice(0,10) : '',
+      joinDate: staff.joinDate ? new Date(staff.joinDate).toISOString().slice(0, 10) : '',
       status: staff.status || 'Active',
       nic: staff.nic || '',
       employeeId: staff.employeeId || '',
@@ -382,23 +382,25 @@ export function AdminStaff() {
       if (!data.success) throw new Error(data.message || 'Update failed');
 
       const updated = data.data;
-      setStaffList((prev) => prev.map((s) => (s._id === updated._id || s.id === editStaff.id ? { ...s, ...{
-        _id: updated._id,
-        name: updated.name,
-        email: updated.email,
-        phone: updated.phone,
-        role: updated.role,
-        department: updated.department,
-        salary: updated.salary,
-        joinDate: updated.joinDate,
-        status: updated.status,
-        employmentType: updated.employmentType,
-        hourlyRate: updated.hourlyRate,
-        startTime: updated.startTime,
-        endTime: updated.endTime,
-        additionalHours: updated.additionalHours,
-        bonus: updated.bonus
-      }} : s)));
+      setStaffList((prev) => prev.map((s) => (s._id === updated._id || s.id === editStaff.id ? {
+        ...s, ...{
+          _id: updated._id,
+          name: updated.name,
+          email: updated.email,
+          phone: updated.phone,
+          role: updated.role,
+          department: updated.department,
+          salary: updated.salary,
+          joinDate: updated.joinDate,
+          status: updated.status,
+          employmentType: updated.employmentType,
+          hourlyRate: updated.hourlyRate,
+          startTime: updated.startTime,
+          endTime: updated.endTime,
+          additionalHours: updated.additionalHours,
+          bonus: updated.bonus
+        }
+      } : s)));
 
       closeEditModal();
     } catch (err) {
@@ -460,12 +462,12 @@ export function AdminStaff() {
       setFormError('Join date cannot be in the future.');
       return;
     }
-    
+
     if (newStaff.employmentType === 'permanent' && !newStaff.salary) {
       setFormError('Monthly salary is required for permanent staff.');
       return;
     }
-    
+
     if (newStaff.employmentType === 'temporary') {
       if (!newStaff.hourlyRate) {
         setFormError('Hourly rate is required for temporary staff.');
@@ -559,13 +561,13 @@ export function AdminStaff() {
         <div>
           <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">{settings.hotelName}</p>
           <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-            Users & Staff Management
+            Staff Management
           </h1>
           <p className="text-slate-300 mt-2">
             Manage staff members, roles, and access permissions
           </p>
         </div>
-        <button 
+        <button
           className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap"
           onClick={handleOpenModal}
         >
@@ -600,21 +602,21 @@ export function AdminStaff() {
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Co-Admin Account</h3>
           <p className="text-sm text-gray-500 mt-1">
-            {coAdmin 
-              ? `A secondary admin account is active: ${coAdmin.name} (${coAdmin.email})` 
+            {coAdmin
+              ? `A secondary admin account is active: ${coAdmin.name} (${coAdmin.email})`
               : "No secondary admin account has been created yet. You can create exactly one co-admin account."}
           </p>
         </div>
         <div>
           {coAdmin ? (
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={handleEditCoAdminClick}
                 className="px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors border border-slate-200"
               >
                 Edit Co-Admin
               </button>
-              <button 
+              <button
                 onClick={handleDeleteCoAdminClick}
                 className="px-4 py-2 text-sm bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg transition-colors border border-red-100"
               >
@@ -622,7 +624,7 @@ export function AdminStaff() {
               </button>
             </div>
           ) : (
-            <button 
+            <button
               onClick={handleCreateCoAdminClick}
               className="px-4 py-2 text-sm bg-[#D4AF37] hover:bg-[#b5952f] text-white font-medium rounded-lg transition-colors shadow-sm"
             >
@@ -637,8 +639,8 @@ export function AdminStaff() {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <div className="admin-staff-search-wrap">
-              <Search className="admin-staff-search-icon" />
-              <input type="text" placeholder="Search by name or email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="admin-staff-input" />
+                <Search className="admin-staff-search-icon" />
+                <input type="text" placeholder="Search by name or email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="admin-staff-input" />
               </div>
             </div>
             <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="admin-staff-select lg:w-48">
@@ -696,7 +698,7 @@ export function AdminStaff() {
                           {staff.startTime && staff.endTime ? `${staff.startTime} - ${staff.endTime} (${calculateDuration(staff.startTime, staff.endTime)}h)` : 'No times set'}
                         </span>
                         {(staff.additionalHours > 0) && (
-                           <span className="text-xs text-orange-500 font-medium">+ {staff.additionalHours}h Extra</span>
+                          <span className="text-xs text-orange-500 font-medium">+ {staff.additionalHours}h Extra</span>
                         )}
                       </div>
                     ) : (
@@ -720,9 +722,35 @@ export function AdminStaff() {
                   <td className="admin-staff-table-cell">{new Date(staff.joinDate).toLocaleDateString()}</td>
                   <td className="admin-staff-table-cell"><span className={`admin-staff-status-badge ${getStatusColor(staff.status)}`}>{staff.status ? staff.status.charAt(0).toUpperCase() + staff.status.slice(1).toLowerCase() : ''}</span></td>
                   <td className="admin-staff-table-cell">
-                    <button className="admin-staff-action-link admin-staff-action-link--edit" onClick={() => openEditModal(staff)}>Edit</button>
-                    <button className="admin-staff-action-link admin-staff-action-link--toggle" onClick={() => handleToggleStatus(staff)}>{staff.status === 'Active' ? 'Disable' : 'Enable'}</button>
-                    <button className="admin-staff-action-link admin-staff-action-link--delete" onClick={() => handleDeleteStaff(staff)}>Delete</button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="p-2 text-slate-500 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg transition-colors"
+                        onClick={() => openEditModal(staff)}
+                        title="Edit Staff"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleStatus(staff)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${staff.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-200'
+                          }`}
+                        title={staff.status === 'Active' ? 'Disable Staff' : 'Enable Staff'}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${staff.status === 'Active' ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                        />
+                      </button>
+
+                      <button
+                        className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        onClick={() => handleDeleteStaff(staff)}
+                        title="Delete Staff"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -869,27 +897,27 @@ export function AdminStaff() {
                       />
                     </label>
                     <div className="admin-staff-form-label col-span-1 sm:col-span-2 md:col-span-1 p-3 bg-blue-50 border border-blue-100 rounded-lg flex flex-col justify-center">
-                       <span className="text-sm font-medium text-blue-900 mb-1">Payment Summary</span>
-                       <div className="flex justify-between items-center">
-                         <span className="text-xs text-blue-700">Base Salary:</span>
-                         <span className="text-sm font-semibold text-blue-900">{settings.currency.symbol}{(Number(newStaff.salary) || 0).toLocaleString()}</span>
-                       </div>
-                       {(newStaff.additionalHours > 0) && (
-                       <div className="flex justify-between items-center mt-1">
-                         <span className="text-xs text-orange-600">OT Pay (Rs. 300/hr):</span>
-                         <span className="text-sm font-semibold text-orange-600">+{settings.currency.symbol}{(newStaff.additionalHours * 300).toLocaleString()}</span>
-                       </div>
-                       )}
-                       {(newStaff.bonus > 0) && (
-                       <div className="flex justify-between items-center mt-1">
-                         <span className="text-xs text-green-600">Bonus:</span>
-                         <span className="text-sm font-semibold text-green-600">+{settings.currency.symbol}{(Number(newStaff.bonus) || 0).toLocaleString()}</span>
-                       </div>
-                       )}
-                       <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
-                         <span className="text-xs text-blue-700">Total Month's Pay:</span>
-                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((Number(newStaff.salary) || 0) + (Number(newStaff.additionalHours || 0) * 300) + (Number(newStaff.bonus || 0))).toLocaleString()}</span>
-                       </div>
+                      <span className="text-sm font-medium text-blue-900 mb-1">Payment Summary</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-blue-700">Base Salary:</span>
+                        <span className="text-sm font-semibold text-blue-900">{settings.currency.symbol}{(Number(newStaff.salary) || 0).toLocaleString()}</span>
+                      </div>
+                      {(newStaff.additionalHours > 0) && (
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-orange-600">OT Pay (Rs. 300/hr):</span>
+                          <span className="text-sm font-semibold text-orange-600">+{settings.currency.symbol}{(newStaff.additionalHours * 300).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {(newStaff.bonus > 0) && (
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-green-600">Bonus:</span>
+                          <span className="text-sm font-semibold text-green-600">+{settings.currency.symbol}{(Number(newStaff.bonus) || 0).toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
+                        <span className="text-xs text-blue-700">Total Month's Pay:</span>
+                        <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((Number(newStaff.salary) || 0) + (Number(newStaff.additionalHours || 0) * 300) + (Number(newStaff.bonus || 0))).toLocaleString()}</span>
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -939,21 +967,21 @@ export function AdminStaff() {
                       />
                     </label>
                     <div className="admin-staff-form-label col-span-1 sm:col-span-2 md:col-span-1 p-3 bg-blue-50 border border-blue-100 rounded-lg flex flex-col justify-center">
-                       <span className="text-sm font-medium text-blue-900 mb-1">Shift Summary</span>
-                       <div className="flex justify-between items-center">
-                         <span className="text-xs text-blue-700">Calculated Duration:</span>
-                         <span className="text-sm font-bold text-blue-900">{calculateDuration(newStaff.startTime, newStaff.endTime)} hrs</span>
-                       </div>
-                       {(newStaff.additionalHours > 0) && (
-                       <div className="flex justify-between items-center mt-1">
-                         <span className="text-xs text-orange-600">Extra Pay (Rs. 300/hr):</span>
-                         <span className="text-sm font-bold text-orange-600">+{settings.currency.symbol}{((newStaff.additionalHours || 0) * 300).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                       </div>
-                       )}
-                       <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
-                         <span className="text-xs text-blue-700">Total Shift Pay:</span>
-                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((newStaff.hourlyRate * calculateDuration(newStaff.startTime, newStaff.endTime)) + ((newStaff.additionalHours || 0) * 300)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                       </div>
+                      <span className="text-sm font-medium text-blue-900 mb-1">Shift Summary</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-blue-700">Calculated Duration:</span>
+                        <span className="text-sm font-bold text-blue-900">{calculateDuration(newStaff.startTime, newStaff.endTime)} hrs</span>
+                      </div>
+                      {(newStaff.additionalHours > 0) && (
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-orange-600">Extra Pay (Rs. 300/hr):</span>
+                          <span className="text-sm font-bold text-orange-600">+{settings.currency.symbol}{((newStaff.additionalHours || 0) * 300).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
+                        <span className="text-xs text-blue-700">Total Shift Pay:</span>
+                        <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((newStaff.hourlyRate * calculateDuration(newStaff.startTime, newStaff.endTime)) + ((newStaff.additionalHours || 0) * 300)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
                     </div>
                   </>
                 )}
@@ -1174,27 +1202,27 @@ export function AdminStaff() {
                       />
                     </label>
                     <div className="admin-staff-form-label col-span-1 sm:col-span-2 md:col-span-1 p-3 bg-blue-50 border border-blue-100 rounded-lg flex flex-col justify-center">
-                       <span className="text-sm font-medium text-blue-900 mb-1">Payment Summary</span>
-                       <div className="flex justify-between items-center">
-                         <span className="text-xs text-blue-700">Base Salary:</span>
-                         <span className="text-sm font-semibold text-blue-900">{settings.currency.symbol}{(Number(editStaff.salary) || 0).toLocaleString()}</span>
-                       </div>
-                       {(editStaff.additionalHours > 0) && (
-                       <div className="flex justify-between items-center mt-1">
-                         <span className="text-xs text-orange-600">OT Pay (Rs. 300/hr):</span>
-                         <span className="text-sm font-semibold text-orange-600">+{settings.currency.symbol}{(editStaff.additionalHours * 300).toLocaleString()}</span>
-                       </div>
-                       )}
-                       {(editStaff.bonus > 0) && (
-                       <div className="flex justify-between items-center mt-1">
-                         <span className="text-xs text-green-600">Bonus:</span>
-                         <span className="text-sm font-semibold text-green-600">+{settings.currency.symbol}{(Number(editStaff.bonus) || 0).toLocaleString()}</span>
-                       </div>
-                       )}
-                       <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
-                         <span className="text-xs text-blue-700">Total Month's Pay:</span>
-                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((Number(editStaff.salary) || 0) + (Number(editStaff.additionalHours || 0) * 300) + (Number(editStaff.bonus || 0))).toLocaleString()}</span>
-                       </div>
+                      <span className="text-sm font-medium text-blue-900 mb-1">Payment Summary</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-blue-700">Base Salary:</span>
+                        <span className="text-sm font-semibold text-blue-900">{settings.currency.symbol}{(Number(editStaff.salary) || 0).toLocaleString()}</span>
+                      </div>
+                      {(editStaff.additionalHours > 0) && (
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-orange-600">OT Pay (Rs. 300/hr):</span>
+                          <span className="text-sm font-semibold text-orange-600">+{settings.currency.symbol}{(editStaff.additionalHours * 300).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {(editStaff.bonus > 0) && (
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-green-600">Bonus:</span>
+                          <span className="text-sm font-semibold text-green-600">+{settings.currency.symbol}{(Number(editStaff.bonus) || 0).toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
+                        <span className="text-xs text-blue-700">Total Month's Pay:</span>
+                        <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((Number(editStaff.salary) || 0) + (Number(editStaff.additionalHours || 0) * 300) + (Number(editStaff.bonus || 0))).toLocaleString()}</span>
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -1244,21 +1272,21 @@ export function AdminStaff() {
                       />
                     </label>
                     <div className="admin-staff-form-label col-span-1 sm:col-span-2 md:col-span-1 p-3 bg-blue-50 border border-blue-100 rounded-lg flex flex-col justify-center">
-                       <span className="text-sm font-medium text-blue-900 mb-1">Shift Summary</span>
-                       <div className="flex justify-between items-center">
-                         <span className="text-xs text-blue-700">Calculated Duration:</span>
-                         <span className="text-sm font-bold text-blue-900">{calculateDuration(editStaff.startTime, editStaff.endTime)} hrs</span>
-                       </div>
-                       {(editStaff.additionalHours > 0) && (
-                       <div className="flex justify-between items-center mt-1">
-                         <span className="text-xs text-orange-600">Extra Pay (Rs. 300/hr):</span>
-                         <span className="text-sm font-bold text-orange-600">+{settings.currency.symbol}{((editStaff.additionalHours || 0) * 300).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                       </div>
-                       )}
-                       <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
-                         <span className="text-xs text-blue-700">Total Shift Pay:</span>
-                         <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((editStaff.hourlyRate * calculateDuration(editStaff.startTime, editStaff.endTime)) + ((editStaff.additionalHours || 0) * 300)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                       </div>
+                      <span className="text-sm font-medium text-blue-900 mb-1">Shift Summary</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-blue-700">Calculated Duration:</span>
+                        <span className="text-sm font-bold text-blue-900">{calculateDuration(editStaff.startTime, editStaff.endTime)} hrs</span>
+                      </div>
+                      {(editStaff.additionalHours > 0) && (
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-orange-600">Extra Pay (Rs. 300/hr):</span>
+                          <span className="text-sm font-bold text-orange-600">+{settings.currency.symbol}{((editStaff.additionalHours || 0) * 300).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
+                        <span className="text-xs text-blue-700">Total Shift Pay:</span>
+                        <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((editStaff.hourlyRate * calculateDuration(editStaff.startTime, editStaff.endTime)) + ((editStaff.additionalHours || 0) * 300)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
                     </div>
                   </>
                 )}
@@ -1352,7 +1380,7 @@ export function AdminStaff() {
                 <X />
               </button>
             </div>
-            
+
             {formError && (
               <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 border border-red-200 rounded-lg">
                 {formError}
@@ -1395,38 +1423,38 @@ export function AdminStaff() {
                   />
                 </label>
 
-                    <label className="admin-staff-form-label">
-                      Password {isEditingCoAdmin ? '(Leave blank to keep current)' : '*'}
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input
-                          type={showCoAdminPassword ? "text" : "password"}
-                          className="admin-staff-form-input"
-                          style={{ paddingRight: '40px', width: '100%' }}
-                          value={coAdminForm.password}
-                          onChange={(e) => setCoAdminForm(p => ({ ...p, password: e.target.value }))}
-                          required={!isEditingCoAdmin}
-                          placeholder={isEditingCoAdmin ? "••••••••" : "Enter password"}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowCoAdminPassword(!showCoAdminPassword)}
-                          style={{
-                            position: 'absolute',
-                            right: '12px',
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#64748B'
-                          }}
-                        >
-                          {showCoAdminPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                      </div>
-                    </label>
+                <label className="admin-staff-form-label">
+                  Password {isEditingCoAdmin ? '(Leave blank to keep current)' : '*'}
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={showCoAdminPassword ? "text" : "password"}
+                      className="admin-staff-form-input"
+                      style={{ paddingRight: '40px', width: '100%' }}
+                      value={coAdminForm.password}
+                      onChange={(e) => setCoAdminForm(p => ({ ...p, password: e.target.value }))}
+                      required={!isEditingCoAdmin}
+                      placeholder={isEditingCoAdmin ? "••••••••" : "Enter password"}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCoAdminPassword(!showCoAdminPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#64748B'
+                      }}
+                    >
+                      {showCoAdminPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </label>
               </div>
 
               <div className="admin-staff-modal-actions mt-4">

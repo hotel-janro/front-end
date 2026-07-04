@@ -23,14 +23,13 @@ import { apiFetch } from '../../../api';
 const getRoomTypeName = (roomName, roomNumberStr) => {
   if (!roomName) return 'N/A';
   const lower = roomName.toLowerCase();
-  // If DB already stores 'AC Standard Room' or 'Non-AC Standard Room'
+  
   if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
     return 'Standard Room (Non-AC)';
   }
   if (lower.includes('ac standard room') || lower.includes('a/c standard room')) {
     return 'Standard Room (AC)';
   }
-  // Fallback: determine from room number
   if (lower.includes('standard room') && roomNumberStr) {
     const match = String(roomNumberStr).match(/\d+/);
     if (match) {
@@ -38,6 +37,21 @@ const getRoomTypeName = (roomName, roomNumberStr) => {
       return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
     }
   }
+
+  if (lower.includes('non-ac family room') || lower.includes('non ac family room')) {
+    return 'Family Room (Non-AC)';
+  }
+  if (lower.includes('ac family room') || lower.includes('a/c family room')) {
+    return 'Family Room (AC)';
+  }
+  if (lower.includes('family room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Family Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  
   return roomName;
 };
 
@@ -143,10 +157,7 @@ export function ReceptionBookings() {
             Check-in, check-out, and manage guest reservations
           </p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap">
-          <Plus className="w-5 h-5" />
-          Walk-in Booking
-        </button>
+
       </div>
 
       {/* Filters */}

@@ -23,10 +23,30 @@ import {
   ImagePlus,
   Layers,
   LogIn,
-  LogOut
+  LogOut,
+  Eye
 } from 'lucide-react';
 import { apiFetch, API_HOST } from '../../../api';
 import './AdminRooms.css';
+
+const getRoomTypeName = (roomName, roomNumberStr) => {
+  if (!roomName) return 'N/A';
+  const lower = roomName.toLowerCase();
+  if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
+    return 'Standard Room (Non-AC)';
+  }
+  if (lower.includes('ac standard room') || lower.includes('a/c standard room')) {
+    return 'Standard Room (AC)';
+  }
+  if (lower.includes('standard room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  return roomName;
+};
 
 export function AdminRooms() {
   const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'bookings'
@@ -53,6 +73,8 @@ export function AdminRooms() {
   const [imageUploading, setImageUploading] = useState(false);
   const [newTypeSubmitting, setNewTypeSubmitting] = useState(false);
   const fileInputRef = useRef(null);
+  const [viewingBooking, setViewingBooking] = useState(null);
+  
   
   const toggleExpand = (typeName) => {
     const newExpanded = new Set(expandedTypes);
@@ -523,26 +545,57 @@ export function AdminRooms() {
     return <span className="admin-rooms__status-badge admin-rooms__status-badge--maintenance">{status}</span>;
   };
 
+  const totalUnits = aggregatedRooms.reduce(
+    (sum, room) => sum + (Number(room.totalRooms) || 0),
+    0
+  );
+
+  const activeBookings = bookings.filter(b =>
+    !['cancelled', 'rejected', 'checked-out'].includes(String(b.status || '').toLowerCase())
+  ).length;
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Room Management</h1>
-          <p className="text-slate-500">Add rooms to your inventory. The count below shows your total hotel stock (Base + Added).</p>
-        </div>
-        <div className="flex flex-wrap gap-3 items-center">
-          <button
-            className="admin-rooms__action-button"
-            onClick={handleOpenNewTypeModal}
-          >
-            <Layers className="w-5 h-5" />
-            <span>Create Room Type</span>
-          </button>
-          <button className="admin-rooms__action-button" onClick={() => handleOpenModal()}>
-            <Plus className="w-5 h-5" />
-            <span>Create Room</span>
-          </button>
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 shadow-[0_20px_60px_rgba(15,23,42,0.18)] mb-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+            <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
+              Room Management
+            </h1>
+            <p className="text-slate-300 mt-2 max-w-2xl">
+              Add rooms to your inventory. The count below shows your total hotel stock (Base + Added).
+            </p>
+            <div className="flex flex-wrap gap-3 items-center mt-6">
+              <button
+                className="admin-rooms__action-button"
+                onClick={handleOpenNewTypeModal}
+              >
+                <Layers className="w-5 h-5" />
+                <span>Create Room Type</span>
+              </button>
+              <button className="admin-rooms__action-button" onClick={() => handleOpenModal()}>
+                <Plus className="w-5 h-5" />
+                <span>Create Room</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[320px] lg:mt-0 mt-4">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Room Type</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{aggregatedRooms.length}</p>
+            </div>
+            <div className="rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-[#F5E7B2]">Active Bookings</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{activeBookings}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm col-span-2">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Total Units</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{totalUnits}</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -567,10 +620,6 @@ export function AdminRooms() {
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Total</p>
                     <h3 className="text-xl font-bold text-slate-900">{totalInStock}</h3>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-green-500 font-bold">Available</p>
-                    <h3 className="text-xl font-bold text-green-600">{freeCount}</h3>
                   </div>
                 </div>
               </div>
@@ -759,6 +808,7 @@ export function AdminRooms() {
                   <th>Guests</th>
                   <th>Status</th>
                   <th>Total Amount</th>
+                  <th>Details</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
@@ -773,19 +823,7 @@ export function AdminRooms() {
                     </td>
                     <td>
                       <div className="flex flex-col">
-                        <span className="font-medium">{booking.room?.name || 'N/A'}</span>
-                        {booking.decorationItems && booking.decorationItems.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {booking.decorationItems.map((item, idx) => (
-                              <span 
-                                key={idx} 
-                                className="text-[9px] px-1.5 py-0.5 bg-pink-50 text-pink-600 border border-pink-100 rounded-md font-bold uppercase tracking-wider"
-                              >
-                                {item}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                        <span className="font-medium">{getRoomTypeName(booking.room?.name, booking.roomNumber)}</span>
                       </div>
                     </td>
                     <td>
@@ -834,7 +872,30 @@ export function AdminRooms() {
                     </td>
                     <td>{booking.guests}</td>
                     <td>{getStatusBadge(booking.status)}</td>
-                    <td><span className="font-bold text-slate-900">Rs. {booking.totalPrice.toLocaleString()}</span></td>
+                    <td>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold text-slate-900">Rs. {booking.totalPrice.toLocaleString()}</span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                            {booking.paymentMethod || 'Cash'}
+                          </span>
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded w-max ${
+                            (booking.paymentStatus || 'Pending').toLowerCase() === 'paid' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
+                          }`}>
+                            {booking.paymentStatus || 'Pending'}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => setViewingBooking(booking)}
+                        className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        View
+                      </button>
+                    </td>
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         {(!booking.status || booking.status === 'pending') && (
@@ -1287,6 +1348,95 @@ export function AdminRooms() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Booking Modal */}
+      {viewingBooking && (
+        <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative">
+            <button
+              onClick={() => setViewingBooking(null)}
+              className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="p-8">
+              <h2 className="text-2xl font-bold text-[#0F172A] mb-2" style={{ fontFamily: "DM Serif Display, serif" }}>
+                Booking Details
+              </h2>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">
+                REF: #{String(viewingBooking._id || viewingBooking.id).slice(-8).toUpperCase()}
+              </p>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-semibold text-slate-500">Name</span>
+                  <span className="text-sm font-bold text-slate-900">{viewingBooking.fullName || "N/A"}</span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-semibold text-slate-500">Item</span>
+                  <span className="text-sm font-bold text-slate-900">{viewingBooking.room?.name || viewingBooking.roomName || viewingBooking.hallName || "N/A"}</span>
+                </div>
+                {viewingBooking.checkInDate && viewingBooking.checkOutDate && new Date(viewingBooking.checkInDate).toLocaleDateString() === new Date(viewingBooking.checkOutDate).toLocaleDateString() && viewingBooking.checkInType === viewingBooking.checkOutType ? (
+                  <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                    <span className="text-sm font-semibold text-slate-500">Date</span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {new Date(viewingBooking.checkInDate).toLocaleDateString()}
+                      {viewingBooking.checkInType ? ` (Only ${viewingBooking.checkInType})` : ""}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                      <span className="text-sm font-semibold text-slate-500">Date In</span>
+                      <span className="text-sm font-bold text-slate-900">
+                        {new Date(viewingBooking.checkInDate || viewingBooking.eventDate).toLocaleDateString()}
+                        {viewingBooking.checkInType ? ` (${viewingBooking.checkInType})` : ""}
+                      </span>
+                    </div>
+                    {viewingBooking.checkOutDate && (
+                      <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                        <span className="text-sm font-semibold text-slate-500">Date Out</span>
+                        <span className="text-sm font-bold text-slate-900">
+                          {new Date(viewingBooking.checkOutDate).toLocaleDateString()}
+                          {viewingBooking.checkOutType ? ` (${viewingBooking.checkOutType})` : ""}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-semibold text-slate-500">Guests</span>
+                  <span className="text-sm font-bold text-slate-900">{viewingBooking.guests || "N/A"}</span>
+                </div>
+                {viewingBooking.decorationItems && viewingBooking.decorationItems.length > 0 && (
+                  <div className="py-3 border-b border-slate-100">
+                    <span className="text-sm font-semibold text-slate-500 block mb-2">Decorations / Add-ons</span>
+                    <div className="flex flex-wrap gap-2">
+                      {viewingBooking.decorationItems.map((item, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold rounded-md">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {viewingBooking.specialRequests && (
+                  <div className="py-3 border-b border-slate-100">
+                    <span className="text-sm font-semibold text-slate-500 block mb-1">Special Requests</span>
+                    <span className="text-sm font-medium text-slate-800">{viewingBooking.specialRequests}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-4">
+                  <span className="text-sm font-bold text-slate-900 uppercase tracking-widest">Total Amount</span>
+                  <span className="text-xl font-black text-[#D4AF37]">
+                    Rs. {Number(viewingBooking.totalPrice || viewingBooking.amount || viewingBooking.totalAmount || 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -142,7 +142,7 @@ export function MyOrders() {
         merchant_id: merchantId,
         return_url: `${window.location.origin}/my-orders`,
         cancel_url: `${window.location.origin}/my-orders`,
-        notify_url: "https://sandbox.payhere.lk/pay/checkout",
+        notify_url: `${API_BASE}/api/payments/payhere-notify`,
         order_id: order._id,
         items: `Hotel Food Order #${order.orderNumber || order._id.slice(-6)}`,
         amount: amount,

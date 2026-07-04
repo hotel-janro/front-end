@@ -111,27 +111,30 @@ export function CashierReceipts() {
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
       {/* Premium Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(15,23,42,0.4)]">
-            <Gem className="w-7 h-7 text-[#D4AF37]" />
+      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-200 mb-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-[80px] -mr-32 -mt-32" />
+        <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]">
+              <Gem className="w-7 h-7 text-[#D4AF37]" />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-5xl font-normal leading-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>Receipt Archive</h1>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Boutique Transaction History</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-black text-[#0F172A] uppercase tracking-wider">Receipt Archive</h1>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">Boutique Transaction History</p>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={loadOrders}
+              className="group flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 text-white rounded-2xl hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
+            >
+              <RefreshCcw className={`w-4 h-4 group-hover:rotate-180 transition-transform duration-700 ${loading ? 'animate-spin' : ''}`} />
+              Refresh Archive
+            </button>
+            <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest pr-2 mt-2">
+              Last Sync: {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </p>
           </div>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <button
-            onClick={loadOrders}
-            className="group flex items-center gap-3 px-6 py-3 bg-slate-100 border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
-          >
-            <RefreshCcw className={`w-4 h-4 group-hover:rotate-180 transition-transform duration-700 ${loading ? 'animate-spin text-[#D4AF37]' : ''}`} />
-            Refresh Archive
-          </button>
-          <p className="text-[7px] font-black text-slate-600 uppercase tracking-widest pr-2">
-            Records: {receipts.length} Issued
-          </p>
         </div>
       </div>
 

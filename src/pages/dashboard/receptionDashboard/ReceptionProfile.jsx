@@ -15,10 +15,10 @@ import {
 } from "lucide-react";
 import { apiFetch } from "../../../api.js";
 
-export function CashierProfile() {
+export function ReceptionProfile() {
   const context = useOutletContext() || {};
   const { user, onUpdateUser } = context;
-  console.log("CashierProfile rendered, user is:", user);
+  console.log("ReceptionProfile rendered, user is:", user);
   const [activeTab, setActiveTab] = useState("info");
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -157,16 +157,16 @@ export function CashierProfile() {
       <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-lg">
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-2xl flex items-center justify-center text-3xl font-bold text-[#D4AF37] shadow-inner">
-            {user?.name?.charAt(0).toUpperCase() || "C"}
+            {user?.name?.charAt(0).toUpperCase() || "R"}
           </div>
           <div>
-            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-2">Cashier Identity</p>
+            <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-2">Reception Identity</p>
             <h1 className="text-3xl md:text-4xl text-white font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>
-              {user?.name || "Cashier User"}
+              {user?.name || "Receptionist User"}
             </h1>
             <p className="text-slate-400 text-sm mt-1 flex items-center gap-2">
               <Mail className="w-4 h-4 text-[#D4AF37]/70" />
-              {user?.email || "cashier@hoteljanro.com"}
+              {user?.email || "reception@hoteljanro.com"}
             </p>
           </div>
         </div>
@@ -284,7 +284,7 @@ export function CashierProfile() {
                   </label>
                   <div className="px-5 py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-900 font-bold text-sm select-none">
                     <span className="px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] rounded-full text-[10px] font-black uppercase tracking-widest">
-                      {user?.role || "Cashier"}
+                      {user?.role || "Receptionist"}
                     </span>
                   </div>
                 </div>
