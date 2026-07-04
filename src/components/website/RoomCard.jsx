@@ -47,7 +47,9 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
   const navigate = useNavigate();
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [fullName, setFullName] = useState("");
+  const [nameError, setNameError] = useState("");
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
@@ -157,14 +159,39 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
     : (Number(displayRoomPrice || 0) * slots) + decorationTotal;
 
   const handleSubmitBooking = () => {
+    setNameError("");
+    setEmailError("");
+    setPhoneError("");
+
+    let isValid = true;
+
     if (!fullName || fullName.trim() === "") {
-      alert("Please enter the guest's full name.");
-      return;
+      setNameError("Please enter the guest's full name.");
+      isValid = false;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || email.trim() === "") {
-      alert("Please enter the guest's email address.");
-      return;
+      setEmailError("Please enter the guest's email address.");
+      isValid = false;
+    } else if (!emailRegex.test(email.trim())) {
+      setEmailError("Please enter a valid email address.");
+      isValid = false;
     }
+
+    if (!phone || phone.trim() === "") {
+      setPhoneError("Please enter your phone number.");
+      isValid = false;
+    } else {
+      const phoneRegex = /^\d{10}$/;
+      if (!phoneRegex.test(phone.trim())) {
+        setPhoneError("Please enter a valid 10-digit phone number.");
+        isValid = false;
+      }
+    }
+
+    if (!isValid) return;
+
     if (!checkIn) {
       alert("Please select a check-in date.");
       return;
@@ -175,15 +202,6 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
     }
     if (isDateRangeInvalid) {
       alert("Check-out date/time cannot be before check-in date/time.");
-      return;
-    }
-    if (!phone || phone.trim() === "") {
-      setPhoneError("Please enter your phone number.");
-      return;
-    }
-    const phoneRegex = /^\d{10}$/;
-    if (!phoneRegex.test(phone.trim())) {
-      setPhoneError("this is invalid");
       return;
     }
 
@@ -308,25 +326,27 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
               )}
 
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Full Name</label>
+                <label className="text-xs text-gray-500 block mb-1">Full Name <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => { setFullName(e.target.value); setNameError(""); }}
                   placeholder="John Doe"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] ${nameError ? 'border-red-500' : 'border-gray-200'}`}
                 />
+                {nameError && <p className="text-red-500 text-xs mt-1">{nameError}</p>}
               </div>
 
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Email</label>
+                <label className="text-xs text-gray-500 block mb-1">Email <span className="text-red-500">*</span></label>
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
                   placeholder="john@example.com"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] ${emailError ? 'border-red-500' : 'border-gray-200'}`}
                 />
+                {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
               </div>
 
               <div>
