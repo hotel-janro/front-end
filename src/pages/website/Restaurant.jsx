@@ -17,6 +17,7 @@ export function Restaurant({ onOrder, user }) {
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -388,19 +389,46 @@ export function Restaurant({ onOrder, user }) {
           
           {/* Category Dropdown */}
           <div className="relative w-full md:w-64">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
-            <select
-              value={activeCategory}
-              onChange={(e) => setActiveCategory(e.target.value)}
-              className="w-full pl-12 pr-10 py-3.5 bg-[#0F172A] border border-[#D4AF37]/30 rounded-2xl shadow-md text-sm font-bold uppercase tracking-widest outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all text-white appearance-none cursor-pointer hover:border-[#D4AF37]/60"
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="w-full flex items-center justify-between pl-12 pr-4 py-3.5 bg-[#0F172A] border border-[#D4AF37]/30 rounded-2xl shadow-md text-sm font-bold uppercase tracking-widest text-white cursor-pointer hover:border-[#D4AF37]/60 transition-all text-left"
             >
-              {categories.map((cat) => (
-                <option key={cat} value={cat} className="bg-[#0F172A] text-white font-semibold">
-                  {cat}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37] pointer-events-none" />
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+              <span className="truncate">{activeCategory}</span>
+              <ChevronDown className={`w-5 h-5 text-[#D4AF37] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isDropdownOpen && (
+              <>
+                {/* Backdrop to close when clicking outside */}
+                <div 
+                  className="fixed inset-0 z-40 cursor-default" 
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+                
+                {/* Options List */}
+                <div className="absolute right-0 left-0 mt-2 bg-[#0F172A] border border-[#D4AF37]/30 rounded-2xl shadow-xl z-50 max-h-80 overflow-y-auto custom-scrollbar divide-y divide-[#D4AF37]/10 animate-in fade-in slide-in-from-top-2 duration-150">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        setActiveCategory(cat);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-5 py-3 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                        activeCategory === cat 
+                          ? 'bg-[#D4AF37] text-[#0F172A]' 
+                          : 'text-white hover:bg-white/5'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
