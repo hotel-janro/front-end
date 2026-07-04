@@ -74,34 +74,34 @@ export function ReceptionDashboard() {
           return d.getTime() === today.getTime();
         };
 
-        const todayCheckIns = allBookings.filter(b => (b.status === 'confirmed' || b.status === 'pending') && isToday(b.checkInDate));
-        const todayCheckOuts = allBookings.filter(b => b.status === 'checked-in' && isToday(b.checkOutDate));
+        const pendingCheckIns = allBookings.filter(b => b.status === 'confirmed' || b.status === 'pending');
+        const pendingCheckOuts = allBookings.filter(b => b.status === 'checked-in');
         
-        const occupiedRooms = allBookings.filter(b => b.status === 'checked-in').length;
-        const reservedRooms = allBookings.filter(b => b.status === 'confirmed').length;
+        const occupiedRooms = pendingCheckOuts.length;
+        const reservedRooms = pendingCheckIns.length;
 
         const activeRooms = allRooms.filter(room => room.isActive !== false);
         const totalRooms = activeRooms.reduce(
-          (acc, room) => acc + (Number(room.totalRooms) || Number(room.availableRooms) || 0),
+          (acc, room) => acc + (Number(room.totalRooms) || 0),
           0
         );
-        const availableRooms = activeRooms.reduce(
-          (acc, room) => acc + (Number(room.availableRooms) || 0),
-          0
-        );
+        
+        // Calculate true available rooms by subtracting occupied and reserved from total
+        const availableRooms = Math.max(0, totalRooms - occupiedRooms - reservedRooms);
         
         const activePoolBookings = poolBookings.filter(p => p.status === 'Confirmed' || p.status === 'Checked-In');
         
         setData({
-          todayCheckIns,
-          todayCheckOuts,
+          todayCheckIns: pendingCheckIns,
+          todayCheckOuts: pendingCheckOuts,
           upcomingWeddings: [], // API not fully implemented yet for all bookings
           activePoolBookings,
           occupiedRooms,
-          availableRooms: availableRooms > 0 ? availableRooms : 0,
+          availableRooms,
           maintenanceRooms: 0,
           reservedRooms,
           totalRooms: totalRooms > 0 ? totalRooms : 1 // prevent division by zero
+
         });
         
       } catch (error) {
@@ -232,28 +232,7 @@ export function ReceptionDashboard() {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {quickStats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.label}
-              className={`rounded-xl border p-4 ${stat.color}`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-lg ${stat.iconBg}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium opacity-80">{stat.label}</p>
-                  <h3 className="text-2xl font-bold">{stat.value}</h3>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+
 
       {/* Room Occupancy Bar */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">

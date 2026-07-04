@@ -26,14 +26,13 @@ import { apiFetch } from '../../../api';
 const getRoomTypeName = (roomName, roomNumberStr) => {
   if (!roomName) return 'N/A';
   const lower = roomName.toLowerCase();
-  // If DB already stores 'AC Standard Room' or 'Non-AC Standard Room'
+  
   if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
     return 'Standard Room (Non-AC)';
   }
   if (lower.includes('ac standard room') || lower.includes('a/c standard room')) {
     return 'Standard Room (AC)';
   }
-  // Fallback: determine from room number
   if (lower.includes('standard room') && roomNumberStr) {
     const match = String(roomNumberStr).match(/\d+/);
     if (match) {
@@ -41,6 +40,21 @@ const getRoomTypeName = (roomName, roomNumberStr) => {
       return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
     }
   }
+
+  if (lower.includes('non-ac family room') || lower.includes('non ac family room')) {
+    return 'Family Room (Non-AC)';
+  }
+  if (lower.includes('ac family room') || lower.includes('a/c family room')) {
+    return 'Family Room (AC)';
+  }
+  if (lower.includes('family room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Family Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  
   return roomName;
 };
 
@@ -139,15 +153,20 @@ export function AdminBookings() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 shadow-[0_20px_60px_rgba(15,23,42,0.18)] mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Reservations</h1>
-          <p className="text-gray-500 mt-1">Manage room bookings and check-in status</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
+            Reservations
+          </h1>
+          <p className="text-slate-300 mt-2 max-w-2xl">
+            Manage room bookings and check-in status
+          </p>
         </div>
         <div className="flex gap-2">
           <button 
             onClick={fetchBookings}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 whitespace-nowrap"
           >
             Refresh
           </button>

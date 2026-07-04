@@ -51,6 +51,14 @@ export function AdminSettings() {
     staffUpdates: true
   });
 
+  // Bank Details State
+  const [bankDetails, setBankDetails] = useState({
+    bankName: '',
+    branchName: '',
+    accountNumber: '',
+    accountHolderName: ''
+  });
+
   useEffect(() => {
     const storedUser = localStorage.getItem('janro_user');
     if (storedUser) {
@@ -75,6 +83,12 @@ export function AdminSettings() {
         paymentReceived: settings.notifications?.paymentReceived !== false,
         lowInventory: settings.notifications?.lowInventory !== false,
         staffUpdates: settings.notifications?.staffUpdates !== false
+      });
+      setBankDetails({
+        bankName: settings.bankDetails?.bankName || '',
+        branchName: settings.bankDetails?.branchName || '',
+        accountNumber: settings.bankDetails?.accountNumber || '',
+        accountHolderName: settings.bankDetails?.accountHolderName || ''
       });
     }
   }, [settings]);
@@ -202,6 +216,16 @@ export function AdminSettings() {
       return;
     }
 
+    if (passwordData.newPassword === passwordData.currentPassword) {
+      setMessage({ type: 'error', text: 'New password cannot be the same as your current password' });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'New password must be at least 6 characters long' });
+      return;
+    }
+
     setIsSaving(true);
     setMessage({ type: '', text: '' });
     try {
@@ -229,6 +253,34 @@ export function AdminSettings() {
     }
   };
 
+  const handlePaymentSave = async () => {
+    setIsSaving(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const token = localStorage.getItem('janro_token');
+      const response = await fetch(`${API_BASE}/api/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ bankDetails })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Bank details updated successfully!' });
+        fetchSettings(); // Refresh global settings
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Failed to update bank details' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An error occurred while saving bank details' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const onSave = () => {
     if (activeTab === 'profile') {
       handleProfileSave();
@@ -238,6 +290,8 @@ export function AdminSettings() {
       handleSecuritySave();
     } else if (activeTab === 'notifications') {
       handleNotificationsSave();
+    } else if (activeTab === 'payment') {
+      handlePaymentSave();
     }
   };
 

@@ -13,7 +13,7 @@ import {
   History,
   ArrowUpRight,
   Wallet,
-  Receipt,
+  ScrollText as Receipt,
   CreditCard,
   UtensilsCrossed,
   Edit,
@@ -446,7 +446,7 @@ export function MyOrders() {
         {/* Main Content Area based on Tabs */}
         <section className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
-          <article className="xl:col-span-2 space-y-8">
+          <article className="xl:col-span-3 space-y-8">
             {/* ORDERS TAB */}
             {activeTab === "orders" && (
               <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden">
@@ -758,24 +758,7 @@ export function MyOrders() {
             )}
           </article>
 
-          {/* Right Sidebar Widget */}
-          <div className="space-y-8">
-            <article className="rounded-[2.5rem] bg-white border border-slate-100 p-10 text-center shadow-xl shadow-slate-200/40">
-              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <AlertCircle className="h-8 w-8 text-amber-500" />
-              </div>
-              <h3 className="text-xl text-slate-900 font-normal mb-3" style={{ fontFamily: "DM Serif Display, serif" }}>Need Assistance?</h3>
-              <p className="text-slate-500 text-sm font-light leading-relaxed mb-6">
-                Our dedicated guest services team is available 24/7 to ensure your experience is flawless.
-              </p>
-              <a 
-                href={`tel:${settings.phone}`}
-                className="inline-block text-[#0F172A] font-black uppercase tracking-[0.2em] text-[10px] hover:text-[#D4AF37] transition-colors border-b-2 border-transparent hover:border-[#D4AF37] pb-1 cursor-pointer"
-              >
-                Contact Concierge
-              </a>
-            </article>
-          </div>
+          {/* Sidebar widget removed to simplify UI */}
 
         </section>
       </div>

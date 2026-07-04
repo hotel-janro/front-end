@@ -145,7 +145,7 @@ export function AdminDashboard() {
   const stats = [
     {
       title: "Total Revenue",
-      value: `${settings?.currency?.symbol || '$'}${totalRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}`,
+      value: `${settings?.currency?.symbol || 'Rs '}${totalRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}`,
       change: revenueGrowth.change,
       trend: revenueGrowth.trend,
       comparison: "vs last month",
@@ -172,7 +172,7 @@ export function AdminDashboard() {
     },
     {
       title: "Monthly Revenue",
-      value: `${settings?.currency?.symbol || '$'}${monthlyRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}`,
+      value: `${settings?.currency?.symbol || 'Rs '}${monthlyRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}`,
       change: revenueGrowth.change,
       trend: revenueGrowth.trend,
       comparison: "vs last month",
@@ -268,7 +268,7 @@ export function AdminDashboard() {
                   border: "1px solid #D4AF37",
                   borderRadius: "8px",
                 }}
-                formatter={(value) => [`${settings?.currency?.symbol || '$'}${Number(value).toFixed(2)}`, "Revenue"]}
+                formatter={(value) => [`${settings?.currency?.symbol || 'Rs '}${Number(value).toFixed(2)}`, "Revenue"]}
               />
               <Line
                 type="monotone"
