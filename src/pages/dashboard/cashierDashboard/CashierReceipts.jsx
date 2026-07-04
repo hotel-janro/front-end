@@ -283,7 +283,7 @@ export function CashierReceipts() {
                 </div>
                 
                 <button 
-                  onClick={() => handleViewReceipt(receipt)}
+                  onClick={() => setSelectedReceipt(receipt)}
                   className="w-8 h-8 bg-[#D4AF37] text-[#0F172A] rounded-lg shadow-md hover:bg-white hover:text-[#0F172A] border border-transparent hover:border-[#0F172A] transition-all duration-300 flex items-center justify-center group/btn"
                 >
                   <Eye className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" />
