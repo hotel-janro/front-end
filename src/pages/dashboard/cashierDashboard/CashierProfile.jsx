@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { 
   User, 
@@ -11,15 +11,24 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-  Briefcase
+  Phone
 } from "lucide-react";
 import { apiFetch } from "../../../api.js";
 
 export function CashierProfile() {
-  const { user } = useOutletContext();
+  const context = useOutletContext() || {};
+  const { user, onUpdateUser } = context;
+  console.log("CashierProfile rendered, user is:", user);
   const [activeTab, setActiveTab] = useState("info");
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
+
+  // Profile details state
+  const [profileData, setProfileData] = useState({
+    name: "",
+    email: "",
+    phone: ""
+  });
 
   // Password state
   const [passwordData, setPasswordData] = useState({
@@ -33,6 +42,22 @@ export function CashierProfile() {
     confirm: false
   });
 
+  // Populate profile form when user context changes
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || ""
+      });
+    }
+  }, [user]);
+
+  const handleProfileChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({ ...prev, [name]: value }));
+  };
+
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({ ...prev, [name]: value }));
@@ -42,10 +67,56 @@ export function CashierProfile() {
     setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
   };
 
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    if (!profileData.name.trim() || !profileData.email.trim()) {
+      setMessage({ type: "error", text: "Name and Email are required fields." });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(profileData.email)) {
+      setMessage({ type: "error", text: "Please enter a valid email address." });
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage({ type: "", text: "" });
+
+    try {
+      const response = await apiFetch("/auth/updateme", {
+        method: "PUT",
+        body: JSON.stringify({
+          name: profileData.name.trim(),
+          email: profileData.email.trim(),
+          phone: profileData.phone.trim()
+        })
+      });
+
+      if (response.success && response.data) {
+        if (onUpdateUser) {
+          onUpdateUser(response.data);
+        }
+        setMessage({ type: "success", text: "Profile details updated successfully!" });
+      } else {
+        throw new Error(response.message || "Failed to update profile.");
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: error.message || "Failed to update profile details" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
+    if (!passwordData.currentPassword || !passwordData.newPassword) {
+      setMessage({ type: "error", text: "Please fill in all password fields." });
+      return;
+    }
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setMessage({ type: "error", text: "New passwords do not match" });
+      setMessage({ type: "error", text: "New passwords do not match." });
       return;
     }
 
@@ -82,7 +153,7 @@ export function CashierProfile() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header Section - Matched to Admin Dashboard */}
+      {/* Header Section */}
       <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-lg">
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-2xl flex items-center justify-center text-3xl font-bold text-[#D4AF37] shadow-inner">
@@ -107,30 +178,38 @@ export function CashierProfile() {
         </div>
       </div>
 
-      {/* Main Content Card - Matched to Admin Style */}
+      {/* Main Content Card */}
       <div className="bg-white rounded-2xl shadow-sm border border-[#0F172A]/10 overflow-hidden">
         <div className="flex flex-col md:flex-row">
           {/* Sidebar Tabs */}
           <div className="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-100 bg-slate-50/50">
             <nav className="p-4 space-y-2">
               <button
-                onClick={() => setActiveTab("info")}
+                onClick={() => {
+                  setActiveTab("info");
+                  setMessage({ type: "", text: "" });
+                }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                   activeTab === "info" 
                   ? "bg-[#0F172A] text-white shadow-lg shadow-slate-200" 
                   : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                 }`}
+                type="button"
               >
                 <User className={`w-5 h-5 ${activeTab === "info" ? "text-[#D4AF37]" : ""}`} />
-                Account Details
+                Account Settings
               </button>
               <button
-                onClick={() => setActiveTab("security")}
+                onClick={() => {
+                  setActiveTab("security");
+                  setMessage({ type: "", text: "" });
+                }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                   activeTab === "security" 
                   ? "bg-[#0F172A] text-white shadow-lg shadow-slate-200" 
                   : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                 }`}
+                type="button"
               >
                 <Shield className={`w-5 h-5 ${activeTab === "security" ? "text-[#D4AF37]" : ""}`} />
                 Security Access
@@ -149,155 +228,184 @@ export function CashierProfile() {
               </div>
             )}
 
-        {activeTab === "info" ? (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
-                  <User className="w-4 h-4 text-[#D4AF37]" />
-                  Full Name
-                </label>
-                <div className="px-5 py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-900 font-bold text-sm">
-                  {user?.name || "Cashier"}
+            {activeTab === "info" ? (
+              <form onSubmit={handleUpdateProfile} className="space-y-6 max-w-lg">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
+                    <User className="w-4 h-4 text-[#D4AF37]" />
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={profileData.name}
+                    onChange={handleProfileChange}
+                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium text-sm"
+                    placeholder="Enter full name"
+                    required
+                  />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
-                  <Mail className="w-4 h-4 text-[#D4AF37]" />
-                  Email Address
-                </label>
-                <div className="px-5 py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-900 font-bold text-sm">
-                  {user?.email || "N/A"}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
+                    <Mail className="w-4 h-4 text-[#D4AF37]" />
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={profileData.email}
+                    onChange={handleProfileChange}
+                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium text-sm"
+                    placeholder="Enter email address"
+                    required
+                  />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
-                  <Shield className="w-4 h-4 text-[#D4AF37]" />
-                  System Role
-                </label>
-                <div className="px-5 py-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] rounded-full text-[10px] font-black uppercase tracking-widest">
-                    Cashier
-                  </span>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
+                    <Phone className="w-4 h-4 text-[#D4AF37]" />
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={profileData.phone}
+                    onChange={handleProfileChange}
+                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium text-sm"
+                    placeholder="Enter phone number"
+                  />
                 </div>
-              </div>
-            </div>
-            
-            <div className="p-6 rounded-3xl bg-amber-50 border border-amber-100">
-              <div className="flex gap-4">
-                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-                  <AlertCircle className="w-5 h-5 text-amber-600" />
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
+                    <Shield className="w-4 h-4 text-[#D4AF37]" />
+                    System Role
+                  </label>
+                  <div className="px-5 py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-900 font-bold text-sm select-none">
+                    <span className="px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] rounded-full text-[10px] font-black uppercase tracking-widest">
+                      {user?.role || "Cashier"}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-amber-900 font-bold text-sm">Account Managed by Admin</h4>
-                  <p className="text-amber-700 text-xs mt-1">
-                    Primary account details are managed by the administration. To change your name or email, please contact your system administrator.
-                  </p>
+
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-xl shadow-[#0F172A]/10 mt-8"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Settings
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleUpdatePassword} className="space-y-6 max-w-lg">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
+                    <Key className="w-4 h-4 text-[#D4AF37]" />
+                    Current Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.current ? "text" : "password"}
+                      name="currentPassword"
+                      value={passwordData.currentPassword}
+                      onChange={handlePasswordChange}
+                      className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
+                      placeholder="Enter current password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility("current")}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#D4AF37] transition-colors"
+                    >
+                      {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
+                    <Key className="w-4 h-4 text-[#D4AF37]" />
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.new ? "text" : "password"}
+                      name="newPassword"
+                      value={passwordData.newPassword}
+                      onChange={handlePasswordChange}
+                      className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
+                      placeholder="Enter new password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility("new")}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#D4AF37] transition-colors"
+                    >
+                      {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
+                    <Key className="w-4 h-4 text-[#D4AF37]" />
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.confirm ? "text" : "password"}
+                      name="confirmPassword"
+                      value={passwordData.confirmPassword}
+                      onChange={handlePasswordChange}
+                      className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
+                      placeholder="Confirm new password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility("confirm")}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#D4AF37] transition-colors"
+                    >
+                      {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-xl shadow-[#0F172A]/10 mt-8"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Update Password
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
           </div>
-        ) : (
-          <form onSubmit={handleUpdatePassword} className="space-y-8 max-w-lg">
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
-                  <Key className="w-4 h-4 text-[#D4AF37]" />
-                  Current Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPasswords.current ? "text" : "password"}
-                    name="currentPassword"
-                    value={passwordData.currentPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
-                    placeholder="Enter current password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => togglePasswordVisibility("current")}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#D4AF37] transition-colors"
-                  >
-                    {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
-                  <Key className="w-4 h-4 text-[#D4AF37]" />
-                  New Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPasswords.new ? "text" : "password"}
-                    name="newPassword"
-                    value={passwordData.newPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
-                    placeholder="Enter new password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => togglePasswordVisibility("new")}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#D4AF37] transition-colors"
-                  >
-                    {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 ml-1">
-                  <Key className="w-4 h-4 text-[#D4AF37]" />
-                  Confirm New Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPasswords.confirm ? "text" : "password"}
-                    name="confirmPassword"
-                    value={passwordData.confirmPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
-                    placeholder="Confirm new password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => togglePasswordVisibility("confirm")}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#D4AF37] transition-colors"
-                  >
-                    {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-xl shadow-[#0F172A]/10"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Update Password
-                </>
-              )}
-            </button>
-          </form>
-        )}
         </div>
       </div>
     </div>
-  </div>
-);
+  );
 }
