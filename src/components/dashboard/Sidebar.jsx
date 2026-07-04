@@ -18,7 +18,8 @@ import {
   Crown,
   Boxes,
   UserCircle,
-  Dumbbell
+  Dumbbell,
+  Mail
 } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext";
 
@@ -36,6 +37,7 @@ const adminItems = [
   { label: "Users & Staff", icon: Users, path: "/admin/staff" },
   { label: "Reports", icon: BarChart3, path: "/admin/reports" },
   { label: "Payments", icon: CreditCard, path: "/admin/payments" },
+  { label: "Messages", icon: Mail, path: "/admin/messages" },
   { label: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
@@ -53,13 +55,16 @@ export function Sidebar({ user, onLogout }) {
   const isCustomer = user?.role === "customer";
   const items = isCustomer ? customerItems : adminItems;
 
-  const handleLogout = () => {
+  const handleLogout = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (onLogout) onLogout();
-    navigate("/");
   };
 
   return (
-    <aside className="w-64 bg-[#0F172A] border-r border-[#1E293B] text-slate-100 flex flex-col min-h-screen fixed left-0 top-0 z-40">
+    <aside className="w-64 bg-[#0F172A] border-r border-[#1E293B] text-slate-100 flex flex-col h-screen fixed left-0 top-0 z-40">
       {/* Logo */}
       <div className="p-6 border-b border-[#1E293B]">
         <div className="flex items-center gap-3">
@@ -124,8 +129,9 @@ export function Sidebar({ user, onLogout }) {
             </div>
           </Link>
           <button
+            type="button"
             onClick={handleLogout}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors shrink-0 cursor-pointer z-50 relative"
             title="Logout"
           >
             <LogOut className="w-4 h-4" />

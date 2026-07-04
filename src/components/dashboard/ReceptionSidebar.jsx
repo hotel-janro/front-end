@@ -30,13 +30,16 @@ export function ReceptionSidebar({ user, onLogout }) {
   const navigate = useNavigate();
 
 
-  const handleLogout = () => {
+  const handleLogout = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (onLogout) onLogout();
-    navigate("/");
   };
 
   return (
-    <aside className="w-64 bg-[#0F172A] border-r border-[#1E293B] text-slate-100 flex flex-col min-h-screen fixed left-0 top-0 z-40">
+    <aside className="w-64 bg-[#0F172A] border-r border-[#1E293B] text-slate-100 flex flex-col h-screen fixed left-0 top-0 z-40">
       {/* Logo */}
       <div className="p-6 border-b border-[#1E293B]">
         <div className="flex items-center gap-3">
@@ -95,8 +98,9 @@ export function ReceptionSidebar({ user, onLogout }) {
             <p className="text-xs text-slate-400 truncate">Front Desk Agent</p>
           </div>
           <button
+            type="button"
             onClick={handleLogout}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors shrink-0 cursor-pointer z-50 relative"
             title="Logout"
           >
             <LogOut className="w-4 h-4" />

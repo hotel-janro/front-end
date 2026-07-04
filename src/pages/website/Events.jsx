@@ -3,36 +3,64 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSettings } from "../../context/SettingsContext.jsx";
 import { apiFetch } from "../../api.js";
 import { EventCard } from "../../components/website/EventCard.jsx";
-import { CustomCalendar } from "../../components/common/CustomCalendar.jsx";
-import { Calendar, Hotel, Heart, MapPin, Users, Sparkles, X, CheckCircle, Info, ChevronRight, Loader2 } from "lucide-react";
+import { Calendar, Hotel, Heart, MapPin, Users, Sparkles, X, CheckCircle, Info, ChevronRight, Loader2, Award, Check } from "lucide-react";
+
+const menuDetails = {
+  welcomeDrink: ["Orange Juice", "Mango Juice", "Mix Fruit Juice"],
+  soup: ["Chicken Soup", "Vegetable Soup", "Egg Soup (Select One)"],
+  rice: ["Steam Basmathi Rice", "Yellow Rice", "Chicken Fried Rice", "Vegetable Noodles (Select Three)"],
+  chicken: ["Chicken Red Curry", "Chilli Chicken", "Spicy Chicken Badum", "Chicken Kuruma (Select One)"],
+  fish: ["Fish Talapath Red Curry", "Fish Peppered Curry", "Fish Ambultiyal", "Fish Masala (Select One)"],
+  vegetables: ["Tempered Potato & Potato Curry", "Brinjal Capsicum & Tomato Moju or Pahi", "Tempered Dhal or Dhal Fry", "Garlic Green Beans", "Tempered Mushroom with Kunisso", "Cashew & Green Peas Curry (Select Four)"],
+  salad: ["Tomato, Onion or Green Chilli Salad", "Cucumber Curd with Salad", "Mix Vegetable Salad", "Salada Kola (Select Four)"],
+  condiments: ["Dry Fish", "Sinhala Achcharu", "Mango Chutney", "Chilli Paste", "Tomato Sauce", "Papadam", "Dry Chilly (All Included)"],
+  desserts: ["Cream Orange Caramel", "Watalappam", "Fresh Fruits Salad", "Fresh Fruit Cuts (Papaya, Pineapple, Banana, Watermelon)", "Rainbow Jelly (Red & Green)", "Custard Pudding (Select Four)"]
+};
 
 export function Events() {
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState("halls");
   const [hallsList, setHallsList] = useState([]);
+  const [packagesList, setPackagesList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
+  const [packageTab, setPackageTab] = useState("wedding");
 
   useEffect(() => {
-    const fetchHalls = async () => {
+    const fetchData = async () => {
       try {
-        const response = await apiFetch("/weddings/halls");
-        if (response.success && Array.isArray(response.data)) {
+        const [hallsRes, packagesRes] = await Promise.all([
+          apiFetch("/wedding/halls"),
+          apiFetch("/wedding/packages")
+        ]);
+        if (hallsRes.success && Array.isArray(hallsRes.data)) {
           // Normalize hallName to name for frontend EventCard component mapping
-          const normalized = response.data.map(h => ({
+          const normalized = hallsRes.data.map(h => ({
             ...h,
             id: h._id,
             name: h.hallName
           }));
           setHallsList(normalized);
         }
+        if (packagesRes.success && Array.isArray(packagesRes.data)) {
+          setPackagesList(packagesRes.data);
+        }
       } catch (error) {
-        console.error("Failed to fetch wedding halls:", error);
+        console.error("Failed to fetch wedding and event details:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchHalls();
+    fetchData();
   }, []);
+
+  const weddingPackages = useMemo(() => {
+    return packagesList.filter(p => p.type === 'wedding');
+  }, [packagesList]);
+
+  const eventPackages = useMemo(() => {
+    return packagesList.filter(p => p.type === 'event');
+  }, [packagesList]);
 
   const currentData = useMemo(() => {
     return hallsList.filter(hall => {
@@ -96,7 +124,7 @@ export function Events() {
         </div>
 
         {/* Venue Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 mb-32">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 mb-24">
           {currentData.map((hall) => (
             <EventCard
               key={hall.id}
@@ -105,8 +133,170 @@ export function Events() {
           ))}
         </div>
 
+        {/* Packages Section */}
+        <div className="mb-32">
+          <div className="text-center mb-10">
+            <Heart className="w-8 h-8 text-[#D4AF37] mx-auto mb-3" />
+            <h2 className="text-3xl md:text-4xl text-[#0F172A] font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>
+              Exclusive Packages & Menus
+            </h2>
+            <p className="text-gray-500 mt-2">Tailored pricing packages designed to make your event absolutely flawless.</p>
+          </div>
+
+          {/* Sub-tab Selector */}
+          <div className="flex justify-center gap-4 mb-16">
+            <button
+              onClick={() => setPackageTab("wedding")}
+              className={`px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border cursor-pointer ${
+                packageTab === "wedding"
+                  ? "bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] shadow-md shadow-[#D4AF37]/10"
+                  : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
+              }`}
+            >
+              Wedding Packages
+            </button>
+            <button
+              onClick={() => setPackageTab("event")}
+              className={`px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border cursor-pointer ${
+                packageTab === "event"
+                  ? "bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] shadow-md shadow-[#D4AF37]/10"
+                  : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
+              }`}
+            >
+              Other Event Packages
+            </button>
+          </div>
+
+          {packageTab === "wedding" ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch animate-in fade-in duration-300">
+              {weddingPackages.map((pkg) => (
+                <div 
+                  key={pkg.id} 
+                  className={`bg-white rounded-3xl p-8 border flex flex-col justify-between transition-all duration-300 relative ${
+                    pkg.popular 
+                      ? "border-[#D4AF37] shadow-xl shadow-[#D4AF37]/5 scale-105 z-10" 
+                      : "border-gray-100 hover:border-gray-300 shadow-md"
+                  }`}
+                >
+                  {pkg.popular && (
+                    <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#D4AF37] text-[#0F172A] text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full flex items-center gap-1">
+                      <Award className="w-3.5 h-3.5" /> Most Popular
+                    </span>
+                  )}
+                  
+                  <div>
+                    <h3 className="text-xl font-bold text-[#0F172A] mb-2">{pkg.name}</h3>
+                    <div className="flex items-baseline gap-1 mb-6">
+                      <span className="text-3xl font-bold text-[#0F172A]">Rs. {pkg.price.toLocaleString()}</span>
+                      <span className="text-gray-400 text-sm">/ per plate</span>
+                    </div>
+
+                    <p className="text-[#D4AF37] text-xs font-bold uppercase tracking-wider mb-6 bg-[#D4AF37]/5 p-3 rounded-xl border border-[#D4AF37]/10 text-center">
+                      {pkg.bites}
+                    </p>
+
+                    <div className="space-y-3 mb-8">
+                      <p className="text-xs font-black uppercase tracking-wider text-gray-400">Included Services:</p>
+                      {pkg.inclusions.slice(0, 8).map((inc, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          <Check className="w-4 h-4 text-[#D4AF37] shrink-0 mt-0.5" />
+                          <span className="text-gray-600 text-sm">{inc}</span>
+                        </div>
+                      ))}
+                      {pkg.inclusions.length > 8 && (
+                        <p className="text-xs text-[#D4AF37] font-semibold pl-6">+ And {pkg.inclusions.length - 8} more premium custom services</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <button 
+                      onClick={() => setIsMenuModalOpen(true)}
+                      className="w-full py-3 px-4 bg-gray-50 hover:bg-gray-100 text-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors border border-gray-100"
+                    >
+                      View Menu Details
+                    </button>
+                    <a 
+                      href="#inquiry" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        document.getElementById("inquiry")?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className={`block w-full py-4 text-center rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${
+                        pkg.popular 
+                          ? "bg-[#D4AF37] text-[#0F172A] hover:bg-[#B8962D] shadow-lg shadow-[#D4AF37]/20" 
+                          : "bg-[#0F172A] text-white hover:bg-slate-800"
+                      }`}
+                    >
+                      Inquire For Booking
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto gap-8 items-stretch animate-in fade-in duration-300">
+              {eventPackages.map((pkg) => (
+                <div 
+                  key={pkg.id} 
+                  className={`bg-white rounded-3xl p-8 border flex flex-col justify-between transition-all duration-300 relative ${
+                    pkg.popular 
+                      ? "border-[#D4AF37] shadow-xl shadow-[#D4AF37]/5 scale-105 z-10" 
+                      : "border-gray-100 hover:border-gray-300 shadow-md"
+                  }`}
+                >
+                  {pkg.popular && (
+                    <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#D4AF37] text-[#0F172A] text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full flex items-center gap-1">
+                      <Award className="w-3.5 h-3.5" /> Best Selection
+                    </span>
+                  )}
+                  
+                  <div>
+                    <h3 className="text-xl font-bold text-[#0F172A] mb-2">{pkg.name}</h3>
+                    <div className="flex items-baseline gap-1 mb-6">
+                      <span className="text-3xl font-bold text-[#0F172A]">Rs. {pkg.price.toLocaleString()}</span>
+                      <span className="text-gray-400 text-sm">/ per plate</span>
+                    </div>
+
+                    <p className="text-[#D4AF37] text-xs font-bold uppercase tracking-wider mb-6 bg-[#D4AF37]/5 p-3 rounded-xl border border-[#D4AF37]/10 text-center">
+                      {pkg.bites}
+                    </p>
+
+                    <div className="space-y-3 mb-8">
+                      <p className="text-xs font-black uppercase tracking-wider text-gray-400">Menu Inclusions:</p>
+                      {pkg.inclusions.map((inc, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          <Check className="w-4 h-4 text-[#D4AF37] shrink-0 mt-0.5" />
+                          <span className="text-gray-600 text-sm">{inc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <a 
+                      href="#inquiry" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        document.getElementById("inquiry")?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className={`block w-full py-4 text-center rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${
+                        pkg.popular 
+                          ? "bg-[#D4AF37] text-[#0F172A] hover:bg-[#B8962D] shadow-lg shadow-[#D4AF37]/20" 
+                          : "bg-[#0F172A] text-white hover:bg-slate-800"
+                      }`}
+                    >
+                      Inquire For Booking
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Inquiry Section */}
-        <div className="bg-white rounded-[3rem] p-12 md:p-20 mb-32 shadow-2xl shadow-[#0F172A]/5 border border-gray-100 relative overflow-hidden">
+        <div id="inquiry" className="bg-white rounded-[3rem] p-12 md:p-20 mb-32 shadow-2xl shadow-[#0F172A]/5 border border-gray-100 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-1/2 h-full opacity-[0.03] pointer-events-none">
              <Hotel className="w-full h-full text-[#0F172A] -rotate-12 transform translate-x-1/4" />
           </div>
@@ -140,10 +330,10 @@ export function Events() {
               <h4 className="text-white text-2xl font-bold mb-2">Speak with us</h4>
               <p className="text-gray-400 text-sm mb-8">Available 9:00 AM - 8:00 PM</p>
               <a 
-                href="tel:+94112345678" 
+                href={`tel:${settings.phone}`} 
                 className="block w-full bg-[#D4AF37] text-[#0F172A] py-5 px-10 rounded-2xl font-bold text-lg hover:bg-[#B8962D] transition-all mb-4 shadow-xl shadow-[#D4AF37]/10"
               >
-                +94 11 234 5678
+                {settings.phone}
               </a>
               <button 
                 onClick={() => window.location.href = '/contact'}
@@ -155,6 +345,143 @@ export function Events() {
           </div>
         </div>
       </div>
+
+      {/* Menu Detail Modal */}
+      {isMenuModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-4xl max-h-[85vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-gray-100 animate-in fade-in zoom-in duration-300">
+            {/* Modal Header */}
+            <div className="bg-[#0F172A] p-6 text-white flex justify-between items-center relative overflow-hidden shrink-0">
+              <div className="absolute top-0 right-0 w-1/3 h-full opacity-[0.05] pointer-events-none">
+                <Sparkles className="w-full h-full text-white" />
+              </div>
+              <div className="z-10">
+                <h3 className="text-2xl font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Wedding Banquet Menu Options</h3>
+                <p className="text-xs text-[#D4AF37] uppercase tracking-widest mt-1">Special Package Customizations</p>
+              </div>
+              <button 
+                onClick={() => setIsMenuModalOpen(false)}
+                className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all z-10 cursor-pointer"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-[#F8FAFC]">
+              {/* Welcome Drink & Soup */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-4 border-b pb-2 border-slate-100">🍹 Welcome Drinks</h4>
+                <ul className="space-y-2">
+                  {menuDetails.welcomeDrink.map((item, idx) => (
+                    <li key={idx} className="text-gray-600 text-xs flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full" /> {item}
+                    </li>
+                  ))}
+                </ul>
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mt-6 mb-4 border-b pb-2 border-slate-100">🍲 Soups</h4>
+                <ul className="space-y-2">
+                  {menuDetails.soup.map((item, idx) => (
+                    <li key={idx} className="text-gray-600 text-xs flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full" /> {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Rice & Noodles */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-4 border-b pb-2 border-slate-100">🍚 Rice & Noodles</h4>
+                <ul className="space-y-2">
+                  {menuDetails.rice.map((item, idx) => (
+                    <li key={idx} className="text-gray-600 text-xs flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full" /> {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Meat & Seafood */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-4 border-b pb-2 border-slate-100">🍗 Chicken Selection</h4>
+                <ul className="space-y-2 mb-6">
+                  {menuDetails.chicken.map((item, idx) => (
+                    <li key={idx} className="text-gray-600 text-xs flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full" /> {item}
+                    </li>
+                  ))}
+                </ul>
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-4 border-b pb-2 border-slate-100">🐟 Fish Selection</h4>
+                <ul className="space-y-2">
+                  {menuDetails.fish.map((item, idx) => (
+                    <li key={idx} className="text-gray-600 text-xs flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full" /> {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Vegetables */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm lg:col-span-2">
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-4 border-b pb-2 border-slate-100">🥗 Vegetables & Salads</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 mb-2">VEGETABLES:</p>
+                    <ul className="space-y-2">
+                      {menuDetails.vegetables.map((item, idx) => (
+                        <li key={idx} className="text-gray-600 text-xs flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full" /> {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 mb-2">SALADS:</p>
+                    <ul className="space-y-2">
+                      {menuDetails.salad.map((item, idx) => (
+                        <li key={idx} className="text-gray-600 text-xs flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full" /> {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Condiments */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-4 border-b pb-2 border-slate-100">🌶️ Condiments Platter</h4>
+                <ul className="space-y-2">
+                  {menuDetails.condiments.map((item, idx) => (
+                    <li key={idx} className="text-gray-600 text-xs flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full" /> {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Desserts */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm md:col-span-2 lg:col-span-3">
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-4 border-b pb-2 border-slate-100">🍰 Desserts selection</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {menuDetails.desserts.map((item, idx) => (
+                    <div key={idx} className="text-gray-600 text-xs flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <Check className="w-3.5 h-3.5 text-[#D4AF37]" /> {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 p-6 border-t border-slate-100 text-center shrink-0">
+              <p className="text-xs text-gray-500">
+                * Note: Menu items can be fully customized or swapped depending on your preferences. Speak to our event manager.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

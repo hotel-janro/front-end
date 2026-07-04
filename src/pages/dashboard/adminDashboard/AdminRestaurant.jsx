@@ -13,7 +13,9 @@ import {
   Star,
   Zap,
   Loader2,
-  X
+  X,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
 import { ImageWithFallback } from '../../../components/common/ImageWithFallback.jsx';
 import AddMenuItemForm from './AddMenuItemForm';
@@ -29,6 +31,8 @@ export function AdminRestaurant() {
   const [menuSearch, setMenuSearch] = useState('');
   const [menuCategory, setMenuCategory] = useState('All');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8; // Fits 2, 3, or 4 columns nicely
 
   useEffect(() => {
     if (activeTab === 'menu') {
@@ -70,8 +74,34 @@ export function AdminRestaurant() {
     });
   }, [menuItems, menuSearch, menuCategory]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [menuSearch, menuCategory]);
+
+  const totalPages = Math.ceil(visibleMenuItems.length / itemsPerPage);
+
+  const paginatedMenuItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return visibleMenuItems.slice(start, start + itemsPerPage);
+  }, [visibleMenuItems, currentPage, itemsPerPage]);
+
   const menuCategories = useMemo(() => {
-    return ['All', ...new Set(menuItems.map((item) => item.category).filter(Boolean))];
+    const predefinedOrder = [
+      'Rice', 'Koththu', 'Noodles', 'Chicken', 'Fish', 'Prawns', 'Cuttle Fish', 
+      'Mutton', 'Pork', 'Omelet', 'Vegetables & Sides', 'Salad', 'Soup', 
+      'Starters', 'Outdoor Party', 'Beverages'
+    ];
+    const cats = new Set(menuItems.map((item) => item.category).filter(Boolean));
+    const sortedCats = Array.from(cats).sort((a, b) => {
+      const indexA = predefinedOrder.indexOf(a);
+      const indexB = predefinedOrder.indexOf(b);
+      
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA === -1 && indexB !== -1) return 1;
+      if (indexA !== -1 && indexB === -1) return -1;
+      return a.localeCompare(b);
+    });
+    return ['All', ...sortedCats];
   }, [menuItems]);
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -122,24 +152,30 @@ export function AdminRestaurant() {
           <div className="flex items-center justify-between gap-4">
             <div className="flex gap-3 flex-1 max-w-2xl">
               <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
                 <input
                   type="text"
                   placeholder="Search signature dishes..."
                   value={menuSearch}
                   onChange={(e) => setMenuSearch(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-slate-100 focus:border-[#D4AF37] transition-all outline-none text-xs font-bold text-slate-700"
+                  className="w-full pl-11 pr-4 py-3 bg-[#0F172A] border border-[#D4AF37]/30 text-white placeholder:text-slate-500 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all hover:border-[#D4AF37]/60"
                 />
               </div>
-              <select
-                value={menuCategory}
-                onChange={(e) => setMenuCategory(e.target.value)}
-                className="rounded-xl border border-slate-100 px-4 py-3 text-[11px] font-black uppercase tracking-widest bg-white outline-none focus:border-[#D4AF37] cursor-pointer"
-              >
-                {menuCategories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
+              <div className="relative min-w-[200px]">
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
+                <select
+                  value={menuCategory}
+                  onChange={(e) => setMenuCategory(e.target.value)}
+                  className="w-full appearance-none bg-[#0F172A] border border-[#D4AF37]/30 text-white rounded-xl pl-11 pr-10 py-3 text-[10px] font-black uppercase tracking-wider outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/50 transition-all hover:border-[#D4AF37]/60 cursor-pointer"
+                >
+                  {menuCategories.map((category) => (
+                    <option key={category} value={category} className="bg-[#0F172A] text-white font-semibold">
+                      {category}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37] pointer-events-none" />
+              </div>
             </div>
 
             <button
@@ -158,6 +194,7 @@ export function AdminRestaurant() {
                 <AddMenuItemForm
                   key={selectedMenuItem ? selectedMenuItem._id : (showAddForm ? 'new' : 'none')}
                   initialItem={selectedMenuItem}
+                  existingCategories={menuCategories.filter(c => c !== 'All')}
                   onSaved={handleMenuSaved}
                   onCancel={() => { setSelectedMenuItem(null); setShowAddForm(false); }}
                 />
@@ -173,8 +210,9 @@ export function AdminRestaurant() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Syncing with culinary database...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {visibleMenuItems.map((item) => (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {paginatedMenuItems.map((item) => (
                   <div key={item._id} className="group bg-white rounded-[1.5rem] overflow-hidden border border-slate-100 hover:border-[#D4AF37]/30 transition-all duration-300 hover:shadow-xl">
                     <div className="relative h-40 overflow-hidden">
                       <ImageWithFallback
@@ -223,6 +261,38 @@ export function AdminRestaurant() {
                   </div>
                 ))}
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-8 bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100 w-fit mx-auto animate-in fade-in duration-300">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                      currentPage === 1 
+                        ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                        : "bg-slate-100 text-slate-700 hover:bg-[#0F172A] hover:text-[#D4AF37] active:scale-95 border border-slate-200"
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                      currentPage === totalPages 
+                        ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                        : "bg-slate-100 text-slate-700 hover:bg-[#0F172A] hover:text-[#D4AF37] active:scale-95 border border-slate-200"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
             )}
 
             {!menuLoading && visibleMenuItems.length === 0 && (
