@@ -288,11 +288,12 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
         <Route path="pool" element={<ReceptionPool />} />
         <Route path="gym" element={<ReceptionGym />} />
         <Route path="customers" element={<AdminGuests />} />
+        <Route path="profile" element={<ReceptionProfile />} />
       </Route>
 
       <Route
         path="/cashier"
-        element={isLoggedIn && isCashier ? <CashierLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
+        element={isLoggedIn && isCashier ? <CashierLayout user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<CashierDashboard />} />
         <Route path="orders" element={<CashierOrders />} />
