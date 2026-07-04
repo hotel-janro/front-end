@@ -88,15 +88,15 @@ export function AdminRestaurant() {
 
   const menuCategories = useMemo(() => {
     const predefinedOrder = [
-      'Rice', 'Koththu', 'Noodles', 'Chicken', 'Fish', 'Prawns', 'Cuttle Fish', 
-      'Mutton', 'Pork', 'Omelet', 'Vegetables & Sides', 'Salad', 'Soup', 
+      'Rice', 'Koththu', 'Noodles', 'Chicken', 'Fish', 'Prawns', 'Cuttle Fish',
+      'Mutton', 'Pork', 'Omelet', 'Vegetables & Sides', 'Salad', 'Soup',
       'Starters', 'Outdoor Party', 'Beverages'
     ];
     const cats = new Set(menuItems.map((item) => item.category).filter(Boolean));
     const sortedCats = Array.from(cats).sort((a, b) => {
       const indexA = predefinedOrder.indexOf(a);
       const indexB = predefinedOrder.indexOf(b);
-      
+
       if (indexA !== -1 && indexB !== -1) return indexA - indexB;
       if (indexA === -1 && indexB !== -1) return 1;
       if (indexA !== -1 && indexB === -1) return -1;
@@ -110,7 +110,7 @@ export function AdminRestaurant() {
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
       {/* Compact Premium Header */}
-      <div className="relative rounded-[2rem] bg-slate-50 p-4 md:px-8 shadow-xl overflow-hidden border border-slate-200">
+      <div className="relative rounded-[2rem] bg-[#0F172A] p-4 md:px-8 shadow-xl overflow-hidden border border-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full blur-3xl -mr-20 -mt-20" />
         <div className="relative z-10 flex items-center justify-between gap-4">
           <div className="flex items-center gap-5">
@@ -118,16 +118,16 @@ export function AdminRestaurant() {
               <UtensilsCrossed className="w-6 h-6 text-[#0F172A]" />
             </div>
             <div>
-              <h2 className="text-2xl text-slate-900 font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
+              <h2 className="text-2xl text-white font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
                 Restaurant <span className="text-[#D4AF37]">Management</span>
               </h2>
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">
                 {activeTab === 'menu' ? 'Curate your world-class culinary collection' : 'Luxury Point of Sale Terminal'}
               </p>
             </div>
           </div>
 
-          <div className="flex bg-white/5 backdrop-blur-xl rounded-xl border border-slate-200 p-1">
+          <div className="flex bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-1">
             {[
               { id: 'menu', icon: LayoutGrid, label: 'MENU ITEMS' },
               { id: 'pos', icon: ShoppingCart, label: 'POS' }
@@ -135,7 +135,7 @@ export function AdminRestaurant() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${activeTab === tab.id ? 'bg-[#D4AF37] text-slate-900 shadow-md' : 'text-slate-500 hover:text-slate-900'
+                className={`flex items-center gap-2 px-6 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${activeTab === tab.id ? 'bg-[#D4AF37] text-[#0F172A] shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
               >
                 <tab.icon className="w-3.5 h-3.5" />
@@ -159,30 +159,30 @@ export function AdminRestaurant() {
                   placeholder="Search signature dishes..."
                   value={menuSearch}
                   onChange={(e) => setMenuSearch(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all hover:border-[#D4AF37]/60"
+                  className="w-full pl-11 pr-4 py-3 bg-[#0F172A] border border-[#D4AF37]/30 text-white placeholder:text-slate-500 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all hover:border-[#D4AF37]/60"
                 />
               </div>
               <div className="relative min-w-[200px] z-20">
                 <button
                   type="button"
                   onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                  className="w-full flex items-center justify-between pl-11 pr-4 py-3 bg-slate-50 border border-slate-300 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/50 transition-all hover:border-[#D4AF37]/60 cursor-pointer"
+                  className="w-full flex items-center justify-between pl-11 pr-4 py-3 bg-[#0F172A] border border-[#D4AF37]/30 text-white rounded-xl text-[10px] font-black uppercase tracking-wider outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/50 transition-all hover:border-[#D4AF37]/60 cursor-pointer"
                 >
                   <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
                   <span className="truncate">{menuCategory}</span>
                   <ChevronDown className={`w-4 h-4 text-[#D4AF37] transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
+
                 {isCategoryDropdownOpen && (
                   <>
                     {/* Backdrop */}
-                    <div 
-                      className="fixed inset-0 z-40 cursor-default" 
+                    <div
+                      className="fixed inset-0 z-40 cursor-default"
                       onClick={() => setIsCategoryDropdownOpen(false)}
                     />
-                    
+
                     {/* Options List */}
-                    <div className="absolute right-0 left-0 mt-2 bg-slate-50 border border-slate-300 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto custom-scrollbar divide-y divide-[#D4AF37]/10 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="absolute right-0 left-0 mt-2 bg-[#0F172A] border border-[#D4AF37]/30 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto custom-scrollbar divide-y divide-[#D4AF37]/10 animate-in fade-in slide-in-from-top-2 duration-150">
                       {menuCategories.map((category) => (
                         <button
                           key={category}
@@ -191,11 +191,10 @@ export function AdminRestaurant() {
                             setMenuCategory(category);
                             setIsCategoryDropdownOpen(false);
                           }}
-                          className={`w-full text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
-                            menuCategory === category 
-                              ? 'bg-[#D4AF37] text-slate-900' 
-                              : 'text-slate-900 hover:bg-white/5'
-                          }`}
+                          className={`w-full text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${menuCategory === category
+                            ? 'bg-[#D4AF37] text-[#0F172A]'
+                            : 'text-white hover:bg-white/5'
+                            }`}
                         >
                           {category}
                         </button>
@@ -208,10 +207,10 @@ export function AdminRestaurant() {
 
             <button
               onClick={() => { setSelectedMenuItem(null); setShowAddForm(!showAddForm); }}
-              className="flex items-center gap-2.5 px-6 py-3 bg-slate-50 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 shadow-lg shadow-slate-200"
+              className="flex items-center gap-2.5 px-6 py-3 bg-[#0F172A] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
             >
               {showAddForm ? <X className="w-4 h-4 text-[#D4AF37]" /> : <Plus className="w-4 h-4 text-[#D4AF37]" />}
-              {showAddForm ? 'Close Editor' : 'New Creation'}
+              {showAddForm ? 'Close Editor' : 'Add New Item'}
             </button>
           </div>
 
@@ -235,113 +234,111 @@ export function AdminRestaurant() {
             {menuLoading ? (
               <div className="py-20 text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-[#D4AF37] mx-auto mb-4" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Syncing with culinary database...</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Syncing with culinary database...</p>
               </div>
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {paginatedMenuItems.map((item) => (
-                  <div key={item._id} className="group bg-white rounded-[1.5rem] overflow-hidden border border-slate-100 hover:border-slate-300 transition-all duration-300 hover:shadow-xl">
-                    <div className="relative h-40 overflow-hidden">
-                      <ImageWithFallback
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                      />
-                      <div className="absolute top-3 left-3 flex gap-2">
-                        <span className="px-2 py-1 bg-white/90 backdrop-blur-md rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-900 shadow-sm border border-slate-300">
-                          {item.category}
-                        </span>
-                      </div>
-                      <div className="absolute bottom-3 right-3">
-                        <div className={`w-2.5 h-2.5 rounded-full ring-4 ring-white/20 ${item.isAvailable ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                      </div>
-                    </div>
-
-                    <div className="p-4 space-y-3">
-                      <div>
-                        <h3 className="text-md font-normal text-slate-900 truncate" style={{ fontFamily: "DM Serif Display, serif" }}>
-                          {item.name}
-                        </h3>
-                        <div className="flex items-start justify-between mt-1">
-                          <div className="flex-1 pr-2">
-                            {item.hasPortions && item.portions?.length > 0 
-                              ? (
-                                <div className="flex flex-wrap gap-1.5 mt-1">
-                                  {item.portions.map((p, idx) => (
-                                    <span key={idx} className="text-[9px] font-black bg-amber-50 text-[#D4AF37] px-1.5 py-0.5 rounded-md border border-amber-100/50 uppercase tracking-widest whitespace-nowrap">
-                                      {p.portionType}: {formatCurrency(p.price)}
-                                    </span>
-                                  ))}
-                                </div>
-                              )
-                              : <p className="text-sm font-black text-[#D4AF37] tracking-tight">{formatCurrency(item.price)}</p>}
-                          </div>
-                          <div className="flex items-center gap-1 text-slate-500 text-[9px] font-bold shrink-0 mt-1">
-                            <Clock className="w-3 h-3" /> {item.prepTime || 15}m
-                          </div>
+                    <div key={item._id} className="group bg-white rounded-[1.5rem] overflow-hidden border border-slate-100 hover:border-[#D4AF37]/30 transition-all duration-300 hover:shadow-xl">
+                      <div className="relative h-40 overflow-hidden">
+                        <ImageWithFallback
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        />
+                        <div className="absolute top-3 left-3 flex gap-2">
+                          <span className="px-2 py-1 bg-white/90 backdrop-blur-md rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-900 shadow-sm border border-white/20">
+                            {item.category}
+                          </span>
+                        </div>
+                        <div className="absolute bottom-3 right-3">
+                          <div className={`w-2.5 h-2.5 rounded-full ring-4 ring-white/20 ${item.isAvailable ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-3 border-t border-slate-50">
-                        <button
-                          onClick={() => { setSelectedMenuItem(item); setShowAddForm(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                          className="flex-1 py-2 bg-slate-50 text-slate-600 text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-all"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleMenuDelete(item._id)}
-                          className="w-10 py-2 text-rose-400 bg-rose-50 hover:bg-rose-500 hover:text-slate-900 rounded-lg transition-all flex items-center justify-center"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                      <div className="p-4 space-y-3">
+                        <div>
+                          <h3 className="text-md font-normal text-slate-900 truncate" style={{ fontFamily: "DM Serif Display, serif" }}>
+                            {item.name}
+                          </h3>
+                          <div className="flex items-start justify-between mt-1">
+                            <div className="flex-1 pr-2">
+                              {item.hasPortions && item.portions?.length > 0
+                                ? (
+                                  <div className="flex flex-wrap gap-1.5 mt-1">
+                                    {item.portions.map((p, idx) => (
+                                      <span key={idx} className="text-[9px] font-black bg-amber-50 text-[#D4AF37] px-1.5 py-0.5 rounded-md border border-amber-100/50 uppercase tracking-widest whitespace-nowrap">
+                                        {p.portionType}: {formatCurrency(p.price)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )
+                                : <p className="text-sm font-black text-[#D4AF37] tracking-tight">{formatCurrency(item.price)}</p>}
+                            </div>
+                            <div className="flex items-center gap-1 text-slate-400 text-[9px] font-bold shrink-0 mt-1">
+                              <Clock className="w-3 h-3" /> {item.prepTime || 15}m
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-3 border-t border-slate-50">
+                          <button
+                            onClick={() => { setSelectedMenuItem(item); setShowAddForm(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            className="flex-1 py-2 bg-slate-50 text-slate-600 text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-[#0F172A] hover:text-white transition-all"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleMenuDelete(item._id)}
+                            className="w-10 py-2 text-rose-400 bg-rose-50 hover:bg-rose-500 hover:text-white rounded-lg transition-all flex items-center justify-center"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-4 mt-8 bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100 w-fit mx-auto animate-in fade-in duration-300">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
-                      currentPage === 1 
-                        ? "bg-slate-50 text-slate-600 cursor-not-allowed border border-transparent" 
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-50 hover:text-[#D4AF37] active:scale-95 border border-slate-200"
-                    }`}
-                  >
-                    Previous
-                  </button>
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
-                      currentPage === totalPages 
-                        ? "bg-slate-50 text-slate-600 cursor-not-allowed border border-transparent" 
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-50 hover:text-[#D4AF37] active:scale-95 border border-slate-200"
-                    }`}
-                  >
-                    Next
-                  </button>
+                  ))}
                 </div>
-              )}
-            </>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-4 mt-8 bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100 w-fit mx-auto animate-in fade-in duration-300">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${currentPage === 1
+                        ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent"
+                        : "bg-slate-100 text-slate-700 hover:bg-[#0F172A] hover:text-[#D4AF37] active:scale-95 border border-slate-200"
+                        }`}
+                    >
+                      Previous
+                    </button>
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${currentPage === totalPages
+                        ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent"
+                        : "bg-slate-100 text-slate-700 hover:bg-[#0F172A] hover:text-[#D4AF37] active:scale-95 border border-slate-200"
+                        }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
             )}
 
             {!menuLoading && visibleMenuItems.length === 0 && (
               <div className="py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
                 <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Zap className="w-10 h-10 text-slate-600" />
+                  <Zap className="w-10 h-10 text-slate-300" />
                 </div>
                 <h4 className="text-xl font-bold text-slate-900 mb-2">No masterpieces found</h4>
-                <p className="text-slate-500">Refine your search or create a new signature dish.</p>
+                <p className="text-slate-400">Refine your search or create a new signature dish.</p>
               </div>
             )}
           </div>
