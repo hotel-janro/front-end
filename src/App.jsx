@@ -5,8 +5,8 @@ import { Navbar } from "./components/common/Navbar.jsx";
 import { Footer } from "./components/common/Footer.jsx";
 import { AppRoutes } from "./routes/AppRoutes.jsx";
 import { SettingsProvider } from "./context/SettingsContext.jsx";
-import { SocketProvider } from "./context/SocketContext.jsx";
-import { Toaster } from "sonner";
+import { SocketProvider, useSocket } from "./context/SocketContext.jsx";
+import { Toaster, toast } from "sonner";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -43,6 +43,33 @@ function AppInner() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
+    const socket = useSocket();
+
+    // Listen for real-time order status updates for the customer
+    useEffect(() => {
+        if (!socket || !user) return;
+        
+        const handleOrderUpdated = (updatedOrder) => {
+            // Check if the order belongs to this customer
+            const orderUserId = updatedOrder.customerUser?._id || updatedOrder.customerUser;
+            if (orderUserId && orderUserId === user._id) {
+                const status = updatedOrder.orderStatus;
+                let toastType = toast.info;
+                if (status === 'Preparing' || status === 'Completed') toastType = toast.success;
+                if (status === 'Cancelled' || status === 'Rejected') toastType = toast.error;
+                
+                toastType(`Your order status is now: ${status}`, {
+                    description: `Order #${(updatedOrder._id || '').slice(-6).toUpperCase()}`,
+                    duration: 6000,
+                });
+            }
+        };
+
+        socket.on("orderUpdated", handleOrderUpdated);
+        return () => {
+            socket.off("orderUpdated", handleOrderUpdated);
+        };
+    }, [socket, user]);
 
     // Restore session on mount
     useEffect(() => {

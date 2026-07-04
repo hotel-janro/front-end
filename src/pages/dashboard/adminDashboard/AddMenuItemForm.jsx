@@ -177,9 +177,9 @@ export default function AddMenuItemForm({ initialItem, existingCategories = [], 
   };
 
   return (
-    <div className="bg-[#0F172A] rounded-[2.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border border-white/10 max-w-4xl w-full mx-auto animate-in zoom-in-95 duration-500">
+    <div className="bg-[#0F172A] rounded-[2rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border border-white/10 max-w-4xl w-full mx-auto animate-in zoom-in-95 duration-500">
       {/* Header Section */}
-      <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+      <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-[#D4AF37] flex items-center justify-center shadow-lg shadow-[#D4AF37]/20">
             <UtensilsCrossed className="w-6 h-6 text-[#0F172A]" />
@@ -196,12 +196,12 @@ export default function AddMenuItemForm({ initialItem, existingCategories = [], 
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-8">
-        <div className="grid lg:grid-cols-2 gap-6">
+      <form onSubmit={handleSubmit} className="p-6">
+        <div className="grid lg:grid-cols-2 gap-5">
 
           {/* Left Column: Details & Description */}
-          <div className="space-y-6 flex flex-col">
-            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-4">
+          <div className="space-y-4 flex flex-col">
+            <div className="p-4 bg-white/[0.03] rounded-[1.5rem] border border-white/5 space-y-3">
               <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
                 <Sparkles className="w-3 h-3" /> Basic Identity
               </h3>
@@ -212,7 +212,7 @@ export default function AddMenuItemForm({ initialItem, existingCategories = [], 
                   value={formData.name}
                   onChange={e => handleInputChange('name', e.target.value)}
                   placeholder="Lobster Thermidor..."
-                  className={`w-full bg-white/5 border ${errors.name ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] transition-all`}
+                  className={`w-full bg-white/5 border ${errors.name ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-[#D4AF37] transition-all`}
                 />
                 {errors.name && <p className="text-[9px] text-rose-500 ml-1">{errors.name}</p>}
               </div>
@@ -225,7 +225,7 @@ export default function AddMenuItemForm({ initialItem, existingCategories = [], 
                   value={formData.category}
                   onChange={e => handleInputChange('category', e.target.value)}
                   placeholder="Type or select a category..."
-                  className={`w-full bg-white/5 border ${errors.category ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] transition-all`}
+                  className={`w-full bg-white/5 border ${errors.category ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-[#D4AF37] transition-all`}
                 />
                 <datalist id="cuisine-categories">
                   {Array.from(new Set([
@@ -246,14 +246,14 @@ export default function AddMenuItemForm({ initialItem, existingCategories = [], 
                       type="number"
                       value={formData.prepTime}
                       onChange={e => handleInputChange('prepTime', e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37]"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-white outline-none focus:border-[#D4AF37]"
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 flex items-center justify-between">
+            <div className="p-4 bg-white/[0.03] rounded-[1.5rem] border border-white/5 flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-black text-white uppercase tracking-widest">Visibility</p>
                 <p className="text-[8px] text-slate-500 font-bold uppercase mt-1">Live in Menu</p>
@@ -279,8 +279,8 @@ export default function AddMenuItemForm({ initialItem, existingCategories = [], 
           </div>
 
           {/* Right Column: Image & Pricing */}
-          <div className="space-y-6 flex flex-col">
-            <div className={`p-4 bg-white/[0.03] rounded-[2.5rem] border ${errors.image ? 'border-rose-500' : 'border-white/5'} relative group h-48 md:h-64 flex-shrink-0 flex flex-col`}>
+            <div className="space-y-4 flex flex-col">
+              <div className={`p-3 bg-white/[0.03] rounded-[1.5rem] border ${errors.image ? 'border-rose-500' : 'border-white/5'} relative group h-32 md:h-48 flex-shrink-0 flex flex-col`}>
               <div className="relative w-full h-full rounded-[2rem] overflow-hidden bg-white/5 border border-white/10">
                 {imagePreview ? (
                   <>
@@ -304,13 +304,13 @@ export default function AddMenuItemForm({ initialItem, existingCategories = [], 
               </div>
             </div>
 
-            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-5 flex-1">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
-                  <DollarSign className="w-3 h-3" /> Cost Structure
-                </h3>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 mb-4">
+              <div className="p-4 bg-white/[0.03] rounded-[1.5rem] border border-white/5 space-y-4 flex-1 flex flex-col">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
+                    <DollarSign className="w-3 h-3" /> Cost Structure
+                  </h3>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5 mb-3">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl ${formData.hasPortions ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-white/5 text-slate-500'}`}>
                     <Layers className="w-4 h-4" />
@@ -345,6 +345,7 @@ export default function AddMenuItemForm({ initialItem, existingCategories = [], 
                           type="number"
                           value={portion.price}
                           onChange={e => updatePortion(index, 'price', e.target.value)}
+                          onWheel={(e) => e.target.blur()}
                           className={`w-full bg-white/5 border ${errors[`portionPrice_${index}`] ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
                           placeholder="Rs"
                         />
@@ -367,6 +368,7 @@ export default function AddMenuItemForm({ initialItem, existingCategories = [], 
                     type="number"
                     value={formData.price}
                     onChange={e => handleInputChange('price', e.target.value)}
+                    onWheel={(e) => e.target.blur()}
                     className={`w-full bg-white/5 border ${errors.price ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
                     placeholder="Rs 0.00"
                   />
