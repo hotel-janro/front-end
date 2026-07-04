@@ -12,10 +12,10 @@ import {
   Bed, 
   Heart,
   DollarSign,
-  ArrowUpRight,
   Star,
   X,
-  Edit2
+  Edit2,
+  Eye
 } from "lucide-react";
 import { apiFetch, getImageUrl } from "../../../api.js";
 import { useSettings } from "../../../context/SettingsContext.jsx";
@@ -62,6 +62,7 @@ export function MyBookings() {
   const [activeTab, setActiveTab] = useState("rooms");
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState({ rooms: [], weddings: [] });
+  const [viewingBooking, setViewingBooking] = useState(null);
   const [editingBooking, setEditingBooking] = useState(null);
   const [editForm, setEditForm] = useState({
     fullName: "",
@@ -348,6 +349,16 @@ export function MyBookings() {
                               </span>
                             </div>
                           </div>
+                          
+                          {item.decorationItems && item.decorationItems.length > 0 && (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {item.decorationItems.map((dec, idx) => (
+                                <span key={idx} className="px-2 py-1 bg-rose-50 text-rose-600 border border-rose-100 text-[9px] font-black uppercase tracking-widest rounded-md">
+                                  {dec}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-6 pt-6 md:pt-0 border-t md:border-t-0 border-slate-100">
@@ -356,6 +367,13 @@ export function MyBookings() {
                             <p className="text-2xl font-black text-slate-900">Rs. {amount.toLocaleString()}</p>
                           </div>
                           <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => setViewingBooking(item)}
+                              className="p-3 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all"
+                              title="View Details"
+                            >
+                              <Eye className="h-5 w-5" />
+                            </button>
                             {isRoomBooking ? (
                               <>
                                 {canModify ? (
@@ -398,6 +416,83 @@ export function MyBookings() {
 
 
       </main>
+
+      {/* View Booking Modal */}
+      {viewingBooking && (
+        <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative">
+            <button
+              onClick={() => setViewingBooking(null)}
+              className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="p-8">
+              <h2 className="text-2xl font-bold text-[#0F172A] mb-2" style={{ fontFamily: "DM Serif Display, serif" }}>
+                Booking Details
+              </h2>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">
+                REF: #{String(viewingBooking._id || viewingBooking.id).slice(-8).toUpperCase()}
+              </p>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-semibold text-slate-500">Name</span>
+                  <span className="text-sm font-bold text-slate-900">{viewingBooking.fullName || "N/A"}</span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-semibold text-slate-500">Item</span>
+                  <span className="text-sm font-bold text-slate-900">{viewingBooking.roomName || viewingBooking.hallName || "N/A"}</span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-semibold text-slate-500">Date In</span>
+                  <span className="text-sm font-bold text-slate-900">
+                    {new Date(viewingBooking.checkInDate || viewingBooking.eventDate).toLocaleDateString()}
+                    {viewingBooking.checkInType ? ` (${viewingBooking.checkInType})` : ""}
+                  </span>
+                </div>
+                {viewingBooking.checkOutDate && (
+                  <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                    <span className="text-sm font-semibold text-slate-500">Date Out</span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {new Date(viewingBooking.checkOutDate).toLocaleDateString()}
+                      {viewingBooking.checkOutType ? ` (${viewingBooking.checkOutType})` : ""}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <span className="text-sm font-semibold text-slate-500">Guests</span>
+                  <span className="text-sm font-bold text-slate-900">{viewingBooking.guests || "N/A"}</span>
+                </div>
+                {viewingBooking.decorationItems && viewingBooking.decorationItems.length > 0 && (
+                  <div className="py-3 border-b border-slate-100">
+                    <span className="text-sm font-semibold text-slate-500 block mb-2">Decorations / Add-ons</span>
+                    <div className="flex flex-wrap gap-2">
+                      {viewingBooking.decorationItems.map((item, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-bold rounded-md">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {viewingBooking.specialRequests && (
+                  <div className="py-3 border-b border-slate-100">
+                    <span className="text-sm font-semibold text-slate-500 block mb-1">Special Requests</span>
+                    <span className="text-sm font-medium text-slate-800">{viewingBooking.specialRequests}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-4">
+                  <span className="text-sm font-bold text-slate-900 uppercase tracking-widest">Total Amount</span>
+                  <span className="text-xl font-black text-[#D4AF37]">
+                    Rs. {Number(viewingBooking.amount || viewingBooking.totalPrice || viewingBooking.totalAmount || 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Booking Modal */}
       {editingBooking && (
