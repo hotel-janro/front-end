@@ -226,7 +226,7 @@ export function ReceptionBookings() {
                 <InfoItem label="Check-in" value={new Date(selectedBooking.checkIn).toLocaleDateString()} />
                 <InfoItem label="Check-out" value={new Date(selectedBooking.checkOut).toLocaleDateString()} />
                 <InfoItem label="Guests" value={selectedBooking.guests} />
-                <InfoItem label="Total Amount" value={`$${selectedBooking.totalAmount}`} />
+                <InfoItem label="Total Amount" value={`Rs ${selectedBooking.totalAmount}`} />
               </div>
               <div className="flex items-center gap-2 pt-2">
                 <span className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full ${getStatusConfig(selectedBooking.status).bg}`}>
