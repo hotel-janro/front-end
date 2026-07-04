@@ -202,90 +202,91 @@ export function CashierReceipts() {
       </div>
 
       {/* Luxury Receipts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {loading && orders.length === 0 ? (
           <div className="col-span-full py-40 text-center">
             <div className="w-16 h-16 border-4 border-slate-200 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6" />
             <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px]">Curating your boutique records...</p>
           </div>
         ) : filtered.map((receipt) => (
-          <div key={receipt.orderId} className="group bg-slate-50 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-[#D4AF37]/30 transition-all duration-500 overflow-hidden relative">
+          <div key={receipt.orderId} className="group bg-slate-50 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-[#D4AF37]/30 transition-all duration-500 overflow-hidden relative">
             {/* Refined Card Header */}
-            <div className="px-6 py-5 bg-slate-50/20 border-b border-slate-200 relative">
-              <div className="absolute top-0 left-0 w-1.5 h-full bg-[#D4AF37] opacity-0 group-hover:opacity-100 transition-all duration-300" />
+            <div className="px-5 py-3.5 bg-slate-50/20 border-b border-slate-200 relative">
+              <div className="absolute top-0 left-0 w-1 h-full bg-[#D4AF37] opacity-0 group-hover:opacity-100 transition-all duration-300" />
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-100 rounded-xl shadow-sm border border-slate-200 flex items-center justify-center group-hover:-rotate-6 group-hover:border-[#D4AF37] transition-all duration-300">
-                    <Receipt className="w-5 h-5 text-[#D4AF37]" />
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-slate-100 rounded-lg shadow-sm border border-slate-200 flex items-center justify-center group-hover:-rotate-6 group-hover:border-[#D4AF37] transition-all duration-300">
+                    <Receipt className="w-4 h-4 text-[#D4AF37]" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{receipt.id}</p>
-                      <span className="px-2.5 py-0.5 bg-slate-50 text-[#D4AF37] text-[8px] font-black uppercase tracking-widest rounded-lg">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest">{receipt.id}</p>
+                      <span className="px-1.5 py-0.5 bg-slate-50 text-[#D4AF37] text-[7px] font-black uppercase tracking-widest rounded-md">
                         #{receipt.dailySequenceNum.toString().padStart(3, '0')}
                       </span>
                     </div>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase mt-1 tracking-widest">{receipt.orderNumber}</p>
+                    <p className="text-[8px] font-bold text-slate-500 uppercase mt-0.5 tracking-widest">{receipt.orderNumber}</p>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
                   {receipt.status}
                 </span>
               </div>
             </div>
 
             {/* Refined Card Body */}
-            <div className="p-6 space-y-5">
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center border border-slate-200 text-[#D4AF37] group-hover:bg-[#D4AF37] group-hover:text-[#0F172A] transition-all duration-300">
-                  <User className="w-4 h-4" />
+            <div className="p-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center border border-slate-200 text-[#D4AF37] group-hover:bg-[#D4AF37] group-hover:text-[#0F172A] transition-all duration-300">
+                  <User className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Boutique Guest</p>
-                  <span className="text-xs font-black text-slate-900 uppercase tracking-wider">{receipt.customerName}</span>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Boutique Guest</p>
+                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">{receipt.customerName}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 text-slate-900">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Issued Date</span>
+              <div className="grid grid-cols-2 gap-4 text-slate-900">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-500">
+                    <Calendar className="w-3 h-3 text-[#D4AF37]" />
+                    <span className="text-[8px] font-black uppercase tracking-widest">Issued Date</span>
                   </div>
-                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">
+                  <p className="text-[9px] font-black text-slate-900 uppercase tracking-tight">
                     {new Date(receipt.issuedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </p>
                 </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <CreditCard className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Channel</span>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-500">
+                    <CreditCard className="w-3 h-3 text-[#D4AF37]" />
+                    <span className="text-[8px] font-black uppercase tracking-widest">Channel</span>
                   </div>
-                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">{receipt.paymentMethod}</p>
+                  <p className="text-[9px] font-black text-slate-900 uppercase tracking-tight">{receipt.paymentMethod}</p>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Package className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{receipt.items.length} Items</span>
+                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">{receipt.items.length} Items</span>
                 </div>
-                <span className="text-[8px] font-black text-[#D4AF37] uppercase bg-[#D4AF37]/5 px-2 py-1 rounded-full border border-[#D4AF37]/10">{receipt.type}</span>
+                <span className="text-[7px] font-black text-[#D4AF37] uppercase bg-[#D4AF37]/5 px-2 py-0.5 rounded-md border border-[#D4AF37]/10">{receipt.type}</span>
               </div>
 
-              <div className="pt-4 border-t border-slate-200 flex items-center justify-between gap-4">
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">Total Settled</p>
-                  <p className="text-xl font-black text-slate-900 tracking-tight" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5 italic">Total Settled</p>
+                  <p className="text-lg font-black text-slate-900 tracking-tight" style={{ fontFamily: 'DM Serif Display, serif' }}>
                     {formatCurrency(receipt.total)}
                   </p>
                 </div>
-                <button
-                  onClick={() => setSelectedReceipt(receipt)}
-                  className="w-10 h-10 bg-[#D4AF37] text-[#0F172A] rounded-xl shadow-lg hover:bg-white hover:text-[#0F172A] border border-transparent hover:border-[#0F172A] transition-all duration-500 flex items-center justify-center group/btn"
+                
+                <button 
+                  onClick={() => handleViewReceipt(receipt)}
+                  className="w-8 h-8 bg-[#D4AF37] text-[#0F172A] rounded-lg shadow-md hover:bg-white hover:text-[#0F172A] border border-transparent hover:border-[#0F172A] transition-all duration-300 flex items-center justify-center group/btn"
                 >
-                  <Eye className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
+                  <Eye className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" />
                 </button>
               </div>
             </div>
