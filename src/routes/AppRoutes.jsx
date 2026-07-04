@@ -48,6 +48,7 @@ import { CashierProfile } from "../pages/dashboard/cashierDashboard/CashierProfi
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
+import { VerifyOTP } from "../pages/website/VerifyOTP.jsx";
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, onLogout, onGoogleLogin, onUpdateUser }) {
   const navigate = useNavigate();
@@ -243,6 +244,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/forgot-password" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ForgotPassword />} />
       <Route path="/reset-password/:token" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ResetPassword />} />
+      <Route path="/verify-otp" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <VerifyOTP />} />
 
       <Route
         path="/login"
