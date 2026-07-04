@@ -147,6 +147,14 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
     return d.toISOString().split("T")[0];
   };
 
+  useEffect(() => {
+    if (stayMode === "custom" && checkIn && checkOut && checkIn === checkOut) {
+      if (checkInType === "Night" && checkOutType === "Day") {
+        setCheckOut(getNextDay(checkIn));
+      }
+    }
+  }, [checkIn, checkOut, checkInType, checkOutType, stayMode]);
+
   const toggleDecoration = (itemName) => {
     setSelectedDecorations((prev) =>
       prev.includes(itemName) ? prev.filter((value) => value !== itemName) : [...prev, itemName]
@@ -530,7 +538,7 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                   <input
                     type="date"
                     value={checkOut}
-                    min={checkIn || todayStr}
+                    min={checkInType === "Night" ? (checkIn ? getNextDay(checkIn) : getNextDay(todayStr)) : (checkIn || todayStr)}
                     readOnly={stayMode !== "custom"}
                     onChange={(e) => {
                       if (stayMode === "custom") {
@@ -556,7 +564,13 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                     <label className="text-xs text-gray-500 block mb-1 font-semibold">Check-in</label>
                     <select
                       value={checkInType}
-                      onChange={(e) => setCheckInType(e.target.value)}
+                      onChange={(e) => {
+                        const newType = e.target.value;
+                        setCheckInType(newType);
+                        if (newType === "Night" && checkIn === checkOut && checkIn) {
+                          setCheckOut(getNextDay(checkIn));
+                        }
+                      }}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37]"
                     >
                       <option value="Day">Day (9AM)</option>
@@ -576,12 +590,6 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                       )}
                     </select>
                   </div>
-                </div>
-              )}
-
-              {isDateRangeInvalid && (
-                <div className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2.5 animate-in fade-in duration-300">
-                  ⚠️ Check-out date/time cannot be before check-in date/time.
                 </div>
               )}
 

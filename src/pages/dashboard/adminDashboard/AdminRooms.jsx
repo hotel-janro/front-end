@@ -31,6 +31,7 @@ import './AdminRooms.css';
 const getRoomTypeName = (roomName, roomNumberStr) => {
   if (!roomName) return 'N/A';
   const lower = roomName.toLowerCase();
+  
   if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
     return 'Standard Room (Non-AC)';
   }
@@ -44,6 +45,21 @@ const getRoomTypeName = (roomName, roomNumberStr) => {
       return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
     }
   }
+
+  if (lower.includes('non-ac family room') || lower.includes('non ac family room')) {
+    return 'Family Room (Non-AC)';
+  }
+  if (lower.includes('ac family room') || lower.includes('a/c family room')) {
+    return 'Family Room (AC)';
+  }
+  if (lower.includes('family room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Family Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  
   return roomName;
 };
 
@@ -618,10 +634,6 @@ export function AdminRooms() {
                     <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Total</p>
                     <h3 className="text-xl font-bold text-slate-900">{totalInStock}</h3>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-green-500 font-bold">Available</p>
-                    <h3 className="text-xl font-bold text-green-600">{freeCount}</h3>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1047,7 +1059,14 @@ export function AdminRooms() {
                             name="acVariant" 
                             value="ac" 
                             checked={formData.acVariant === 'ac'} 
-                            onChange={(e) => setFormData({...formData, acVariant: 'ac'})} 
+                            onChange={(e) => {
+                              const currentPrice = Number(formData.price) || 8500;
+                              setFormData({
+                                ...formData, 
+                                acVariant: 'ac', 
+                                price: formData.acVariant === 'nonAc' ? String(currentPrice + 2000) : formData.price
+                              });
+                            }} 
                             className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm font-medium text-slate-700">AC Room</span>
@@ -1058,7 +1077,14 @@ export function AdminRooms() {
                             name="acVariant" 
                             value="nonAc" 
                             checked={formData.acVariant === 'nonAc'} 
-                            onChange={(e) => setFormData({...formData, acVariant: 'nonAc'})}
+                            onChange={(e) => {
+                              const currentPrice = Number(formData.price) || 10500;
+                              setFormData({
+                                ...formData, 
+                                acVariant: 'nonAc', 
+                                price: formData.acVariant === 'ac' ? String(currentPrice - 2000) : formData.price
+                              });
+                            }}
                             className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm font-medium text-slate-700">Non-AC Room</span>
