@@ -21,7 +21,7 @@ import { AdminRooms } from "../pages/dashboard/adminDashboard/AdminRooms.jsx";
 import { AdminRestaurant } from "../pages/dashboard/adminDashboard/AdminRestaurant.jsx";
 import { AdminPOS } from "../pages/dashboard/adminDashboard/AdminPos.jsx";
 import { AdminReports } from "../pages/dashboard/adminDashboard/AdminReports.jsx";
-import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayemnts.jsx";
+import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayments.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 import { AdminGym } from "../pages/dashboard/adminDashboard/AdminGym.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
@@ -88,19 +88,85 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onG
         });
 
         if (response.success) {
-          const decorationText = data.decorationItems?.length
-            ? data.decorationItems.join(", ")
-            : null;
+          const booking = response.data; // The returned booking object
 
-          setBookingSuccess({
-            name: user?.name || "Guest",
-            roomName: data.room.name,
-            guests: data.guests,
-            decorations: decorationText
-          });
-          
-          // Refresh room counts after short delay
-          setTimeout(() => window.location.reload(), 3000);
+          const showSuccessModal = () => {
+            const decorationText = data.decorationItems?.length
+              ? data.decorationItems.join(", ")
+              : null;
+
+            setBookingSuccess({
+              name: user?.name || "Guest",
+              roomName: data.room.name,
+              guests: data.guests,
+              decorations: decorationText
+            });
+            
+            // Refresh room counts after short delay
+            setTimeout(() => window.location.reload(), 3000);
+          };
+
+          if (data.paymentMethod === "Card") {
+            try {
+              const hashRes = await apiFetch("/payments/payhere-hash", {
+                method: "POST",
+                body: JSON.stringify({
+                  orderId: booking._id,
+                  amount: booking.totalPrice
+                })
+              });
+
+              if (!hashRes || !hashRes.success) {
+                throw new Error("Failed to generate payment signature for booking.");
+              }
+
+              const { merchantId, currency, hash, amount } = hashRes.data;
+              const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "").replace(/\/$/, "");
+
+              const payment = {
+                sandbox: true,
+                merchant_id: merchantId,
+                return_url: `${window.location.origin}/my-bookings`,
+                cancel_url: `${window.location.origin}/rooms`,
+                notify_url: `${API_BASE}/api/payments/payhere-notify`,
+                order_id: booking._id,
+                items: `Room Booking - ${data.room.name}`,
+                amount: amount,
+                currency: currency,
+                hash: hash,
+                first_name: user?.name?.split(" ")[0] || "Valued",
+                last_name: user?.name?.split(" ")[1] || "Guest",
+                email: user?.email || data.email,
+                phone: user?.phone || data.phone,
+                address: "Hotel Janro Guest",
+                city: "Colombo",
+                country: "Sri Lanka",
+                custom_1: "room" // Signal to backend that this is a room booking
+              };
+
+              window.payhere.onCompleted = async function onCompleted(orderId) {
+                showSuccessModal();
+              };
+
+              window.payhere.onDismissed = function onDismissed() {
+                alert("Payment window closed. Your booking is saved as Unpaid in your dashboard.");
+                window.location.href = "/my-bookings";
+              };
+
+              window.payhere.onError = function onError(error) {
+                alert("Payment failed: " + error);
+                window.location.href = "/my-bookings";
+              };
+
+              window.payhere.startPayment(payment);
+            } catch (err) {
+              alert("Could not start payment: " + err.message);
+              window.location.href = "/my-bookings";
+            }
+          } else {
+            // Cash payment - directly show success
+            showSuccessModal();
+          }
         }
       } catch (error) {
         alert(`Booking failed: ${error.message}`);

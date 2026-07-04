@@ -129,8 +129,7 @@ export function Home() {
                   <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">{settings.currency.symbol}{room.price}/night</div>
                 </div>
                 <div className="p-6">
-                  <h3 className="text-[#0F172A] mb-2" style={{ fontFamily: "DM Serif Display, serif" }}>{room.name}</h3>
-                  <p className="text-gray-500 text-sm mb-4">{room.description}</p>
+                  <h3 className="text-[#0F172A] mb-4" style={{ fontFamily: "DM Serif Display, serif" }}>{room.name}</h3>
                   <Link to="/rooms">
                     <Button variant="ghost" className="!px-0 text-sm">
                       View Details <ArrowRight className="w-4 h-4" />
