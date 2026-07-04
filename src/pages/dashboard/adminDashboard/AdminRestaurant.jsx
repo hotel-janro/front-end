@@ -194,6 +194,7 @@ export function AdminRestaurant() {
                 <AddMenuItemForm
                   key={selectedMenuItem ? selectedMenuItem._id : (showAddForm ? 'new' : 'none')}
                   initialItem={selectedMenuItem}
+                  existingCategories={menuCategories.filter(c => c !== 'All')}
                   onSaved={handleMenuSaved}
                   onCancel={() => { setSelectedMenuItem(null); setShowAddForm(false); }}
                 />

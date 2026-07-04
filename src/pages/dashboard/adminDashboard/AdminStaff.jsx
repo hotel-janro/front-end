@@ -444,7 +444,7 @@ export function AdminStaff() {
               </div>
             </div>
             <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="admin-staff-select lg:w-48">
-              <option>All</option><option>Manager</option><option>Receptionist</option><option>Chef</option><option>Waiter</option><option>Housekeeping</option><option>Security</option><option>Maintenance</option>
+              <option>All</option><option>Manager</option><option>Receptionist</option><option>Cashier</option><option>Chef</option><option>Waiter</option><option>Housekeeping</option><option>Security</option><option>Maintenance</option>
             </select>
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="admin-staff-select lg:w-40">
               <option>All</option><option>Active</option><option>Inactive</option><option>On Leave</option>
@@ -583,6 +583,7 @@ export function AdminStaff() {
                   >
                     <option>Manager</option>
                     <option>Receptionist</option>
+                    <option>Cashier</option>
                     <option>Chef</option>
                     <option>Waiter</option>
                     <option>Housekeeping</option>
@@ -845,6 +846,7 @@ export function AdminStaff() {
                   >
                     <option>Manager</option>
                     <option>Receptionist</option>
+                    <option>Cashier</option>
                     <option>Chef</option>
                     <option>Waiter</option>
                     <option>Housekeeping</option>

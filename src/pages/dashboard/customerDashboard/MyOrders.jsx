@@ -245,7 +245,7 @@ export function MyOrders() {
       setEditingOrder(null);
       loadMyOrders();
     } catch (error) {
-      alert(`Update failed: ${error.message}`);
+      toast.error(`Update failed: ${error.message}`);
     } finally {
       setIsUpdating(false);
     }
@@ -259,7 +259,7 @@ export function MyOrders() {
 
   function removeItem(idx) {
     if (editingOrder.items.length <= 1) {
-      alert("Order must have at least one item. Cancel the order instead if needed.");
+      toast.error("Order must have at least one item. Cancel the order instead if needed.");
       return;
     }
     const newItems = editingOrder.items.filter((_, i) => i !== idx);
