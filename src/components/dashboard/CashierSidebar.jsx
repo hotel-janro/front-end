@@ -1,4 +1,3 @@
-// CashierSidebar.jsx - Cashier Dashboard Sidebar Navigation
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
@@ -10,6 +9,8 @@ import {
   LogOut,
   User,
 } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext";
+
 
 const navItems = [
   { label: "POS Dashboard", icon: LayoutGrid, path: "/cashier" },
@@ -20,15 +21,20 @@ const navItems = [
 ];
 
 export function CashierSidebar({ user, onLogout }) {
+  const { settings } = useSettings();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+
+  const handleLogout = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (onLogout) onLogout();
-    navigate("/");
   };
 
   return (
-    <aside className="w-64 bg-[#0F172A] border-r border-[#1E293B] text-slate-100 flex flex-col min-h-screen fixed left-0 top-0 z-40">
+    <aside className="w-64 bg-[#0F172A] border-r border-[#1E293B] text-slate-100 flex flex-col h-screen fixed left-0 top-0 z-40">
       {/* Logo */}
       <div className="p-6 border-b border-[#1E293B]">
         <div className="flex items-center gap-3">
@@ -36,8 +42,8 @@ export function CashierSidebar({ user, onLogout }) {
             <Building2 className="w-6 h-6 text-[#D4AF37]" />
           </div>
           <div>
-            <h1 className="text-[1.8rem] leading-none tracking-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-               HOTEL JANRO
+            <h1 className="text-[1.8rem] leading-none tracking-tight text-white uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
+              {settings.hotelName}
             </h1>
             <p className="text-xs text-[#D4AF37] tracking-[0.16em] uppercase mt-1">Cashier Panel</p>
           </div>
@@ -54,10 +60,9 @@ export function CashierSidebar({ user, onLogout }) {
               to={item.path}
               end={item.path === "/cashier"}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-[#D4AF37]/20 text-[#F5E7B2] border border-[#D4AF37]/40"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
+                  ? "bg-[#D4AF37]/20 text-[#F5E7B2] border border-[#D4AF37]/40"
+                  : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`
               }
             >
@@ -74,10 +79,10 @@ export function CashierSidebar({ user, onLogout }) {
           <div className="w-10 h-10 bg-[#D4AF37] rounded-full flex items-center justify-center text-sm font-bold text-[#0F172A]">
             {user?.name
               ? user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase()
               : "LC"}
           </div>
           <div className="flex-1 min-w-0">
@@ -87,8 +92,9 @@ export function CashierSidebar({ user, onLogout }) {
             <p className="text-xs text-slate-400 truncate">POS Cashier</p>
           </div>
           <button
+            type="button"
             onClick={handleLogout}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors shrink-0 cursor-pointer z-50 relative"
             title="Logout"
           >
             <LogOut className="w-4 h-4" />

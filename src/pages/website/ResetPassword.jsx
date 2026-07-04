@@ -2,8 +2,12 @@ import React, { useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "../../components/common/Button.jsx";
 import { Crown, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext";
+
 
 export function ResetPassword() {
+  const { settings } = useSettings();
+
   const { token } = useParams();
   const navigate = useNavigate();
   
@@ -71,8 +75,8 @@ export function ResetPassword() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Crown className="w-8 h-8 text-[#D4AF37]" />
-            <span className="text-2xl text-[#0F172A] tracking-wider" style={{ fontFamily: "DM Serif Display, serif" }}>
-              HOTEL JANRO
+            <span className="text-2xl text-[#0F172A] tracking-wider uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
+              {settings.hotelName}
             </span>
           </div>
           <h2 className="text-xl font-bold text-[#0F172A] mt-6">Create New Password</h2>

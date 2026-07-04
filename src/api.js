@@ -6,7 +6,7 @@ const BASE_URL = `${API_HOST}/api`;
 export const apiFetch = async (endpoint, options = {}) => {
   const token = localStorage.getItem("janro_token");
 
-  // If body is FormData, do not set Content-Type so the browser can add the multipart boundary
+  
   const isFormData = options.body instanceof FormData;
   const headers = {
     ...(isFormData ? {} : { "Content-Type": "application/json" }),
@@ -24,7 +24,7 @@ export const apiFetch = async (endpoint, options = {}) => {
     throw new Error("Unable to reach API server");
   }
 
-  // If 401 Unauthorized, try refreshing the token
+  // 401 Unauthorized, try refreshing token
   if (response.status === 401) {
     const refreshToken = localStorage.getItem("janro_refresh_token");
     if (refreshToken) {
@@ -45,9 +45,28 @@ export const apiFetch = async (endpoint, options = {}) => {
             ...options,
             headers,
           });
+        } else {
+          // Refresh token invalid or expired
+          if (window.location.pathname !== "/login") {
+            localStorage.removeItem("janro_token");
+            localStorage.removeItem("janro_refresh_token");
+            window.location.href = "/login";
+          }
         }
       } catch (err) {
         console.error("Token refresh failed:", err);
+        if (window.location.pathname !== "/login") {
+          localStorage.removeItem("janro_token");
+          localStorage.removeItem("janro_refresh_token");
+          window.location.href = "/login";
+        }
+      }
+    } else {
+      // No refresh token available
+      if (window.location.pathname !== "/login") {
+        localStorage.removeItem("janro_token");
+        localStorage.removeItem("janro_refresh_token");
+        window.location.href = "/login";
       }
     }
   }
@@ -70,8 +89,14 @@ export const getImageUrl = (imagePath) => {
   if (!imagePath) return '';
   if (imagePath.startsWith('http') || imagePath.startsWith('blob:')) return imagePath;
   
-  // Clean up any double slashes and ensure proper API_HOST prefix
-  const cleanPath = imagePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  // Clean up any backslashes and leading slashes
+  let cleanPath = imagePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  
+  // If the path doesn't already start with 'uploads/', prepend it
+  // This ensures images are correctly routed to the backend's static file server
+  if (!cleanPath.startsWith('uploads/')) {
+    cleanPath = `uploads/${cleanPath}`;
+  }
   
   // Encode each segment of the path to handle spaces and special characters in filenames
   const encodedPath = cleanPath.split('/').map(seg => encodeURIComponent(seg)).join('/');

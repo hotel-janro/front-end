@@ -1,5 +1,5 @@
-// AppRoutes.jsx - Application Routes (Pure JavaScript)
-import React from "react";
+// AppRoutes.jsx - Application Routes 
+import React, { useState } from "react";
 import { apiFetch } from "../api";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Home } from "../pages/website/Home.jsx";
@@ -23,15 +23,18 @@ import { AdminPOS } from "../pages/dashboard/adminDashboard/AdminPos.jsx";
 import { AdminReports } from "../pages/dashboard/adminDashboard/AdminReports.jsx";
 import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayemnts.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
+import { AdminGym } from "../pages/dashboard/adminDashboard/AdminGym.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
 import { AdminSettings } from "../pages/dashboard/adminDashboard/AdminSettings.jsx";
 import { AdminBookings } from "../pages/dashboard/adminDashboard/AdminBooking.jsx";
 import { AdminGuests } from "../pages/dashboard/adminDashboard/AdminGuests.jsx";
 import { AdminWedding } from "../pages/dashboard/adminDashboard/AdminWeddings.jsx";
 import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory.jsx";
+import { AdminMessages } from "../pages/dashboard/adminDashboard/AdminMessages.jsx";
 
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
+import { ReceptionGym } from "../pages/dashboard/receptionDashboard/ReceptionGym.jsx";
 import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
 import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionRooms.jsx";
 import { ReceptionWedding } from "../pages/dashboard/receptionDashboard/ReceptionWedding.jsx";
@@ -44,9 +47,8 @@ import { CashierProfile } from "../pages/dashboard/cashierDashboard/CashierProfi
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
-import { VerifyOTP } from "../pages/website/VerifyOTP.jsx";
 
-export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
+export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout, onGoogleLogin }) {
   const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
   const isReception = user?.role === "reception" || user?.role === "receptionist";
@@ -54,6 +56,8 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   const isCustomer = user?.role === "customer";
 
   const postAuthPath = isAdmin ? "/admin" : isReception ? "/reception" : isCashier ? "/cashier" : "/";
+
+  const [bookingSuccess, setBookingSuccess] = useState(null); // { name, roomName, guests }
 
   const protectedBook = async (data) => {
     if (!isLoggedIn) {
@@ -66,6 +70,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
           method: "POST",
           body: JSON.stringify({
             roomId: data.room._id,
+            roomNumber: data.roomNumber,
             checkInDate: data.checkInDate,
             checkOutDate: data.checkOutDate,
             guests: data.guests,
@@ -75,26 +80,32 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
             specialRequests: data.specialRequests || "",
             decorationItems: data.decorationItems || [],
             checkInType: data.checkInType || 'Day',
-            checkOutType: data.checkOutType || 'Night'
+            checkOutType: data.checkOutType || 'Night',
+            stayMode: data.stayMode || 'custom'
           })
         });
 
         if (response.success) {
           const decorationText = data.decorationItems?.length
-            ? `\nHoneymoon decorations: ${data.decorationItems.join(", ")}`
-            : "";
+            ? data.decorationItems.join(", ")
+            : null;
 
-          alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}.\n\nRoom: ${data.room.name}\nGuests: ${data.guests}${decorationText}`);
+          setBookingSuccess({
+            name: user?.name || "Guest",
+            roomName: data.room.name,
+            guests: data.guests,
+            decorations: decorationText
+          });
           
-          // Refresh the page to update room counts
-          window.location.reload();
+          // Refresh room counts after short delay
+          setTimeout(() => window.location.reload(), 3000);
         }
       } catch (error) {
         alert(`Booking failed: ${error.message}`);
       }
       return;
     }
-    alert(`Booking confirmed! Thank you, ${user?.name || "Guest"}. Your booking details have been saved.`);
+    setBookingSuccess({ name: user?.name || "Guest", roomName: null, guests: null, decorations: null });
   };
 
   const protectedOrder = (data) => {
@@ -108,7 +119,49 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
   };
 
   return (
-    <Routes>
+    <>
+      {bookingSuccess && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center" style={{ animation: 'fadeInScale 0.3s ease' }}>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Booking Confirmed!</h2>
+            <p className="text-gray-500 mb-4">Thank you, <span className="font-semibold text-gray-800">{bookingSuccess.name}</span></p>
+            {bookingSuccess.roomName && (
+              <div className="bg-gray-50 rounded-xl p-4 text-left space-y-2 mb-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Room</span>
+                  <span className="font-medium text-gray-800">{bookingSuccess.roomName}</span>
+                </div>
+                {bookingSuccess.guests && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Guests</span>
+                    <span className="font-medium text-gray-800">{bookingSuccess.guests}</span>
+                  </div>
+                )}
+                {bookingSuccess.decorations && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Decorations</span>
+                    <span className="font-medium text-gray-800">{bookingSuccess.decorations}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => setBookingSuccess(null)}
+              className="w-full py-3 rounded-xl font-semibold text-white"
+              style={{ background: 'linear-gradient(135deg, #0F172A, #1e293b)' }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+      <style>{`@keyframes fadeInScale { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }`}</style>
+      <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/rooms" element={<Rooms onBook={protectedBook} isLoggedIn={isLoggedIn} />} />
       <Route path="/events" element={<Events onBook={protectedBook} isLoggedIn={isLoggedIn} user={user} />} />
@@ -117,17 +170,16 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
       <Route path="/contact" element={<Contact />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/checkout" element={<Checkout />} />
-      <Route path="/verify-email" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <VerifyOTP onLogin={onLogin} />} />
       <Route path="/forgot-password" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ForgotPassword />} />
       <Route path="/reset-password/:token" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ResetPassword />} />
 
       <Route
         path="/login"
-        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Login onLogin={onLogin} />}
+        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Login onLogin={onLogin} onGoogleLogin={onGoogleLogin} />}
       />
       <Route
         path="/register"
-        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Register onRegister={onRegister} />}
+        element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <Register onRegister={onRegister} onGoogleLogin={onGoogleLogin} />}
       />
 
       {/* Customer Management Routes (Website Style) */}
@@ -144,6 +196,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="rooms" element={<AdminRooms />} />
         <Route path="bookings" element={<AdminBookings />} />
         <Route path="pool" element={<AdminPool />} />
+        <Route path="gym" element={<AdminGym />} />
         <Route path="staff" element={<AdminStaff />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="guests" element={<AdminGuests />} />
@@ -152,6 +205,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         <Route path="inventory" element={<AdminInventory />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="payments" element={<AdminPayments />} />
+        <Route path="messages" element={<AdminMessages />} />
       </Route>
 
       {/* Reception & Cashier */}
@@ -160,10 +214,12 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
         element={isLoggedIn && isReception ? <ReceptionLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<ReceptionDashboard />} />
-        <Route path="rooms" element={<ReceptionRooms />} />
+        <Route path="rooms" element={<ReceptionRooms isLoggedIn={isLoggedIn} onBook={protectedBook} />} />
         <Route path="wedding" element={<ReceptionWedding />} />
         <Route path="bookings" element={<ReceptionBookings />} />
         <Route path="pool" element={<ReceptionPool />} />
+        <Route path="gym" element={<ReceptionGym />} />
+        <Route path="customers" element={<AdminGuests />} />
       </Route>
 
       <Route
@@ -180,5 +236,6 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onRegister, onLogout }) {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }

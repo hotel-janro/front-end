@@ -42,8 +42,12 @@ export function AdminDashboard() {
     const fetchDashboard = async () => {
       try {
         setLoading(true);
+        const token = localStorage.getItem('janro_token') || localStorage.getItem('token');
         const res = await fetch(`${API_BASE}/api/reports`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
         });
         
         if (!res.ok) throw new Error('Failed to fetch dashboard data');
@@ -102,44 +106,76 @@ export function AdminDashboard() {
     avgDailyRevenue = 0,
     occupancyRate = 0,
     revenueData = [],
+    bookingData = [],
     weeklyOccupancy = [],
     todayCheckIns = 0,
     todayCheckOuts = 0,
-    availableRooms = 0
+    availableRooms = 0,
+    monthlyRevenue = 0
   } = dashboardData;
 
-  const monthlyRevenue = avgDailyRevenue * 30;
+  const getGrowth = (current, previous) => {
+    if (!previous || previous === 0) {
+      if (current > 0) return { change: "+100.0%", trend: "up" };
+      return { change: "0.0%", trend: "up" };
+    }
+    let diff = ((current - previous) / previous) * 100;
+    const sign = diff >= 0 ? "+" : "";
+    return {
+      change: `${sign}${diff.toFixed(1)}%`,
+      trend: diff >= 0 ? "up" : "down"
+    };
+  };
+
+  const revenueGrowth = getGrowth(
+    revenueData.length >= 1 ? revenueData[revenueData.length - 1]?.revenue : 0,
+    revenueData.length >= 2 ? revenueData[revenueData.length - 2]?.revenue : 0
+  );
+
+  const bookingsGrowth = getGrowth(
+    bookingData.length >= 1 ? bookingData[bookingData.length - 1]?.bookings : 0,
+    bookingData.length >= 2 ? bookingData[bookingData.length - 2]?.bookings : 0
+  );
+
+  const occupancyGrowth = getGrowth(
+    occupancyRate,
+    weeklyOccupancy.length >= 2 ? weeklyOccupancy[weeklyOccupancy.length - 2]?.occupancy : 0
+  );
 
   const stats = [
     {
       title: "Total Revenue",
       value: `${settings?.currency?.symbol || '$'}${totalRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}`,
-      change: "+12.5%",
-      trend: "up",
+      change: revenueGrowth.change,
+      trend: revenueGrowth.trend,
+      comparison: "vs last month",
       icon: DollarSign,
       color: "bg-[#D4AF37]/20 text-[#9A7812]",
     },
     {
       title: "Occupancy Rate",
       value: `${occupancyRate}%`,
-      change: "+5.2%",
-      trend: "up",
+      change: occupancyGrowth.change,
+      trend: occupancyGrowth.trend,
+      comparison: "vs yesterday",
       icon: Bed,
       color: "bg-[#0F172A]/10 text-[#0F172A]",
     },
     {
       title: "Total Bookings",
       value: totalBookings,
-      change: "+8.3%",
-      trend: "up",
+      change: bookingsGrowth.change,
+      trend: bookingsGrowth.trend,
+      comparison: "vs last month",
       icon: Calendar,
       color: "bg-[#1E3A8A]/15 text-[#1E3A8A]",
     },
     {
       title: "Monthly Revenue",
       value: `${settings?.currency?.symbol || '$'}${monthlyRevenue.toLocaleString(undefined, {maximumFractionDigits:0})}`,
-      change: "+8.1%",
-      trend: "up",
+      change: revenueGrowth.change,
+      trend: revenueGrowth.trend,
+      comparison: "vs last month",
       icon: TrendingUp,
       color: "bg-[#F8FAFC] text-[#0F172A]",
     },
@@ -150,7 +186,7 @@ export function AdminDashboard() {
       {/* Header */}
       <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">Hotel Janro</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">{settings.hotelName}</p>
           <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
             Admin Dashboard
           </h1>
@@ -202,7 +238,7 @@ export function AdminDashboard() {
                     >
                       {stat.change}
                     </span>
-                    <span className="text-sm text-slate-500">vs last month</span>
+                    <span className="text-sm text-slate-500">{stat.comparison}</span>
                   </div>
                 </div>
                 <div className={`p-3 rounded-lg ${stat.color}`}>
@@ -222,17 +258,17 @@ export function AdminDashboard() {
             Revenue Overview
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={revenueData}>
+            <LineChart data={revenueData} margin={{ top: 10, right: 10, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="month" stroke="#9ca3af" />
-              <YAxis stroke="#9ca3af" />
+              <YAxis stroke="#9ca3af" width={80} tickFormatter={(value) => value.toLocaleString()} />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#fff",
                   border: "1px solid #D4AF37",
                   borderRadius: "8px",
                 }}
-                formatter={(value) => [`${settings?.currency?.symbol || '$'}${value}`, "Revenue"]}
+                formatter={(value) => [`${settings?.currency?.symbol || '$'}${Number(value).toFixed(2)}`, "Revenue"]}
               />
               <Line
                 type="monotone"

@@ -1,9 +1,10 @@
-// Restaurant.jsx - Supreme Luxury Customer Menu & Ordering
+// Restaurant - Customer Menu & Ordering
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FoodCard } from "../../components/website/FoodCard.jsx";
 import { ImageWithFallback } from "../../components/common/ImageWithFallback.jsx";
-import { ShoppingCart, X, Truck, Building2, Loader2, MapPin, Phone, History, UtensilsCrossed, Package, Star, Info } from "lucide-react";
+import { MapPicker } from "../../components/common/MapPicker.jsx";
+import { ShoppingCart, X, Truck, Building2, Loader2, MapPin, Phone, History, UtensilsCrossed, Package, Star, Info, CheckCircle, Search, Filter, ChevronDown } from "lucide-react";
 import { apiFetch, API_HOST, getImageUrl } from "../../api.js";
 import { toast } from "sonner";
 import { useSettings } from "../../context/SettingsContext.jsx";
@@ -14,23 +15,48 @@ export function Restaurant({ onOrder, user }) {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
-  
-  // Advanced Order State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12; // 12 fits better in responsive grids (2, 3, or 4 columns)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Order state
   const [orderType, setOrderType] = useState("Dine-in");
+  const [customerName, setCustomerName] = useState(user?.name || "");
   const [deliveryAddress, setDeliveryAddress] = useState("");
-  const [contactNumber, setContactNumber] = useState("");
+  const [contactNumber, setContactNumber] = useState(user?.phone || "");
   const [tableNumber, setTableNumber] = useState("");
   const [roomNumber, setRoomNumber] = useState("");
+  const [specialNotes, setSpecialNotes] = useState("");
   const [coordinates, setCoordinates] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+
+  const clearError = (field) => {
+    if (validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrs = { ...prev };
+        delete newErrs[field];
+        return newErrs;
+      });
+    }
+  };
 
   useEffect(() => {
     const fetchMenu = async () => {
       try {
-        const data = await apiFetch("/menu?limit=100&populate=inventoryItem");
+        const data = await apiFetch("/menu?limit=100&populate=inventoryItem&isAvailable=true");
         // Handle both paginated and non-paginated responses
         const items = Array.isArray(data) ? data : (data?.items || []);
         setMenuItems(items);
@@ -43,19 +69,62 @@ export function Restaurant({ onOrder, user }) {
     fetchMenu();
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      setCustomerName(user.name || "");
+      setContactNumber(user.phone || "");
+    }
+  }, [user]);
+
   const categories = useMemo(() => {
-    const rawCategories = ["All", ...new Set(menuItems.map(i => i.category).filter(Boolean))];
-    return rawCategories
-      .filter(cat => !["Breakfast", "Appetizers", "Chef's Specialty"].includes(cat)) 
-      .map(cat => (cat === "Snack" || cat === "Snacks") ? "Bites" : cat); 
+    const predefinedOrder = [
+      'Rice', 'Koththu', 'Noodles', 'Chicken', 'Fish', 'Prawns', 'Cuttle Fish', 
+      'Mutton', 'Pork', 'Omelet', 'Vegetables & Sides', 'Salad', 'Soup', 
+      'Starters', 'Outdoor Party', 'Beverages'
+    ];
+    
+    const cats = new Set(menuItems.map(item => item.category).filter(Boolean));
+    const sortedCats = Array.from(cats).sort((a, b) => {
+      const indexA = predefinedOrder.indexOf(a);
+      const indexB = predefinedOrder.indexOf(b);
+      
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA === -1 && indexB !== -1) return 1;
+      if (indexA !== -1 && indexB === -1) return -1;
+      return a.localeCompare(b);
+    });
+    
+    return ['All', ...sortedCats];
   }, [menuItems]);
 
-  const filteredItems = useMemo(() => 
-    activeCategory === "All" ? menuItems : menuItems.filter(i => i.category === activeCategory)
-  , [menuItems, activeCategory]);
+  const filteredItems = useMemo(() => {
+    return menuItems.filter(i => {
+      const matchCategory = activeCategory === "All" || i.category === activeCategory;
+      const searchLower = debouncedSearch.toLowerCase();
+      const matchSearch = !debouncedSearch || 
+        i.name.toLowerCase().includes(searchLower) || 
+        (i.category && i.category.toLowerCase().includes(searchLower));
+      return matchCategory && matchSearch;
+    });
+  }, [menuItems, activeCategory, debouncedSearch]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, debouncedSearch]);
+
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredItems.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredItems, currentPage, itemsPerPage]);
 
   const addToCart = (item) => {
-    console.log("Restaurant: Adding to cart:", item);
+    if (!user) {
+      toast.error("Please log in to add items to your cart.");
+      navigate("/login");
+      return;
+    }
     setCart((prev) => {
       const cartItemId = `${item._id}-${item.portion || 'single'}`;
       const existing = prev.find((c) => c.cartItemId === cartItemId);
@@ -69,52 +138,132 @@ export function Restaurant({ onOrder, user }) {
 
   const removeFromCart = (cartItemId) => setCart((prev) => prev.filter((c) => c.cartItemId !== cartItemId));
 
-  // --- ADVANCED PRICING LOGIC ---
-  const HOTEL_COORDS = { lat: 6.0833, lng: 80.5667 }; // Kamburupitiya, Matara
+  const updateQuantity = (cartItemId, delta) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.cartItemId === cartItemId) {
+          const newQty = Math.max(1, item.quantity + delta);
+          return { ...item, quantity: newQty };
+        }
+        return item;
+      })
+    );
+  };
+
+  // Pricing and distance logic
+  const HOTEL_COORDS = { lat: 6.9458, lng: 80.1250 }; // Malwana Road, Dompe
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; 
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
+  const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
   const subtotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
-  
+
   let serviceCharge = 0;
   let deliveryFee = 0;
   let distance = 0;
 
   if (orderType === "Dine-in" || orderType === "Room") {
-    serviceCharge = subtotal * 0.1; 
+    serviceCharge = subtotal * 0.1;
   } else if (orderType === "Delivery" && coordinates) {
-    distance = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, coordinates.lat, coordinates.lng);
+    const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, coordinates.lat, coordinates.lng);
+    // Apply a 1.2x winding factor to estimate actual road distance
+    distance = straightDist * 1.2;
     if (distance > 1 && distance <= 15) {
-      // 10% of subtotal for each km after the first free km
-      deliveryFee = subtotal * 0.1 * Math.floor(distance); 
+      // 1km free, then 10% per 1km
+      deliveryFee = subtotal * 0.1 * Math.ceil(distance - 1);
     }
   }
 
   const grandTotal = subtotal + serviceCharge + deliveryFee;
   const isDistanceTooFar = orderType === "Delivery" && distance > 15;
 
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) return toast.error("Geolocation is not supported");
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoordinates({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setIsLocating(false);
-        toast.success("Delivery location captured!");
-      },
-      () => {
-        setIsLocating(false);
-        toast.error("Could not capture location");
+  const autoGeocode = async (address) => {
+    if (!address || address.length < 5) return;
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        setCoordinates({ lat: parseFloat(lat), lng: parseFloat(lon) });
       }
+    } catch (e) { /* Ignore */ }
+  };
+
+  const handleMapCoordinatesChange = async (coords) => {
+    setCoordinates(coords);
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}`);
+      const data = await response.json();
+      if (data && data.display_name) {
+        setDeliveryAddress(data.display_name);
+      }
+    } catch (e) {
+      console.error("Reverse geocoding failed on marker drag:", e);
+    }
+  };
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      return toast.error("Geolocation is not supported by your browser");
+    }
+
+    setIsLocating(true);
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        console.log("Restaurant: Location Captured:", { latitude, longitude });
+        setCoordinates({ lat: latitude, lng: longitude });
+
+        // Fill address from location
+        try {
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const data = await response.json();
+          if (data && data.display_name) {
+            setDeliveryAddress(data.display_name);
+            toast.success("Address auto-filled from your location!");
+          }
+        } catch (e) {
+          console.error("Restaurant: Reverse geocoding failed:", e);
+        }
+
+        setIsLocating(false);
+      },
+      (err) => {
+        console.error("Restaurant: Geolocation Error:", err);
+        setIsLocating(false);
+
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            toast.error("Please allow location access in your browser settings.");
+            break;
+          case err.POSITION_UNAVAILABLE:
+            toast.error("Location information is unavailable.");
+            break;
+          case err.TIMEOUT:
+            toast.error("Location request timed out. Please try again.");
+            break;
+          default:
+            toast.error("An unknown error occurred while getting location.");
+        }
+      },
+      options
     );
   };
 
@@ -124,71 +273,70 @@ export function Restaurant({ onOrder, user }) {
       navigate("/login");
       return;
     }
-    console.log("Restaurant: Initiating Order Validation...", { orderType, roomNumber, contactNumber, cart });
 
+    const errors = {};
     if (cart.length === 0) {
-      alert("Please select items before placing an order.");
       toast.error("Your cart is empty. Please select your gourmet choices.");
       return;
     }
-    
-    // --- STRENGTHENED VALIDATION WITH ALERTS ---
 
-    // 1. Contact Number Validation
-    if (contactNumber || orderType === "Delivery") {
-      const cleanPhone = (contactNumber || "").replace(/[\s-]/g, '');
-      if (cleanPhone.length !== 10 || isNaN(Number(cleanPhone))) {
-        alert("CRITICAL ERROR: Phone number must be exactly 10 digits!");
-        toast.error("Invalid Phone: Must be exactly 10 digits (e.g., 0712345678)");
-        return;
-      }
+    if (!customerName || customerName.trim().length < 2) {
+      errors.customerName = "Name is required (at least 2 characters)";
     }
 
-    // 2. Room Number Validation
-    if (roomNumber || orderType === "Room") {
+    const cleanPhone = (contactNumber || "").replace(/[\s-]/g, '');
+    if (!cleanPhone) {
+      errors.contactNumber = "Phone number is required";
+    } else if (cleanPhone.length !== 10 || isNaN(Number(cleanPhone))) {
+      errors.contactNumber = "Must be exactly 10 digits";
+    }
+
+    if (orderType === "Room") {
       const rNum = Number(roomNumber);
       if (!roomNumber || isNaN(rNum) || rNum < 1 || rNum > 10) {
-        alert("CRITICAL ERROR: Invalid Room Number! Only rooms 1 to 10 are permitted.");
-        toast.error("Invalid Room: Please select a room between 1 and 10.");
-        return;
+        errors.roomNumber = "Select a valid room (1-10)";
       }
     }
-
-    // 3. Table Number Validation
     if (orderType === "Dine-in" && !tableNumber) {
-      alert("Error: Please provide your table number.");
-      toast.error("Please specify your table number.");
+      errors.tableNumber = "Table number is required";
+    }
+
+    if (orderType === "Delivery" && !deliveryAddress) {
+      errors.deliveryAddress = "Address is required for delivery";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      toast.error("Please correct the highlighted fields");
       return;
     }
 
-    // 4. Delivery Address Validation
-    if (orderType === "Delivery" && !deliveryAddress) {
-      alert("Error: Delivery address is required.");
-      toast.error("Delivery address is required.");
+    if (isDistanceTooFar) {
+      toast.error("Sorry, we cannot deliver to your location as it is outside our 15km delivery radius.");
       return;
     }
 
     try {
-      console.log("Restaurant: Validation Passed. Sending to Backend...");
       setIsPlacingOrder(true);
       const orderData = {
-        orderType,
-        items: cart.map(item => ({ 
-          menuItemId: item._id, 
+        items: cart.map(item => ({
+          menuItemId: item._id,
           quantity: item.quantity,
-          portion: item.portion || "" 
+          portion: item.portion || ""
         })),
+        orderType,
         deliveryAddress: orderType === "Delivery" ? deliveryAddress : "",
-        contactNumber: contactNumber || "",
+        contactNumber,
         tableNumber: orderType === "Dine-in" ? tableNumber : "",
         roomNumber: orderType === "Room" ? roomNumber : "",
         coordinates,
-        customerName: user.name,
+        customerName,
         customerUser: user._id,
         subtotal,
         serviceCharge,
         deliveryFee,
-        totalAmount: grandTotal
+        specialNotes,
+        totalAmount: grandTotal,
       };
 
       const result = await apiFetch("/orders", {
@@ -209,69 +357,136 @@ export function Restaurant({ onOrder, user }) {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Hero Section - Perfectly Matched with Events Page */}
-      <div className="bg-[#0F172A] py-20 text-center relative overflow-hidden">
+      <div className="bg-[#0F172A] py-16 text-center relative overflow-hidden">
+        {/* Hero */}
         <div className="absolute inset-0 opacity-10">
-          <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="Luxury Dining" />
+          <img src="https://res.cloudinary.com/dhuirf8i9/image/upload/v1783022207/hotel_janro/hotel_hero.jpg" className="w-full h-full object-cover" alt="Hotel Janro" />
         </div>
-        <div className="relative z-10">
-          {user && (
-            <p className="text-[#D4AF37] tracking-[0.2em] uppercase text-[8px] font-black mb-1 animate-in fade-in slide-in-from-bottom-2 duration-700">
-              Welcome back, {user.name}
-            </p>
-          )}
-          <p className="text-white/40 tracking-[0.3em] uppercase text-[10px] font-bold mb-3">Culinary Excellence</p>
-          <h1 className="text-4xl md:text-5xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
-            The Grand Menu
+        <div className="relative z-10 px-4">
+          <h1 className="text-4xl md:text-5xl text-[#D4AF37] mb-4 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>
+            The <span className="italic text-white">Menu</span>
           </h1>
-          <p className="text-gray-400 mt-4 max-w-xl mx-auto text-sm leading-relaxed">
-            Experience unparalleled luxury and dedicated service in our collection of exquisite dishes, designed to host life's most delicious moments.
+          <p className="text-slate-400 max-w-xl mx-auto text-xs font-bold uppercase tracking-[0.3em]">
+            A Symphony of Flavors Awaits
           </p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10 pb-32">
-        {/* Tab Switcher - Matching Events Page Style */}
-        <div className="flex justify-center mb-12">
-          <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-2xl shadow-[#0F172A]/10 border border-gray-100 flex items-center gap-1 overflow-x-auto no-scrollbar">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`flex items-center gap-2.5 px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer whitespace-nowrap ${
-                  activeCategory === cat
-                    ? "bg-[#0F172A] text-[#D4AF37] shadow-lg shadow-[#0F172A]/20"
-                    : "text-gray-400 hover:text-[#0F172A] hover:bg-gray-50"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Search & Categories */}
+        <div className="max-w-4xl mx-auto mb-10 flex flex-col md:flex-row gap-4 px-2">
+          {/* Search Box */}
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+            <input
+              type="text"
+              placeholder="Search for your favorite dishes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3.5 bg-[#0F172A] border border-[#D4AF37]/30 rounded-2xl shadow-md text-sm font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all text-white placeholder:text-gray-400 hover:border-[#D4AF37]/60"
+            />
+          </div>
+          
+          {/* Category Dropdown */}
+          <div className="relative w-full md:w-64">
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="w-full flex items-center justify-between pl-12 pr-4 py-3.5 bg-[#0F172A] border border-[#D4AF37]/30 rounded-2xl shadow-md text-sm font-bold uppercase tracking-widest text-white cursor-pointer hover:border-[#D4AF37]/60 transition-all text-left"
+            >
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+              <span className="truncate">{activeCategory}</span>
+              <ChevronDown className={`w-5 h-5 text-[#D4AF37] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isDropdownOpen && (
+              <>
+                {/* Backdrop to close when clicking outside */}
+                <div 
+                  className="fixed inset-0 z-40 cursor-default" 
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+                
+                {/* Options List */}
+                <div className="absolute right-0 left-0 mt-2 bg-[#0F172A] border border-[#D4AF37]/30 rounded-2xl shadow-xl z-50 max-h-80 overflow-y-auto custom-scrollbar divide-y divide-[#D4AF37]/10 animate-in fade-in slide-in-from-top-2 duration-150">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        setActiveCategory(cat);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-5 py-3 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                        activeCategory === cat 
+                          ? 'bg-[#D4AF37] text-[#0F172A]' 
+                          : 'text-white hover:bg-white/5'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Menu Grid - Matched Gap and Layout */}
+        {/* Menu Grid */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-40">
-            <div className="w-16 h-16 border-4 border-slate-100 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Curating your experience...</p>
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="w-10 h-10 animate-spin text-[#D4AF37]" />
+            <p className="text-xs font-black uppercase tracking-widest text-slate-400">Curating the finest dishes...</p>
           </div>
         ) : (
           filteredItems.length === 0 ? (
-            <div className="text-center py-32 bg-white rounded-[2rem] border border-gray-100 shadow-sm">
-              <UtensilsCrossed className="w-16 h-16 text-slate-100 mx-auto mb-6" />
-              <h3 className="text-2xl text-gray-300 font-light italic">No culinary treasures found in this category.</h3>
+            <div className="text-center py-20 bg-white rounded-[2rem] border border-gray-100 shadow-sm">
+              <UtensilsCrossed className="w-12 h-12 text-slate-100 mx-auto mb-4" />
+              <h3 className="text-xl text-gray-300 font-light italic">No culinary treasures found in this category.</h3>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {filteredItems.map((item) => (
-                <FoodCard key={item._id} item={item} onAddToCart={addToCart} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 px-2">
+                {paginatedItems.map((item) => (
+                  <FoodCard key={item._id} item={item} onAddToCart={addToCart} />
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-12 bg-white px-6 py-3.5 rounded-2xl shadow-sm border border-slate-100 w-fit mx-auto animate-in fade-in duration-300">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                      currentPage === 1 
+                        ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                        : "bg-slate-100 text-slate-700 hover:bg-[#0F172A] hover:text-[#D4AF37] active:scale-95 border border-slate-200"
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                      currentPage === totalPages 
+                        ? "bg-slate-50 text-slate-300 cursor-not-allowed border border-transparent" 
+                        : "bg-slate-100 text-slate-700 hover:bg-[#0F172A] hover:text-[#D4AF37] active:scale-95 border border-slate-200"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )
         )}
 
-        {/* Elite Floating Cart Trigger */}
+        {/* Floating Cart Button */}
         {cart.length > 0 && (
           <div className="fixed bottom-10 right-10 z-40 group">
             <button
@@ -290,199 +505,275 @@ export function Restaurant({ onOrder, user }) {
           </div>
         )}
 
-        {/* Supreme Sliding Cart Panel */}
+        {/* Checkout Modal */}
         {showCart && (
-          <div className="fixed inset-0 z-50 flex justify-end">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-500" onClick={() => setShowCart(false)} />
-            <div className="relative bg-white w-full max-w-md h-full shadow-[0_0_100px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col animate-in slide-in-from-right duration-700 ease-in-out">
-              
-              {/* Header */}
-              <div className="p-6 border-b border-slate-50 flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl text-slate-900 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Your <span className="italic text-[#D4AF37]">Selection</span></h2>
-                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-1">Refined Gastronomy</p>
-                </div>
-                <button onClick={() => setShowCart(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all cursor-pointer">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-4">
+            <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setShowCart(false)} />
 
-              {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6">
-                {cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center opacity-20">
-                    <History className="w-16 h-16 mb-4" />
-                    <p className="font-black uppercase tracking-widest text-[10px] text-center">Your order is currently empty</p>
-                  </div>
-                ) : (
-                   cart.map((item) => (
-                    <div key={item.cartItemId} className="group flex items-center gap-4 p-4 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all border border-transparent hover:border-slate-50">
-                      <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg flex-shrink-0 border border-slate-100">
-                        <ImageWithFallback 
-                          src={item.image} 
-                          alt={item.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-sm font-bold text-slate-900 mb-0.5">{item.name} {item.portion ? `(${item.portion})` : ''}</h4>
-                        <p className="text-[10px] text-slate-400 font-medium tracking-wide">
-                          {item.quantity} x {settings?.currency?.symbol || "Rs."}{Number(item.price || 0).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="text-right flex flex-col items-end gap-2">
-                        <p className="text-sm font-black text-slate-900">{settings?.currency?.symbol || "Rs."}{Number((item.price || 0) * (item.quantity || 0)).toLocaleString()}</p>
-                        <button onClick={() => removeFromCart(item.cartItemId)} className="p-1.5 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+            <div className="relative bg-white w-full max-w-5xl h-[95vh] md:h-[85vh] rounded-[2rem] md:rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-500 border border-white/10">
+
+              {/* Order Summary */}
+              <div className="w-full md:w-[35%] h-[40%] md:h-full bg-[#0F172A] flex flex-col border-b md:border-b-0 md:border-r border-white/5 shrink-0 md:shrink">
+                <div className="px-4 md:px-6 py-4 md:py-6 border-b border-white/5 shrink-0">
+                  <h2 className="text-xl text-white font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Your <span className="text-[#D4AF37]">Selection</span></h2>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar-dark px-4 md:px-6 py-4 space-y-3 min-h-0">
+                  {cart.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center opacity-20">
+                      <Package className="w-12 h-12 text-white mb-2" />
+                      <p className="text-[8px] font-black uppercase tracking-widest text-white">Empty</p>
                     </div>
-                  ))
-                )}
-              </div>
-
-              {/* Checkout Section */}
-              <div className="p-6 bg-slate-50 rounded-t-[2.5rem] border-t border-slate-100 space-y-6">
-                {/* Order Type Tabs */}
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { id: "Dine-in", icon: UtensilsCrossed, label: "Dine" },
-                    { id: "Room", icon: Building2, label: "Room" },
-                    { id: "Delivery", icon: Truck, label: "Ship" },
-                    { id: "Take-away", icon: Package, label: "To-Go" }
-                  ].map(type => (
-                    <button
-                      key={type.id}
-                      onClick={() => setOrderType(type.id)}
-                      className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all cursor-pointer ${
-                        orderType === type.id ? "bg-[#0F172A] border-[#0F172A] text-white shadow-xl" : "bg-white border-slate-200 text-slate-400 hover:border-[#D4AF37] hover:text-[#D4AF37]"
-                      }`}
-                    >
-                      <type.icon className="w-4 h-4" />
-                      <span className="text-[8px] font-black uppercase tracking-widest">{type.label}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Conditional Fields */}
-                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  {orderType === "Delivery" && (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Delivery Address</label>
-                        <textarea value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)} placeholder="Suite, Street, City..." className="w-full bg-white border border-slate-200 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-[#D4AF37] resize-none h-24" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contact</label>
-                          <input 
-                            type="tel" 
-                            maxLength="10" 
-                            value={contactNumber} 
-                            onChange={e => setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 10))} 
-                            placeholder="07x xxxxxxx" 
-                            className="w-full bg-white border border-slate-200 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-[#D4AF37]" 
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pin Location</label>
-                          <button onClick={handleGetLocation} className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border ${coordinates ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-slate-200 text-slate-600'}`}>
-                            {isLocating ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
-                            {coordinates ? "Captured" : "Get GPS"}
+                  ) : (
+                    cart.map((item) => (
+                      <div key={item.cartItemId} className="bg-white/5 border border-white/10 rounded-2xl p-3">
+                        <div className="flex gap-3 items-center">
+                          <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
+                            <ImageWithFallback src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white text-xs font-normal truncate" style={{ fontFamily: "DM Serif Display, serif" }}>{item.name}</h4>
+                            <p className="text-[8px] text-[#D4AF37] font-bold mt-0.5">{item.quantity}x • {formatCurrency(item.price)}</p>
+                          </div>
+                          <button onClick={() => removeFromCart(item.cartItemId)} className="text-rose-400/30 hover:text-rose-400">
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {orderType === "Dine-in" && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Table Number</label>
-                      <input value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="T-12" className="w-full bg-white border border-slate-200 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-[#D4AF37]" />
-                    </div>
-                  )}
-                  {orderType === "Room" && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Room Number</label>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        max="10" 
-                        value={roomNumber} 
-                        onChange={e => setRoomNumber(e.target.value)} 
-                        placeholder="1-10" 
-                        className="w-full bg-white border border-slate-200 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-[#D4AF37]" 
-                      />
-                    </div>
+                    ))
                   )}
                 </div>
 
-                {/* Total & Action */}
-                <div className="pt-8 border-t border-slate-200 space-y-4">
-                  {/* Dynamic Breakdown */}
-                  {cart.length > 0 && (
-                    <div className="space-y-3 px-6 py-4 bg-slate-50/50 rounded-3xl border border-slate-100">
-                      <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-widest">
-                        <span>Subtotal</span>
-                        <span>{settings?.currency?.symbol || "Rs."}{Number(subtotal || 0).toLocaleString()}</span>
+                <div className="p-4 md:p-6 bg-black/20 border-t border-white/5 space-y-2 shrink-0">
+                  <div className="flex justify-between text-[9px] text-white/40 uppercase tracking-widest font-black">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  {serviceCharge > 0 && (
+                    <div className="flex justify-between text-[9px] text-emerald-400 uppercase tracking-widest font-black">
+                      <span>Service Charge (10%)</span>
+                      <span>{formatCurrency(serviceCharge)}</span>
+                    </div>
+                  )}
+                  {deliveryFee > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between text-[9px] text-sky-400 uppercase tracking-widest font-black">
+                        <span>Delivery Fee</span>
+                        <span>{formatCurrency(deliveryFee)}</span>
                       </div>
-                      
-                      {serviceCharge > 0 && (
-                        <div className="flex justify-between items-center text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">
-                          <span className="flex items-center gap-2 italic">Service Charge (10%) <Info className="w-3 h-3" /></span>
-                          <span>+{settings?.currency?.symbol || "Rs."}{Number(serviceCharge || 0).toLocaleString()}</span>
-                        </div>
-                      )}
-
-                      {deliveryFee > 0 && (
-                        <div className="flex justify-between items-center text-[10px] font-black text-blue-500 uppercase tracking-widest">
-                          <span className="flex items-center gap-2 italic">Delivery Fee (over 1km) <Truck className="w-3 h-3" /></span>
-                          <span>+{settings?.currency?.symbol || "Rs."}{Number(deliveryFee || 0).toLocaleString()}</span>
-                        </div>
-                      )}
-                      
-                      {orderType === "Delivery" && distance > 15 && (
-                        <div className="flex justify-between items-center text-[10px] font-black text-rose-500 uppercase tracking-widest bg-rose-50 p-3 rounded-xl border border-rose-100">
-                          <span className="flex items-center gap-2 italic">Out of Range ({Number(distance || 0).toFixed(1)}km) <X className="w-3 h-3" /></span>
-                          <span>Delivery Only up to 15km</span>
-                        </div>
-                      )}
-                      
-                      {orderType === "Delivery" && distance > 0 && distance <= 1 && (
-                        <div className="flex justify-between items-center text-[10px] font-black text-emerald-500 uppercase tracking-widest">
-                          <span className="flex items-center gap-2 italic">Delivery Distance ({Number(distance || 0).toFixed(1)}km)</span>
-                          <span>FREE</span>
-                        </div>
-                      )}
-
-                      {orderType === "Delivery" && distance > 1 && distance <= 15 && (
-                         <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          <span className="flex items-center gap-2 italic">Distance</span>
-                          <span>{Number(distance || 0).toFixed(1)}km</span>
-                        </div>
-                      )}
+                      <span className="text-[7px] text-sky-400/60 text-right uppercase tracking-widest font-bold">
+                        {distance.toFixed(1)} km (1km free, 10% subtotal/km)
+                      </span>
+                    </div>
+                  )}
+                  {orderType === "Delivery" && deliveryAddress && (
+                    <div className="pt-2 border-t border-white/5 flex flex-col gap-0.5 mt-2">
+                      <span className="text-[7px] font-black text-white/40 uppercase tracking-widest">Delivery Address</span>
+                      <span className="text-[9px] text-white/80 leading-snug line-clamp-2">{deliveryAddress}</span>
                     </div>
                   )}
 
-                  <div className="flex justify-between items-end mb-8 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                  <div className="pt-2 md:pt-4 border-t border-white/5 flex justify-between items-end">
                     <div>
-                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5">Grand Total</p>
-                      <p className="text-4xl text-slate-900 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>
-                        {settings?.currency?.symbol || "Rs."}{Number(grandTotal || 0).toLocaleString()}
-                      </p>
+                      <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-widest mb-1">Total Payable</p>
+                      <h3 className="text-2xl md:text-3xl text-white font-normal leading-none" style={{ fontFamily: "DM Serif Display, serif" }}>
+                        {formatCurrency(grandTotal)}
+                      </h3>
                     </div>
                   </div>
-                  <button
-                    disabled={isPlacingOrder || cart.length === 0 || isDistanceTooFar}
-                    onClick={handlePlaceOrder}
-                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.4em] transition-all shadow-xl flex items-center justify-center gap-3 cursor-pointer ${
-                      isDistanceTooFar 
-                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                      : 'bg-[#0F172A] text-white hover:bg-[#D4AF37] hover:scale-[1.02] active:scale-95'
-                    }`}
-                  >
-                    {isPlacingOrder ? <Loader2 className="w-4 h-4 animate-spin" /> : isDistanceTooFar ? <X className="w-4 h-4" /> : <Star className="w-4 h-4 fill-current" />}
-                    {isPlacingOrder ? "Processing..." : isDistanceTooFar ? "Location Too Far" : "Confirm Order"}
+                </div>
+              </div>
+
+              {/* Checkout Form */}
+              <div className="flex-1 bg-white flex flex-col h-[60%] md:h-full overflow-hidden">
+                <div className="px-6 md:px-8 py-3 md:py-5 border-b border-slate-50 flex items-center justify-between shrink-0">
+                  <div>
+                    <h2 className="text-xl md:text-2xl text-slate-900 font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Checkout <span className="text-[#D4AF37]">Details</span></h2>
+                  </div>
+                  <button onClick={() => setShowCart(false)} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-[#0F172A] transition-all">
+                    <X className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
+                </div>
+
+                <div className="flex-1 px-6 md:px-8 py-4 md:py-6 space-y-5 overflow-y-auto bg-slate-50/10 min-h-0">
+                  {/* Step 1: Mode */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
+                      <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">01. Select Dining Mode</h3>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3">
+                      {[
+                        { id: "Dine-in", icon: UtensilsCrossed, label: "Dine-In", bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-100" },
+                        { id: "Room", icon: Building2, label: "Room", bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-100" },
+                        { id: "Delivery", icon: Truck, label: "Delivery", bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-100" },
+                        { id: "Take-away", icon: Package, label: "Take-Away", bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-100" }
+                      ].map(type => (
+                        <button
+                          key={type.id}
+                          onClick={() => { setOrderType(type.id); setValidationErrors({}); }}
+                          className={`group relative flex flex-col items-center justify-center gap-2 p-4 rounded-3xl transition-all duration-500 cursor-pointer overflow-hidden border-2 ${orderType === type.id
+                              ? "bg-[#0F172A] border-[#0F172A] scale-105 shadow-[0_20px_40px_rgba(0,0,0,0.2)]"
+                              : `${type.bg} ${type.border} hover:border-[#D4AF37]/30 hover:shadow-lg hover:-translate-y-1`
+                            }`}
+                        >
+                          {/* Active Background Glow */}
+                          {orderType === type.id && (
+                            <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-[#D4AF37] to-transparent animate-pulse" />
+                          )}
+
+                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-500 ${orderType === type.id
+                              ? "bg-[#D4AF37] text-[#0F172A] shadow-[0_0_20px_rgba(212,175,55,0.4)] rotate-[360deg]"
+                              : `bg-white ${type.text} shadow-sm group-hover:scale-110`
+                            }`}>
+                            <type.icon className="w-5 h-5" />
+                          </div>
+
+                          <span className={`text-[8px] font-black uppercase tracking-[0.1em] transition-colors duration-500 ${orderType === type.id ? "text-[#D4AF37]" : "text-slate-600"
+                            }`}>
+                            {type.label}
+                          </span>
+
+                          {/* Selection Indicator */}
+                          {orderType === type.id && (
+                            <div className="absolute bottom-1 w-1 h-1 rounded-full bg-[#D4AF37] shadow-[0_0_100px_#D4AF37]" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Step 2: Info */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
+                      <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">02. Guest Information</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Name Field */}
+                      <div className="space-y-1">
+                        <div className="relative">
+                          <input
+                            value={customerName}
+                            onChange={e => { setCustomerName(e.target.value); clearError('customerName'); }}
+                            className={`w-full bg-white border-2 ${validationErrors.customerName ? 'border-rose-400' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-[#D4AF37] pl-10 text-slate-900 shadow-sm`}
+                            placeholder="Your Full Name"
+                          />
+                          <Star className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D4AF37]/60" />
+                        </div>
+                        {validationErrors.customerName && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.customerName}</p>}
+                      </div>
+
+                      {/* Phone Field */}
+                      <div className="space-y-1">
+                        <div className="relative">
+                          <input
+                            value={contactNumber}
+                            onChange={e => { setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); clearError('contactNumber'); }}
+                            className={`w-full bg-white border-2 ${validationErrors.contactNumber ? 'border-rose-400' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-[#D4AF37] pl-10 text-slate-900 shadow-sm`}
+                            placeholder="Phone Number"
+                          />
+                          <Phone className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D4AF37]/60" />
+                        </div>
+                        {validationErrors.contactNumber && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.contactNumber}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 3: Location */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
+                      <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">03. Location Details</h3>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                      {orderType === "Dine-in" && (
+                        <>
+                          <div className="relative">
+                            <select value={tableNumber} onChange={e => { setTableNumber(e.target.value); clearError('tableNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.tableNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
+                              <option value="">Select Table Number</option>
+                              {["T-01", "T-02", "T-03", "T-04", "T-05", "T-06", "T-07", "T-08", "T-09", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15"].map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                            <UtensilsCrossed className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
+                          </div>
+                          {validationErrors.tableNumber && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.tableNumber}</p>}
+                        </>
+                      )}
+                      {orderType === "Room" && (
+                        <>
+                          <div className="relative">
+                            <select value={roomNumber} onChange={e => { setRoomNumber(e.target.value); clearError('roomNumber'); }} className={`w-full bg-slate-50/50 border-2 ${validationErrors.roomNumber ? 'border-rose-300' : 'border-slate-100'} rounded-xl px-4 py-3 text-xs font-bold outline-none appearance-none cursor-pointer text-slate-700`}>
+                              <option value="">Select Room Number</option>
+                              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map(r => <option key={r} value={r}>Room {r}</option>)}
+                            </select>
+                            <Building2 className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-[#D4AF37] pointer-events-none" />
+                          </div>
+                          {validationErrors.roomNumber && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.roomNumber}</p>}
+                        </>
+                      )}
+                      {orderType === "Delivery" && (
+                        <>
+                          <div className="flex gap-3">
+                            <textarea
+                              value={deliveryAddress}
+                              onChange={e => { setDeliveryAddress(e.target.value); clearError('deliveryAddress'); }}
+                              onBlur={(e) => autoGeocode(e.target.value)}
+                              className="flex-1 bg-slate-50/50 border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold outline-none h-16 resize-none text-slate-700"
+                              placeholder="Type delivery address here..."
+                            />
+                            <button
+                              onClick={handleGetLocation}
+                              className={`w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all duration-500 shadow-lg group ${coordinates
+                                  ? 'bg-emerald-500 text-white shadow-emerald-200'
+                                  : 'bg-[#0F172A] text-[#D4AF37] hover:bg-slate-800'
+                                }`}
+                            >
+                              {isLocating ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                coordinates ? <CheckCircle className="w-5 h-5" /> : <MapPin className="w-5 h-5 group-hover:animate-bounce" />
+                              )}
+                              <span className="text-[7px] font-black uppercase tracking-widest mt-1">
+                                {isLocating ? "Loading" : (coordinates ? "Pinned" : "Pin Location")}
+                              </span>
+                            </button>
+                          </div>
+                          <MapPicker coordinates={coordinates} onChange={handleMapCoordinatesChange} />
+                          {coordinates && distance > 0 && (
+                            <div className="mt-2 flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Est. Distance</span>
+                              <span className={`text-[9px] font-black ${isDistanceTooFar ? 'text-rose-500' : 'text-[#D4AF37]'}`}>
+                                {distance.toFixed(1)} km {isDistanceTooFar ? '(Too Far!)' : ''}
+                              </span>
+                            </div>
+                          )}
+                          {validationErrors.deliveryAddress && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">{validationErrors.deliveryAddress}</p>}
+                          {isDistanceTooFar && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-wider">Sorry, we only deliver within 15km.</p>}
+                        </>
+                      )}
+                      {orderType === "Take-away" && <p className="text-[9px] font-black text-[#D4AF37] uppercase text-center py-2 tracking-widest">Self-Pickup at Restaurant</p>}
+                    </div>
+                  </div>
+
+                  {/* Step 4: Notes */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
+                      <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">04. Special Notes (Optional)</h3>
+                    </div>
+                    <input value={specialNotes} onChange={e => setSpecialNotes(e.target.value)} className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-[#D4AF37] text-slate-700 shadow-sm" placeholder="Any special requests or allergies?" />
+                  </div>
+
+                  <div className="px-6 md:px-8 py-4 md:py-6 bg-white border-t border-slate-50 mt-auto shrink-0">
+                    <button
+                      disabled={isPlacingOrder || cart.length === 0}
+                      onClick={handlePlaceOrder}
+                      className="w-full py-5 rounded-2xl bg-[#0F172A] text-[#D4AF37] font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] active:scale-95 shadow-xl flex items-center justify-center gap-3 cursor-pointer"
+                    >
+                      {isPlacingOrder ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      {isPlacingOrder ? "Wait..." : "Confirm Order"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

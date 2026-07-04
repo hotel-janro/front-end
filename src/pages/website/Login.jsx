@@ -1,14 +1,59 @@
 // Login Page
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/common/Button.jsx";
 import { Crown, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useSettings } from "../../context/SettingsContext";
 
-export function Login({ onLogin }) {
+
+export function Login({ onLogin, onGoogleLogin }) {
+  const { settings } = useSettings();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+
+  /* global google */
+  useEffect(() => {
+    const initializeGoogleSignIn = () => {
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "909686127278-er1uoibsf4do6sgd7pbj692cbr89np83.apps.googleusercontent.com",
+            callback: async (response) => {
+              try {
+                setError("");
+                await onGoogleLogin(response.credential);
+              } catch (err) {
+                setError(err.message || "Google sign in failed");
+              }
+            }
+          });
+
+          window.google.accounts.id.renderButton(
+            document.getElementById("google-login-btn"),
+            { 
+              theme: "outline", 
+              size: "large", 
+              width: "360",
+              shape: "rectangular"
+            }
+          );
+        } catch (err) {
+          console.error("Google accounts initialisation error", err);
+        }
+      } else {
+        const timer = setTimeout(initializeGoogleSignIn, 100);
+        return () => clearTimeout(timer);
+      }
+    };
+
+    const cleanup = initializeGoogleSignIn();
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [onGoogleLogin]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,11 +64,11 @@ export function Login({ onLogin }) {
     try {
       setError("");
       await onLogin({ email, password });
-      // Clear password on success (though usually redirected)
+      // Clear password on success
       setPassword("");
     } catch (err) {
       setError(err.message || "Invalid email or password");
-      // Clear password on failure as requested
+      // Clear password on failure
       setPassword("");
     }
   };
@@ -34,8 +79,8 @@ export function Login({ onLogin }) {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Crown className="w-8 h-8 text-[#D4AF37]" />
-            <span className="text-2xl text-[#0F172A] tracking-wider" style={{ fontFamily: "DM Serif Display, serif" }}>
-              HOTEL JANRO
+            <span className="text-2xl text-[#0F172A] tracking-wider uppercase" style={{ fontFamily: "DM Serif Display, serif" }}>
+              {settings.hotelName}
             </span>
           </div>
           <p className="text-gray-400 text-sm">Welcome back! Please sign in to continue.</p>
@@ -79,19 +124,7 @@ export function Login({ onLogin }) {
         </div>
 
         {/* Google Sign In */}
-        <button
-          type="button"
-          onClick={() => setError("Google sign in is not connected yet.")}
-          className="w-full flex items-center justify-center gap-3 border border-gray-200 rounded-lg py-3 px-4 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 cursor-pointer"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-          </svg>
-          <span className="text-sm text-gray-600">Sign in with Google</span>
-        </button>
+        <div id="google-login-btn" className="w-full flex justify-center"></div>
 
         <p className="text-center text-sm text-gray-400 mt-6">
           Don't have an account?{" "}

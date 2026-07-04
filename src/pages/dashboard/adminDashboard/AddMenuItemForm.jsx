@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Camera, 
-  ChevronRight, 
-  DollarSign, 
-  Clock, 
-  Tag, 
+import {
+  Camera,
+  ChevronRight,
+  DollarSign,
+  Clock,
+  Tag,
   Info,
   CheckCircle2,
   X,
   UploadCloud,
-  Loader2
+  Loader2,
+  UtensilsCrossed,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { apiFetch, API_HOST, getImageUrl } from '../../../api.js';
 import { ImageWithFallback } from '../../../components/common/ImageWithFallback.jsx';
+import { toast } from 'sonner';
 
-export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
+export default function AddMenuItemForm({ initialItem, existingCategories = [], onSaved, onCancel }) {
+  // Form state
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -24,14 +29,15 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     prepTime: '15',
     hasPortions: false,
     portions: [
-      { portionType: 'Full', price: '' },
-      { portionType: 'Half', price: '' }
+      { portionType: 'Regular', price: '' }
     ]
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
+  // Sync with initial data when editing
   useEffect(() => {
     if (initialItem) {
       setFormData({
@@ -42,9 +48,8 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
         isAvailable: initialItem.isAvailable !== undefined ? initialItem.isAvailable : true,
         prepTime: initialItem.prepTime || '15',
         hasPortions: initialItem.hasPortions || false,
-        portions: initialItem.hasPortions ? initialItem.portions : [
-          { portionType: 'Full', price: '' },
-          { portionType: 'Half', price: '' }
+        portions: initialItem.hasPortions && initialItem.portions?.length > 0 ? initialItem.portions : [
+          { portionType: 'Regular', price: '' }
         ]
       });
       if (initialItem.image) {
@@ -60,39 +65,71 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
         prepTime: '15',
         hasPortions: false,
         portions: [
-          { portionType: 'Full', price: '' },
-          { portionType: 'Half', price: '' }
+          { portionType: 'Regular', price: '' }
         ]
       });
       setImagePreview(null);
       setImageFile(null);
     }
+    setErrors({});
   }, [initialItem]);
 
+  // Update form fields
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
+  // Handle image selection
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
+      if (errors.image) setErrors(prev => ({ ...prev, image: null }));
     }
   };
 
+  // Check for required fields
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = 'Dish name is required';
+
+    if (formData.hasPortions) {
+      if (!formData.portions || formData.portions.length === 0) {
+        newErrors.portions = 'At least one size is required';
+      } else {
+        formData.portions.forEach((p, index) => {
+          if (!p.portionType?.trim()) newErrors[`portionType_${index}`] = 'Size name required';
+          if (!p.price || Number(p.price) <= 0) newErrors[`portionPrice_${index}`] = 'Valid price required';
+        });
+      }
+    } else {
+      if (!formData.price || Number(formData.price) <= 0) newErrors.price = 'Valid price required';
+    }
+
+    if (!imagePreview && !initialItem) newErrors.image = 'Image is required';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Submit to backend
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validate()) {
+      toast.error('Please refine the mandatory fields');
+      return;
+    }
+
     setLoading(true);
-
     try {
-      // Form Validation
-      if (!formData.name.trim()) {
-        throw new Error('Please provide a name for this dish');
-      }
-      if (Number(formData.price) <= 0) {
-        throw new Error('Price must be a positive investment value');
-      }
-      if (!formData.category) {
-        throw new Error('Please select a cuisine category');
-      }
-
       const data = new FormData();
       Object.keys(formData).forEach(key => {
         if (key === 'portions') {
@@ -106,248 +143,259 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
       const url = initialItem ? `/menu/${initialItem._id}` : '/menu';
       const method = initialItem ? 'PUT' : 'POST';
 
-      if (imageFile && imageFile.size > 5 * 1024 * 1024) {
-        throw new Error('Image size too large. Max 5MB allowed.');
-      }
-
-      await apiFetch(url, {
-        method,
-        body: data
-      });
-
-      alert('Successfully saved culinary masterpiece!');
+      await apiFetch(url, { method, body: data });
+      toast.success('Culinary masterpiece saved!');
       onSaved();
     } catch (error) {
-      alert('Error: ' + error.message);
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const updatePortionPrice = (type, price) => {
+  // Helpers to update portions
+  const updatePortion = (index, field, value) => {
+    setFormData(prev => {
+      const newPortions = [...prev.portions];
+      newPortions[index] = { ...newPortions[index], [field]: value };
+      return { ...prev, portions: newPortions };
+    });
+  };
+
+  const addPortion = () => {
     setFormData(prev => ({
       ...prev,
-      portions: prev.portions.map(p => p.portionType === type ? { ...p, price } : p)
+      portions: [...prev.portions, { portionType: '', price: '' }]
+    }));
+  };
+
+  const removePortion = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      portions: prev.portions.filter((_, i) => i !== index)
     }));
   };
 
   return (
-    <div className="grid lg:grid-cols-[1fr_400px] gap-10">
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Name */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Dish Identity</label>
-            <div className="relative">
-              <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-              <input 
-                value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
-                placeholder="e.g. Signature Lobster Thermidor"
-                className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-700 font-medium"
-                required
-              />
-            </div>
+    <div className="bg-[#0F172A] rounded-[2.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border border-white/10 max-w-4xl w-full mx-auto animate-in zoom-in-95 duration-500">
+      {/* Header Section */}
+      <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#D4AF37] flex items-center justify-center shadow-lg shadow-[#D4AF37]/20">
+            <UtensilsCrossed className="w-6 h-6 text-[#0F172A]" />
           </div>
-
-          {/* Category */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Cuisine Group</label>
-            <select 
-              value={formData.category}
-              onChange={e => setFormData({...formData, category: e.target.value})}
-              className="w-full bg-white border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-700 font-bold appearance-none cursor-pointer"
-            >
-              <option value="Main Course">Main Course</option>
-              <option value="Bites">Bites</option>
-              <option value="Desserts">Desserts</option>
-              <option value="Beverages">Beverages</option>
-            </select>
+          <div>
+            <h2 className="text-2xl text-white font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>
+              {initialItem ? 'Refine' : 'Create'} <span className="italic text-[#D4AF37]">Masterpiece</span>
+            </h2>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mt-0.5">Culinary Control Center</p>
           </div>
+        </div>
+        <button type="button" onClick={onCancel} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-rose-500/20 transition-all">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-          {/* Price / Portions */}
-          <div className="md:col-span-2 p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#D4AF37] shadow-sm">
-                  <DollarSign className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-900">Portion Pricing</p>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Define cost structure</p>
+      <form onSubmit={handleSubmit} className="p-8">
+        <div className="grid lg:grid-cols-2 gap-6">
+
+          {/* Left Column: Details & Description */}
+          <div className="space-y-6 flex flex-col">
+            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-4">
+              <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
+                <Sparkles className="w-3 h-3" /> Basic Identity
+              </h3>
+
+              <div className="space-y-1.5">
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Dish Name</label>
+                <input
+                  value={formData.name}
+                  onChange={e => handleInputChange('name', e.target.value)}
+                  placeholder="Lobster Thermidor..."
+                  className={`w-full bg-white/5 border ${errors.name ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] transition-all`}
+                />
+                {errors.name && <p className="text-[9px] text-rose-500 ml-1">{errors.name}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Cuisine Group</label>
+                <input
+                  list="cuisine-categories"
+                  value={formData.category}
+                  onChange={e => handleInputChange('category', e.target.value)}
+                  placeholder="Type or select a category..."
+                  className={`w-full bg-white/5 border ${errors.category ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] transition-all`}
+                />
+                <datalist id="cuisine-categories">
+                  {Array.from(new Set([
+                    'Rice', 'Koththu', 'Noodles', 'Chicken', 'Fish', 'Prawns', 'Cuttle Fish', 
+                    'Mutton', 'Pork', 'Omelet', 'Vegetables & Sides', 'Salad', 'Soup', 
+                    'Starters', 'Outdoor Party', 'Beverages', 'Desserts', 
+                    ...existingCategories
+                  ])).map(c => <option key={c} value={c} />)}
+                </datalist>
+                {errors.category && <p className="text-[9px] text-rose-500 ml-1">{errors.category}</p>}
+              </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Prep Time (Min)</label>
+                  <div className="relative">
+                    <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                    <input
+                      type="number"
+                      value={formData.prepTime}
+                      onChange={e => handleInputChange('prepTime', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
                 </div>
               </div>
+            </div>
+
+            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black text-white uppercase tracking-widest">Visibility</p>
+                <p className="text-[8px] text-slate-500 font-bold uppercase mt-1">Live in Menu</p>
+              </div>
               <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={formData.hasPortions} 
-                  onChange={e => setFormData({...formData, hasPortions: e.target.checked})} 
-                  className="sr-only peer" 
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
-                <span className="ms-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Enable Full/Half</span>
+                <input type="checkbox" checked={formData.isAvailable} onChange={e => handleInputChange('isAvailable', e.target.checked)} className="sr-only peer" />
+                <div className="w-10 h-5 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-slate-400 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D4AF37] peer-checked:after:bg-white"></div>
               </label>
             </div>
 
-            {formData.hasPortions ? (
-              <div className="grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest ml-1 italic">Full Portion Price</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs</span>
-                    <input 
-                      type="number"
-                      value={formData.portions.find(p => p.portionType === 'Full')?.price || ''}
-                      onChange={e => updatePortionPrice('Full', e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] transition-all text-slate-900 font-black"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-1 italic">Half Portion Price</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs</span>
-                    <input 
-                      type="number"
-                      value={formData.portions.find(p => p.portionType === 'Half')?.price || ''}
-                      onChange={e => updatePortionPrice('Half', e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] transition-all text-slate-900 font-black"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Standard Investment Value</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs</span>
-                  <input 
-                    type="number"
-                    value={formData.price}
-                    onChange={e => setFormData({...formData, price: e.target.value})}
-                    placeholder="0.00"
-                    className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] transition-all text-slate-900 font-black"
-                    required
-                  />
-                </div>
-              </div>
-            )}
+            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-4 flex-1">
+              <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
+                <Layers className="w-3 h-3" /> The Story
+              </h3>
+              <textarea
+                rows="4"
+                value={formData.description}
+                onChange={e => handleInputChange('description', e.target.value)}
+                placeholder="Textures, aromas, heritage..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-300 outline-none focus:border-[#D4AF37] resize-none flex-1 min-h-[120px]"
+              />
+            </div>
           </div>
 
-          {/* Prep Time */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Crafting Duration</label>
-            <div className="relative">
-              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-              <input 
-                type="number"
-                value={formData.prepTime}
-                onChange={e => setFormData({...formData, prepTime: e.target.value})}
-                placeholder="Minutes"
-                className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-700 font-medium"
-              />
+          {/* Right Column: Image & Pricing */}
+          <div className="space-y-6 flex flex-col">
+            <div className={`p-4 bg-white/[0.03] rounded-[2.5rem] border ${errors.image ? 'border-rose-500' : 'border-white/5'} relative group h-48 md:h-64 flex-shrink-0 flex flex-col`}>
+              <div className="relative w-full h-full rounded-[2rem] overflow-hidden bg-white/5 border border-white/10">
+                {imagePreview ? (
+                  <>
+                    <ImageWithFallback src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                    <div className="absolute inset-0 bg-[#0F172A]/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3">
+                      <label className="cursor-pointer bg-[#D4AF37] text-[#0F172A] px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2">
+                        <Camera className="w-3.5 h-3.5" /> Replace
+                        <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                      </label>
+                    </div>
+                  </>
+                ) : (
+                  <label className="w-full h-full flex flex-col items-center justify-center gap-3 cursor-pointer group/upload">
+                    <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-slate-500 group-hover/upload:text-[#D4AF37] transition-colors">
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Upload Image</p>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-5 flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
+                  <DollarSign className="w-3 h-3" /> Cost Structure
+                </h3>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl ${formData.hasPortions ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-white/5 text-slate-500'}`}>
+                    <Layers className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Multi-Portions</h3>
+                    <p className="text-[7px] text-slate-500 font-bold uppercase mt-0.5">Custom portion sizes</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={formData.hasPortions} onChange={e => handleInputChange('hasPortions', e.target.checked)} className="sr-only peer" />
+                  <div className="w-12 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-slate-400 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37] peer-checked:after:bg-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] peer-checked:shadow-[0_0_15px_rgba(212,175,55,0.3)]"></div>
+                </label>
+              </div>
+
+              {formData.hasPortions ? (
+                <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                  {formData.portions.map((portion, index) => (
+                    <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-4 items-end">
+                      <div className="space-y-1.5">
+                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Size (e.g. Full, Half, ml, L)</label>
+                        <input
+                          value={portion.portionType}
+                          onChange={e => updatePortion(index, 'portionType', e.target.value)}
+                          className={`w-full bg-white/5 border ${errors[`portionType_${index}`] ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
+                          placeholder="Size Name"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Price</label>
+                        <input
+                          type="number"
+                          value={portion.price}
+                          onChange={e => updatePortion(index, 'price', e.target.value)}
+                          className={`w-full bg-white/5 border ${errors[`portionPrice_${index}`] ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
+                          placeholder="Rs"
+                        />
+                      </div>
+                      {formData.portions.length > 1 && (
+                        <button type="button" onClick={() => removePortion(index)} className="p-3 mb-[1px] bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-colors">
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" onClick={addPortion} className="w-full py-3 mt-2 border-2 border-dashed border-white/10 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-[#D4AF37] hover:text-[#D4AF37] transition-colors">
+                    + Add Another Size
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Standard Price</label>
+                  <input
+                    type="number"
+                    value={formData.price}
+                    onChange={e => handleInputChange('price', e.target.value)}
+                    className={`w-full bg-white/5 border ${errors.price ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
+                    placeholder="Rs 0.00"
+                  />
+                  {errors.price && <p className="text-[9px] text-rose-500 ml-1">{errors.price}</p>}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Description */}
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">The Culinary Story</label>
-          <textarea 
-            rows="4"
-            value={formData.description}
-            onChange={e => setFormData({...formData, description: e.target.value})}
-            placeholder="Describe the textures, aromas, and heritage of this dish..."
-            className="w-full bg-white border border-slate-200 rounded-[2rem] px-6 py-5 outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all text-slate-600 leading-relaxed resize-none"
-          />
-        </div>
-
-        {/* Form Actions */}
-        <div className="flex items-center gap-4 pt-4">
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="flex-1 bg-[#0F172A] text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.3em] hover:bg-slate-800 shadow-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5 text-[#D4AF37]" />}
-            {initialItem ? 'Confirm Masterpiece Update' : 'Unveil New Culinary Creation'}
-          </button>
-          <button 
-            type="button" 
+        {/* Action Buttons */}
+        <div className="mt-8 flex items-center justify-end gap-6 pt-6 border-t border-white/5">
+          <button
+            type="button"
             onClick={onCancel}
-            className="px-8 py-5 text-slate-400 font-bold hover:text-rose-500 transition-colors uppercase text-xs tracking-widest"
+            className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hover:text-white transition-colors"
           >
-            Cancel
+            Abandon
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-[#D4AF37] text-[#0F172A] px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-xl disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            {initialItem ? 'Refine Creation' : 'Unveil Masterpiece'}
           </button>
         </div>
       </form>
-
-      {/* Luxury Preview Card */}
-      <div className="space-y-6">
-        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 text-center block">Presentation Preview</label>
-        <div className="bg-white rounded-[3rem] p-4 shadow-2xl border border-slate-100 sticky top-10 overflow-hidden group">
-          <div className="relative h-[300px] rounded-[2.5rem] overflow-hidden bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center group-hover:border-[#D4AF37]/50 transition-colors">
-            {imagePreview ? (
-              <>
-                <ImageWithFallback src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <label className="cursor-pointer bg-white text-slate-900 px-6 py-3 rounded-full font-bold text-sm shadow-xl flex items-center gap-2">
-                    <Camera className="w-4 h-4" /> Change Image
-                    <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
-                  </label>
-                </div>
-              </>
-            ) : (
-              <label className="flex flex-col items-center gap-4 cursor-pointer">
-                <div className="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-300">
-                  <UploadCloud className="w-8 h-8" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-slate-900">Upload Visual Masterpiece</p>
-                  <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tighter">JPG, PNG or WEBP up to 5MB</p>
-                </div>
-                <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
-              </label>
-            )}
-          </div>
-
-          <div className="p-6 space-y-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <h4 className="text-xl font-normal text-slate-900 line-clamp-1" style={{ fontFamily: "DM Serif Display, serif" }}>{formData.name || 'Untitled Masterpiece'}</h4>
-                <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">{formData.category}</p>
-              </div>
-              <p className="text-xl font-black text-slate-900">Rs {Number(formData.price || 0).toLocaleString()}</p>
-            </div>
-            
-            <div className="flex items-center gap-4 py-3 border-y border-slate-50">
-               <div className="flex items-center gap-1.5 text-slate-400">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-bold uppercase">{formData.prepTime} Min</span>
-               </div>
-               <div className="w-1 h-1 rounded-full bg-slate-200" />
-               <div className={`px-2 py-1 rounded text-[9px] font-black uppercase ${formData.isAvailable ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                  {formData.isAvailable ? 'Live in Menu' : 'Hidden'}
-               </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" checked={formData.isAvailable} onChange={e => setFormData({...formData, isAvailable: e.target.checked})} className="sr-only peer" />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
-                <span className="ms-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Visibility</span>
-              </label>
-              <div className="flex -space-x-2">
-                {[1,2,3].map(i => <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[8px] font-bold">⭐</div>)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
