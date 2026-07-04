@@ -401,7 +401,7 @@ export function CashierReceipts() {
               <button
                 onClick={() => {
                   const printWindow = window.open('', '_blank');
-                  if (!printWindow) return alert('Pop-up blocked! Please allow pop-ups for printing.');
+                  if (!printWindow) return toast.error('Pop-up blocked! Please allow pop-ups for printing.');
 
                   const itemsHtml = selectedReceipt.items.map(it => `
                     <tr>
