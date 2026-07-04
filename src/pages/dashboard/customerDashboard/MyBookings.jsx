@@ -22,6 +22,25 @@ import { useSettings } from "../../../context/SettingsContext.jsx";
 import { generateInvoicePDF } from "../../../utils/invoiceGenerator.js";
 import "./CustomerDashboard.css";
 
+const getRoomTypeName = (roomName, roomNumberStr) => {
+  if (!roomName) return 'Refined Luxury Suite';
+  const lower = roomName.toLowerCase();
+  if (lower.includes('non-ac standard room') || lower.includes('non ac standard room')) {
+    return 'Standard Room (Non-AC)';
+  }
+  if (lower.includes('ac standard room') || lower.includes('a/c standard room')) {
+    return 'Standard Room (AC)';
+  }
+  if (lower.includes('standard room') && roomNumberStr) {
+    const match = String(roomNumberStr).match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      return `Standard Room ${num >= 5 ? '(AC)' : '(Non-AC)'}`;
+    }
+  }
+  return roomName;
+};
+
 export function MyBookings() {
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState("rooms");
@@ -54,7 +73,7 @@ export function MyBookings() {
         return {
           ...item,
           id: item._id,
-          roomName: item.room?.name || "Refined Luxury Suite",
+          roomName: getRoomTypeName(item.room?.name, item.roomNumber),
           checkInDate: item.checkInDate,
           checkOutDate: item.checkOutDate,
           checkIn: checkInDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),

@@ -77,9 +77,13 @@ export function Rooms({ onBook, isLoggedIn = false, hideHeader = false }) {
     // --- Standard Room card ---
     if (acRoom || nonAcRoom) {
       const base = acRoom || nonAcRoom;
+      const combinedAvailable = (acRoom?.availableRooms ?? 0) + (nonAcRoom?.availableRooms ?? 0);
+      const combinedTotal = (acRoom?.totalRooms ?? 0) + (nonAcRoom?.totalRooms ?? 0);
       display.push({
         ...base,
         name: "Standard Room",
+        availableRooms: combinedAvailable,
+        totalRooms: combinedTotal,
         _isMergedStandard: true,
         _acVariants: { ac: acRoom || null, nonAc: nonAcRoom || null },
       });
