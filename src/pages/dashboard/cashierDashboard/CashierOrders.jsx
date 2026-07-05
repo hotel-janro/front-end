@@ -704,9 +704,15 @@ export function CashierOrders() {
                       <input
                         autoFocus
                         type="number"
+                        min="0"
                         placeholder="Enter amount..."
                         value={cashReceived}
-                        onChange={(e) => setCashReceived(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '' || Number(val) >= 0) {
+                            setCashReceived(val);
+                          }
+                        }}
                         className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
                       />
                     </div>

@@ -1405,9 +1405,15 @@ const renderGroupSettleModal = () => {
                 <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
                 <input 
                   autoFocus
-                  type="number" 
+                  type="number"
+                  min="0"
                   value={customAmount} 
-                  onChange={e => setCustomAmount(e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '' || Number(val) >= 0) {
+                      setCustomAmount(val);
+                    }
+                  }}
                   placeholder="Enter amount..."
                   className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
                 />
