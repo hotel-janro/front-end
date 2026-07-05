@@ -1045,9 +1045,6 @@ export function ReceptionGym() {
                         <button onClick={() => handleEditClick(pass)} className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors" title="Edit Pass" type="button">
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDeletePass(pass._id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors" title="Delete Pass" type="button">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1159,9 +1156,6 @@ export function ReceptionGym() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm flex justify-end gap-1.5">
                         <button onClick={() => handleEditMemberClick(member)} className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors" title="Edit Profile" type="button">
                           <Edit className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDeleteMember(member._id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors" title="Delete Member" type="button">
-                          <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>

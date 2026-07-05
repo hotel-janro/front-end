@@ -146,6 +146,14 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
               };
 
               window.payhere.onCompleted = async function onCompleted(orderId) {
+                try {
+                  await apiFetch(`/bookings/${booking._id || booking.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ paymentStatus: 'Paid', status: 'confirmed', paymentMethod: 'Online' })
+                  });
+                } catch (e) {
+                  console.error("Failed to sync payment status with server", e);
+                }
                 showSuccessModal();
               };
 
