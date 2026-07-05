@@ -375,9 +375,6 @@ export function MyOrders() {
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-[#D4AF37]/30 pb-20">
       {/* Compact Luxury Header */}
       <div className="relative bg-[#0F172A] overflow-hidden border-b border-white/5 py-8 px-4">
-        <div className="absolute inset-0 opacity-10">
-          <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="Luxury Dining" />
-        </div>
         <div className="absolute inset-0 bg-[#0F172A]/85" />
         <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/10 rounded-full blur-[80px] -mr-20" />
 
