@@ -24,7 +24,7 @@ export function CashierOrders() {
   const [editingOrder, setEditingOrder] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [menuSearchTerm, setMenuSearchTerm] = useState("");
   const [showMenuDropdown, setShowMenuDropdown] = useState(false);
 
   // Load menu for editing
@@ -75,7 +75,7 @@ export function CashierOrders() {
       };
       setEditingOrder({ ...editingOrder, items: [...editingOrder.items, newItem] });
     }
-    setSearchTerm("");
+    setMenuSearchTerm("");
     setShowMenuDropdown(false);
   }
 
@@ -885,9 +885,9 @@ export function CashierOrders() {
                   <input 
                     type="text"
                     placeholder="Search menu..."
-                    value={searchTerm}
+                    value={menuSearchTerm}
                     onChange={(e) => {
-                      setSearchTerm(e.target.value);
+                      setMenuSearchTerm(e.target.value);
                       setShowMenuDropdown(true);
                     }}
                     onFocus={() => setShowMenuDropdown(true)}
@@ -896,9 +896,9 @@ export function CashierOrders() {
                   <SearchIcon className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                 </div>
 
-                {showMenuDropdown && searchTerm && (
+                {showMenuDropdown && menuSearchTerm && (
                   <div className="absolute z-10 w-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto overflow-x-hidden">
-                    {menuItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase())).length > 0 ? menuItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase())).map(item => (
+                    {menuItems.filter(item => item.name.toLowerCase().includes(menuSearchTerm.toLowerCase())).length > 0 ? menuItems.filter(item => item.name.toLowerCase().includes(menuSearchTerm.toLowerCase())).map(item => (
                       <div key={item._id} className="p-4 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
