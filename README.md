@@ -1,6 +1,6 @@
 
 
-# 🏨 Hotel Janro – Hotel Management System
+## 🏨 Hotel Janro – Hotel Management System
 
 **Hotel Janro** is a full-stack **Hotel Management System** built using the **MERN Stack (MongoDB, Express.js, React.js, Node.js)**.
 The system is designed to simplify hotel operations by providing multiple role-based dashboards and management modules for different hotel services.
