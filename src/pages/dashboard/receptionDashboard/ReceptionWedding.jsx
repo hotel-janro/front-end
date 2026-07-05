@@ -224,11 +224,9 @@ export function ReceptionWedding() {
     if (selectedHall) total += selectedHall.price;
 
     if (formData.guestCount) {
-      if (formData.bookingCategory === 'Wedding') {
-        if (formData.cateringPackage) {
-          total += packagePrices[formData.cateringPackage] * Number(formData.guestCount);
-        }
-      } else {
+      if (formData.cateringPackage && packagePrices[formData.cateringPackage]) {
+        total += packagePrices[formData.cateringPackage] * Number(formData.guestCount);
+      } else if (formData.bookingCategory !== 'Wedding') {
         formData.selectedMeals?.forEach(meal => {
           total += (mealPrices[meal] || 0) * Number(formData.guestCount);
         });
@@ -281,6 +279,7 @@ export function ReceptionWedding() {
           selectedMeals: [], optionalServices: [], specialRequests: '', 
           advancePaid: '', bookingCategory: 'Wedding', venuePreference: 'Indoor', timeSlot: 'Day'
         });
+        setSearchTerm('');
         fetchData();
       }
     } catch (error) {
@@ -418,6 +417,8 @@ export function ReceptionWedding() {
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input 
                   type="text" 
+                  name="receptionWeddingSearch"
+                  autoComplete="off"
                   placeholder={activeTab === 'bookings' ? 'Search bookings by customer name...' : 'Search halls...'} 
                   value={searchTerm} 
                   onChange={(e) => setSearchTerm(e.target.value)} 

@@ -509,13 +509,11 @@ export function AdminWedding() {
     if (selectedHall) subtotal += selectedHall.price;
 
     if (formData.guestCount) {
-      if (formData.bookingCategory === 'Wedding') {
-        if (formData.cateringPackage && packageDetails[formData.cateringPackage]) {
-          subtotal += packageDetails[formData.cateringPackage].price * Number(formData.guestCount);
-        } else if (formData.cateringPackage === 'Custom') {
-          subtotal += Number(formData.customPackagePrice || 0) * Number(formData.guestCount);
-        }
-      } else {
+      if (formData.cateringPackage && packageDetails[formData.cateringPackage]) {
+        subtotal += packageDetails[formData.cateringPackage].price * Number(formData.guestCount);
+      } else if (formData.cateringPackage === 'Custom') {
+        subtotal += Number(formData.customPackagePrice || 0) * Number(formData.guestCount);
+      } else if (formData.bookingCategory !== 'Wedding') {
         formData.selectedMeals?.forEach(meal => {
           subtotal += (mealPrices[meal] || 0) * Number(formData.guestCount);
         });
@@ -769,6 +767,7 @@ export function AdminWedding() {
           customerNIC: '', customerAddress: '', discountPercentage: 0, complimentaryItems: [],
           nekathTimes: { poruwa: '', teaTime: '', lunchDinner: '' }
         });
+        setSearchTerm(''); // Clear search term to prevent lingering searches
         fetchData();
       }
     } catch (error) {
@@ -986,6 +985,8 @@ export function AdminWedding() {
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input 
                   type="text" 
+                  name="adminWeddingSearch"
+                  autoComplete="off"
                   placeholder={
                     activeTab === 'bookings' ? 'Search bookings by customer name...' : 
                     activeTab === 'halls' ? 'Search halls...' : 'Search packages...'
