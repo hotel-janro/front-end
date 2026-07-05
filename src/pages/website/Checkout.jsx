@@ -115,13 +115,25 @@ export function Checkout() {
       }
     };
 
-    window.payhere.onDismissed = function onDismissed() {
+    window.payhere.onDismissed = async function onDismissed() {
       setLoading(false);
-      toast.info("Payment cancelled. You can retry anytime — your order is saved.");
+      try {
+        await apiFetch(`/orders/${orderId}/abandon`, { method: "DELETE" });
+      } catch (err) {
+        console.error("Failed to abandon order:", err);
+      }
+      setPendingOrderId(null);
+      toast.info("Payment cancelled. You can retry anytime with a new order.");
     };
 
-    window.payhere.onError = function onError(error) {
+    window.payhere.onError = async function onError(error) {
       setLoading(false);
+      try {
+        await apiFetch(`/orders/${orderId}/abandon`, { method: "DELETE" });
+      } catch (err) {
+        console.error("Failed to abandon order:", err);
+      }
+      setPendingOrderId(null);
       toast.error(`Payment failed: ${error}`);
     };
 
