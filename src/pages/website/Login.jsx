@@ -1,12 +1,11 @@
 // Login Page
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/common/Button.jsx";
 import { Crown, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext";
 
-
-export function Login({ onLogin, onVerify2FA, onGoogleLogin }) {
+export function Login({ onLogin, onVerify2FA }) {
   const { settings } = useSettings();
 
   const [email, setEmail] = useState("");
@@ -18,47 +17,6 @@ export function Login({ onLogin, onVerify2FA, onGoogleLogin }) {
   const [twoFactorRequired, setTwoFactorRequired] = useState(false);
   const [tempUserId, setTempUserId] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
-
-  /* global google */
-  useEffect(() => {
-    const initializeGoogleSignIn = () => {
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        try {
-          window.google.accounts.id.initialize({
-            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "909686127278-er1uoibsf4do6sgd7pbj692cbr89np83.apps.googleusercontent.com",
-            callback: async (response) => {
-              try {
-                setError("");
-                await onGoogleLogin(response.credential);
-              } catch (err) {
-                setError(err.message || "Google sign in failed");
-              }
-            }
-          });
-
-          window.google.accounts.id.renderButton(
-            document.getElementById("google-login-btn"),
-            { 
-              theme: "outline", 
-              size: "large", 
-              width: "360",
-              shape: "rectangular"
-            }
-          );
-        } catch (err) {
-          console.error("Google accounts initialisation error", err);
-        }
-      } else {
-        const timer = setTimeout(initializeGoogleSignIn, 100);
-        return () => clearTimeout(timer);
-      }
-    };
-
-    const cleanup = initializeGoogleSignIn();
-    return () => {
-      if (cleanup) cleanup();
-    };
-  }, [onGoogleLogin]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -177,14 +135,6 @@ export function Login({ onLogin, onVerify2FA, onGoogleLogin }) {
                 Sign In
               </Button>
             </form>
-
-            <div className="flex items-center gap-3 my-6">
-              <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-sm text-gray-400">or continue with</span>
-              <div className="flex-1 h-px bg-gray-200" />
-            </div>
-
-            <div id="google-login-btn" className="w-full flex justify-center"></div>
 
             <p className="text-center text-sm text-gray-400 mt-6">
               Don't have an account?{" "}

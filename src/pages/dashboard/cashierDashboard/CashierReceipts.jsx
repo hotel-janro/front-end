@@ -111,41 +111,44 @@ export function CashierReceipts() {
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
       {/* Premium Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-[#0F172A] rounded-2xl flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(15,23,42,0.4)]">
-            <Gem className="w-7 h-7 text-[#D4AF37]" />
+      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-200 mb-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-[80px] -mr-32 -mt-32" />
+        <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]">
+              <Gem className="w-7 h-7 text-[#D4AF37]" />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-5xl font-normal leading-tight text-white" style={{ fontFamily: "DM Serif Display, serif" }}>Receipt Archive</h1>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Boutique Transaction History</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-black text-[#0F172A] uppercase tracking-wider">Receipt Archive</h1>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">Boutique Transaction History</p>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={loadOrders}
+              className="group flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 text-white rounded-2xl hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
+            >
+              <RefreshCcw className={`w-4 h-4 group-hover:rotate-180 transition-transform duration-700 ${loading ? 'animate-spin' : ''}`} />
+              Refresh Archive
+            </button>
+            <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest pr-2 mt-2">
+              Last Sync: {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </p>
           </div>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <button
-            onClick={loadOrders}
-            className="group flex items-center gap-3 px-6 py-3 bg-slate-900 border border-white/5 text-slate-300 rounded-2xl hover:bg-[#0F172A] hover:text-[#D4AF37] hover:border-[#0F172A] transition-all duration-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:shadow-xl active:scale-95"
-          >
-            <RefreshCcw className={`w-4 h-4 group-hover:rotate-180 transition-transform duration-700 ${loading ? 'animate-spin text-[#D4AF37]' : ''}`} />
-            Refresh Archive
-          </button>
-          <p className="text-[7px] font-black text-slate-300 uppercase tracking-widest pr-2">
-            Records: {receipts.length} Issued
-          </p>
         </div>
       </div>
 
       {/* Search & Filter */}
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-        <div className="w-full lg:flex-1 bg-[#0F172A] rounded-[2.5rem] border border-white/5 shadow-[0_10px_50px_-20px_rgba(0,0,0,0.05)] p-2">
+        <div className="w-full lg:flex-1 bg-slate-50 rounded-[2.5rem] border border-slate-200 shadow-[0_10px_50px_-20px_rgba(0,0,0,0.05)] p-2">
           <div className="relative group">
-            <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#D4AF37] transition-colors" />
+            <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#D4AF37] transition-colors" />
             <input
               type="text"
               placeholder="Locate receipt by ID, guest name or order reference..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-14 pr-8 py-4 bg-transparent border-none focus:ring-0 text-sm font-bold text-white placeholder:text-slate-500"
+              className="w-full pl-14 pr-8 py-4 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-900 placeholder:text-slate-400"
             />
           </div>
         </div>
@@ -170,7 +173,7 @@ export function CashierReceipts() {
                   className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all duration-300 ${
                     isActive
                       ? 'bg-[#D4AF37] text-[#0F172A] border-[#D4AF37] shadow-[0_10px_20px_rgba(212,175,55,0.15)] scale-[1.02]'
-                      : 'bg-slate-900 text-slate-400 border-white/5 hover:bg-slate-950 hover:text-white'
+                      : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#0F172A]' : 'text-slate-500'}`} />
@@ -185,7 +188,7 @@ export function CashierReceipts() {
             <select
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="pl-6 pr-10 py-3 bg-slate-900 border border-white/5 rounded-2xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-wider text-slate-400 cursor-pointer appearance-none min-w-[140px] text-center hover:bg-slate-950 hover:text-white transition-all"
+              className="pl-6 pr-10 py-3 bg-slate-100 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-wider text-slate-500 cursor-pointer appearance-none min-w-[140px] text-center hover:bg-slate-50 hover:text-slate-900 transition-all"
             >
               <option value="All">All Time</option>
               <option value="Today">Today</option>
@@ -193,7 +196,7 @@ export function CashierReceipts() {
               <option value="Month">This Month</option>
               <option value="Year">This Year</option>
             </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none group-hover/select:text-[#D4AF37] transition-colors" />
           </div>
         </div>
       </div>
@@ -202,23 +205,23 @@ export function CashierReceipts() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         {loading && orders.length === 0 ? (
           <div className="col-span-full py-40 text-center">
-            <div className="w-16 h-16 border-4 border-slate-700 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6" />
-            <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[10px]">Curating your boutique records...</p>
+            <div className="w-16 h-16 border-4 border-slate-200 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6" />
+            <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px]">Curating your boutique records...</p>
           </div>
         ) : filtered.map((receipt) => (
-          <div key={receipt.orderId} className="group bg-[#0F172A] rounded-[2.5rem] border border-white/5 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_30px_70px_-20px_rgba(212,175,55,0.15)] hover:border-[#D4AF37]/30 transition-all duration-700 overflow-hidden relative">
+          <div key={receipt.orderId} className="group bg-slate-50 rounded-[2.5rem] border border-slate-200 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_30px_70px_-20px_rgba(212,175,55,0.15)] hover:border-[#D4AF37]/30 transition-all duration-700 overflow-hidden relative">
             {/* Luxury Card Header */}
-            <div className="px-8 py-7 bg-slate-950/20 border-b border-white/5 relative">
+            <div className="px-8 py-7 bg-slate-50/20 border-b border-slate-200 relative">
               <div className="absolute top-0 left-0 w-2 h-full bg-[#D4AF37] opacity-0 group-hover:opacity-100 transition-all duration-500 shadow-[0_0_15px_rgba(212,175,55,0.5)]" />
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-slate-900 rounded-2xl shadow-sm border border-white/10 flex items-center justify-center group-hover:rotate-[15deg] group-hover:border-[#D4AF37] transition-all duration-500">
+                  <div className="w-12 h-12 bg-slate-100 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-center group-hover:rotate-[15deg] group-hover:border-[#D4AF37] transition-all duration-500">
                     <Gem className="w-6 h-6 text-[#D4AF37]" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{receipt.id}</p>
-                      <span className="px-2.5 py-0.5 bg-slate-950 text-[#D4AF37] text-[8px] font-black uppercase tracking-widest rounded-lg">
+                      <span className="px-2.5 py-0.5 bg-slate-50 text-[#D4AF37] text-[8px] font-black uppercase tracking-widest rounded-lg">
                         #{receipt.dailySequenceNum.toString().padStart(3, '0')}
                       </span>
                     </div>
@@ -235,46 +238,46 @@ export function CashierReceipts() {
             {/* Luxury Card Body */}
             <div className="p-8 space-y-6">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center border border-white/10 text-[#D4AF37] group-hover:bg-[#D4AF37] group-hover:text-[#0F172A] transition-all duration-500">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-200 text-[#D4AF37] group-hover:bg-[#D4AF37] group-hover:text-[#0F172A] transition-all duration-500">
                   <User className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Boutique Guest</p>
-                  <span className="text-xs font-black text-white uppercase tracking-wider">{receipt.customerName}</span>
+                  <span className="text-xs font-black text-slate-900 uppercase tracking-wider">{receipt.customerName}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 text-white">
+              <div className="grid grid-cols-2 gap-6 text-slate-900">
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-slate-400">
+                  <div className="flex items-center gap-2 text-slate-500">
                     <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
                     <span className="text-[9px] font-black uppercase tracking-widest">Issued Date</span>
                   </div>
-                  <p className="text-[10px] font-black text-white uppercase tracking-tight">
+                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">
                     {new Date(receipt.issuedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </p>
                 </div>
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-slate-400">
+                  <div className="flex items-center gap-2 text-slate-500">
                     <CreditCard className="w-3.5 h-3.5 text-[#D4AF37]" />
                     <span className="text-[9px] font-black uppercase tracking-widest">Channel</span>
                   </div>
-                  <p className="text-[10px] font-black text-white uppercase tracking-tight">{receipt.paymentMethod}</p>
+                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">{receipt.paymentMethod}</p>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-950 rounded-2xl border border-white/5 flex items-center justify-between">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Package className="w-4 h-4 text-[#D4AF37]" />
-                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{receipt.items.length} Items</span>
+                  <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{receipt.items.length} Items</span>
                 </div>
                 <span className="text-[9px] font-black text-[#D4AF37] uppercase bg-[#D4AF37]/5 px-3 py-1 rounded-full border border-[#D4AF37]/10">{receipt.type}</span>
               </div>
 
-              <div className="pt-6 border-t border-white/5 flex items-center justify-between gap-4">
+              <div className="pt-6 border-t border-slate-200 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 italic">Total Settled</p>
-                  <p className="text-2xl font-black text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                  <p className="text-2xl font-black text-slate-900" style={{ fontFamily: 'DM Serif Display, serif' }}>
                     {formatCurrency(receipt.total)}
                   </p>
                 </div>
@@ -290,9 +293,9 @@ export function CashierReceipts() {
         ))}
 
         {!loading && filtered.length === 0 && (
-          <div className="col-span-full py-48 text-center bg-slate-900 rounded-[3rem] border border-white/5">
+          <div className="col-span-full py-48 text-center bg-slate-100 rounded-[3rem] border border-slate-200">
             <FileText className="w-16 h-16 text-slate-600 mx-auto mb-6" />
-            <h4 className="text-xl font-black text-white uppercase tracking-widest mb-2">No Records Found</h4>
+            <h4 className="text-xl font-black text-slate-900 uppercase tracking-widest mb-2">No Records Found</h4>
             <p className="text-slate-500 text-xs font-black uppercase tracking-[0.2em]">Adjust your filters or sync to refresh</p>
           </div>
         )}
@@ -300,17 +303,17 @@ export function CashierReceipts() {
 
       {/* Receipt Modal */}
       {selectedReceipt && (
-        <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-xl flex items-center justify-center z-[200] p-4 animate-in fade-in duration-500">
+        <div className="fixed inset-0 bg-slate-50/80 backdrop-blur-xl flex items-center justify-center z-[200] p-4 animate-in fade-in duration-500">
           <div className="bg-white rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] w-full max-w-md border border-white/20 relative overflow-hidden animate-in zoom-in-95 duration-500 flex flex-col max-h-[90vh]">
             {/* Modal Header */}
-            <div className="bg-[#0F172A] px-8 py-5 flex items-center justify-between shrink-0">
+            <div className="bg-slate-50 px-8 py-5 flex items-center justify-between shrink-0">
               <div>
-                <h3 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Receipt <span className="text-[#D4AF37]">Details</span></h3>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">{selectedReceipt.id}</p>
+                <h3 className="text-xl text-slate-900 font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Receipt <span className="text-[#D4AF37]">Details</span></h3>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1 italic">{selectedReceipt.id}</p>
               </div>
               <button
                 onClick={() => setSelectedReceipt(null)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 text-white hover:bg-rose-500/20 hover:text-rose-400 transition-all"
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 text-slate-900 hover:bg-rose-500/20 hover:text-rose-400 transition-all"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -321,10 +324,10 @@ export function CashierReceipts() {
               {/* Header */}
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-black text-[#0F172A] tracking-widest uppercase">{settings.hotelName}</h2>
-                <p className="text-[10px] text-slate-400 mt-1 uppercase font-black tracking-[0.2em]">{settings.address}</p>
-                <p className="text-[10px] text-slate-400 font-bold">Tel: {settings.phone}</p>
+                <p className="text-[10px] text-slate-500 mt-1 uppercase font-black tracking-[0.2em]">{settings.address}</p>
+                <p className="text-[10px] text-slate-500 font-bold">Tel: {settings.phone}</p>
                 <div className="mt-4 border-t border-dashed border-slate-200 pt-4">
-                  <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-widest">
                     <span>{new Date(selectedReceipt.issuedAt).toLocaleDateString('en-GB')}</span>
                     <span className="text-[#D4AF37]">{new Date(selectedReceipt.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
@@ -335,11 +338,11 @@ export function CashierReceipts() {
               <div className="mb-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="flex items-center gap-3 mb-2">
                   <User className="w-3 h-3 text-[#D4AF37]" />
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Boutique Guest</p>
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Boutique Guest</p>
                 </div>
                 <p className="text-md font-black text-[#0F172A] uppercase tracking-wider">{selectedReceipt.customerName}</p>
                 <div className="mt-3 flex justify-between items-center">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Ref: {selectedReceipt.orderNumber}</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Ref: {selectedReceipt.orderNumber}</p>
                   <span className="px-2 py-0.5 bg-white text-[#D4AF37] text-[8px] font-black uppercase tracking-widest rounded-md border border-[#D4AF37]/20">{selectedReceipt.type}</span>
                 </div>
               </div>
@@ -348,7 +351,7 @@ export function CashierReceipts() {
               <div className="space-y-4 mb-6">
                 <div className="flex items-center gap-2 mb-3">
                   <Package className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Summary of Choice</p>
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Summary of Choice</p>
                 </div>
                 <div className="max-h-[180px] overflow-y-auto pr-2 custom-scrollbar space-y-3">
                   {selectedReceipt.items.map((item, idx) => (
@@ -359,7 +362,7 @@ export function CashierReceipts() {
                       </div>
                       <div className="text-right">
                         <p className="text-[11px] font-black text-slate-900">{formatCurrency(item.quantity * item.price)}</p>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase">x{item.quantity}</p>
+                        <p className="text-[9px] font-bold text-slate-500 uppercase">x{item.quantity}</p>
                       </div>
                     </div>
                   ))}
@@ -368,12 +371,12 @@ export function CashierReceipts() {
 
               {/* Financial Breakdown */}
               <div className="border-t-2 border-dashed border-slate-100 pt-5 space-y-2">
-                <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                   <span>Subtotal Sum</span>
                   <span>{formatCurrency(selectedReceipt.subtotal)}</span>
                 </div>
                 {selectedReceipt.serviceCharge > 0 && (
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                     <span>Service Earnings (10%)</span>
                     <span>{formatCurrency(selectedReceipt.serviceCharge)}</span>
                   </div>
@@ -393,7 +396,7 @@ export function CashierReceipts() {
               {/* Modern Receipt Footer */}
               <div className="mt-8 text-center bg-slate-50 p-4 rounded-3xl">
                 <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.3em]">Boutique Experience by Janro</p>
-                <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase italic tracking-widest">Professional Digital Artifact</p>
+                <p className="text-[8px] font-bold text-slate-500 mt-1 uppercase italic tracking-widest">Professional Digital Artifact</p>
               </div>
             </div>
 
@@ -498,7 +501,7 @@ export function CashierReceipts() {
                   `);
                   printWindow.document.close();
                 }}
-                className="w-full flex items-center justify-center gap-4 py-5 bg-[#0F172A] text-[#D4AF37] rounded-[2rem] hover:bg-slate-800 transition-all text-xs font-black uppercase tracking-[0.3em] shadow-2xl active:scale-[0.98]"
+                className="w-full flex items-center justify-center gap-4 py-5 bg-slate-50 text-[#D4AF37] rounded-[2rem] hover:bg-slate-100 transition-all text-xs font-black uppercase tracking-[0.3em] shadow-2xl active:scale-[0.98]"
               >
                 <Printer className="w-5 h-5" />
                 Produce Receipt

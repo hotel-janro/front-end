@@ -36,7 +36,8 @@ export function ReceptionDashboard() {
     availableRooms: 0,
     maintenanceRooms: 0,
     reservedRooms: 0,
-    totalRooms: 0
+    totalRooms: 0,
+    pendingBookingsCount: 0
   });
   
   const [loading, setLoading] = useState(true);
@@ -100,8 +101,8 @@ export function ReceptionDashboard() {
           availableRooms,
           maintenanceRooms: 0,
           reservedRooms,
-          totalRooms: totalRooms > 0 ? totalRooms : 1 // prevent division by zero
-
+          totalRooms: totalRooms > 0 ? totalRooms : 1, // prevent division by zero
+          pendingBookingsCount: allBookings.filter(b => b.status === 'pending').length
         });
         
       } catch (error) {
@@ -233,6 +234,28 @@ export function ReceptionDashboard() {
       </div>
 
 
+
+      {/* Alert Banner for Pending Bookings */}
+      {data.pendingBookingsCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-amber-900">Action Required: Pending Bookings</h3>
+              <p className="text-xs text-amber-700">There are {data.pendingBookingsCount} room booking(s) waiting for your confirmation.</p>
+            </div>
+          </div>
+          <Link
+            to="/reception/rooms"
+            state={{ activeTab: 'bookings' }}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shadow-sm"
+          >
+            Review Now
+          </Link>
+        </div>
+      )}
 
       {/* Room Occupancy Bar */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">

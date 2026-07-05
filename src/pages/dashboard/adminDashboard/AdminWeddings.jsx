@@ -2,6 +2,74 @@ import React, { useState, useEffect } from 'react';
 import { Heart, Calendar, Users, DollarSign, Plus, Search, X, Edit, Trash2, Upload, ImageIcon, Loader2, Eye, Info, Phone, Mail, MapPin, User, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { apiFetch, getImageUrl } from '../../../api';
 
+// Helper to convert 12-hour components back to 24-hour "HH:MM"
+const to24Hour = (h, m, period) => {
+  let hr = parseInt(h, 10);
+  if (period === 'PM' && hr < 12) hr += 12;
+  if (period === 'AM' && hr === 12) hr = 0;
+  return `${String(hr).padStart(2, '0')}:${m}`;
+};
+
+// Helper to parse 24-hour "HH:MM" to 12-hour components
+const from24Hour = (timeStr) => {
+  if (!timeStr) return { hour: '12', minute: '00', period: 'AM' };
+  const [hStr, mStr] = timeStr.split(':');
+  let hr = parseInt(hStr, 10);
+  let period = 'AM';
+  if (hr >= 12) {
+    period = 'PM';
+    if (hr > 12) hr -= 12;
+  }
+  if (hr === 0) hr = 12;
+  return {
+    hour: String(hr).padStart(2, '0'),
+    minute: mStr || '00',
+    period
+  };
+};
+
+// Custom Dropdown Time Picker Component
+const TimeDropdownPicker = ({ value, onChange, className = "", showIcon = false }) => {
+  const { hour, minute, period } = from24Hour(value);
+
+  const handleSelectChange = (newHour, newMin, newPeriod) => {
+    onChange(to24Hour(newHour, newMin, newPeriod));
+  };
+
+  return (
+    <div className={`flex items-center justify-center gap-0.5 bg-white px-2 py-2 rounded-xl border border-slate-200 w-fit ${className}`}>
+      {showIcon && <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-0.5" />}
+      <select 
+        value={hour} 
+        onChange={e => handleSelectChange(e.target.value, minute, period)}
+        className="appearance-none bg-transparent outline-none cursor-pointer text-slate-800 font-bold text-xs w-6 text-center hover:bg-slate-100 rounded transition-colors"
+      >
+        {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
+          <option key={h} value={h}>{h}</option>
+        ))}
+      </select>
+      <span className="text-xs font-bold text-slate-400 px-0.5">:</span>
+      <select 
+        value={minute} 
+        onChange={e => handleSelectChange(hour, e.target.value, period)}
+        className="appearance-none bg-transparent outline-none cursor-pointer text-slate-800 font-bold text-xs w-6 text-center hover:bg-slate-100 rounded transition-colors"
+      >
+        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
+          <option key={m} value={m}>{m}</option>
+        ))}
+      </select>
+      <select 
+        value={period} 
+        onChange={e => handleSelectChange(hour, minute, e.target.value)}
+        className="appearance-none bg-transparent outline-none cursor-pointer text-[#D4AF37] font-extrabold text-xs w-8 text-center ml-0.5 hover:bg-amber-50 rounded transition-colors"
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+};
+
 export function AdminWedding() {
   const [activeTab, setActiveTab] = useState('bookings');
   const [searchTerm, setSearchTerm] = useState('');
@@ -528,6 +596,29 @@ export function AdminWedding() {
     today.setHours(0, 0, 0, 0);
 
     if (step === 1) {
+      // Customer details
+      if (!formData.customerName || formData.customerName.trim().length < 2) return 'Please enter the Customer Full Name.';
+
+      const cleanPhone = formData.customerPhone.replace(/\s+/g, '');
+      if (!/^(0\d{9}|\+94\d{9})$/.test(cleanPhone)) return 'Invalid Customer Phone. Enter a valid 10-digit Sri Lankan number (e.g. 0712345678).';
+
+      if (formData.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customerEmail)) return 'Invalid Customer Email address.';
+
+      const cleanNIC = formData.customerNIC.replace(/\s+/g, '').toUpperCase();
+      if (!cleanNIC) return 'Please enter the Customer NIC Number.';
+      if (!/^(\d{9}[VX]|\d{12})$/.test(cleanNIC)) return 'Invalid NIC. Use old format (123456789V) or new 12-digit format.';
+
+      if (formData.groomPhone && !/^(0\d{9}|\+94\d{9})$/.test(formData.groomPhone.replace(/\s+/g, ''))) {
+        return "Invalid Groom's Phone Number.";
+      }
+      if (formData.bridePhone && !/^(0\d{9}|\+94\d{9})$/.test(formData.bridePhone.replace(/\s+/g, ''))) {
+        return "Invalid Bride's Phone Number.";
+      }
+
+      return null;
+    }
+
+    if (step === 2) {
       // Event date & time & hall
       if (!formData.eventDate) return 'Please select an Event Date.';
 
@@ -547,27 +638,55 @@ export function AdminWedding() {
         return 'End Time must be after Start Time for Day events.';
       }
 
-      return null;
-    }
-
-    if (step === 2) {
-      // Customer details
-      if (!formData.customerName || formData.customerName.trim().length < 2) return 'Please enter the Customer Full Name.';
-
-      const cleanPhone = formData.customerPhone.replace(/\s+/g, '');
-      if (!/^(0\d{9}|\+94\d{9})$/.test(cleanPhone)) return 'Invalid Customer Phone. Enter a valid 10-digit Sri Lankan number (e.g. 0712345678).';
-
-      if (formData.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customerEmail)) return 'Invalid Customer Email address.';
-
-      const cleanNIC = formData.customerNIC.replace(/\s+/g, '').toUpperCase();
-      if (!cleanNIC) return 'Please enter the Customer NIC Number.';
-      if (!/^(\d{9}[VX]|\d{12})$/.test(cleanNIC)) return 'Invalid NIC. Use old format (123456789V) or new 12-digit format.';
-
-      if (formData.groomPhone && !/^(0\d{9}|\+94\d{9})$/.test(formData.groomPhone.replace(/\s+/g, ''))) {
-        return "Invalid Groom's Phone Number.";
+      // Guest Capacity Check
+      const selectedHall = halls.find(h => h._id === formData.hallId);
+      if (selectedHall && Number(formData.guestCount) > selectedHall.capacity) {
+        return `Guest count (${formData.guestCount}) exceeds the maximum capacity of ${selectedHall.hallName} (${selectedHall.capacity}).`;
       }
-      if (formData.bridePhone && !/^(0\d{9}|\+94\d{9})$/.test(formData.bridePhone.replace(/\s+/g, ''))) {
-        return "Invalid Bride's Phone Number.";
+
+      // Check for overlapping bookings
+      const overlappingBooking = bookings.find(b => {
+        if (editingId && b._id === editingId) return false;
+        if (b.bookingStatus === 'Cancelled' || b.bookingStatus === 'CANCELLED') return false;
+        
+        // Use hallId instead of hall
+        const existingHallId = b.hallId?._id || b.hallId;
+        if (existingHallId !== formData.hallId) return false;
+
+        if (!b.eventDate) return false;
+        
+        // Comparing dates locally to avoid timezone mismatches
+        const existingDateStr = new Date(b.eventDate).toLocaleDateString('en-CA');
+        const formDateStr = new Date(formData.eventDate).toLocaleDateString('en-CA');
+        if (existingDateStr !== formDateStr) return false;
+
+        if (!b.startTime || !b.endTime) return true; 
+        
+        const parseMins = (t) => {
+          if (!t) return 0;
+          const [h, m] = t.split(':').map(Number);
+          return h * 60 + m;
+        };
+        const existStart = parseMins(b.startTime);
+        const existEnd = parseMins(b.endTime);
+
+        return (startMins < existEnd && existStart < endMins);
+      });
+
+      if (overlappingBooking) {
+        const formatTime = (t) => {
+          if (!t) return '';
+          const [h, m] = t.split(':');
+          let hr = parseInt(h);
+          const p = hr >= 12 ? 'PM' : 'AM';
+          if (hr > 12) hr -= 12;
+          if (hr === 0) hr = 12;
+          return `${hr}:${m} ${p}`;
+        };
+        const sTime = formatTime(overlappingBooking.startTime);
+        const eTime = formatTime(overlappingBooking.endTime);
+        const hallName = halls.find(h => h._id === formData.hallId)?.hallName || 'This hall';
+        return `OVERBOOKING PREVENTED: ${hallName} is already booked on this date from ${sTime} to ${eTime}. Please select a different time, hall, or date.`;
       }
 
       return null;
@@ -1436,15 +1555,15 @@ export function AdminWedding() {
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold text-slate-600">Main Ceremony</span>
-                                <input type="time" value={formData.nekathTimes.poruwa} onChange={e => setFormData({...formData, nekathTimes: {...formData.nekathTimes, poruwa: e.target.value}})} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold" />
+                                <TimeDropdownPicker value={formData.nekathTimes.poruwa} onChange={newVal => setFormData({...formData, nekathTimes: {...formData.nekathTimes, poruwa: newVal}})} />
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold text-slate-600">Tea Time</span>
-                                <input type="time" value={formData.nekathTimes.teaTime} onChange={e => setFormData({...formData, nekathTimes: {...formData.nekathTimes, teaTime: e.target.value}})} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold" />
+                                <TimeDropdownPicker value={formData.nekathTimes.teaTime} onChange={newVal => setFormData({...formData, nekathTimes: {...formData.nekathTimes, teaTime: newVal}})} />
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold text-slate-600">Lunch / Dinner</span>
-                                <input type="time" value={formData.nekathTimes.lunchDinner} onChange={e => setFormData({...formData, nekathTimes: {...formData.nekathTimes, lunchDinner: e.target.value}})} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold" />
+                                <TimeDropdownPicker value={formData.nekathTimes.lunchDinner} onChange={newVal => setFormData({...formData, nekathTimes: {...formData.nekathTimes, lunchDinner: newVal}})} />
                               </div>
                             </div>
                           </div>
@@ -1474,21 +1593,11 @@ export function AdminWedding() {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Start Time *</label>
-                            <div className="relative">
-                              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                                <Clock className="w-4 h-4" />
-                              </div>
-                              <input required type="time" value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} className="w-full pl-10 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-xs" />
-                            </div>
+                            <TimeDropdownPicker showIcon={true} value={formData.startTime} onChange={newVal => setFormData({...formData, startTime: newVal})} className="w-full" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">End Time *</label>
-                            <div className="relative">
-                              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                                <Clock className="w-4 h-4" />
-                              </div>
-                              <input required type="time" value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} className="w-full pl-10 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-xs" />
-                            </div>
+                            <TimeDropdownPicker showIcon={true} value={formData.endTime} onChange={newVal => setFormData({...formData, endTime: newVal})} className="w-full" />
                           </div>
                         </div>
                         <div className="pt-2">
@@ -1753,7 +1862,7 @@ export function AdminWedding() {
                 <button 
                   type="button" 
                   onClick={() => { 
-                    if (currentStep > 1) { 
+                    if (currentStep > 0) { 
                       setBookingFormError(''); 
                       setCurrentStep(currentStep - 1); 
                     } else { 
@@ -1762,7 +1871,7 @@ export function AdminWedding() {
                   }}
                   className="px-8 py-4 bg-white border-2 border-slate-200 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all"
                 >
-                  {currentStep === 1 ? 'Cancel' : 'Previous Step'}
+                  {currentStep === 0 ? 'Cancel' : 'Previous Step'}
                 </button>
                 
                 <div className="flex gap-4">
@@ -2008,17 +2117,23 @@ export function AdminWedding() {
 
               <form onSubmit={submitPayment}>
                 <div className="mb-6">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">New Payment Amount (Rs.)</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">New Payment Amount</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black">Rs.</span>
                     <input 
                       autoFocus
                       required 
                       type="number" 
+                      min="1"
                       value={paymentAmount} 
-                      onChange={e => setPaymentAmount(e.target.value)} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '' || Number(val) >= 0) {
+                          setPaymentAmount(val);
+                        }
+                      }} 
                       placeholder="Enter amount..."
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] focus:bg-white outline-none transition-all text-lg font-bold"
+                      className="w-full pl-14 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] focus:bg-white outline-none transition-all text-lg font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 </div>

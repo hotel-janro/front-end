@@ -59,6 +59,7 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
   const [checkInType, setCheckInType] = useState("Day");
   const [checkOutType, setCheckOutType] = useState("Day");
   const [stayMode, setStayMode] = useState("onlyDay"); // onlyDay, onlyNight, custom
+  const [paymentMethod, setPaymentMethod] = useState("Card"); // Card or Cash
   const isStandardRoom = (room.name || "").toLowerCase().includes("standard");
   const isFamilySuite = (room.name || "").toLowerCase().includes("family");
   const isHoneymoonSuite = (room.name || "").toLowerCase().includes("honeymoon") || (room.name || "").toLowerCase().includes("wedding couple");
@@ -287,7 +288,8 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
         : (activeVariantRoom._isVirtualAc
             ? (specialRequests ? `${specialRequests} (Requested Room Option: AC Room)` : "(Requested Room Option: AC Room)")
             : specialRequests),
-      decorationItems: isHoneymoonSuite && isLoggedIn ? selectedDecorations : []
+      decorationItems: isHoneymoonSuite && isLoggedIn ? selectedDecorations : [],
+      paymentMethod
     });
   };
 
@@ -327,21 +329,8 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
           alt={room.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
-        <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm">
+        <div className="absolute top-4 right-4 bg-[#D4AF37] text-[#0F172A] px-3 py-1 rounded-full text-sm font-bold shadow-sm">
           {settings.currency.symbol} {formattedPrice}
-        </div>
-        <div className="absolute top-4 left-4 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-[#0F172A] shadow-sm">
-          {loadingRooms
-            ? "Checking availability..."
-            : !showBookingForm
-              ? (() => {
-                  const total = room.availableRooms ?? 0;
-                  return `${total} ${total === 1 ? "room" : "rooms"} available`;
-                })()
-              : !isDateRangeInvalid
-                ? `${availableRoomNumbers.length} ${availableRoomNumbers.length === 1 ? "room" : "rooms"} available`
-                : `${activeVariantRoom.availableRooms ?? 0} ${Number(activeVariantRoom.availableRooms) === 1 ? "room" : "rooms"} in total`
-          }
         </div>
       </div>
       <div className="p-6">
@@ -689,6 +678,56 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
                   </div>
                 </div>
               )}
+
+              <div className="mt-4 border border-gray-200 p-4 rounded-xl bg-white shadow-sm">
+                <label className="text-xs text-gray-500 block mb-3 font-semibold uppercase tracking-wider">Payment Method</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      paymentMethod === "Card"
+                        ? "border-[#0F172A] bg-[#F8FAFC] shadow-inner"
+                        : "border-gray-100 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="Card"
+                      checked={paymentMethod === "Card"}
+                      onChange={() => setPaymentMethod("Card")}
+                      className="hidden"
+                    />
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'Card' ? 'border-[#0F172A]' : 'border-gray-300'}`}>
+                      {paymentMethod === 'Card' && <div className="w-2 h-2 rounded-full bg-[#0F172A]" />}
+                    </div>
+                    <span className={`text-sm font-bold ${paymentMethod === 'Card' ? 'text-[#0F172A]' : 'text-gray-500'}`}>
+                      Pay Online
+                    </span>
+                  </label>
+                  <label
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      paymentMethod === "Cash"
+                        ? "border-[#0F172A] bg-[#F8FAFC] shadow-inner"
+                        : "border-gray-100 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="Cash"
+                      checked={paymentMethod === "Cash"}
+                      onChange={() => setPaymentMethod("Cash")}
+                      className="hidden"
+                    />
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'Cash' ? 'border-[#0F172A]' : 'border-gray-300'}`}>
+                      {paymentMethod === 'Cash' && <div className="w-2 h-2 rounded-full bg-[#0F172A]" />}
+                    </div>
+                    <span className={`text-sm font-bold ${paymentMethod === 'Cash' ? 'text-[#0F172A]' : 'text-gray-500'}`}>
+                      Pay at Hotel
+                    </span>
+                  </label>
+                </div>
+              </div>
 
               <div className="mt-6 pt-4 border-t-2 border-gray-50 flex justify-between items-end">
                 <div>

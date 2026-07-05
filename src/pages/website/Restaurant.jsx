@@ -42,6 +42,7 @@ export function Restaurant({ onOrder, user }) {
   const [isLocating, setIsLocating] = useState(false);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("Card"); // Card or Cash
   const [validationErrors, setValidationErrors] = useState({});
   const [myRooms, setMyRooms] = useState([]);
 
@@ -79,7 +80,11 @@ export function Restaurant({ onOrder, user }) {
       try {
         const data = await apiFetch("/menu?limit=100&populate=inventoryItem&isAvailable=true");
         // Handle both paginated and non-paginated responses
-        const items = Array.isArray(data) ? data : (data?.items || []);
+        let items = Array.isArray(data) ? data : (data?.items || []);
+        
+        // Randomly shuffle the items so the 'All' category looks different on each visit
+        items = items.sort(() => Math.random() - 0.5);
+        
         setMenuItems(items);
       } catch (err) {
         toast.error("Failed to load our menu");
@@ -377,6 +382,7 @@ export function Restaurant({ onOrder, user }) {
         deliveryFee,
         specialNotes,
         totalAmount: grandTotal,
+        paymentMethod
       };
 
       const result = await apiFetch("/orders", {
@@ -384,10 +390,82 @@ export function Restaurant({ onOrder, user }) {
         body: JSON.stringify(orderData),
       });
 
-      toast.success("Exceptional choice! Your order is being prepared.");
-      setCart([]);
-      setShowCart(false);
-      if (onOrder) onOrder(result);
+      const order = result.data || result; // Fallback in case backend returns plain order
+
+      const completeSuccess = () => {
+        toast.success("Exceptional choice! Your order is being prepared.");
+        setCart([]);
+        setShowCart(false);
+        if (onOrder) onOrder(result);
+      };
+
+      if (paymentMethod === "Card") {
+        try {
+          const hashRes = await apiFetch("/payments/payhere-hash", {
+            method: "POST",
+            body: JSON.stringify({
+              orderId: order._id,
+              amount: grandTotal
+            })
+          });
+
+          if (!hashRes || !hashRes.success) {
+            throw new Error("Failed to generate payment signature.");
+          }
+
+          const { merchantId, currency, hash, amount } = hashRes.data;
+          
+          const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "").replace(/\/$/, "");
+
+          const payment = {
+            sandbox: true,
+            merchant_id: merchantId,
+            return_url: `${window.location.origin}/my-orders`,
+            cancel_url: `${window.location.origin}/restaurant`,
+            notify_url: `${API_BASE}/api/payments/payhere-notify`,
+            order_id: order._id,
+            items: `Restaurant Order - ${cart.length} items`,
+            amount: amount,
+            currency: currency,
+            hash: hash,
+            first_name: customerName.split(" ")[0] || "Valued",
+            last_name: customerName.split(" ")[1] || "Guest",
+            email: user?.email || "guest@hoteljanro.com",
+            phone: contactNumber,
+            address: orderType === "Delivery" ? deliveryAddress : "Hotel Janro",
+            city: "Colombo",
+            country: "Sri Lanka",
+            custom_1: "order" // Signal to backend that this is a restaurant order
+          };
+
+          window.payhere.onCompleted = function onCompleted(orderId) {
+            completeSuccess();
+            // Optional: redirect to my orders page if you prefer
+            // window.location.href = "/my-orders";
+          };
+
+          window.payhere.onDismissed = function onDismissed() {
+            toast.error("Payment window closed. Order is saved as Unpaid in your dashboard.");
+            setCart([]);
+            setShowCart(false);
+          };
+
+          window.payhere.onError = function onError(error) {
+            toast.error("Payment failed: " + error);
+            setCart([]);
+            setShowCart(false);
+          };
+
+          window.payhere.startPayment(payment);
+        } catch (err) {
+          toast.error("Could not start payment: " + err.message);
+          setCart([]);
+          setShowCart(false);
+        }
+      } else {
+        // Cash payment
+        completeSuccess();
+      }
     } catch (err) {
       toast.error(err.message || "Something went wrong");
     } finally {
@@ -828,6 +906,60 @@ export function Restaurant({ onOrder, user }) {
                       <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">04. Special Notes (Optional)</h3>
                     </div>
                     <input value={specialNotes} onChange={e => setSpecialNotes(e.target.value)} className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-[#D4AF37] text-slate-700 shadow-sm" placeholder="Any special requests or allergies?" />
+                  </div>
+
+                  {/* Step 5: Payment Method */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]" />
+                      <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">05. Payment Method</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          paymentMethod === "Card"
+                            ? "border-[#0F172A] bg-slate-50 shadow-inner"
+                            : "border-slate-100 hover:border-slate-300 bg-white"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="Card"
+                          checked={paymentMethod === "Card"}
+                          onChange={() => setPaymentMethod("Card")}
+                          className="hidden"
+                        />
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'Card' ? 'border-[#0F172A]' : 'border-slate-300'}`}>
+                          {paymentMethod === 'Card' && <div className="w-2 h-2 rounded-full bg-[#0F172A]" />}
+                        </div>
+                        <span className={`text-sm font-bold ${paymentMethod === 'Card' ? 'text-[#0F172A]' : 'text-slate-500'}`}>
+                          Pay Online
+                        </span>
+                      </label>
+                      <label
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          paymentMethod === "Cash"
+                            ? "border-[#0F172A] bg-slate-50 shadow-inner"
+                            : "border-slate-100 hover:border-slate-300 bg-white"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="Cash"
+                          checked={paymentMethod === "Cash"}
+                          onChange={() => setPaymentMethod("Cash")}
+                          className="hidden"
+                        />
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'Cash' ? 'border-[#0F172A]' : 'border-slate-300'}`}>
+                          {paymentMethod === 'Cash' && <div className="w-2 h-2 rounded-full bg-[#0F172A]" />}
+                        </div>
+                        <span className={`text-sm font-bold ${paymentMethod === 'Cash' ? 'text-[#0F172A]' : 'text-slate-500'}`}>
+                          Pay by Cash
+                        </span>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="px-6 md:px-8 py-4 md:py-6 bg-white border-t border-slate-50 mt-auto shrink-0">

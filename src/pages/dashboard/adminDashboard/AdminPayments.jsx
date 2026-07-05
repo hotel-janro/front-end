@@ -1,21 +1,49 @@
+import React, { useState, useEffect } from 'react';
+import { CreditCard, Search, DollarSign, CheckCircle, Clock } from 'lucide-react';
+import { useSettings } from '../../../context/SettingsContext.jsx';
 
-import React, { useState } from 'react';
-import { CreditCard, Search, Filter, DollarSign, CheckCircle, XCircle, Clock, Download } from 'lucide-react';
-import { payments } from '../../../data/newMockData.js';
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export function AdminPayments() {
+  const { settings } = useSettings();
+  const [payments, setPayments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterMethod, setFilterMethod] = useState('All');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
+  const fetchPayments = async () => {
+    try {
+      const token = localStorage.getItem('janro_token');
+      const res = await fetch(`${API_BASE}/api/payments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPayments(data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch payments:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredPayments = payments.filter((payment) => {
+    const customerName = payment.user?.name || "Guest";
     const matchesSearch =
-      payment.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.transactionId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'All' || payment.type === filterType;
+      customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment._id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = filterType === 'All' || payment.onModel === filterType;
     const matchesStatus = filterStatus === 'All' || payment.status === filterStatus;
-    const matchesMethod = filterMethod === 'All' || payment.paymentMethod === filterMethod;
+    const matchesMethod = filterMethod === 'All' || payment.method === filterMethod;
     return matchesSearch && matchesType && matchesStatus && matchesMethod;
   });
 
@@ -31,10 +59,9 @@ export function AdminPayments() {
 
   const getTypeColor = (type) => {
     switch (type) {
-      case 'Room Booking': return 'bg-blue-100 text-blue-800';
-      case 'Restaurant': return 'bg-orange-100 text-orange-800';
-      case 'Wedding': return 'bg-pink-100 text-pink-800';
-      case 'Pool': return 'bg-cyan-100 text-cyan-800';
+      case 'Booking': return 'bg-blue-100 text-blue-800';
+      case 'Order': return 'bg-orange-100 text-orange-800';
+      case 'WeddingBooking': return 'bg-pink-100 text-pink-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -42,14 +69,14 @@ export function AdminPayments() {
   const totalPayments = payments.length;
   const totalRevenue = payments.filter((p) => p.status === 'Completed').reduce((sum, payment) => sum + payment.amount, 0);
   const pendingPayments = payments.filter((p) => p.status === 'Pending').length;
-  const successRate = ((payments.filter((p) => p.status === 'Completed').length / totalPayments) * 100).toFixed(1);
+  const successRate = totalPayments > 0 ? ((payments.filter((p) => p.status === 'Completed').length / totalPayments) * 100).toFixed(1) : 0;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">{settings.hotelName}</p>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3">{settings?.hotelName || "HOTEL JANRO"}</p>
           <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
             Payments
           </h1>
@@ -57,10 +84,6 @@ export function AdminPayments() {
             Manage and track all payment transactions
           </p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-white rounded-xl font-medium transition-colors shadow-lg shadow-[#D4AF37]/20 self-start sm:self-center whitespace-nowrap">
-          <CreditCard className="w-5 h-5" />
-          New Payment
-        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -100,50 +123,54 @@ export function AdminPayments() {
               </div>
             </div>
             <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>All</option><option>Room Booking</option><option>Restaurant</option><option>Wedding</option><option>Pool</option><option>Other</option>
+              <option>All</option><option>Booking</option><option>Order</option><option>WeddingBooking</option>
             </select>
             <select value={filterMethod} onChange={(e) => setFilterMethod(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>All</option><option>Cash</option><option>Credit Card</option><option>Debit Card</option><option>Online Transfer</option><option>Mobile Payment</option>
+              <option>All</option><option>Cash</option><option>Card</option><option>Online</option>
             </select>
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>All</option><option>Pending</option><option>Completed</option><option>Failed</option><option>Refunded</option>
+              <option>All</option><option>Pending</option><option>Completed</option><option>Failed</option>
             </select>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredPayments.map((payment) => (
-                <tr key={payment.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm font-medium text-gray-900 font-mono">{payment.transactionId}</span></td>
-                  <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">{payment.customerName}</div></td>
-                  <td className="px-6 py-4 whitespace-nowrap"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(payment.type)}`}>{payment.type}</span></td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.paymentMethod}</td>
-                  <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-semibold text-gray-900">Rs {payment.amount.toLocaleString()}</div></td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{new Date(payment.date).toLocaleDateString()}</div>
-                    <div className="text-xs text-gray-500">{new Date(payment.date).toLocaleTimeString()}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(payment.status)}`}>{payment.status}</span></td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{payment.referenceNumber || '-'}</td>
+          {loading ? (
+            <div className="text-center py-12"><p className="text-gray-500">Loading payments...</p></div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredPayments.length === 0 && (<div className="text-center py-12"><p className="text-gray-500">No payments found</p></div>)}
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredPayments.map((payment) => (
+                  <tr key={payment._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm font-medium text-gray-900 font-mono">{payment._id.slice(-8).toUpperCase()}</span></td>
+                    <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">{payment.user?.name || "Guest"}</div></td>
+                    <td className="px-6 py-4 whitespace-nowrap"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(payment.onModel)}`}>{payment.onModel}</span></td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.method}</td>
+                    <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-semibold text-gray-900">Rs {payment.amount.toLocaleString()}</div></td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{new Date(payment.createdAt).toLocaleDateString()}</div>
+                      <div className="text-xs text-gray-500">{new Date(payment.createdAt).toLocaleTimeString()}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(payment.status)}`}>{payment.status}</span></td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{payment.referenceId ? payment.referenceId.slice(-6).toUpperCase() : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {!loading && filteredPayments.length === 0 && (<div className="text-center py-12"><p className="text-gray-500">No payments found</p></div>)}
         </div>
       </div>
     </div>
