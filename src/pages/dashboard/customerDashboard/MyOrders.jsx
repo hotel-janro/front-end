@@ -537,21 +537,21 @@ export function MyOrders() {
                                 <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                               </button>
                               
-                              {order.orderStatus === "Pending" && (
-                                <div className="flex gap-2">
+                              {order.orderStatus === "Pending" && getRemainingTime(order.createdAt) && (
+                                <div className="flex gap-2 flex-wrap">
                                   <button 
                                     onClick={() => setEditingOrder(JSON.parse(JSON.stringify(order)))}
                                     className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#0F172A] border-2 border-[#0F172A] hover:border-[#D4AF37] hover:text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 cursor-pointer"
                                   >
                                     <Edit className="w-3 h-3" />
-                                    Edit Order
+                                    Edit ({getRemainingTime(order.createdAt)})
                                   </button>
                                   <button 
                                     onClick={() => handleCancelOrder(order._id)}
                                     className="flex items-center gap-2 px-5 py-2.5 bg-white text-rose-500 border-2 border-rose-500 hover:bg-rose-50 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 cursor-pointer"
                                   >
                                     <XCircle className="w-3 h-3" />
-                                    Cancel
+                                    Cancel ({getRemainingTime(order.createdAt)})
                                   </button>
                                 </div>
                               )}
