@@ -40,7 +40,7 @@ import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionR
 import { ReceptionWedding } from "../pages/dashboard/receptionDashboard/ReceptionWedding.jsx";
 import { ReceptionProfile } from "../pages/dashboard/receptionDashboard/ReceptionProfile.jsx";
 import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
-import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
+import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashboard.jsx";
 import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
 import { CashierPayments } from "../pages/dashboard/cashierDashboard/CashierPayments.jsx";
 import { CashierReceipts } from "../pages/dashboard/cashierDashboard/CashierReceipts.jsx";
