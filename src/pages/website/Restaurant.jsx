@@ -396,47 +396,40 @@ export function Restaurant({ onOrder, user }) {
 
     try {
       setIsPlacingOrder(true);
-      let orderId = pendingOrderId;
+      
+      const orderData = {
+        items: cart.map(item => ({
+          menuItemId: item._id,
+          quantity: item.quantity,
+          portion: item.portion || ""
+        })),
+        orderType,
+        deliveryAddress: orderType === "Delivery" ? deliveryAddress : "",
+        contactNumber,
+        tableNumber: orderType === "Dine-in" ? tableNumber : "",
+        roomNumber: orderType === "Room" ? roomNumber : "",
+        coordinates,
+        customerName,
+        customerUser: user?._id || user?.id || undefined,
+        subtotal,
+        serviceCharge,
+        deliveryFee,
+        specialNotes,
+        totalAmount: grandTotal,
+        paymentMethod
+      };
 
-      if (!orderId) {
-        const orderData = {
-          items: cart.map(item => ({
-            menuItemId: item._id,
-            quantity: item.quantity,
-            portion: item.portion || ""
-          })),
-          orderType,
-          deliveryAddress: orderType === "Delivery" ? deliveryAddress : "",
-          contactNumber,
-          tableNumber: orderType === "Dine-in" ? tableNumber : "",
-          roomNumber: orderType === "Room" ? roomNumber : "",
-          coordinates,
-          customerName,
-          customerUser: user._id,
-          subtotal,
-          serviceCharge,
-          deliveryFee,
-          specialNotes,
-          totalAmount: grandTotal,
-          paymentMethod
-        };
+      const result = await apiFetch("/orders", {
+        method: "POST",
+        body: JSON.stringify(orderData),
+      });
 
-        const result = await apiFetch("/orders", {
-          method: "POST",
-          body: JSON.stringify(orderData),
-        });
-
-        const order = result.data || result; // Fallback in case backend returns plain order
-        orderId = order._id;
-        if (paymentMethod === "Card") {
-          setPendingOrderId(orderId);
-        }
-      }
+      const order = result.data || result; // Fallback in case backend returns plain order
+      const orderId = order._id;
 
       const completeSuccess = () => {
         toast.success("Exceptional choice! Your order is being prepared.");
         setCart([]);
-        setPendingOrderId(null);
         setShowCart(false);
         // Dispatch event if onOrder doesn't cover everything
         if (onOrder) onOrder({ _id: orderId });

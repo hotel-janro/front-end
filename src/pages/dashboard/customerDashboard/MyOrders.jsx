@@ -122,7 +122,7 @@ export function MyOrders() {
     try {
       setPayingOrderId(order._id);
       
-      const hashRes = await apiFetch("/api/payments/payhere-hash", {
+      const hashRes = await apiFetch("/payments/payhere-hash", {
         method: "POST",
         body: JSON.stringify({
           orderId: order._id,
@@ -160,7 +160,7 @@ export function MyOrders() {
 
       window.payhere.onCompleted = async function onCompleted(orderId) {
         try {
-          await apiFetch(`/api/orders/${order._id}`, {
+          await apiFetch(`/orders/${order._id}`, {
             method: "PUT",
             body: JSON.stringify({ paymentStatus: "Paid", orderStatus: "Completed" })
           });

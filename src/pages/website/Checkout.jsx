@@ -25,7 +25,7 @@ export function Checkout() {
   useEffect(() => {
     const fetchRealItems = async () => {
       try {
-        const menuData = await apiFetch("/api/menu");
+        const menuData = await apiFetch("/menu");
         if (menuData && menuData.length > 0) {
           const updatedItems = cartItems.map((item, idx) => {
             // Swap numeric mock IDs (like 1 or 2) with real MongoDB ObjectIds
@@ -100,7 +100,7 @@ export function Checkout() {
 
     window.payhere.onCompleted = async function onCompleted(completedOrderId) {
       try {
-        await apiFetch(`/api/orders/${orderId}`, {
+        await apiFetch(`/orders/${orderId}`, {
           method: "PUT",
           body: JSON.stringify({ paymentStatus: "Paid", orderStatus: "Completed" })
         });
@@ -169,7 +169,7 @@ export function Checkout() {
         customerUser: user?.id || user?._id || undefined
       };
 
-      const order = await apiFetch("/api/orders", {
+      const order = await apiFetch("/orders", {
         method: "POST",
         body: JSON.stringify(orderPayload)
       });
