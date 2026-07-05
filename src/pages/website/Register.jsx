@@ -6,59 +6,36 @@ import { Crown, Mail, Lock, User, Eye, EyeOff, Phone } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext";
 
 
-export function Register({ onRegister, onGoogleLogin }) {
+export function Register({ onRegister }) {
   const { settings } = useSettings();
 
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirmPassword: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-  /* global google */
-  useEffect(() => {
-    const initializeGoogleSignUp = () => {
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        try {
-          window.google.accounts.id.initialize({
-            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "909686127278-er1uoibsf4do6sgd7pbj692cbr89np83.apps.googleusercontent.com",
-            callback: async (response) => {
-              try {
-                setError("");
-                await onGoogleLogin(response.credential);
-              } catch (err) {
-                setError(err.message || "Google sign up failed");
-              }
-            }
-          });
-
-          window.google.accounts.id.renderButton(
-            document.getElementById("google-register-btn"),
-            { 
-              theme: "outline", 
-              size: "large", 
-              width: "360",
-              shape: "rectangular",
-              text: "signup_with"
-            }
-          );
-        } catch (err) {
-          console.error("Google accounts initialisation error", err);
-        }
-      } else {
-        const timer = setTimeout(initializeGoogleSignUp, 100);
-        return () => clearTimeout(timer);
-      }
-    };
-
-    const cleanup = initializeGoogleSignUp();
-    return () => {
-      if (cleanup) cleanup();
-    };
-  }, [onGoogleLogin]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.email || !form.phone || !form.password || !form.confirmPassword) {
+    setError("");
+
+    const trimmedName = form.name.trim();
+    const trimmedEmail = form.email.trim();
+    const trimmedPhone = form.phone.replace(/\s+/g, "");
+
+    // Validations
+    if (!trimmedName || !trimmedEmail || !trimmedPhone || !form.password || !form.confirmPassword) {
       setError("Please fill in all fields.");
+      return;
+    }
+    if (trimmedName.length < 2) {
+      setError("Full Name must be at least 2 characters long.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (!/^(0\d{9}|\+94\d{9})$/.test(trimmedPhone)) {
+      setError("Invalid Phone Number. Enter a valid 10-digit Sri Lankan number (e.g. 0712345678).");
       return;
     }
     if (form.password !== form.confirmPassword) {
@@ -71,15 +48,14 @@ export function Register({ onRegister, onGoogleLogin }) {
     }
 
     try {
-      setError("");
       await onRegister({
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
+        name: trimmedName,
+        email: trimmedEmail,
+        phone: trimmedPhone,
         password: form.password,
         confirmPassword: form.confirmPassword,
       });
-      setForm({ ...form, password: "", confirmPassword: "" });
+      setForm({ name: "", email: "", phone: "", password: "", confirmPassword: "" });
     } catch (err) {
       setError(err.message || "Registration failed");
       setForm({ ...form, password: "", confirmPassword: "" });
@@ -139,23 +115,16 @@ export function Register({ onRegister, onGoogleLogin }) {
             <label className="text-sm text-gray-600 mb-1 block">Confirm Password</label>
             <div className="relative">
               <Lock className="w-5 h-5 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input type={showPassword ? "text" : "password"} value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} placeholder="Re-enter password" className="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-3 bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] transition-colors" />
+              <input type={showPassword ? "text" : "password"} value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} placeholder="Re-enter password" className="w-full border border-gray-200 rounded-lg pl-10 pr-12 py-3 bg-[#F8FAFC] focus:outline-none focus:border-[#D4AF37] transition-colors" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
           </div>
           <Button type="submit" variant="secondary" className="w-full !py-3">
             Create Account
           </Button>
         </form>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-gray-200" />
-          <span className="text-sm text-gray-400">or sign up with</span>
-          <div className="flex-1 h-px bg-gray-200" />
-        </div>
-
-        {/* Google Sign Up */}
-        <div id="google-register-btn" className="w-full flex justify-center"></div>
 
         <p className="text-center text-sm text-gray-400 mt-6">
           Already have an account?{" "}

@@ -5,7 +5,7 @@ import { apiFetch } from "../../../api.js";
 import { 
   ShoppingCart, 
   CreditCard, 
-  Receipt, 
+  ScrollText as Receipt, 
   Search, 
   CheckCircle, 
   Clock, 
@@ -17,7 +17,7 @@ import {
 import { useSettings } from "../../../context/SettingsContext.jsx";
 import { useSocket } from "../../../context/SocketContext.jsx";
 import { toast } from "sonner";
-import "./CashierDashbord.css";
+import "./CashierDashboard.css";
 
 
 function formatCurrency(value) {

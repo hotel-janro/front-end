@@ -5,8 +5,8 @@ import { Navbar } from "./components/common/Navbar.jsx";
 import { Footer } from "./components/common/Footer.jsx";
 import { AppRoutes } from "./routes/AppRoutes.jsx";
 import { SettingsProvider } from "./context/SettingsContext.jsx";
-import { SocketProvider } from "./context/SocketContext.jsx";
-import { Toaster } from "sonner";
+import { SocketProvider, useSocket } from "./context/SocketContext.jsx";
+import { Toaster, toast } from "sonner";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -43,6 +43,33 @@ function AppInner() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
+    const socket = useSocket();
+
+    // Listen for real-time order status updates for the customer
+    useEffect(() => {
+        if (!socket || !user) return;
+        
+        const handleOrderUpdated = (updatedOrder) => {
+            // Check if the order belongs to this customer
+            const orderUserId = updatedOrder.customerUser?._id || updatedOrder.customerUser;
+            if (orderUserId && orderUserId === user._id) {
+                const status = updatedOrder.orderStatus;
+                let toastType = toast.info;
+                if (status === 'Preparing' || status === 'Completed') toastType = toast.success;
+                if (status === 'Cancelled' || status === 'Rejected') toastType = toast.error;
+                
+                toastType(`Your order status is now: ${status}`, {
+                    description: `Order #${(updatedOrder._id || '').slice(-6).toUpperCase()}`,
+                    duration: 6000,
+                });
+            }
+        };
+
+        socket.on("orderUpdated", handleOrderUpdated);
+        return () => {
+            socket.off("orderUpdated", handleOrderUpdated);
+        };
+    }, [socket, user]);
 
     // Restore session on mount
     useEffect(() => {
@@ -112,6 +139,10 @@ function AppInner() {
         try {
             const result = await parseApiError(response, "Login failed");
 
+            if (result.twoFactorRequired) {
+                return result; // returns { success: true, twoFactorRequired: true, userId: ... }
+            }
+
             const { token, refreshToken, ...apiUserData } = result.data;
 
             const nextUser = normalizeUser(apiUserData);
@@ -123,12 +154,52 @@ function AppInner() {
 
             setUser(nextUser);
             setIsLoggedIn(true);
+            const roleLower = nextUser.role?.toLowerCase().trim();
             navigate(
-                nextUser.role === "admin"
+                roleLower === "admin"
                     ? "/admin"
-                    : (nextUser.role === "reception" || nextUser.role === "receptionist")
+                    : (roleLower === "reception" || roleLower === "receptionist")
                     ? "/reception"
-                    : nextUser.role === "cashier"
+                    : roleLower === "cashier"
+                    ? "/cashier"
+                    : "/"
+            );
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    const handleVerifyLogin2FA = async (userId, code) => {
+        const response = await fetch(`${API_BASE}/api/auth/login-2fa`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ userId, code })
+        });
+
+        try {
+            const result = await parseApiError(response, "2FA Verification failed");
+
+            const { token, refreshToken, ...apiUserData } = result.data;
+
+            const nextUser = normalizeUser(apiUserData);
+
+            localStorage.setItem("janro_token", token);
+            localStorage.setItem("janro_refresh_token", refreshToken);
+
+            localStorage.setItem("janro_user", JSON.stringify(nextUser));
+
+            setUser(nextUser);
+            setIsLoggedIn(true);
+            const roleLower = nextUser.role?.toLowerCase().trim();
+            navigate(
+                roleLower === "admin"
+                    ? "/admin"
+                    : (roleLower === "reception" || roleLower === "receptionist")
+                    ? "/reception"
+                    : roleLower === "cashier"
                     ? "/cashier"
                     : "/"
             );
@@ -155,6 +226,11 @@ function AppInner() {
         try {
             const result = await parseApiError(response, "Registration failed");
 
+            if (result.requireVerification) {
+                navigate("/verify-otp", { state: { email } });
+                return;
+            }
+
             const { token, refreshToken, ...userData } = result.data || {};
             if (token && refreshToken) {
                 const nextUser = normalizeUser(userData);
@@ -163,12 +239,13 @@ function AppInner() {
                 localStorage.setItem("janro_user", JSON.stringify(nextUser));
                 setUser(nextUser);
                 setIsLoggedIn(true);
+                const roleLower = nextUser.role?.toLowerCase().trim();
                 navigate(
-                    nextUser.role === "admin"
+                    roleLower === "admin"
                         ? "/admin"
-                        : (nextUser.role === "reception" || nextUser.role === "receptionist")
+                        : (roleLower === "reception" || roleLower === "receptionist")
                         ? "/reception"
-                        : nextUser.role === "cashier"
+                        : roleLower === "cashier"
                         ? "/cashier"
                         : "/"
                 );
@@ -201,12 +278,13 @@ function AppInner() {
 
             setUser(nextUser);
             setIsLoggedIn(true);
+            const roleLower = nextUser.role?.toLowerCase().trim();
             navigate(
-                nextUser.role === "admin"
+                roleLower === "admin"
                     ? "/admin"
-                    : (nextUser.role === "reception" || nextUser.role === "receptionist")
+                    : (roleLower === "reception" || roleLower === "receptionist")
                     ? "/reception"
-                    : nextUser.role === "cashier"
+                    : roleLower === "cashier"
                     ? "/cashier"
                     : "/"
             );
@@ -223,6 +301,11 @@ function AppInner() {
         localStorage.removeItem("janro_user");
         navigate("/");
     };
+    const handleUpdateUser = (updatedUser) => {
+        setUser(updatedUser);
+        localStorage.setItem("janro_user", JSON.stringify(updatedUser));
+    };
+
     const location = useLocation();
     
     // Check if current route is a management dashboard
@@ -235,7 +318,7 @@ function AppInner() {
             <Toaster position="top-right" richColors />
             {!isDashboardRoute && <Navbar isLoggedIn={isLoggedIn} user={user} onLogout={handleLogout} authChecked={authChecked}/>}
             <main className="flex-1">
-                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onRegister={handleRegister} onLogout={handleLogout} onGoogleLogin={handleGoogleLogin}/>
+                <AppRoutes isLoggedIn={isLoggedIn} user={user} onLogin={handleLogin} onVerify2FA={handleVerifyLogin2FA} onRegister={handleRegister} onLogout={handleLogout} onGoogleLogin={handleGoogleLogin} onUpdateUser={handleUpdateUser}/>
             </main>
             {!isDashboardRoute && <Footer />}
         </div>

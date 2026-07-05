@@ -1,6 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Calendar, Users, DollarSign, Plus, Search, X, Edit, Trash2, Upload, ImageIcon, Loader2, Eye, Info, Phone, Mail, MapPin, User, Clock, CheckCircle } from 'lucide-react';
+import { Heart, Calendar, Users, DollarSign, Plus, Search, X, Edit, Trash2, Upload, ImageIcon, Loader2, Eye, Info, Phone, Mail, MapPin, User, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { apiFetch, getImageUrl } from '../../../api';
+
+// Helper to convert 12-hour components back to 24-hour "HH:MM"
+const to24Hour = (h, m, period) => {
+  let hr = parseInt(h, 10);
+  if (period === 'PM' && hr < 12) hr += 12;
+  if (period === 'AM' && hr === 12) hr = 0;
+  return `${String(hr).padStart(2, '0')}:${m}`;
+};
+
+// Helper to parse 24-hour "HH:MM" to 12-hour components
+const from24Hour = (timeStr) => {
+  if (!timeStr) return { hour: '12', minute: '00', period: 'AM' };
+  const [hStr, mStr] = timeStr.split(':');
+  let hr = parseInt(hStr, 10);
+  let period = 'AM';
+  if (hr >= 12) {
+    period = 'PM';
+    if (hr > 12) hr -= 12;
+  }
+  if (hr === 0) hr = 12;
+  return {
+    hour: String(hr).padStart(2, '0'),
+    minute: mStr || '00',
+    period
+  };
+};
+
+// Custom Dropdown Time Picker Component
+const TimeDropdownPicker = ({ value, onChange, className = "", showIcon = false }) => {
+  const { hour, minute, period } = from24Hour(value);
+
+  const handleSelectChange = (newHour, newMin, newPeriod) => {
+    onChange(to24Hour(newHour, newMin, newPeriod));
+  };
+
+  return (
+    <div className={`flex items-center justify-center gap-0.5 bg-white px-2 py-2 rounded-xl border border-slate-200 w-fit ${className}`}>
+      {showIcon && <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-0.5" />}
+      <select 
+        value={hour} 
+        onChange={e => handleSelectChange(e.target.value, minute, period)}
+        className="appearance-none bg-transparent outline-none cursor-pointer text-slate-800 font-bold text-xs w-6 text-center hover:bg-slate-100 rounded transition-colors"
+      >
+        {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
+          <option key={h} value={h}>{h}</option>
+        ))}
+      </select>
+      <span className="text-xs font-bold text-slate-400 px-0.5">:</span>
+      <select 
+        value={minute} 
+        onChange={e => handleSelectChange(hour, e.target.value, period)}
+        className="appearance-none bg-transparent outline-none cursor-pointer text-slate-800 font-bold text-xs w-6 text-center hover:bg-slate-100 rounded transition-colors"
+      >
+        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
+          <option key={m} value={m}>{m}</option>
+        ))}
+      </select>
+      <select 
+        value={period} 
+        onChange={e => handleSelectChange(hour, minute, e.target.value)}
+        className="appearance-none bg-transparent outline-none cursor-pointer text-[#D4AF37] font-extrabold text-xs w-8 text-center ml-0.5 hover:bg-amber-50 rounded transition-colors"
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+};
 
 export function AdminWedding() {
   const [activeTab, setActiveTab] = useState('bookings');
@@ -9,7 +77,21 @@ export function AdminWedding() {
   
   const [bookings, setBookings] = useState([]);
   const [halls, setHalls] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Package management state
+  const [showPackageModal, setShowPackageModal] = useState(false);
+  const [editingPackageId, setEditingPackageId] = useState(null);
+  const [viewingPackage, setViewingPackage] = useState(null);
+  const [showViewPackageModal, setShowViewPackageModal] = useState(false);
+  const [isSavingPackage, setIsSavingPackage] = useState(false);
+  const [packageFormData, setPackageFormData] = useState({
+    name: '',
+    price: '',
+    bites: '',
+    inclusions: ''
+  });
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -54,6 +136,7 @@ export function AdminWedding() {
   });
   const [currentStep, setCurrentStep] = useState(1);
   const [editingId, setEditingId] = useState(null);
+  const [bookingFormError, setBookingFormError] = useState('');
 
   const handleEditBooking = (booking) => {
     setEditingId(booking._id);
@@ -91,6 +174,7 @@ export function AdminWedding() {
       nekathTimes: booking.nekathTimes || { poruwa: '', teaTime: '', lunchDinner: '' }
     });
     setCurrentStep(1);
+    setBookingFormError('');
     setShowModal(true);
   };
 
@@ -255,17 +339,85 @@ export function AdminWedding() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [bookingsRes, hallsRes] = await Promise.all([
+      const [bookingsRes, hallsRes, packagesRes] = await Promise.all([
         apiFetch('/wedding/bookings'),
-        apiFetch('/wedding/halls')
+        apiFetch('/wedding/halls'),
+        apiFetch('/wedding/packages')
       ]);
       if (bookingsRes.success) setBookings(bookingsRes.data);
       if (hallsRes.success) setHalls(hallsRes.data);
+      if (packagesRes.success) setPackages(packagesRes.data);
     } catch (error) {
       console.error("Error fetching data:", error);
       alert("Failed to load wedding data");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEditPackage = (pkg) => {
+    setEditingPackageId(pkg._id);
+    setPackageFormData({
+      name: pkg.name,
+      type: pkg.type || 'wedding',
+      price: pkg.price,
+      bites: pkg.bites || '',
+      inclusions: pkg.inclusions ? pkg.inclusions.join(', ') : ''
+    });
+    setShowPackageModal(true);
+  };
+
+  const handlePackageSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validations
+    if (!packageFormData.name || packageFormData.name.trim().length < 3) {
+      alert("Package Name must be at least 3 characters long");
+      return;
+    }
+
+    const priceNum = Number(packageFormData.price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      alert("Price per plate must be a valid positive number greater than 0");
+      return;
+    }
+
+    const formattedInclusions = packageFormData.inclusions
+      ? packageFormData.inclusions.split(',').map(i => i.trim()).filter(Boolean)
+      : [];
+
+    if (formattedInclusions.length === 0) {
+      alert("Please enter at least one menu inclusion");
+      return;
+    }
+
+    try {
+      setIsSavingPackage(true);
+      const url = editingPackageId 
+        ? `/wedding/packages/${editingPackageId}`
+        : '/wedding/packages';
+      
+      const method = editingPackageId ? 'PUT' : 'POST';
+
+      const res = await apiFetch(url, {
+        method,
+        body: JSON.stringify({
+          name: packageFormData.name.trim(),
+          type: packageFormData.type || 'wedding',
+          price: priceNum,
+          bites: packageFormData.bites.trim(),
+          inclusions: formattedInclusions
+        })
+      });
+
+      if (res.success) {
+        setShowPackageModal(false);
+        fetchData();
+      }
+    } catch (error) {
+      alert(error.message || "Failed to save package");
+    } finally {
+      setIsSavingPackage(false);
     }
   };
 
@@ -438,50 +590,160 @@ export function AdminWedding() {
       setIsUploading(false);
     }
   };
+  /* ─────────── Step-by-step validation helper ─────────── */
+  const validateStep = (step) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (step === 1) {
+      // Customer details
+      if (!formData.customerName || formData.customerName.trim().length < 2) return 'Please enter the Customer Full Name.';
+
+      const cleanPhone = formData.customerPhone.replace(/\s+/g, '');
+      if (!/^(0\d{9}|\+94\d{9})$/.test(cleanPhone)) return 'Invalid Customer Phone. Enter a valid 10-digit Sri Lankan number (e.g. 0712345678).';
+
+      if (formData.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customerEmail)) return 'Invalid Customer Email address.';
+
+      const cleanNIC = formData.customerNIC.replace(/\s+/g, '').toUpperCase();
+      if (!cleanNIC) return 'Please enter the Customer NIC Number.';
+      if (!/^(\d{9}[VX]|\d{12})$/.test(cleanNIC)) return 'Invalid NIC. Use old format (123456789V) or new 12-digit format.';
+
+      if (formData.groomPhone && !/^(0\d{9}|\+94\d{9})$/.test(formData.groomPhone.replace(/\s+/g, ''))) {
+        return "Invalid Groom's Phone Number.";
+      }
+      if (formData.bridePhone && !/^(0\d{9}|\+94\d{9})$/.test(formData.bridePhone.replace(/\s+/g, ''))) {
+        return "Invalid Bride's Phone Number.";
+      }
+
+      return null;
+    }
+
+    if (step === 2) {
+      // Event date & time & hall
+      if (!formData.eventDate) return 'Please select an Event Date.';
+
+      const selectedDate = new Date(formData.eventDate);
+      selectedDate.setHours(0, 0, 0, 0);
+      if (selectedDate < today) return 'Event date cannot be in the past. Please choose a future date.';
+
+      if (!formData.hallId) return 'Please select a Venue / Hall.';
+      if (!formData.guestCount || Number(formData.guestCount) < 1) return 'Please enter a valid Guest Count (at least 1).';
+      if (!formData.startTime || !formData.endTime) return 'Please set both Start Time and End Time.';
+
+      const [sH, sM] = formData.startTime.split(':').map(Number);
+      const [eH, eM] = formData.endTime.split(':').map(Number);
+      const startMins = sH * 60 + sM;
+      const endMins = eH * 60 + eM;
+      if (formData.timeSlot === 'Day' && endMins <= startMins) {
+        return 'End Time must be after Start Time for Day events.';
+      }
+
+      // Guest Capacity Check
+      const selectedHall = halls.find(h => h._id === formData.hallId);
+      if (selectedHall && Number(formData.guestCount) > selectedHall.capacity) {
+        return `Guest count (${formData.guestCount}) exceeds the maximum capacity of ${selectedHall.hallName} (${selectedHall.capacity}).`;
+      }
+
+      // Check for overlapping bookings
+      const overlappingBooking = bookings.find(b => {
+        if (editingId && b._id === editingId) return false;
+        if (b.bookingStatus === 'Cancelled' || b.bookingStatus === 'CANCELLED') return false;
+        
+        // Use hallId instead of hall
+        const existingHallId = b.hallId?._id || b.hallId;
+        if (existingHallId !== formData.hallId) return false;
+
+        if (!b.eventDate) return false;
+        
+        // Comparing dates locally to avoid timezone mismatches
+        const existingDateStr = new Date(b.eventDate).toLocaleDateString('en-CA');
+        const formDateStr = new Date(formData.eventDate).toLocaleDateString('en-CA');
+        if (existingDateStr !== formDateStr) return false;
+
+        if (!b.startTime || !b.endTime) return true; 
+        
+        const parseMins = (t) => {
+          if (!t) return 0;
+          const [h, m] = t.split(':').map(Number);
+          return h * 60 + m;
+        };
+        const existStart = parseMins(b.startTime);
+        const existEnd = parseMins(b.endTime);
+
+        return (startMins < existEnd && existStart < endMins);
+      });
+
+      if (overlappingBooking) {
+        const formatTime = (t) => {
+          if (!t) return '';
+          const [h, m] = t.split(':');
+          let hr = parseInt(h);
+          const p = hr >= 12 ? 'PM' : 'AM';
+          if (hr > 12) hr -= 12;
+          if (hr === 0) hr = 12;
+          return `${hr}:${m} ${p}`;
+        };
+        const sTime = formatTime(overlappingBooking.startTime);
+        const eTime = formatTime(overlappingBooking.endTime);
+        const hallName = halls.find(h => h._id === formData.hallId)?.hallName || 'This hall';
+        return `OVERBOOKING PREVENTED: ${hallName} is already booked on this date from ${sTime} to ${eTime}. Please select a different time, hall, or date.`;
+      }
+
+      return null;
+    }
+
+    if (step === 3) {
+      // Catering/package
+      if (formData.bookingCategory === 'Wedding' && !formData.cateringPackage) {
+        return 'Please select a Catering Package for the Wedding.';
+      }
+      return null;
+    }
+
+    if (step === 4) {
+      // Advance payment
+      if (!formData.advancePaid || isNaN(Number(formData.advancePaid)) || Number(formData.advancePaid) < 0) {
+        return 'Please enter a valid Advance Paid amount.';
+      }
+      return null;
+    }
+
+    return null;
+  };
+
+  const handleNextStep = () => {
+    const error = validateStep(currentStep);
+    if (error) {
+      setBookingFormError(error);
+      return;
+    }
+    setBookingFormError('');
+    setCurrentStep(currentStep + 1);
+  };
+
   const handleSubmitBooking = async (e) => {
     e.preventDefault();
-    
-    // Phone Number Validation
-    const cleanPhone = formData.customerPhone.replace(/\s+/g, '');
-    if (!/^(0\d{9}|\+94\d{9})$/.test(cleanPhone)) {
-      alert("Invalid Phone Number. Please enter a valid 10-digit Sri Lankan number (e.g., 0712345678).");
-      return;
-    }
+    setBookingFormError('');
 
-    // Couple Phone Validation
-    if (formData.groomPhone && !/^(0\d{9}|\+94\d{9})$/.test(formData.groomPhone.replace(/\s+/g, ''))) {
-      alert("Invalid Groom's Phone Number.");
-      return;
-    }
-    if (formData.bridePhone && !/^(0\d{9}|\+94\d{9})$/.test(formData.bridePhone.replace(/\s+/g, ''))) {
-      alert("Invalid Bride's Phone Number.");
-      return;
-    }
-
-    // NIC Validation
-    const cleanNIC = formData.customerNIC.replace(/\s+/g, '').toUpperCase();
-    if (!/^(\d{9}[VX]|\d{12})$/.test(cleanNIC)) {
-      alert("Invalid NIC Number. Please enter a valid Sri Lankan NIC.");
-      return;
-    }
-
-    // Time Validation
-    if (formData.startTime && formData.endTime) {
-      const startParts = formData.startTime.split(':');
-      const endParts = formData.endTime.split(':');
-      const startMins = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-      const endMins = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
-      
-      if (endMins <= startMins && formData.timeSlot === 'Day') {
-         alert("Invalid Time Range: 'End Time' must be after 'Start Time' for Day events.");
-         return;
+    // Final validations before submit
+    for (let step = 1; step <= 4; step++) {
+      const error = validateStep(step);
+      if (error) {
+        setBookingFormError(error);
+        setCurrentStep(step);
+        return;
       }
-      
-      if (endMins <= startMins && formData.timeSlot === 'Night') {
-         if (!window.confirm("Warning: 'End Time' is before 'Start Time'. We assume this is an overnight event continuing to the next day. Proceed?")) {
-           return;
-         }
-      }
+    }
+
+    // Past date check (second safety net)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(formData.eventDate);
+    selectedDate.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+      setBookingFormError('Event date cannot be in the past. Please choose a future date.');
+      setCurrentStep(1);
+      return;
     }
 
     try {
@@ -493,9 +755,9 @@ export function AdminWedding() {
         body: JSON.stringify(formData)
       });
       if (res.success) {
-        alert(editingId ? "Booking updated successfully!" : "Booking created successfully!");
         setShowModal(false);
         setEditingId(null);
+        setBookingFormError('');
         setFormData({
           customerName: '', customerPhone: '', customerEmail: '',
           groomName: '', groomPhone: '', brideName: '', bridePhone: '',
@@ -510,7 +772,8 @@ export function AdminWedding() {
         fetchData();
       }
     } catch (error) {
-      alert(error.message);
+      // Show backend errors inline (e.g. hall already booked on that date)
+      setBookingFormError(error.message || 'Failed to save booking. Please try again.');
     }
   };
 
@@ -548,6 +811,19 @@ export function AdminWedding() {
     }
   };
 
+  const handleDeletePackage = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this package?")) return;
+    try {
+      const res = await apiFetch(`/wedding/packages/${id}`, { method: 'DELETE' });
+      if (res.success) {
+        alert("Package deleted successfully!");
+        fetchData();
+      }
+    } catch (error) {
+      alert(error.message || "Failed to delete package");
+    }
+  };
+
 
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch = booking.customerName?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -557,6 +833,10 @@ export function AdminWedding() {
 
   const filteredHalls = halls.filter((hall) =>
     hall.hallName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredPackages = (packages || []).filter((pkg) =>
+    pkg.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusColor = (status) => {
@@ -591,6 +871,19 @@ export function AdminWedding() {
           <p className="text-slate-500 mt-1">Manage luxury venues, hall bookings and event scheduling</p>
         </div>
         <div className="flex gap-3">
+          {activeTab === 'packages' && (
+            <button 
+              onClick={() => {
+                setEditingPackageId(null);
+                setPackageFormData({ name: '', price: '', bites: '', inclusions: '', type: 'wedding' });
+                setShowPackageModal(true);
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D4AF37] text-[#0F172A] rounded-xl hover:bg-[#B8962D] transition-colors shadow-lg shadow-[#D4AF37]/20 font-bold cursor-pointer"
+            >
+              <Plus className="w-5 h-5" />
+              Add Package
+            </button>
+          )}
           {activeTab === 'halls' && (
             <button 
               onClick={() => {
@@ -608,6 +901,7 @@ export function AdminWedding() {
             <button 
               onClick={() => {
                 setEditingId(null);
+                setBookingFormError('');
                 setFormData({
                   customerName: '', customerPhone: '', customerEmail: '',
                   groomName: '', groomPhone: '', brideName: '', bridePhone: '',
@@ -676,6 +970,12 @@ export function AdminWedding() {
             >
               Venue & Hall Management
             </button>
+            <button 
+              onClick={() => setActiveTab('packages')} 
+              className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${activeTab === 'packages' ? 'text-[#D4AF37] border-[#D4AF37] bg-white' : 'text-slate-500 border-transparent hover:text-slate-700'}`}
+            >
+              Package Management
+            </button>
           </div>
         </div>
 
@@ -686,7 +986,10 @@ export function AdminWedding() {
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input 
                   type="text" 
-                  placeholder={activeTab === 'bookings' ? 'Search bookings by customer name...' : 'Search halls...'} 
+                  placeholder={
+                    activeTab === 'bookings' ? 'Search bookings by customer name...' : 
+                    activeTab === 'halls' ? 'Search halls...' : 'Search packages...'
+                  } 
                   value={searchTerm} 
                   onChange={(e) => setSearchTerm(e.target.value)} 
                   className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:bg-white transition-all text-sm" 
@@ -709,7 +1012,7 @@ export function AdminWedding() {
           </div>
         </div>
 
-        {activeTab === 'bookings' ? (
+        {activeTab === 'bookings' && (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50">
@@ -799,7 +1102,9 @@ export function AdminWedding() {
               </tbody>
             </table>
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'halls' && (
           <div className="p-6">
             {isLoading ? (
                <div className="text-center py-12 text-slate-400">Loading halls...</div>
@@ -854,7 +1159,7 @@ export function AdminWedding() {
                               hallName: hall.hallName,
                               description: hall.description || '',
                               capacity: hall.capacity,
-                             price: hall.price,
+                              price: hall.price,
                               type: hall.type || 'Hall',
                               status: hall.status,
                               image: hall.image || ''
@@ -894,6 +1199,82 @@ export function AdminWedding() {
               </div>
             )}
             {filteredHalls.length === 0 && !isLoading && (<div className="text-center py-12"><p className="text-slate-500">No halls found</p></div>)}
+          </div>
+        )}
+
+        {activeTab === 'packages' && (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Package Name</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Price / Plate</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bites Info</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Inclusions Count</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {isLoading ? (
+                  <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-400">Loading packages...</td></tr>
+                ) : filteredPackages.length === 0 ? (
+                  <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-400">No packages found</td></tr>
+                ) : (
+                  filteredPackages.map((pkg) => (
+                    <tr key={pkg._id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-semibold text-slate-900">{pkg.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-full border ${
+                          pkg.type === 'wedding' 
+                            ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                            : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                        }`}>
+                          {pkg.type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-bold text-slate-900">Rs. {pkg.price?.toLocaleString()}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-xs text-slate-500 line-clamp-1 max-w-xs">{pkg.bites || 'N/A'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-xs font-semibold text-slate-600">{pkg.inclusions?.length || 0} items</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => {
+                              setViewingPackage(pkg);
+                              setShowViewPackageModal(true);
+                            }}
+                            className="text-xs bg-slate-100 text-slate-700 px-3 py-2 rounded-xl hover:bg-slate-200 transition-colors font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-slate-500" /> View
+                          </button>
+                          <button 
+                            onClick={() => handleEditPackage(pkg)}
+                            className="text-xs bg-[#0F172A] text-white px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors font-bold flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5 text-[#D4AF37]" /> Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDeletePackage(pkg._id)}
+                            className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors cursor-pointer"
+                            title="Delete Package"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -1127,7 +1508,6 @@ export function AdminWedding() {
                               <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest mb-0.5">Booking Path</p>
                               <p className="text-xs font-bold text-slate-700">{formData.bookingCategory} Booking</p>
                             </div>
-                            <button onClick={() => setCurrentStep(0)} className="text-[10px] font-black text-slate-400 uppercase hover:text-red-500 transition-colors underline">Change Type</button>
                           </div>
                         </div>
                       </div>
@@ -1175,15 +1555,15 @@ export function AdminWedding() {
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold text-slate-600">Main Ceremony</span>
-                                <input type="time" value={formData.nekathTimes.poruwa} onChange={e => setFormData({...formData, nekathTimes: {...formData.nekathTimes, poruwa: e.target.value}})} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold" />
+                                <TimeDropdownPicker value={formData.nekathTimes.poruwa} onChange={newVal => setFormData({...formData, nekathTimes: {...formData.nekathTimes, poruwa: newVal}})} />
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold text-slate-600">Tea Time</span>
-                                <input type="time" value={formData.nekathTimes.teaTime} onChange={e => setFormData({...formData, nekathTimes: {...formData.nekathTimes, teaTime: e.target.value}})} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold" />
+                                <TimeDropdownPicker value={formData.nekathTimes.teaTime} onChange={newVal => setFormData({...formData, nekathTimes: {...formData.nekathTimes, teaTime: newVal}})} />
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold text-slate-600">Lunch / Dinner</span>
-                                <input type="time" value={formData.nekathTimes.lunchDinner} onChange={e => setFormData({...formData, nekathTimes: {...formData.nekathTimes, lunchDinner: e.target.value}})} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold" />
+                                <TimeDropdownPicker value={formData.nekathTimes.lunchDinner} onChange={newVal => setFormData({...formData, nekathTimes: {...formData.nekathTimes, lunchDinner: newVal}})} />
                               </div>
                             </div>
                           </div>
@@ -1200,27 +1580,24 @@ export function AdminWedding() {
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                               <Calendar className="w-4 h-4" />
                             </div>
-                            <input required type="date" value={formData.eventDate} onChange={e => setFormData({...formData, eventDate: e.target.value})} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-sm" />
+                            <input 
+                              required 
+                              type="date" 
+                              min={new Date().toISOString().split('T')[0]}
+                              value={formData.eventDate} 
+                              onChange={e => { setFormData({...formData, eventDate: e.target.value}); setBookingFormError(''); }} 
+                              className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-sm" 
+                            />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Start Time *</label>
-                            <div className="relative">
-                              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                                <Clock className="w-4 h-4" />
-                              </div>
-                              <input required type="time" value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} className="w-full pl-10 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-xs" />
-                            </div>
+                            <TimeDropdownPicker showIcon={true} value={formData.startTime} onChange={newVal => setFormData({...formData, startTime: newVal})} className="w-full" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">End Time *</label>
-                            <div className="relative">
-                              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                                <Clock className="w-4 h-4" />
-                              </div>
-                              <input required type="time" value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} className="w-full pl-10 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:border-[#D4AF37] outline-none transition-all font-bold text-xs" />
-                            </div>
+                            <TimeDropdownPicker showIcon={true} value={formData.endTime} onChange={newVal => setFormData({...formData, endTime: newVal})} className="w-full" />
                           </div>
                         </div>
                         <div className="pt-2">
@@ -1473,33 +1850,49 @@ export function AdminWedding() {
             </div>
 
             {/* Footer / Navigation */}
-            <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-between items-center shrink-0">
-              <button 
-                type="button" 
-                onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : setShowModal(false)}
-                className="px-8 py-4 bg-white border-2 border-slate-200 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all"
-              >
-                {currentStep === 1 ? 'Cancel' : 'Previous Step'}
-              </button>
-              
-              <div className="flex gap-4">
-                {currentStep < 4 ? (
-                  <button 
-                    type="button" 
-                    onClick={() => setCurrentStep(currentStep + 1)}
-                    className="px-10 py-4 bg-[#D4AF37] text-[#0F172A] rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-[#B8962D] transition-all shadow-xl shadow-[#D4AF37]/20"
-                  >
-                    Next Step
-                  </button>
-                ) : (
-                  <button 
-                    onClick={handleSubmitBooking}
-                    type="button"
-                    className="px-10 py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20"
-                  >
-                    Confirm & Create Booking
-                  </button>
-                )}
+            <div className="p-8 bg-slate-50 border-t border-slate-100 flex flex-col gap-4 shrink-0">
+              {/* Inline Error Banner */}
+              {bookingFormError && (
+                <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
+                  <p className="text-xs font-semibold leading-relaxed">{bookingFormError}</p>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    if (currentStep > 0) { 
+                      setBookingFormError(''); 
+                      setCurrentStep(currentStep - 1); 
+                    } else { 
+                      setShowModal(false); 
+                    }
+                  }}
+                  className="px-8 py-4 bg-white border-2 border-slate-200 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all"
+                >
+                  {currentStep === 0 ? 'Cancel' : 'Previous Step'}
+                </button>
+                
+                <div className="flex gap-4">
+                  {currentStep < 4 ? (
+                    <button 
+                      type="button" 
+                      onClick={handleNextStep}
+                      className="px-10 py-4 bg-[#D4AF37] text-[#0F172A] rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-[#B8962D] transition-all shadow-xl shadow-[#D4AF37]/20"
+                    >
+                      Next Step
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={handleSubmitBooking}
+                      type="button"
+                      className="px-10 py-4 bg-[#0F172A] text-[#D4AF37] rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20"
+                    >
+                      Confirm &amp; Create Booking
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1724,17 +2117,23 @@ export function AdminWedding() {
 
               <form onSubmit={submitPayment}>
                 <div className="mb-6">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">New Payment Amount (Rs.)</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">New Payment Amount</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black">Rs.</span>
                     <input 
                       autoFocus
                       required 
                       type="number" 
+                      min="1"
                       value={paymentAmount} 
-                      onChange={e => setPaymentAmount(e.target.value)} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '' || Number(val) >= 0) {
+                          setPaymentAmount(val);
+                        }
+                      }} 
                       placeholder="Enter amount..."
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] focus:bg-white outline-none transition-all text-lg font-bold"
+                      className="w-full pl-14 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-[#D4AF37] focus:bg-white outline-none transition-all text-lg font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 </div>
@@ -1945,6 +2344,169 @@ export function AdminWedding() {
             </div>
             <div className="p-6 bg-slate-50 border-t border-slate-100 text-center">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Price: Rs. {packageDetails[selectedMenuPkg].price.toLocaleString()} per plate</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PACKAGE MODAL */}
+      {showPackageModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl border border-white/20 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-[#0F172A] text-white p-8 flex justify-between items-center relative shrink-0">
+              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/10 rounded-l-full blur-3xl" />
+              <div className="relative z-10">
+                <h2 className="text-2xl font-semibold" style={{ fontFamily: "DM Serif Display, serif" }}>
+                  {editingPackageId ? 'Edit Package' : 'Add New Package'}
+                </h2>
+                <p className="text-[#D4AF37] text-[10px] uppercase tracking-[0.3em] font-bold">Update package pricing, bites, and inclusions</p>
+              </div>
+              <button 
+                onClick={() => setShowPackageModal(false)} 
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors relative z-10 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePackageSubmit} className="p-8 overflow-y-auto space-y-6">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Package Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={packageFormData.name} 
+                  onChange={(e) => setPackageFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:bg-white transition-all text-sm font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Package Type *</label>
+                <select 
+                  value={packageFormData.type || 'wedding'} 
+                  onChange={(e) => setPackageFormData(prev => ({ ...prev, type: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:bg-white transition-all text-sm font-semibold"
+                >
+                  <option value="wedding">Wedding Package</option>
+                  <option value="event">Other Event Package</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Price per plate (Rs.) *</label>
+                <input 
+                  type="number" 
+                  required
+                  value={packageFormData.price} 
+                  onChange={(e) => setPackageFormData(prev => ({ ...prev, price: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:bg-white transition-all text-sm font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Free Bites Details</label>
+                <input 
+                  type="text" 
+                  value={packageFormData.bites} 
+                  onChange={(e) => setPackageFormData(prev => ({ ...prev, bites: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:bg-white transition-all text-sm font-semibold"
+                  placeholder="e.g. Free Bites: Chicken 15Kg, Sausages 5Kg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Menu Inclusions (Comma Separated)</label>
+                <textarea 
+                  rows="6"
+                  value={packageFormData.inclusions} 
+                  onChange={(e) => setPackageFormData(prev => ({ ...prev, inclusions: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:bg-white transition-all text-sm font-semibold"
+                  placeholder="Welcome Drink, Rice, Chicken Curry, Fish Red Curry..."
+                />
+                <p className="text-[10px] text-slate-400 mt-1 font-medium">Separate each item with a comma (e.g. Item 1, Item 2, Item 3)</p>
+              </div>
+
+              <div className="flex gap-4 justify-end pt-4 shrink-0">
+                <button 
+                  type="button" 
+                  disabled={isSavingPackage}
+                  onClick={() => setShowPackageModal(false)}
+                  className="px-6 py-3 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isSavingPackage}
+                  className="px-6 py-3 bg-[#0F172A] text-white hover:bg-slate-800 rounded-xl font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer shadow-lg shadow-slate-900/20 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isSavingPackage ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
+                      Saving...
+                    </>
+                  ) : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW PACKAGE DETAILS MODAL */}
+      {showViewPackageModal && viewingPackage && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4" onClick={() => setShowViewPackageModal(false)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg border border-white/20 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#0F172A] text-white p-6 flex justify-between items-center relative">
+              <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/20 rounded-l-full blur-3xl" />
+              <div className="relative z-10">
+                <h2 className="text-xl font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>{viewingPackage.name}</h2>
+                <span className={`inline-flex px-3.5 py-1 mt-2 text-[9px] font-bold uppercase tracking-widest rounded-full border ${
+                  viewingPackage.type === 'wedding' 
+                    ? 'bg-purple-500/20 text-[#D4AF37] border-purple-500/30' 
+                    : 'bg-indigo-500/20 text-[#D4AF37] border-indigo-500/30'
+                }`}>
+                  {viewingPackage.type === 'wedding' ? 'Wedding Package' : 'Other Event Package'}
+                </span>
+              </div>
+              <button onClick={() => setShowViewPackageModal(false)} className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-6">
+              <div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-2">Pricing</h4>
+                <p className="text-lg font-bold text-slate-950">Rs. {viewingPackage.price?.toLocaleString()} / per plate</p>
+              </div>
+
+              {viewingPackage.bites && (
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-2">Bites & Highlights</h4>
+                  <p className="text-sm text-[#B8962D] font-bold bg-[#D4AF37]/5 p-3 rounded-xl border border-[#D4AF37]/10">{viewingPackage.bites}</p>
+                </div>
+              )}
+
+              <div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Menu Inclusions ({viewingPackage.inclusions?.length || 0} Items)</h4>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {viewingPackage.inclusions?.map((item, idx) => (
+                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full mt-1.5 shrink-0" />
+                      <span className="font-semibold">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setShowViewPackageModal(false)}
+                className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

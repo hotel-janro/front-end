@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../../api.js';
 import { toast } from 'sonner';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
 import { 
   Boxes,
   AlertTriangle,
@@ -17,7 +17,9 @@ import {
   CheckCircle2,
   TrendingUp,
   BarChart3,
-  Calendar
+  Calendar,
+  Loader2,
+  X
 } from 'lucide-react';
 
 const emptyInventoryForm = {
@@ -29,7 +31,7 @@ const emptyInventoryForm = {
 
 const emptyIssueForm = {
   itemId: '',
-  department: 'Restaurant',
+  department: 'Restaurant Kitchen',
   quantity: '',
   notes: ''
 };
@@ -45,6 +47,7 @@ export function AdminInventory() {
   const [savingInventory, setSavingInventory] = useState(false);
   const [inventorySearch, setInventorySearch] = useState('');
   const [showInventoryForm, setShowInventoryForm] = useState(false);
+  const [showIssueModal, setShowIssueModal] = useState(false);
 
   // Daily Tracking State
   const [stockLogs, setStockLogs] = useState([]);
@@ -54,6 +57,7 @@ export function AdminInventory() {
   const [savingIssue, setSavingIssue] = useState(false);
   const [settleQty, setSettleQty] = useState({}); // logId -> quantity
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  const [alertShown, setAlertShown] = useState(false);
 
   useEffect(() => {
     loadInventory();
@@ -95,45 +99,37 @@ export function AdminInventory() {
     }
   };
 
-  // Analytics Calculation
-  const analyticsData = useMemo(() => {
-    const departments = ["Restaurant", "Weddings", "Pool", "Other"];
-    const usageByDept = departments.map(dept => {
-      const usage = stockLogs
-        .filter(log => log.department === dept && log.status === 'Settled')
-        .reduce((sum, log) => sum + (log.usageQuantity || 0), 0);
-      return { name: dept, value: usage };
-    });
-    
-    const maxUsage = Math.max(...usageByDept.map(d => d.value), 1);
-    return { usageByDept, maxUsage };
-  }, [stockLogs]);
 
-  const chartData = useMemo(() => {
-    const dailyMap = {};
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-      dailyMap[dateStr] = { issued: 0, consumed: 0 };
-    }
 
-    allStockLogs.forEach(log => {
-      if (!log.date) return;
-      const logDate = new Date(log.date);
-      const dateStr = logDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-      if (dailyMap[dateStr]) {
-        dailyMap[dateStr].issued += log.issuedQuantity || 0;
-        dailyMap[dateStr].consumed += log.usageQuantity || 0;
+  // Daily Summary Grouped by Ingredient
+  const dailySummary = useMemo(() => {
+    const itemsMap = {};
+    stockLogs.forEach(log => {
+      const itemId = log.item?._id;
+      if (!itemId) return;
+      if (!itemsMap[itemId]) {
+        itemsMap[itemId] = {
+          itemName: log.item.itemName,
+          unit: log.item.unit,
+          restocked: 0,
+          issued: 0,
+          returned: 0,
+          consumed: 0,
+          logs: []
+        };
       }
+      
+      if (log.logType === 'Restock') {
+        itemsMap[itemId].restocked += log.restockQuantity || 0;
+      } else {
+        itemsMap[itemId].issued += log.issuedQuantity || 0;
+        itemsMap[itemId].returned += log.returnedQuantity || 0;
+        itemsMap[itemId].consumed += log.usageQuantity || 0;
+      }
+      itemsMap[itemId].logs.push(log);
     });
-
-    return Object.keys(dailyMap).map(date => ({
-      date,
-      "Qty Issued": dailyMap[date].issued,
-      "Qty Consumed": dailyMap[date].consumed,
-    }));
-  }, [allStockLogs]);
+    return Object.values(itemsMap);
+  }, [stockLogs]);
 
   // Stock Handlers
   useEffect(() => {
@@ -155,16 +151,16 @@ export function AdminInventory() {
 
     // Validation
     if (!inventoryForm.itemName.trim()) {
-      return alert('Please provide a name for this inventory asset');
+      return toast.warning('Please provide a name for this inventory asset');
     }
     const qty = Number(inventoryForm.quantity);
     const threshold = Number(inventoryForm.thresholdLevel);
     
     if (isNaN(qty) || qty < 0) {
-      return alert('Quantity must be a valid non-negative number');
+      return toast.warning('Quantity must be a valid non-negative number');
     }
     if (isNaN(threshold) || threshold < 0) {
-      return alert('Threshold level must be a valid non-negative number');
+      return toast.warning('Threshold level must be a valid non-negative number');
     }
 
     const payload = {
@@ -191,7 +187,7 @@ export function AdminInventory() {
       setShowInventoryForm(false);
       await loadInventory();
     } catch (error) {
-      alert(error.message || 'Failed to save inventory item.');
+      toast.error(error.message || 'Failed to save inventory item.');
     } finally {
       setSavingInventory(false);
     }
@@ -207,13 +203,13 @@ export function AdminInventory() {
     e.preventDefault();
 
     // Validation
-    if (!issueForm.itemId) return alert('Please select an item to issue');
+    if (!issueForm.itemId) return toast.warning('Please select an item to issue');
     const issueQty = Number(issueForm.quantity);
-    if (isNaN(issueQty) || issueQty <= 0) return alert('Please enter a valid quantity to issue');
+    if (isNaN(issueQty) || issueQty <= 0) return toast.warning('Please enter a valid quantity to issue');
 
     const selectedItem = inventoryItems.find(i => i._id === issueForm.itemId);
     if (selectedItem && selectedItem.quantity < issueQty) {
-      return alert(`Insufficient Stock: Only ${selectedItem.quantity} ${selectedItem.unit} available.`);
+      return toast.error(`Insufficient Stock: Only ${selectedItem.quantity} ${selectedItem.unit} available.`);
     }
 
     try {
@@ -223,10 +219,11 @@ export function AdminInventory() {
         body: JSON.stringify(issueForm)
       });
       setIssueForm(emptyIssueForm);
+      setShowIssueModal(false);
       await Promise.all([loadInventory(), loadLogs(), loadAllLogs()]);
       toast.success('Stock issued successfully!');
     } catch (error) {
-      alert(error.message);
+      toast.error(error.message);
     } finally {
       setSavingIssue(false);
     }
@@ -234,7 +231,7 @@ export function AdminInventory() {
 
   const handleSettleSubmit = async (logId) => {
     const qty = settleQty[logId];
-    if (qty === undefined || qty === '') return alert('Please enter returned quantity');
+    if (qty === undefined || qty === '') return toast.warning('Please enter returned quantity');
 
     try {
       await apiFetch('/inventory/settle', {
@@ -243,7 +240,7 @@ export function AdminInventory() {
       });
       await Promise.all([loadInventory(), loadLogs(), loadAllLogs()]);
     } catch (error) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -260,190 +257,178 @@ export function AdminInventory() {
     return { total: inventoryItems.length, low, out, totalQty };
   }, [inventoryItems]);
 
-  return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Premium Header Banner */}
-      <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-6 py-8 md:px-8 shadow-2xl overflow-hidden border border-white/5 mb-8">
-        <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-[#D4AF37]/5 rounded-full blur-[80px] -mr-24 -mt-24" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 text-[#D4AF37] text-[9px] font-black uppercase tracking-[0.3em] mb-3">
-              <TrendingUp className="w-3 h-3" /> Supply Excellence
-            </div>
-            <h2 className="text-3xl md:text-4xl text-white font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
-              Inventory <span className="text-[#D4AF37]">Intelligence</span>
-            </h2>
-            <p className="text-slate-400 mt-3 max-w-xl text-sm leading-relaxed">
-              Precision tracking for your luxury establishment. Monitor, allocate, and analyze stock usage with real-time accuracy.
-            </p>
-          </div>
+  useEffect(() => {
+    if (inventoryStats.low > 0 && !alertShown && !inventoryLoading) {
+      const lowItems = inventoryItems.filter(i => i.quantity <= i.thresholdLevel && i.quantity > 0);
+      const itemNames = lowItems.map(i => i.itemName).join(', ');
+      
+      toast.error(`⚠️ Attention: Low Stock! (${itemNames})`, {
+        duration: 8000,
+        position: 'top-center',
+        style: { background: '#f59e0b', color: '#000', border: 'none', fontWeight: 'bold' }
+      });
+      setAlertShown(true);
+    }
+  }, [inventoryStats.low, alertShown, inventoryLoading, inventoryItems]);
 
-          <div className="flex flex-col gap-4">
-             <div className="flex p-1.5 bg-slate-950 rounded-2xl border border-white/10 shadow-2xl">
-              <button
-                onClick={() => setActiveTab('stock')}
-                className={`flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold transition-all duration-500 ${
-                  activeTab === 'stock' ? 'bg-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/20' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Boxes className="w-4 h-4" />
-                Supplies
-              </button>
-              <button
-                onClick={() => setActiveTab('tracking')}
-                className={`flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold transition-all duration-500 ${
-                  activeTab === 'tracking' ? 'bg-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/20' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <History className="w-4 h-4" />
-                Allocation
-              </button>
-            </div>
-          </div>
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500 pb-4">
+      {/* Header Banner */}
+      <div className="rounded-2xl border border-[#0F172A]/10 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] px-6 py-8 md:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-xl">
+        <div>
+          <p className="text-[#D4AF37] tracking-[0.22em] uppercase text-xs mb-3 font-semibold">Janro Hotel</p>
+          <h1 className="text-3xl md:text-4xl text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+            Inventory Panel
+          </h1>
+          <p className="text-slate-300 mt-2">
+            Manage live assets, track stock levels, and monitor daily dispatch
+          </p>
+        </div>
+        
+        <div className="flex gap-3">
+          {activeTab === 'stock' ? (
+            <button 
+              onClick={() => { setSelectedInventoryItem(null); setShowInventoryForm(true); }} 
+              className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-slate-900 rounded-xl font-bold transition-all transform hover:-translate-y-0.5 shadow-lg shadow-[#D4AF37]/20 whitespace-nowrap"
+            >
+              <Plus className="w-5 h-5" />
+              New Asset
+            </button>
+          ) : (
+            <button 
+              onClick={() => setShowIssueModal(true)} 
+              className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-slate-900 rounded-xl font-bold transition-all transform hover:-translate-y-0.5 shadow-lg shadow-[#D4AF37]/20 whitespace-nowrap"
+            >
+              <ArrowUpRight className="w-5 h-5" />
+              Issue Stock
+            </button>
+          )}
         </div>
       </div>
 
-      {activeTab === 'stock' ? (
-        <>
-          {/* Stats Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-             <div className="bg-[#0F172A] p-8 rounded-[2.5rem] shadow-sm border border-white/5 flex flex-col justify-between group hover:shadow-xl hover:border-white/10 transition-all duration-500">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 mb-6 group-hover:scale-110 transition-transform"><Boxes className="w-6 h-6" /></div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Items</p>
-                <h3 className="text-3xl font-black text-white">{inventoryStats.total}</h3>
-              </div>
-            </div>
-             <div className="bg-[#0F172A] p-8 rounded-[2.5rem] shadow-sm border border-white/5 flex flex-col justify-between group hover:shadow-xl hover:border-white/10 transition-all duration-500">
-              <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 mb-6 group-hover:scale-110 transition-transform"><AlertTriangle className="w-6 h-6" /></div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Low Warning</p>
-                <h3 className="text-3xl font-black text-amber-400">{inventoryStats.low}</h3>
-              </div>
-            </div>
-             <div className="bg-[#0F172A] p-8 rounded-[2.5rem] shadow-sm border border-white/5 flex flex-col justify-between group hover:shadow-xl hover:border-white/10 transition-all duration-500">
-              <div className="w-12 h-12 bg-rose-500/10 rounded-2xl flex items-center justify-center text-rose-400 mb-6 group-hover:scale-110 transition-transform"><ArrowDownToLine className="w-6 h-6" /></div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Stock Out</p>
-                <h3 className="text-3xl font-black text-rose-400">{inventoryStats.out}</h3>
-              </div>
-            </div>
-            <div className="bg-[#D4AF37] p-8 rounded-[2.5rem] shadow-xl shadow-[#D4AF37]/10 flex flex-col justify-between group hover:scale-[1.02] transition-all duration-500">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white mb-6"><TrendingUp className="w-6 h-6" /></div>
-              <div>
-                <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-1">Total Assets</p>
-                <h3 className="text-3xl font-black text-[#0F172A]">{inventoryStats.totalQty.toLocaleString()} <span className="text-sm font-bold opacity-40 uppercase">Units</span></h3>
-              </div>
-            </div>
-          </div>
+      {/* Tabs Navigation */}
+      <div className="flex border-b border-slate-200 gap-6">
+        <button
+          onClick={() => setActiveTab('stock')}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'stock' 
+              ? 'border-[#0F172A] text-[#0F172A]' 
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <Boxes className="w-5 h-5" />
+          Supplies Catalog
+        </button>
+        
+        <button
+          onClick={() => setActiveTab('tracking')}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'tracking' 
+              ? 'border-[#0F172A] text-[#0F172A]' 
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <History className="w-5 h-5" />
+          Dispatch & Tracking
+        </button>
+      </div>
 
-          {/* Low Stock Alerts & Quick Restock Panel */}
-          {inventoryItems.some(item => item.quantity <= item.thresholdLevel) && (
-            <div className="bg-amber-50/60 border border-amber-200/60 p-6 rounded-[2.5rem] shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-amber-500 text-white rounded-xl">
-                  <AlertTriangle className="w-5 h-5" />
+      {/* Main Content Area */}
+      <div>
+        {activeTab === 'stock' ? (
+          <div className="space-y-6">
+            {/* Stats Bar */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                  <Boxes className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-amber-800 uppercase tracking-wider">Critical Stock Warnings</h4>
-                  <p className="text-xs text-amber-600/80">The following supplies are running low. Take immediate action to replenish inventory.</p>
+                  <p className="text-sm text-slate-500 font-medium">Total Items</p>
+                  <h3 className="text-2xl font-bold text-slate-800">{inventoryStats.total}</h3>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {inventoryItems
-                  .filter(item => item.quantity <= item.thresholdLevel)
-                  .map(item => (
-                    <div key={item._id} className="bg-white p-4 rounded-2xl border border-amber-100/50 flex items-center justify-between shadow-xs hover:shadow-md transition-all duration-300">
-                      <div>
-                        <p className="font-bold text-slate-800 text-xs">{item.itemName}</p>
-                        <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                          Stock: <span className={item.quantity === 0 ? "text-rose-500 font-black" : "text-amber-600 font-black"}>{item.quantity}</span> / {item.thresholdLevel} {item.unit}
-                        </p>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          const amount = window.prompt(`How many ${item.unit} of ${item.itemName} would you like to add to stock?`);
-                          if (amount === null) return;
-                          const restockQty = Number(amount);
-                          if (isNaN(restockQty) || restockQty <= 0) {
-                            return alert("Please enter a valid positive number.");
-                          }
-                          try {
-                            const updatedQty = item.quantity + restockQty;
-                            const payload = {
-                              itemName: item.itemName,
-                              quantity: updatedQty,
-                              thresholdLevel: item.thresholdLevel,
-                              unit: item.unit
-                            };
-                            await apiFetch(`/inventory/${item._id}`, {
-                              method: 'PUT',
-                              body: JSON.stringify(payload)
-                            });
-                            toast.success(`Successfully restocked ${restockQty} ${item.unit} for ${item.itemName}`);
-                            await loadInventory();
-                          } catch (err) {
-                            alert(err.message || "Restock failed");
-                          }
-                        }}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-[#0F172A] hover:bg-[#D4AF37] hover:text-[#0F172A] text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-300 shadow-sm"
-                      >
-                        <Plus className="w-3 h-3" /> Restock
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          <div className="grid gap-10 xl:grid-cols-[400px_1fr]">
-            {/* Form Side */}
-             <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-sm border border-white/5 space-y-8">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-normal text-white" style={{ fontFamily: "DM Serif Display, serif" }}>{selectedInventoryItem ? 'Refine Item' : 'New Supply'}</h3>
-                <button onClick={() => { setSelectedInventoryItem(null); setShowInventoryForm(!showInventoryForm); }} className={`p-3 rounded-full transition-all ${showInventoryForm ? 'bg-rose-500/10 text-rose-400 rotate-45' : 'bg-blue-500/10 text-blue-400 shadow-lg'}`}><Plus className="w-6 h-6" /></button>
-              </div>
-              
-              {showInventoryForm ? (
-                <form onSubmit={handleInventorySubmit} className="space-y-6 animate-in fade-in slide-in-from-top-6 duration-500">
-                  <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Asset Name</label><input value={inventoryForm.itemName} onChange={(e) => setInventoryForm({ ...inventoryForm, itemName: e.target.value })} className="w-full bg-slate-950 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all font-medium" required /></div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantity</label><input type="number" min="0" value={inventoryForm.quantity} onChange={(e) => setInventoryForm({ ...inventoryForm, quantity: e.target.value })} className="w-full bg-slate-950 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#D4AF37] font-semibold" required /></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Safety Level</label><input type="number" min="0" value={inventoryForm.thresholdLevel} onChange={(e) => setInventoryForm({ ...inventoryForm, thresholdLevel: e.target.value })} className="w-full bg-slate-950 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#D4AF37] font-semibold" required /></div>
-                  </div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Measurement Unit</label><input value={inventoryForm.unit} onChange={(e) => setInventoryForm({ ...inventoryForm, unit: e.target.value })} className="w-full bg-slate-950 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-[#D4AF37] font-medium" placeholder="kg, pcs, litres..." /></div>
-                  <button type="submit" disabled={savingInventory} className="w-full rounded-[2rem] bg-[#D4AF37] px-6 py-5 text-[#0F172A] font-black text-sm uppercase tracking-[0.3em] hover:bg-white disabled:opacity-50 shadow-2xl transition-all">{savingInventory ? 'Syncing...' : selectedInventoryItem ? 'Confirm Changes' : 'Add to Catalog'}</button>
-                </form>
-              ) : (
-                <div className="py-20 text-center space-y-4">
-                  <div className="w-20 h-20 bg-slate-900/60 rounded-full flex items-center justify-center mx-auto text-slate-500 border-2 border-dashed border-slate-700"><Package className="w-10 h-10" /></div>
-                  <p className="text-sm text-slate-400 font-medium">Capture a new supply asset by <br/> tapping the <Plus className="w-3 h-3 inline mx-1" /> button above.</p>
+              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6" />
                 </div>
-              )}
+                <div>
+                  <p className="text-sm text-slate-500 font-medium">Low Warning</p>
+                  <h3 className="text-2xl font-bold text-slate-800">{inventoryStats.low}</h3>
+                </div>
+              </div>
+              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
+                  <ArrowDownToLine className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 font-medium">Stock Out</p>
+                  <h3 className="text-2xl font-bold text-slate-800">{inventoryStats.out}</h3>
+                </div>
+              </div>
             </div>
 
-            {/* Table Side */}
-            <div className="bg-[#0F172A] rounded-[3.5rem] shadow-sm border border-white/5 flex flex-col overflow-hidden">
-              <div className="p-10 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div><h3 className="text-2xl font-normal text-white" style={{ fontFamily: "DM Serif Display, serif" }}>Supply <span className="text-[#D4AF37]">Catalog</span></h3><p className="text-sm text-slate-400 mt-1">Live digital record of all physical assets</p></div>
-                <div className="relative max-w-xs w-full"><Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" /><input type="text" placeholder="Search for items..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full pl-14 pr-6 py-4 rounded-[2rem] bg-slate-950 border border-white/10 text-white outline-none text-sm font-medium focus:ring-4 focus:ring-[#D4AF37]/5 transition-all" /></div>
+            {/* Inventory Table Container */}
+            <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+              <div className="border-b border-slate-100 p-6 flex flex-col gap-4 lg:flex-row lg:items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Supply Catalog</h3>
+                <div className="relative w-full sm:max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input type="text" placeholder="Search items..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-[#0F172A] outline-none transition-all" />
+                </div>
               </div>
-              <div className="flex-1 p-10 overflow-x-auto">
-                {inventoryLoading ? <div className="py-20 text-center"><div className="w-16 h-16 border-4 border-slate-700 border-t-[#D4AF37] rounded-full animate-spin mx-auto"></div></div> : (
-                  <table className="w-full text-left border-separate border-spacing-y-4">
-                    <thead><tr className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]"><th className="px-8 pb-2">Asset Details</th><th className="px-8 pb-2 text-center">Status</th><th className="px-8 pb-2">Balance</th><th className="px-8 pb-2 text-right">Actions</th></tr></thead>
-                    <tbody>
+              <div className="overflow-x-auto relative min-h-[300px]">
+                {inventoryLoading ? (
+                  <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-8 h-8 text-[#0F172A] animate-spin" /></div>
+                ) : visibleInventoryItems.length === 0 ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400"><Package className="w-12 h-12 mb-3 opacity-50" /><p className="text-sm font-semibold uppercase tracking-widest">No Items Found</p></div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50/70 border-b border-slate-100">
+                      <tr>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Asset Details</th>
+                        <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                        <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Current Balance</th>
+                        <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
                       {visibleInventoryItems.map((item) => {
-                        const status = item.quantity <= 0 ? { l: 'Empty', c: 'text-rose-500', b: 'bg-rose-950/20' } : item.quantity <= item.thresholdLevel ? { l: 'Low', c: 'text-amber-500', b: 'bg-amber-950/20' } : { l: 'Sufficient', c: 'text-emerald-500', b: 'bg-emerald-950/20' };
-                        const statusBg = item.quantity <= 0 ? 'bg-[#241217]' : item.quantity <= item.thresholdLevel ? 'bg-[#241d12]' : 'bg-slate-900';
-                        const alertBorder = item.quantity <= 0 ? 'border-l-rose-500/80 border-l-[3px]' : item.quantity <= item.thresholdLevel ? 'border-l-amber-500/80 border-l-[3px]' : 'border-l-slate-800';
+                        const isOut = item.quantity <= 0;
+                        const isLow = item.quantity > 0 && item.quantity <= item.thresholdLevel;
+                        const statusColor = isOut ? 'text-rose-700 bg-rose-50 border-rose-200' : isLow ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200';
+                        const statusLabel = isOut ? 'Empty' : isLow ? 'Low Stock' : 'Sufficient';
                         return (
-                          <tr key={item._id} className="group hover:bg-slate-950 transition-all duration-300">
-                            <td className={`px-8 py-6 rounded-l-[2rem] border-y border-l border-white/5 ${statusBg} ${alertBorder}`}><p className="font-bold text-white text-lg group-hover:text-[#D4AF37] transition-colors">{item.itemName}</p><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Ref ID: {item._id.slice(-8)}</p></td>
-                            <td className={`px-8 py-6 border-y border-white/5 text-center ${statusBg}`}><span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] ${status.b} ${status.c} border border-current/10`}>{status.l}</span></td>
-                            <td className={`px-8 py-6 border-y border-white/5 ${statusBg}`}><span className="text-2xl font-black text-white tracking-tighter">{item.quantity}</span> <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{item.unit}</span></td>
-                            <td className={`px-8 py-6 rounded-r-[2rem] border-y border-r border-white/5 text-right ${statusBg}`}><div className="flex items-center justify-end gap-3"><button onClick={() => setSelectedInventoryItem(item)} className="p-3 bg-slate-950 text-slate-400 rounded-xl hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all"><Edit2 className="w-4 h-4" /></button><button onClick={() => deleteInventoryItem(item._id)} className="p-3 bg-rose-500/10 text-rose-400 rounded-xl hover:bg-rose-600 hover:text-white transition-all"><Trash2 className="w-4 h-4" /></button></div></td>
+                          <tr key={item._id} className="hover:bg-slate-50 transition-colors group">
+                            <td className="px-6 py-4">
+                              <p className="text-sm font-bold text-slate-800">{item.itemName}</p>
+                              <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">Ref ID: {item._id.slice(-8)}</p>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${statusColor}`}>{statusLabel}</span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <p className={`text-lg font-black ${isOut ? 'text-rose-600' : isLow ? 'text-amber-500' : 'text-slate-800'}`}>{item.quantity} <span className="text-xs text-slate-500 ml-1 font-semibold">{item.unit}</span></p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Min Level: {item.thresholdLevel}</p>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button onClick={() => {
+                                  const amount = window.prompt(`How many ${item.unit} of ${item.itemName} are you restocking?`);
+                                  if (!amount || isNaN(amount) || amount <= 0) return;
+                                  const payload = { itemId: item._id, quantity: Number(amount), notes: "Restocked from Supplier" };
+                                  apiFetch('/inventory/restock', { method: 'POST', body: JSON.stringify(payload) }).then(() => { toast.success('Stock replenished'); loadInventory(); loadAllLogs(); }).catch(e => toast.error(e.message));
+                                }} className="p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg transition-colors border border-transparent hover:border-emerald-100" title="Restock">
+                                  <ArrowDownToLine className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => setSelectedInventoryItem(item)} className="p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100" title="Edit">
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => deleteInventoryItem(item._id)} className="p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors border border-transparent hover:border-rose-100" title="Delete">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         );
                       })}
@@ -453,136 +438,176 @@ export function AdminInventory() {
               </div>
             </div>
           </div>
-        </>
-      ) : (
-        <>
-          <div className="grid gap-10 xl:grid-cols-[450px_1fr]">
-            <div className="space-y-8">
-              {/* Issue Form */}
-              <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-white">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-[80px] -mr-32 -mt-32" />
-                <h3 className="relative z-10 text-2xl font-normal mb-8" style={{ fontFamily: "DM Serif Display, serif" }}>Issue <span className="text-[#D4AF37]">Resources</span></h3>
-                <form onSubmit={handleIssueSubmit} className="relative z-10 space-y-6">
-                  <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Asset Selection</label><select value={issueForm.itemId} onChange={(e) => setIssueForm({ ...issueForm, itemId: e.target.value })} className="w-full bg-slate-950 border border-white/10 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-[#D4AF37] appearance-none cursor-pointer" required><option value="" className="text-slate-900">Choose Master Stock...</option>{inventoryItems.map(item => (<option key={item._id} value={item._id} className="text-slate-900">{item.itemName} ({item.quantity} available)</option>))}</select></div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Dept</label><select value={issueForm.department} onChange={(e) => setIssueForm({ ...issueForm, department: e.target.value })} className="w-full bg-slate-950 border border-white/10 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-[#D4AF37] appearance-none cursor-pointer" required><option value="Restaurant" className="text-slate-900">Restaurant</option><option value="Weddings" className="text-slate-900">Weddings</option><option value="Pool" className="text-slate-900">Pool</option><option value="Other" className="text-slate-900">Other</option></select></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantity</label><input type="number" min="1" value={issueForm.quantity} onChange={(e) => setIssueForm({ ...issueForm, quantity: e.target.value })} className="w-full bg-slate-950 border border-white/10 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-[#D4AF37]" required /></div>
-                  </div>
-                  <button type="submit" disabled={savingIssue} className="w-full bg-[#D4AF37] text-[#0F172A] py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.3em] hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-[#D4AF37]/10 disabled:opacity-50">{savingIssue ? 'Authorizing...' : 'Execute Dispatch'}</button>
-                </form>
-              </div>
-
-              {/* Visual Analytics */}
-              <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-sm border border-white/5">
-                <h3 className="text-xl font-normal text-white mb-8" style={{ fontFamily: "DM Serif Display, serif" }}>Consumption <span className="text-[#D4AF37]">Analytics</span></h3>
-                <div className="space-y-6">
-                  {analyticsData.usageByDept.map(dept => (
-                    <div key={dept.name} className="space-y-2">
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400"><span>{dept.name}</span><span>{dept.value} Units Used</span></div>
-                      <div className="h-3 bg-slate-950 rounded-full overflow-hidden border border-white/5">
-                        <div className="h-full bg-gradient-to-r from-[#0F172A] to-[#D4AF37] rounded-full transition-all duration-1000" style={{ width: `${(dept.value / analyticsData.maxUsage) * 100}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Area Chart for Stock Trends */}
-                <div className="mt-8 pt-8 border-t border-white/5">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">7-Day Dispatch Trend</h4>
-                  <div className="w-full h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorIssued" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.4}/>
-                            <stop offset="95%" stopColor="#D4AF37" stopOpacity={0.0}/>
-                          </linearGradient>
-                          <linearGradient id="colorConsumed" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0F172A" stopOpacity={0.4}/>
-                            <stop offset="95%" stopColor="#0F172A" stopOpacity={0.0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-                        <XAxis dataKey="date" stroke="#94A3B8" fontSize={9} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94A3B8" fontSize={9} tickLine={false} axisLine={false} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '10px' }}
-                          labelClassName="text-slate-400 font-bold"
-                        />
-                        <Area type="monotone" dataKey="Qty Issued" stroke="#D4AF37" strokeWidth={2} fillOpacity={1} fill="url(#colorIssued)" />
-                        <Area type="monotone" dataKey="Qty Consumed" stroke="#0F172A" strokeWidth={2} fillOpacity={1} fill="url(#colorConsumed)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="mt-10 pt-8 border-t border-white/5 flex items-center gap-4">
-                  <div className="p-4 bg-emerald-500/10 text-emerald-400 rounded-2xl"><BarChart3 className="w-6 h-6" /></div>
-                  <div><p className="text-xs font-bold text-slate-400 uppercase">Usage Efficiency</p><p className="text-lg font-black text-white">Optimized Performance</p></div>
+        ) : (
+          <div className="space-y-6">
+            {/* Tracking Logs Table */}
+            <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+              <div className="border-b border-slate-100 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Daily Summary Report</h3>
+                <div className="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200">
+                  <Calendar className="w-5 h-5 text-slate-400" />
+                  <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="bg-transparent border-none text-sm text-slate-800 font-semibold outline-none cursor-pointer" />
                 </div>
               </div>
-            </div>
+              <div className="overflow-x-auto relative min-h-[300px]">
+                {logsLoading ? (
+                  <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-8 h-8 text-[#0F172A] animate-spin" /></div>
+                ) : dailySummary.length === 0 ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400"><History className="w-12 h-12 mb-3 opacity-50" /><p className="text-sm font-semibold uppercase tracking-widest">No Logs Found</p></div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50/70 border-b border-slate-100">
+                      <tr>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Ingredient</th>
+                        <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Restocked</th>
+                        <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Issued</th>
+                        <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Returned</th>
+                        <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Consumed</th>
+                        <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white text-sm">
+                      {dailySummary.map(summary => {
+                        const unsettledLogs = summary.logs.filter(log => log.logType === 'Issue' && log.status === 'Issued');
+                        const allSettled = unsettledLogs.length === 0;
 
-            {/* Activity Log Side */}
-            <div className="bg-[#0F172A] rounded-[3.5rem] shadow-sm border border-white/5 overflow-hidden flex flex-col">
-              <div className="p-10 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div><h3 className="text-2xl font-normal text-white" style={{ fontFamily: "DM Serif Display, serif" }}>Dispatch <span className="text-[#D4AF37]">Logs</span></h3><p className="text-sm text-slate-400 mt-1">Comprehensive record of daily stock flow</p></div>
-                <div className="flex items-center gap-3 bg-slate-950 p-2 rounded-2xl border border-white/10 text-white"><Calendar className="w-4 h-4 text-slate-400 ml-2" /><input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="bg-transparent border-none outline-none text-xs font-bold uppercase tracking-widest cursor-pointer text-white" /></div>
-              </div>
-              <div className="flex-1 p-10 overflow-y-auto max-h-[800px] custom-scrollbar">
-                {logsLoading ? <div className="py-20 text-center"><div className="w-16 h-16 border-4 border-slate-700 border-t-[#D4AF37] rounded-full animate-spin mx-auto"></div></div> : (
-                  <div className="space-y-6">
-                    {stockLogs.length === 0 ? (
-                      <div className="py-32 text-center opacity-30 text-slate-400"><History className="w-20 h-20 mx-auto mb-6" /><h4 className="text-xl font-bold uppercase tracking-widest">No Flow Recorded</h4></div>
-                    ) : (
-                      stockLogs.map(log => (
-                        <div key={log._id} className="group bg-slate-900 rounded-[2.5rem] p-8 border border-white/5 hover:bg-slate-950 transition-all duration-500">
-                          <div className="flex flex-col lg:flex-row justify-between gap-8">
-                            <div className="flex items-start gap-6">
-                              <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center transition-transform group-hover:scale-110 duration-500 ${log.status === 'Settled' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-[#D4AF37]/10 text-[#D4AF37]'}`}>
-                                {log.status === 'Settled' ? <CheckCircle2 className="w-8 h-8" /> : <ArrowUpRight className="w-8 h-8" />}
-                              </div>
-                              <div>
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Log ID: #{log._id.slice(-8)}</p>
-                                <h4 className="text-2xl font-bold text-white group-hover:text-[#D4AF37] transition-colors">{log.item?.itemName}</h4>
-                                <div className="flex items-center gap-3 mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest"><span className="px-2 py-1 bg-slate-950 rounded-md border border-white/10">{log.department}</span><span>{new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex flex-wrap items-center gap-8 lg:border-l lg:border-white/5 lg:pl-8">
-                              <div className="text-center min-w-[80px]">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Issued</p>
-                                <p className="text-2xl font-black text-white">{log.issuedQuantity} <span className="text-[10px] font-bold opacity-30">{log.item?.unit}</span></p>
-                              </div>
-                              
-                              {log.status === 'Settled' ? (
-                                <>
-                                  <div className="text-center min-w-[80px]">
-                                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1 italic">Returned</p>
-                                    <p className="text-2xl font-black text-emerald-400">{log.returnedQuantity} <span className="text-[10px] font-bold opacity-30">{log.item?.unit}</span></p>
-                                  </div>
-                                  <div className="text-center min-w-[80px]">
-                                    <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1 italic">Consumed</p>
-                                    <p className="text-2xl font-black text-blue-600">{log.usageQuantity} <span className="text-[10px] font-bold opacity-30">{log.item?.unit}</span></p>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="flex items-center gap-3 bg-slate-950 p-3 rounded-2xl border border-white/10">
-                                  <input type="number" placeholder="Return" value={settleQty[log._id] || ''} onChange={(e) => setSettleQty({ ...settleQty, [log._id]: e.target.value })} className="w-24 bg-slate-900 border border-white/10 text-white rounded-xl px-4 py-2 text-sm font-bold outline-none focus:border-[#D4AF37] shadow-sm" />
-                                  <button onClick={() => handleSettleSubmit(log._id)} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/30">Settle</button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                        return (
+                          <React.Fragment key={summary.itemName}>
+                            <tr className="hover:bg-slate-50 transition-colors group">
+                              <td className="px-6 py-4">
+                                <p className="text-slate-800 font-bold">{summary.itemName}</p>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">{summary.unit}</p>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <p className="text-lg font-black text-emerald-600">{summary.restocked > 0 ? `+${summary.restocked}` : '-'}</p>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <p className="text-lg font-black text-rose-600">{summary.issued > 0 ? `-${summary.issued}` : '-'}</p>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <p className="text-lg font-black text-emerald-600">{summary.returned > 0 ? `+${summary.returned}` : '-'}</p>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <p className="text-lg font-black text-blue-600">{summary.consumed > 0 ? summary.consumed : '-'}</p>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                {allSettled ? (
+                                  <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200"><CheckCircle2 className="w-3 h-3"/> Settled</span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">{unsettledLogs.length} Pending</span>
+                                )}
+                              </td>
+                            </tr>
+                            {summary.logs.map(log => {
+                              const isSettled = log.status === 'Settled';
+                              const isRestock = log.logType === 'Restock';
+                              return (
+                                <tr key={log._id} className="bg-slate-50/50 text-xs">
+                                  <td className="px-6 py-3 pl-12 text-slate-500" colSpan={2}>
+                                    {new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {' '}
+                                    <span className="font-semibold text-slate-700">
+                                      {isRestock ? 'Restocked (Main Store)' : `Issued to ${log.department}`}
+                                    </span>
+                                    {log.notes && <span className="text-[10px] text-slate-400 italic ml-2">({log.notes})</span>}
+                                  </td>
+                                  <td className="px-6 py-3 text-center text-slate-500">
+                                    {isRestock ? `+${log.restockQuantity}` : '-'}
+                                  </td>
+                                  <td className="px-6 py-3 text-center text-slate-500">
+                                    {!isRestock ? `-${log.issuedQuantity}` : '-'}
+                                  </td>
+                                  <td className="px-6 py-3 text-center text-slate-500">
+                                    {!isRestock && isSettled ? `+${log.returnedQuantity}` : '-'}
+                                  </td>
+                                  <td className="px-6 py-3 pr-6 text-right">
+                                    {isRestock ? (
+                                      <span className="text-[10px] font-bold text-emerald-600">Completed</span>
+                                    ) : isSettled ? (
+                                      <span className="text-[10px] font-bold text-slate-500">Settled (Used: {log.usageQuantity})</span>
+                                    ) : (
+                                      <div className="flex items-center justify-end gap-2">
+                                        <input type="number" step="any" placeholder="Ret Qty" value={settleQty[log._id] || ''} onChange={(e) => setSettleQty({ ...settleQty, [log._id]: e.target.value })} className="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800 outline-none focus:border-[#0F172A] text-center font-bold" />
+                                        <button onClick={() => handleSettleSubmit(log._id)} className="bg-[#0F172A] text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-slate-800 transition-colors">Settle</button>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 )}
               </div>
             </div>
           </div>
-        </>
+        )}
+      </div>
+
+      {/* Item Modal */}
+      {showInventoryForm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md flex flex-col overflow-hidden relative">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-800">{selectedInventoryItem ? 'Edit Asset' : 'New Supply'}</h3>
+              <button onClick={() => { setShowInventoryForm(false); setSelectedInventoryItem(null); }} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6">
+              <form onSubmit={handleInventorySubmit} className="space-y-4">
+                <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-600">Asset Name</label><input value={inventoryForm.itemName} onChange={(e) => setInventoryForm({ ...inventoryForm, itemName: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-all" required placeholder="e.g. Basmathi Rice" /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-600">Current Stock</label><input type="number" step="any" min="0" value={inventoryForm.quantity} onChange={(e) => setInventoryForm({ ...inventoryForm, quantity: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-all" required /></div>
+                  <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-600">Safety Min.</label><input type="number" step="any" min="0" value={inventoryForm.thresholdLevel} onChange={(e) => setInventoryForm({ ...inventoryForm, thresholdLevel: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-all" required /></div>
+                </div>
+                <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-600">Unit (kg, pcs)</label><input value={inventoryForm.unit} onChange={(e) => setInventoryForm({ ...inventoryForm, unit: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-all" placeholder="pcs" /></div>
+                <div className="pt-4">
+                  <button type="submit" disabled={savingInventory} className="w-full rounded-xl bg-[#0F172A] px-6 py-3 text-white font-bold text-sm hover:bg-slate-800 disabled:opacity-50 transition-all shadow-md">{savingInventory ? 'Saving...' : 'Save Asset'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Issue Modal */}
+      {showIssueModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md flex flex-col overflow-hidden relative">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-800">Issue Stock</h3>
+              <button onClick={() => setShowIssueModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6">
+              <form onSubmit={handleIssueSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600">Asset</label>
+                  <select value={issueForm.itemId} onChange={(e) => setIssueForm({ ...issueForm, itemId: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-all" required>
+                    <option value="" disabled>Choose Item...</option>
+                    {inventoryItems.map(item => (<option key={item._id} value={item._id}>{item.itemName} ({item.quantity} {item.unit})</option>))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-600">Department</label>
+                    <select value={issueForm.department} onChange={(e) => setIssueForm({ ...issueForm, department: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-all" required>
+                      <option value="Restaurant Kitchen">Restaurant Kitchen</option>
+                      <option value="Wedding Kitchen">Wedding Kitchen</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-600">Quantity</label>
+                    <input type="number" step="any" min="0" value={issueForm.quantity} onChange={(e) => setIssueForm({ ...issueForm, quantity: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A] transition-all" required />
+                  </div>
+                </div>
+                <div className="pt-4">
+                  <button type="submit" disabled={savingIssue} className="w-full bg-[#0F172A] text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-md disabled:opacity-50">{savingIssue ? 'Dispatching...' : 'Dispatch Resources'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

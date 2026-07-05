@@ -36,7 +36,8 @@ export function ReceptionDashboard() {
     availableRooms: 0,
     maintenanceRooms: 0,
     reservedRooms: 0,
-    totalRooms: 0
+    totalRooms: 0,
+    pendingBookingsCount: 0
   });
   
   const [loading, setLoading] = useState(true);
@@ -74,34 +75,34 @@ export function ReceptionDashboard() {
           return d.getTime() === today.getTime();
         };
 
-        const todayCheckIns = allBookings.filter(b => (b.status === 'confirmed' || b.status === 'pending') && isToday(b.checkInDate));
-        const todayCheckOuts = allBookings.filter(b => b.status === 'checked-in' && isToday(b.checkOutDate));
+        const pendingCheckIns = allBookings.filter(b => b.status === 'confirmed' || b.status === 'pending');
+        const pendingCheckOuts = allBookings.filter(b => b.status === 'checked-in');
         
-        const occupiedRooms = allBookings.filter(b => b.status === 'checked-in').length;
-        const reservedRooms = allBookings.filter(b => b.status === 'confirmed').length;
+        const occupiedRooms = pendingCheckOuts.length;
+        const reservedRooms = pendingCheckIns.length;
 
         const activeRooms = allRooms.filter(room => room.isActive !== false);
         const totalRooms = activeRooms.reduce(
-          (acc, room) => acc + (Number(room.totalRooms) || Number(room.availableRooms) || 0),
+          (acc, room) => acc + (Number(room.totalRooms) || 0),
           0
         );
-        const availableRooms = activeRooms.reduce(
-          (acc, room) => acc + (Number(room.availableRooms) || 0),
-          0
-        );
+        
+        // Calculate true available rooms by subtracting occupied and reserved from total
+        const availableRooms = Math.max(0, totalRooms - occupiedRooms - reservedRooms);
         
         const activePoolBookings = poolBookings.filter(p => p.status === 'Confirmed' || p.status === 'Checked-In');
         
         setData({
-          todayCheckIns,
-          todayCheckOuts,
+          todayCheckIns: pendingCheckIns,
+          todayCheckOuts: pendingCheckOuts,
           upcomingWeddings: [], // API not fully implemented yet for all bookings
           activePoolBookings,
           occupiedRooms,
-          availableRooms: availableRooms > 0 ? availableRooms : 0,
+          availableRooms,
           maintenanceRooms: 0,
           reservedRooms,
-          totalRooms: totalRooms > 0 ? totalRooms : 1 // prevent division by zero
+          totalRooms: totalRooms > 0 ? totalRooms : 1, // prevent division by zero
+          pendingBookingsCount: allBookings.filter(b => b.status === 'pending').length
         });
         
       } catch (error) {
@@ -232,28 +233,29 @@ export function ReceptionDashboard() {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {quickStats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.label}
-              className={`rounded-xl border p-4 ${stat.color}`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-lg ${stat.iconBg}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium opacity-80">{stat.label}</p>
-                  <h3 className="text-2xl font-bold">{stat.value}</h3>
-                </div>
-              </div>
+
+
+      {/* Alert Banner for Pending Bookings */}
+      {data.pendingBookingsCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+              <AlertTriangle className="w-5 h-5" />
             </div>
-          );
-        })}
-      </div>
+            <div>
+              <h3 className="text-sm font-bold text-amber-900">Action Required: Pending Bookings</h3>
+              <p className="text-xs text-amber-700">There are {data.pendingBookingsCount} room booking(s) waiting for your confirmation.</p>
+            </div>
+          </div>
+          <Link
+            to="/reception/rooms"
+            state={{ activeTab: 'bookings' }}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shadow-sm"
+          >
+            Review Now
+          </Link>
+        </div>
+      )}
 
       {/* Room Occupancy Bar */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">

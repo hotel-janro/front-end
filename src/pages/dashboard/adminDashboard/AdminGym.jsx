@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Dumbbell, CreditCard, Users, DollarSign, Plus, Search, Trash2, Download, Check, X, Edit, Calendar, UserPlus, QrCode, ShieldCheck, ShieldAlert, Clock, ArrowRight, Camera, Play } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
+import { Html5Qrcode } from 'html5-qrcode';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -9,6 +10,7 @@ const defaultForm = {
   passType: 'Day Pass',
   guestName: '',
   guestPhone: '',
+  guestEmail: '',
   roomNumber: '',
   paymentStatus: 'Paid',
   validDays: '1',
@@ -31,10 +33,10 @@ const defaultMemberForm = {
 
 export function AdminGym() {
   const { settings } = useSettings();
-  
+
   // Navigation tab
   const [activeTab, setActiveTab] = useState('passes'); // 'passes', 'members', or 'gate'
-  
+
   // State for Passes
   const [passes, setPasses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,6 +62,8 @@ export function AdminGym() {
   const [editMemberId, setEditMemberId] = useState(null);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [regStep, setRegStep] = useState(1);
+  const [isMemberQrModalOpen, setIsMemberQrModalOpen] = useState(false);
+  const [newMember, setNewMember] = useState(null);
 
   // State for Entrance Gate / QR Scanner
   const [attendance, setAttendance] = useState([]);
@@ -69,7 +73,10 @@ export function AdminGym() {
   const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
   const [attendanceFetchError, setAttendanceFetchError] = useState('');
   const [cameraActive, setCameraActive] = useState(true);
+  const [cameraError, setCameraError] = useState('');
   const scanInputRef = useRef(null);
+  const scannerRef = useRef(null);
+  const scannerStateRef = useRef('idle');
 
   // Fetch Passes
   const fetchPasses = async () => {
@@ -165,27 +172,31 @@ export function AdminGym() {
     }
   };
 
-  const handleScanSubmit = async (event) => {
-    if (event) event.preventDefault();
-    if (!qrInput.trim()) return;
+  const verifyScannedCode = async (code) => {
+    if (!code || !code.trim()) return;
     setIsVerifying(true);
     setScanResult(null);
     try {
       const response = await fetch(`${API_BASE}/api/gym/verify-scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qrCodeKey: qrInput.trim() })
+        body: JSON.stringify({ qrCodeKey: code.trim() })
       });
       const result = await response.json();
       const isSuccess = response.ok && result.success;
       playVerificationSound(isSuccess);
       setScanResult({ success: isSuccess, message: result.message || 'Verification failed.' });
-      if (isSuccess) {
-        setAttendance((prev) => [result.attendance, ...prev]);
-        setTimeout(() => setScanResult(null), 4000);
+      if (isSuccess && result.attendance) {
+        setAttendance((prev) => {
+          const exists = prev.some((log) => log._id === result.attendance._id);
+          if (exists) {
+            return prev.map((log) => log._id === result.attendance._id ? result.attendance : log);
+          } else {
+            return [result.attendance, ...prev];
+          }
+        });
+        setTimeout(() => setScanResult(null), 5000);
       }
-      setQrInput('');
-      setTimeout(() => { if (scanInputRef.current) scanInputRef.current.focus(); }, 50);
     } catch (error) {
       playVerificationSound(false);
       setScanResult({ success: false, message: error.message || 'Network connection failed.' });
@@ -193,6 +204,161 @@ export function AdminGym() {
       setIsVerifying(false);
     }
   };
+
+  const handleScanSubmit = async (event) => {
+    if (event) event.preventDefault();
+    if (!qrInput.trim()) return;
+    await verifyScannedCode(qrInput);
+    setQrInput('');
+    setTimeout(() => { if (scanInputRef.current) scanInputRef.current.focus(); }, 50);
+  };
+
+  // Handle Gate Camera Scanner
+  useEffect(() => {
+    let isMounted = true;
+
+    if (activeTab === 'gate' && cameraActive) {
+      const startScanner = async () => {
+        // If we are already starting or scanning, do not start again
+        if (scannerStateRef.current === 'starting' || scannerStateRef.current === 'scanning') {
+          return;
+        }
+
+        setCameraError('');
+
+        try {
+          const container = document.getElementById("gym-scanner-viewport");
+          if (!container) return;
+
+          scannerStateRef.current = 'starting';
+          const html5QrCode = new Html5Qrcode("gym-scanner-viewport");
+          scannerRef.current = html5QrCode;
+
+          let lastScannedCode = "";
+          let lastScanTime = 0;
+
+          const onScanSuccess = (qrCodeMessage) => {
+            const now = Date.now();
+            if (qrCodeMessage === lastScannedCode && (now - lastScanTime) < 5000) {
+              return; // ignore duplicates for 5 seconds
+            }
+            if (qrCodeMessage) {
+              lastScannedCode = qrCodeMessage;
+              lastScanTime = now;
+              setQrInput(qrCodeMessage);
+              verifyScannedCode(qrCodeMessage);
+            }
+          };
+
+          const config = { fps: 20 };
+
+          // Try to get available cameras to select rear/back camera
+          let cameraId = null;
+          try {
+            const devices = await Html5Qrcode.getCameras();
+            if (devices && devices.length > 0) {
+              const backCamera = devices.find(device =>
+                device.label.toLowerCase().includes('back') ||
+                device.label.toLowerCase().includes('environment') ||
+                device.label.toLowerCase().includes('rear')
+              );
+              cameraId = backCamera ? backCamera.id : devices[0].id;
+            }
+          } catch (devicesError) {
+            console.warn("Failed to get cameras, attempting fallback configuration...", devicesError);
+          }
+
+          if (isMounted) {
+            if (cameraId) {
+              await html5QrCode.start(cameraId, config, onScanSuccess, () => { });
+            } else {
+              // Fallback to default facingMode if getCameras failed or returned empty
+              try {
+                await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => { });
+              } catch (envError) {
+                console.log("Environment camera failing, attempting user camera...", envError);
+                if (isMounted) {
+                  await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, () => { });
+                }
+              }
+            }
+
+            if (isMounted) {
+              scannerStateRef.current = 'scanning';
+            } else {
+              // Component was unmounted or state changed while starting
+              scannerStateRef.current = 'stopping';
+              if (html5QrCode.isScanning) {
+                await html5QrCode.stop();
+              }
+              scannerStateRef.current = 'idle';
+              scannerRef.current = null;
+            }
+          }
+        } catch (err) {
+          scannerStateRef.current = 'idle';
+          scannerRef.current = null;
+          console.error("Failed to start gym scanner camera:", err);
+
+          let errMsg = err.message || String(err);
+          if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            errMsg = "Camera access requires HTTPS or localhost (Secure Context). Please access the system via http://localhost:5174/ or configure HTTPS.";
+          } else if (errMsg.includes("NotAllowedError") || errMsg.includes("Permission denied")) {
+            errMsg = "Camera access was denied. Please grant camera permission in your browser's site settings.";
+          } else if (errMsg.includes("NotFoundError") || errMsg.includes("Requested device not found")) {
+            errMsg = "No camera hardware detected. Ensure a working camera is connected.";
+          } else if (errMsg.includes("NotReadableError") || errMsg.includes("Could not start video source")) {
+            errMsg = "Camera is already in use by another tab or application.";
+          }
+          setCameraError(errMsg);
+        }
+      };
+
+      const timer = setTimeout(startScanner, 250);
+
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+
+        const stopScanner = async () => {
+          const html5QrCode = scannerRef.current;
+          if (html5QrCode) {
+            scannerStateRef.current = 'stopping';
+            try {
+              if (html5QrCode.isScanning) {
+                await html5QrCode.stop();
+              }
+            } catch (err) {
+              console.error("Failed to stop scanner in cleanup:", err);
+            } finally {
+              scannerStateRef.current = 'idle';
+              scannerRef.current = null;
+            }
+          }
+        };
+        stopScanner();
+      };
+    } else {
+      setCameraError('');
+      const stopScanner = async () => {
+        const html5QrCode = scannerRef.current;
+        if (html5QrCode) {
+          scannerStateRef.current = 'stopping';
+          try {
+            if (html5QrCode.isScanning) {
+              await html5QrCode.stop();
+            }
+          } catch (err) {
+            console.error("Failed to stop scanner:", err);
+          } finally {
+            scannerStateRef.current = 'idle';
+            scannerRef.current = null;
+          }
+        }
+      };
+      stopScanner();
+    }
+  }, [activeTab, cameraActive]);
 
   // Passes Handlers
   const handleFormChange = (event) => {
@@ -215,7 +381,8 @@ export function AdminGym() {
       setFormData((previous) => ({
         ...previous,
         guestName: selectedMember.name,
-        guestPhone: selectedMember.phone
+        guestPhone: selectedMember.phone,
+        guestEmail: selectedMember.email || ''
       }));
     }
   };
@@ -223,6 +390,25 @@ export function AdminGym() {
   const handleSubmitPass = async (event) => {
     event.preventDefault();
     setSubmitError('');
+
+    // Validate email and phone
+    if (!formData.guestPhone || !formData.guestEmail) {
+      setSubmitError('Phone number and Email are required.');
+      return;
+    }
+
+    const phoneRegex = /^(?:\+94|0)?7[0-9]{8}$/;
+    if (!phoneRegex.test(formData.guestPhone)) {
+      setSubmitError('Please enter a valid Sri Lankan mobile number (e.g. 0771234567 or +94771234567).');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.guestEmail)) {
+      setSubmitError('Please enter a valid email address.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -272,6 +458,7 @@ export function AdminGym() {
       passType: pass.passType,
       guestName: pass.guestName,
       guestPhone: pass.guestPhone,
+      guestEmail: pass.guestEmail || '',
       roomNumber: pass.roomNumber || '',
       paymentStatus: pass.paymentStatus,
       validDays: '0',
@@ -311,6 +498,13 @@ export function AdminGym() {
   const handleMemberSubmit = async (event) => {
     event.preventDefault();
     setMemberSubmitError('');
+
+    // Step 3 Validation: Emergency Name and Emergency Phone are required
+    if (!memberFormData.emergencyName || !memberFormData.emergencyPhone) {
+      setMemberSubmitError('Emergency Contact Name and Phone are required to complete registration!');
+      return;
+    }
+
     setIsMemberSubmitting(true);
 
     try {
@@ -334,8 +528,10 @@ export function AdminGym() {
 
       if (isEdit) {
         setMembers((prev) => prev.map((m) => m._id === editMemberId ? result.member : m));
+        alert('Gym member updated successfully!');
       } else {
         setMembers((prev) => [result.member, ...prev]);
+        alert('Gym member registered successfully!');
       }
 
       setIsMemberModalOpen(false);
@@ -421,12 +617,23 @@ export function AdminGym() {
     }, 0);
   }, [passes]);
 
+  const isPassActive = (pass) => {
+    if (pass.status === 'Cancelled' || pass.status === 'Expired') return false;
+    return new Date(pass.validDate) >= new Date();
+  };
+
+  const getPassStatus = (pass) => {
+    if (pass.status === 'Cancelled') return 'Cancelled';
+    if (new Date(pass.validDate) < new Date()) return 'Expired';
+    return pass.status; // 'Active'
+  };
+
   const activeMembersCount = useMemo(() => {
     return members.filter((m) => m.status === 'Active').length;
   }, [members]);
 
   const activeDayPassCount = useMemo(() => {
-    return passes.filter((p) => p.status === 'Active' && p.passType === 'Day Pass').length;
+    return passes.filter((p) => isPassActive(p) && p.passType === 'Day Pass').length;
   }, [passes]);
 
   return (
@@ -442,10 +649,10 @@ export function AdminGym() {
             Issue passes, register recurring members, and track daily gate check-ins
           </p>
         </div>
-        
+
         {/* Dual Actions based on active tab */}
         <div className="flex gap-3">
-          <button 
+          <button
             className="flex items-center gap-2 px-5 py-3 bg-white/10 hover:bg-white/20 border border-white/15 text-white rounded-xl font-medium transition-all transform hover:-translate-y-0.5 whitespace-nowrap"
             onClick={() => {
               setEditMemberId(null);
@@ -458,8 +665,8 @@ export function AdminGym() {
             <UserPlus className="w-5 h-5 text-[#D4AF37]" />
             Register Member
           </button>
-          
-          <button 
+
+          <button
             className="flex items-center gap-2 px-6 py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-slate-900 rounded-xl font-bold transition-all transform hover:-translate-y-0.5 shadow-lg shadow-[#D4AF37]/20 whitespace-nowrap"
             onClick={() => {
               setEditId(null);
@@ -478,23 +685,21 @@ export function AdminGym() {
       <div className="flex border-b border-slate-200 gap-6">
         <button
           onClick={() => setActiveTab('passes')}
-          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === 'passes' 
-              ? 'border-[#0F172A] text-[#0F172A]' 
-              : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'passes'
+            ? 'border-[#0F172A] text-[#0F172A]'
+            : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
         >
           <Dumbbell className="w-5 h-5" />
           Passes & Bookings ({passes.length})
         </button>
-        
+
         <button
           onClick={() => setActiveTab('members')}
-          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === 'members' 
-              ? 'border-[#0F172A] text-[#0F172A]' 
-              : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'members'
+            ? 'border-[#0F172A] text-[#0F172A]'
+            : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
         >
           <Users className="w-5 h-5" />
           Gym Members Registry ({members.length})
@@ -502,11 +707,10 @@ export function AdminGym() {
 
         <button
           onClick={() => setActiveTab('gate')}
-          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === 'gate' 
-              ? 'border-emerald-500 text-emerald-700' 
-              : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
+          className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'gate'
+            ? 'border-emerald-500 text-emerald-700'
+            : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
         >
           <QrCode className="w-5 h-5" />
           Entrance Gate
@@ -576,17 +780,17 @@ export function AdminGym() {
             <div className="border-b border-slate-100 p-6 flex flex-col gap-4 lg:flex-row lg:items-center">
               <div className="relative flex-1">
                 <Search className="absolute top-1/2 left-3 w-5 h-5 text-slate-400 -translate-y-1/2" />
-                <input 
-                  type="text" 
-                  placeholder="Search by guest name, pass ID, or room number..." 
-                  value={searchTerm} 
-                  onChange={(e) => setSearchTerm(e.target.value)} 
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm" 
+                <input
+                  type="text"
+                  placeholder="Search by guest name, pass ID, or room number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm"
                 />
               </div>
-              <select 
-                value={filterType} 
-                onChange={(e) => setFilterType(e.target.value)} 
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
                 className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-600"
               >
                 <option value="All">All Pass Types</option>
@@ -618,9 +822,8 @@ export function AdminGym() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-800">{pass.guestName}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">{pass.guestPhone}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          pass.passType === 'Day Pass' ? 'bg-amber-50 text-amber-700' : 'bg-indigo-50 text-indigo-700'
-                        }`}>
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${pass.passType === 'Day Pass' ? 'bg-amber-50 text-amber-700' : 'bg-indigo-50 text-indigo-700'
+                          }`}>
                           {pass.passType}
                         </span>
                       </td>
@@ -629,15 +832,24 @@ export function AdminGym() {
                         {new Date(pass.validDate).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          pass.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                        }`}>
-                          {pass.status === 'Active' ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                          {pass.status}
-                        </span>
+                        {(() => {
+                          const currentStatus = getPassStatus(pass);
+                          const isActive = currentStatus === 'Active';
+                          const isExpired = currentStatus === 'Expired';
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              isActive ? 'bg-emerald-50 text-emerald-700' : 
+                              isExpired ? 'bg-amber-50 text-amber-700 border border-amber-200' : 
+                              'bg-red-50 text-red-700'
+                            }`}>
+                              {isActive ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                              {currentStatus}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <button 
+                        <button
                           onClick={() => {
                             setNewPass(pass);
                             setIsQrModalOpen(true);
@@ -648,15 +860,15 @@ export function AdminGym() {
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm flex justify-end gap-1.5">
-                        <button 
-                          onClick={() => handleEditClick(pass)} 
+                        <button
+                          onClick={() => handleEditClick(pass)}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
                           title="Edit Pass"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDeletePass(pass._id)} 
+                        <button
+                          onClick={() => handleDeletePass(pass._id)}
                           className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
                           title="Delete Pass"
                         >
@@ -681,7 +893,7 @@ export function AdminGym() {
       {/* RENDER MEMBERS REGISTRY TAB */}
       {activeTab === 'members' && (
         <div className="space-y-6">
-          
+
           {/* Members Stats */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
@@ -729,12 +941,12 @@ export function AdminGym() {
             <div className="border-b border-slate-100 p-6">
               <div className="relative">
                 <Search className="absolute top-1/2 left-3 w-5 h-5 text-slate-400 -translate-y-1/2" />
-                <input 
-                  type="text" 
-                  placeholder="Search members by name, phone, or Member ID..." 
-                  value={memberSearchTerm} 
-                  onChange={(e) => setMemberSearchTerm(e.target.value)} 
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm" 
+                <input
+                  type="text"
+                  placeholder="Search members by name, phone, or Member ID..."
+                  value={memberSearchTerm}
+                  onChange={(e) => setMemberSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none transition-all text-sm"
                 />
               </div>
             </div>
@@ -781,23 +993,22 @@ export function AdminGym() {
                         {new Date(member.joinedDate).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          member.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${member.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                          }`}>
                           {member.status === 'Active' ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                           {member.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm flex justify-end gap-1.5">
-                        <button 
-                          onClick={() => handleEditMemberClick(member)} 
+                        <button
+                          onClick={() => handleEditMemberClick(member)}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
                           title="Edit Profile"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDeleteMember(member._id)} 
+                        <button
+                          onClick={() => handleDeleteMember(member._id)}
                           className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
                           title="Delete Member"
                         >
@@ -850,7 +1061,7 @@ export function AdminGym() {
               </div>
               <div>
                 <p className="text-sm text-slate-500 font-medium">Active Passes</p>
-                <h3 className="text-2xl font-bold text-slate-800">{passes.filter(p => p.status === 'Active').length}</h3>
+                <h3 className="text-2xl font-bold text-slate-800">{passes.filter(p => isPassActive(p)).length}</h3>
               </div>
             </div>
           </div>
@@ -858,10 +1069,59 @@ export function AdminGym() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Scanner Console */}
             <div className="lg:col-span-7 flex flex-col gap-6">
+              {scanResult && (
+                <div className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-350 ${scanResult.success
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-lg shadow-emerald-500/10'
+                  : 'bg-red-50 border-red-200 text-red-800 shadow-lg shadow-red-500/10'
+                  }`}>
+                  <div className="flex items-start gap-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${scanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                      }`}>
+                      {scanResult.success ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
+                    </div>
+                    <div className="flex-grow">
+                      <h3 className="text-base font-bold uppercase tracking-wider">
+                        {scanResult.success ? 'Access Granted' : 'Access Denied'}
+                      </h3>
+                      <p className="text-sm font-semibold mt-1 text-slate-700">{scanResult.message}</p>
+                    </div>
+                    <button
+                      onClick={() => setScanResult(null)}
+                      className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+                      type="button"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {attendanceFetchError && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold flex justify-between items-center animate-in fade-in slide-in-from-top-4 duration-350">
+                  <span>{attendanceFetchError}</span>
+                  <button
+                    onClick={() => setAttendanceFetchError(null)}
+                    className="text-red-500 hover:text-red-700 transition-colors p-1"
+                    type="button"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
               {/* Camera viewfinder */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between aspect-video group">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between aspect-video group" style={{ minHeight: '320px' }}>
+                <style>{`
+                  #gym-scanner-viewport video {
+                    width: 100% !important;
+                    height: 100% !important;
+                    object-fit: cover !important;
+                    border-radius: 1.5rem !important;
+                  }
+                `}</style>
+                <div id="gym-scanner-viewport" className="absolute inset-0 w-full h-full bg-slate-950" style={{ opacity: cameraActive ? 1 : 0 }} />
                 {cameraActive && (
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent animate-pulse pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent animate-pulse pointer-events-none z-10" />
                 )}
                 <div className="flex justify-between items-center z-10">
                   <span className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-white">
@@ -870,7 +1130,7 @@ export function AdminGym() {
                   </span>
                   <button
                     onClick={() => setCameraActive(!cameraActive)}
-                    className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl text-slate-300 transition-colors"
+                    className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-xl text-slate-300 transition-colors z-10"
                     title="Toggle Viewfinder"
                   >
                     <Camera className="w-4 h-4" />
@@ -878,14 +1138,22 @@ export function AdminGym() {
                 </div>
                 <div className="flex flex-col items-center justify-center py-6 flex-grow z-10">
                   {cameraActive ? (
-                    <div className="w-44 h-44 border-2 border-dashed border-[#D4AF37] rounded-3xl flex items-center justify-center relative animate-pulse">
-                      <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#D4AF37] rounded-tl" />
-                      <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#D4AF37] rounded-tr" />
-                      <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#D4AF37] rounded-bl" />
-                      <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#D4AF37] rounded-br" />
-                      <div className="w-full h-0.5 bg-[#D4AF37]/80 absolute top-1/2 left-0 shadow-lg shadow-[#D4AF37]/50" style={{ transform: 'translateY(-50%)' }} />
-                      <QrCode className="w-16 h-16 text-[#D4AF37]/45" />
-                    </div>
+                    cameraError ? (
+                      <div className="flex flex-col items-center gap-2 text-center px-6 py-4 bg-red-950/85 border border-red-500/50 rounded-2xl max-w-xs shadow-lg shadow-red-950/50">
+                        <ShieldAlert className="w-10 h-10 text-red-400 font-bold animate-bounce" />
+                        <h4 className="text-xs font-bold text-red-200 uppercase tracking-wider">Scanner Error</h4>
+                        <p className="text-[10px] font-semibold text-red-300/90 leading-relaxed">{cameraError}</p>
+                      </div>
+                    ) : (
+                      <div className="w-44 h-44 border-2 border-dashed border-[#D4AF37] rounded-3xl flex items-center justify-center relative animate-pulse">
+                        <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#D4AF37] rounded-tl" />
+                        <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#D4AF37] rounded-tr" />
+                        <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#D4AF37] rounded-bl" />
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#D4AF37] rounded-br" />
+                        <div className="w-full h-0.5 bg-[#D4AF37]/80 absolute top-1/2 left-0 shadow-lg shadow-[#D4AF37]/50" style={{ transform: 'translateY(-50%)' }} />
+                        <QrCode className="w-16 h-16 text-[#D4AF37]/45" />
+                      </div>
+                    )
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-slate-500 py-10">
                       <Play className="w-10 h-10 text-slate-600" />
@@ -893,8 +1161,8 @@ export function AdminGym() {
                     </div>
                   )}
                 </div>
-                <div className="text-center z-10">
-                  <p className="text-xs font-semibold text-slate-400">Position QR Code in scanner box for automatic entry check-in</p>
+                <div className="text-center z-10 bg-black/40 backdrop-blur-sm py-2 rounded-xl">
+                  <p className="text-xs font-semibold text-slate-200">Position QR Code in scanner box for automatic entry check-in</p>
                 </div>
               </div>
 
@@ -923,35 +1191,6 @@ export function AdminGym() {
                   </button>
                 </form>
               </div>
-
-              {/* Scan Result */}
-              {scanResult && (
-                <div className={`p-6 rounded-2xl border transition-all ${
-                  scanResult.success
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-lg shadow-emerald-500/10'
-                    : 'bg-red-50 border-red-200 text-red-800 shadow-lg shadow-red-500/10'
-                }`}>
-                  <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                      scanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
-                    }`}>
-                      {scanResult.success ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold uppercase tracking-wider">
-                        {scanResult.success ? 'Access Granted' : 'Access Denied'}
-                      </h3>
-                      <p className="text-sm font-semibold mt-1 text-slate-700">{scanResult.message}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {attendanceFetchError && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold">
-                  {attendanceFetchError}
-                </div>
-              )}
             </div>
 
             {/* Attendance Log */}
@@ -979,11 +1218,13 @@ export function AdminGym() {
                       <div className="text-right shrink-0">
                         <span className="text-xs font-bold text-slate-600 block">{log.roomNumber ? `Room ${log.roomNumber}` : 'Walk-in'}</span>
                         <span className="text-[10px] text-slate-400 mt-0.5 block">
-                          {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          In: {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {log.checkOutTime && ` | Out: ${new Date(log.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                         </span>
                       </div>
                     </div>
                   ))}
+
                   {isAttendanceLoading && (
                     <div className="py-12 text-center text-slate-500 text-xs font-medium">Loading activity...</div>
                   )}
@@ -997,7 +1238,7 @@ export function AdminGym() {
         </div>
       )}
 
-      {/* MODAL: Issue Gym Pass (Enforces selection for monthly, allows typing for day pass) */}
+      {/*Issue Gym Pass (Enforces selection for monthly, allows typing for day pass) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl my-4 border border-white/20 flex flex-col max-h-[90vh] overflow-hidden">
@@ -1007,24 +1248,24 @@ export function AdminGym() {
                 <h2 className="text-2xl" style={{ fontFamily: "DM Serif Display, serif" }}>{editId ? 'Edit Gym Pass' : 'Issue Gym Pass'}</h2>
                 <p className="text-[#D4AF37] text-xs uppercase tracking-widest mt-1">{editId ? 'Modify Details' : 'Gym Management'}</p>
               </div>
-              <button 
-                type="button" 
-                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white" 
+              <button
+                type="button"
+                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white"
                 onClick={() => setIsModalOpen(false)}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form 
+            <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (formData.passType === 'Monthly Member' && !formData.guestName) {
-                  setSubmitError('A registered gym member is required to issue a Monthly Membership pass!');
-                  return;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
                 }
-                handleSubmitPass(e);
-              }} 
+              }}
               className="p-8 overflow-y-auto space-y-5"
             >
               {submitError && (
@@ -1035,24 +1276,26 @@ export function AdminGym() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-600 ml-1">Pass / Membership Type</label>
-                <select 
-                  name="passType" 
-                  value={formData.passType} 
+                <select
+                  name="passType"
+                  value={formData.passType}
                   onChange={(e) => {
                     handleFormChange(e);
                     // Clear autofills on switch
+                    //clear autofills 
                     setFormData(prev => ({
                       ...prev,
                       passType: e.target.value,
                       guestName: '',
                       guestPhone: '',
+                      guestEmail: '',
                       validDays: e.target.value === 'Day Pass' ? '1' : '30'
                     }));
-                  }} 
+                  }}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                 >
-                  <option value="Day Pass">One-Day Gym Pass (Rs. 1,000) [Anonymous]</option>
-                  <option value="Monthly Member">Monthly Membership (Rs. 8,000) [Enforced Registry]</option>
+                  <option value="Day Pass">One-Day Gym Pass (Rs. 1,000)</option>
+                  <option value="Monthly Member">Monthly Membership (Rs. 8,000)</option>
                 </select>
               </div>
 
@@ -1060,7 +1303,7 @@ export function AdminGym() {
               {!editId && formData.passType === 'Monthly Member' && (
                 <div className="flex flex-col gap-1.5 bg-amber-500/5 border border-amber-500/10 p-4 rounded-xl">
                   <label className="text-xs font-bold text-slate-700 ml-1">Select Registered Active Member <span className="text-red-500">*</span></label>
-                  <select 
+                  <select
                     onChange={handleMemberSelectChange}
                     required
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
@@ -1070,11 +1313,12 @@ export function AdminGym() {
                       <option key={m._id} value={m._id}>{m.name} ({m.phone})</option>
                     ))}
                   </select>
-                  
+
                   {formData.guestName && (
                     <div className="mt-3 p-3 bg-white border border-slate-100 rounded-xl text-xs space-y-1">
                       <div>👤 <span className="font-bold text-slate-700">Selected:</span> {formData.guestName}</div>
                       <div>📞 <span className="font-bold text-slate-700">Phone:</span> {formData.guestPhone}</div>
+                      {formData.guestEmail && <div>✉️ <span className="font-bold text-slate-700">Email:</span> {formData.guestEmail}</div>}
                       <div className="text-[10px] text-slate-400 mt-1 uppercase font-bold">Details fetched securely from members database.</div>
                     </div>
                   )}
@@ -1086,26 +1330,39 @@ export function AdminGym() {
                 <>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-600 ml-1">Guest Full Name</label>
-                    <input 
-                      type="text" 
-                      name="guestName" 
-                      value={formData.guestName} 
-                      onChange={handleFormChange} 
-                      required 
-                      placeholder="Enter guest's full name (no registration required)" 
+                    <input
+                      type="text"
+                      name="guestName"
+                      value={formData.guestName}
+                      onChange={handleFormChange}
+                      required
+                      placeholder="Enter guest's full name (no registration required)"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-600 ml-1">Contact Phone Number</label>
-                    <input 
-                      type="tel" 
-                      name="guestPhone" 
-                      value={formData.guestPhone} 
-                      onChange={handleFormChange} 
-                      required 
-                      placeholder="e.g. +94771234567" 
+                    <label className="text-xs font-bold text-slate-700 ml-1">Contact Phone Number <span className="text-red-500">*</span></label>
+                    <input
+                      type="tel"
+                      name="guestPhone"
+                      value={formData.guestPhone}
+                      onChange={handleFormChange}
+                      required
+                      placeholder="e.g. +94771234567"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 ml-1">Contact Email Address <span className="text-red-500">*</span></label>
+                    <input
+                      type="email"
+                      name="guestEmail"
+                      value={formData.guestEmail}
+                      onChange={handleFormChange}
+                      required
+                      placeholder="e.g. guest@example.com"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
@@ -1115,6 +1372,7 @@ export function AdminGym() {
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm">
                     <div className="font-semibold text-slate-800">Member: {formData.guestName}</div>
                     <div className="text-xs text-slate-500 mt-1">Phone: {formData.guestPhone}</div>
+                    {formData.guestEmail && <div className="text-xs text-slate-500 mt-1">Email: {formData.guestEmail}</div>}
                   </div>
                 )
               )}
@@ -1122,25 +1380,25 @@ export function AdminGym() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-600 ml-1">Room Number (Optional)</label>
-                  <input 
-                    type="text" 
-                    name="roomNumber" 
-                    value={formData.roomNumber} 
-                    onChange={handleFormChange} 
-                    placeholder="e.g. 102" 
+                  <input
+                    type="text"
+                    name="roomNumber"
+                    value={formData.roomNumber}
+                    onChange={handleFormChange}
+                    placeholder="e.g. 102"
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-600 ml-1">{editId ? 'Extend Validity (Days)' : 'Validity (Days)'}</label>
-                  <input 
-                    type="number" 
-                    name="validDays" 
-                    value={formData.validDays} 
-                    onChange={handleFormChange} 
-                    min="0" 
-                    required 
+                  <input
+                    type="number"
+                    name="validDays"
+                    value={formData.validDays}
+                    onChange={handleFormChange}
+                    min="0"
+                    required
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                   />
                 </div>
@@ -1148,10 +1406,10 @@ export function AdminGym() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-600 ml-1">Payment Status</label>
-                <select 
-                  name="paymentStatus" 
-                  value={formData.paymentStatus} 
-                  onChange={handleFormChange} 
+                <select
+                  name="paymentStatus"
+                  value={formData.paymentStatus}
+                  onChange={handleFormChange}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                 >
                   <option value="Paid">Paid / Confirmed</option>
@@ -1162,30 +1420,37 @@ export function AdminGym() {
               {editId && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-600 ml-1">Activation Status</label>
-                  <select 
-                    name="status" 
-                    value={formData.status} 
-                    onChange={handleFormChange} 
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleFormChange}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                   >
                     <option value="Active">Active</option>
                     <option value="Expired">Expired</option>
-                    <option value="Cancelled">Cancelled</option>
+
                   </select>
                 </div>
               )}
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)} 
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
                   className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="button"
                   disabled={isSubmitting}
+                  onClick={(e) => {
+                    if (formData.passType === 'Monthly Member' && !formData.guestName) {
+                      setSubmitError('A registered gym member is required to issue a Monthly Membership pass!');
+                      return;
+                    }
+                    handleSubmitPass(e);
+                  }}
                   className="px-8 py-2.5 bg-[#D4AF37] hover:bg-[#b8962d] text-slate-900 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 shadow-md shadow-[#D4AF37]/20"
                 >
                   {isSubmitting ? 'Submitting...' : editId ? 'Save Changes' : 'Issue Pass'}
@@ -1206,9 +1471,9 @@ export function AdminGym() {
                 <h2 className="text-2xl" style={{ fontFamily: "DM Serif Display, serif" }}>{editMemberId ? 'Edit Gym Member' : 'Register Gym Member'}</h2>
                 <p className="text-[#D4AF37] text-xs uppercase tracking-widest mt-1">{editMemberId ? 'Modify Member Profile' : 'Gym Registry'}</p>
               </div>
-              <button 
-                type="button" 
-                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white" 
+              <button
+                type="button"
+                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white"
                 onClick={() => setIsMemberModalOpen(false)}
               >
                 <X className="w-5 h-5" />
@@ -1216,22 +1481,22 @@ export function AdminGym() {
             </div>
 
             {/* Stepper Progress Bar */}
+
+
             <div className="px-8 pt-6 pb-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
               {[1, 2, 3].map((s) => (
                 <React.Fragment key={s}>
                   <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
-                      regStep === s 
-                        ? 'bg-[#0F172A] text-[#D4AF37] ring-4 ring-[#D4AF37]/20 shadow-md' 
-                        : regStep > s 
-                        ? 'bg-emerald-500 text-white shadow-sm' 
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${regStep === s
+                      ? 'bg-[#0F172A] text-[#D4AF37] ring-4 ring-[#D4AF37]/20 shadow-md'
+                      : regStep > s
+                        ? 'bg-emerald-500 text-white shadow-sm'
                         : 'bg-slate-200 text-slate-500'
-                    }`}>
+                      }`}>
                       {regStep > s ? <Check className="w-4 h-4" /> : s}
                     </div>
-                    <span className={`text-xs font-bold ${
-                      regStep === s ? 'text-slate-800' : 'text-slate-400'
-                    }`}>
+                    <span className={`text-xs font-bold ${regStep === s ? 'text-slate-800' : 'text-slate-400'
+                      }`}>
                       {s === 1 ? 'Contact Info' : s === 2 ? 'Identity & Address' : 'Health & Emergency'}
                     </span>
                   </div>
@@ -1240,17 +1505,15 @@ export function AdminGym() {
               ))}
             </div>
 
-            <form 
+            <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (regStep < 3) {
-                  // If they press Enter early, increment step instead of submitting
-                  if (regStep === 1 && (!memberFormData.name || !memberFormData.phone)) return;
-                  setRegStep(prev => prev + 1);
-                  return;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
                 }
-                handleMemberSubmit(e);
-              }} 
+              }}
               className="p-8 overflow-y-auto space-y-5 flex-1"
             >
               {memberSubmitError && (
@@ -1266,41 +1529,41 @@ export function AdminGym() {
                     <h3 className="text-sm font-bold text-slate-800">Step 1: Contact details</h3>
                     <p className="text-xs text-slate-500 mt-0.5">Please provide the member's full name and mobile phone numbers to create their communication logs.</p>
                   </div>
-                  
+
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">Member Full Name <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
-                      name="name" 
-                      value={memberFormData.name} 
-                      onChange={handleMemberFormChange} 
-                      required 
-                      placeholder="Enter full name" 
+                    <input
+                      type="text"
+                      name="name"
+                      value={memberFormData.name}
+                      onChange={handleMemberFormChange}
+                      required
+                      placeholder="Enter full name"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">Phone Number <span className="text-red-500">*</span></label>
-                    <input 
-                      type="tel" 
-                      name="phone" 
-                      value={memberFormData.phone} 
-                      onChange={handleMemberFormChange} 
-                      required 
-                      placeholder="e.g. +94771234567" 
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={memberFormData.phone}
+                      onChange={handleMemberFormChange}
+                      required
+                      placeholder="e.g. +94771234567"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-600 ml-1">Email Address</label>
-                    <input 
-                      type="email" 
-                      name="email" 
-                      value={memberFormData.email} 
-                      onChange={handleMemberFormChange} 
-                      placeholder="e.g. member@email.com" 
+                    <label className="text-xs font-bold text-slate-700 ml-1">Email Address <span className="text-red-500">*</span></label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={memberFormData.email}
+                      onChange={handleMemberFormChange}
+                      placeholder="e.g. member@email.com"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
@@ -1317,23 +1580,23 @@ export function AdminGym() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-600 ml-1">NIC / Passport Number</label>
-                      <input 
-                        type="text" 
-                        name="nic" 
-                        value={memberFormData.nic} 
-                        onChange={handleMemberFormChange} 
-                        placeholder="e.g. 199512345678 or N123456" 
+                      <label className="text-xs font-bold text-slate-700 ml-1">NIC / Passport Number <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        name="nic"
+                        value={memberFormData.nic}
+                        onChange={handleMemberFormChange}
+                        placeholder="e.g. 199512345678 or N123456"
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-600 ml-1">Gender</label>
-                      <select 
-                        name="gender" 
-                        value={memberFormData.gender} 
-                        onChange={handleMemberFormChange} 
+                      <select
+                        name="gender"
+                        value={memberFormData.gender}
+                        onChange={handleMemberFormChange}
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                       >
                         <option value="Male">Male</option>
@@ -1344,24 +1607,24 @@ export function AdminGym() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-600 ml-1">Date of Birth</label>
-                    <input 
-                      type="date" 
-                      name="dob" 
-                      value={memberFormData.dob} 
-                      onChange={handleMemberFormChange} 
+                    <label className="text-xs font-bold text-slate-700 ml-1">Date of Birth <span className="text-red-500">*</span></label>
+                    <input
+                      type="date"
+                      name="dob"
+                      value={memberFormData.dob}
+                      onChange={handleMemberFormChange}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800 text-slate-500"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-600 ml-1">Home Address</label>
-                    <input 
-                      type="text" 
-                      name="address" 
-                      value={memberFormData.address} 
-                      onChange={handleMemberFormChange} 
-                      placeholder="Enter residential address" 
+                    <input
+                      type="text"
+                      name="address"
+                      value={memberFormData.address}
+                      onChange={handleMemberFormChange}
+                      placeholder="Enter residential address"
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
@@ -1379,24 +1642,24 @@ export function AdminGym() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-amber-500/5 p-4 rounded-xl border border-amber-500/10">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-amber-950 ml-1">Emergency Contact Name</label>
-                      <input 
-                        type="text" 
-                        name="emergencyName" 
-                        value={memberFormData.emergencyName} 
-                        onChange={handleMemberFormChange} 
-                        placeholder="Person name" 
+                      <input
+                        type="text"
+                        name="emergencyName"
+                        value={memberFormData.emergencyName}
+                        onChange={handleMemberFormChange}
+                        placeholder="Person name"
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-amber-950 ml-1">Emergency Phone</label>
-                      <input 
-                        type="tel" 
-                        name="emergencyPhone" 
-                        value={memberFormData.emergencyPhone} 
-                        onChange={handleMemberFormChange} 
-                        placeholder="Contact number" 
+                      <input
+                        type="tel"
+                        name="emergencyPhone"
+                        value={memberFormData.emergencyPhone}
+                        onChange={handleMemberFormChange}
+                        placeholder="Contact number"
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                       />
                     </div>
@@ -1404,22 +1667,22 @@ export function AdminGym() {
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-600 ml-1">Medical/Health Notes</label>
-                    <input 
-                      type="text" 
-                      name="medicalNotes" 
-                      value={memberFormData.medicalNotes} 
-                      onChange={handleMemberFormChange} 
-                      placeholder="e.g. cardiac conditions, allergies, bone issues..." 
+                    <input
+                      type="text"
+                      name="medicalNotes"
+                      value={memberFormData.medicalNotes}
+                      onChange={handleMemberFormChange}
+                      placeholder="e.g. cardiac conditions, allergies, bone issues..."
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-600 ml-1">Membership Status</label>
-                    <select 
-                      name="status" 
-                      value={memberFormData.status} 
-                      onChange={handleMemberFormChange} 
+                    <select
+                      name="status"
+                      value={memberFormData.status}
+                      onChange={handleMemberFormChange}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                     >
                       <option value="Active">Active / Registered</option>
@@ -1433,9 +1696,9 @@ export function AdminGym() {
               <div className="flex justify-between items-center pt-6 border-t border-slate-100 mt-6">
                 <div>
                   {regStep > 1 && (
-                    <button 
-                      type="button" 
-                      onClick={() => setRegStep(prev => prev - 1)} 
+                    <button
+                      type="button"
+                      onClick={() => setRegStep(prev => prev - 1)}
                       className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition-colors"
                     >
                       Back
@@ -1444,22 +1707,54 @@ export function AdminGym() {
                 </div>
 
                 <div className="flex gap-3">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsMemberModalOpen(false)} 
+                  <button
+                    type="button"
+                    onClick={() => setIsMemberModalOpen(false)}
                     className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition-colors"
                   >
                     Cancel
                   </button>
 
                   {regStep < 3 ? (
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => {
-                        if (regStep === 1 && (!memberFormData.name || !memberFormData.phone)) {
-                          setMemberSubmitError('Name and Phone are mandatory to proceed!');
-                          return;
+                        if (regStep === 1) {
+                          if (!memberFormData.name || !memberFormData.phone || !memberFormData.email) {
+                            setMemberSubmitError('Name, Phone number, and Email address are required!');
+                            return;
+                          }
+                          const phoneRegex = /^(?:\+94|0)?7[0-9]{8}$/;
+                          if (!phoneRegex.test(memberFormData.phone)) {
+                            setMemberSubmitError('Please enter a valid Sri Lankan mobile number (e.g. 0771234567 or +94771234567).');
+                            return;
+                          }
+                          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                          if (!emailRegex.test(memberFormData.email)) {
+                            setMemberSubmitError('Please enter a valid email address.');
+                            return;
+                          }
                         }
+
+                        if (regStep === 2) {
+                          if (!memberFormData.nic || !memberFormData.dob) {
+                            setMemberSubmitError('NIC/Passport number and Date of Birth are required!');
+                            return;
+                          }
+                          const nicOrPassport = memberFormData.nic.trim();
+                          const nicRegex = /^(?:\d{9}[vVxX]|\d{12})$/;
+                          const passportRegex = /^[A-Za-z0-9]{7,12}$/;
+                          if (!nicRegex.test(nicOrPassport) && !passportRegex.test(nicOrPassport)) {
+                            setMemberSubmitError('Please enter a valid NIC (e.g. 9 digits + V/X or 12 digits) or a valid Passport number (7-12 alphanumeric characters).');
+                            return;
+                          }
+                          const birthDate = new Date(memberFormData.dob);
+                          if (isNaN(birthDate.getTime()) || birthDate > new Date()) {
+                            setMemberSubmitError('Date of Birth cannot be in the future.');
+                            return;
+                          }
+                        }
+
                         setMemberSubmitError('');
                         setRegStep(prev => prev + 1);
                       }}
@@ -1468,9 +1763,10 @@ export function AdminGym() {
                       Next Step
                     </button>
                   ) : (
-                    <button 
-                      type="submit" 
+                    <button
+                      type="button"
                       disabled={isMemberSubmitting}
+                      onClick={(e) => handleMemberSubmit(e)}
                       className="px-8 py-2.5 bg-[#D4AF37] hover:bg-[#b8962d] text-slate-900 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 shadow-md shadow-[#D4AF37]/20"
                     >
                       {isMemberSubmitting ? 'Registering...' : editMemberId ? 'Save Changes' : 'Complete Registration'}
@@ -1493,9 +1789,9 @@ export function AdminGym() {
                 <h2 className="text-xl" style={{ fontFamily: "DM Serif Display, serif" }}>Pass QR Generated</h2>
                 <p className="text-[#D4AF37] text-xs uppercase tracking-widest mt-1">Ready for Entrance Scan</p>
               </div>
-              <button 
-                type="button" 
-                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white" 
+              <button
+                type="button"
+                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white"
                 onClick={() => setIsQrModalOpen(false)}
               >
                 <X className="w-5 h-5" />
@@ -1504,9 +1800,9 @@ export function AdminGym() {
 
             <div className="p-8 flex flex-col items-center text-center space-y-6">
               <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 shadow-inner flex justify-center items-center">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${newPass.qrCodeKey}`} 
-                  alt="Guest Gym Pass QR Code" 
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${newPass.qrCodeKey}`}
+                  alt="Guest Gym Pass QR Code"
                   className="w-48 h-48 block"
                 />
               </div>
@@ -1524,7 +1820,7 @@ export function AdminGym() {
                 <div>📅 <span className="font-bold text-slate-700">Expires:</span> {new Date(newPass.validDate).toLocaleString()}</div>
               </div>
 
-              <button 
+              <button
                 onClick={() => window.print()}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#0F172A] hover:bg-slate-800 text-white rounded-xl font-bold text-sm transition-colors shadow-lg"
               >

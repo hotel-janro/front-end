@@ -18,7 +18,7 @@ import { apiFetch, API_HOST, getImageUrl } from '../../../api.js';
 import { ImageWithFallback } from '../../../components/common/ImageWithFallback.jsx';
 import { toast } from 'sonner';
 
-export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
+export default function AddMenuItemForm({ initialItem, existingCategories = [], onSaved, onCancel }) {
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -29,8 +29,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     prepTime: '15',
     hasPortions: false,
     portions: [
-      { portionType: 'Full', price: '' },
-      { portionType: 'Half', price: '' }
+      { portionType: 'Regular', price: '' }
     ]
   });
   const [imageFile, setImageFile] = useState(null);
@@ -49,9 +48,8 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
         isAvailable: initialItem.isAvailable !== undefined ? initialItem.isAvailable : true,
         prepTime: initialItem.prepTime || '15',
         hasPortions: initialItem.hasPortions || false,
-        portions: initialItem.hasPortions ? initialItem.portions : [
-          { portionType: 'Full', price: '' },
-          { portionType: 'Half', price: '' }
+        portions: initialItem.hasPortions && initialItem.portions?.length > 0 ? initialItem.portions : [
+          { portionType: 'Regular', price: '' }
         ]
       });
       if (initialItem.image) {
@@ -67,8 +65,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
         prepTime: '15',
         hasPortions: false,
         portions: [
-          { portionType: 'Full', price: '' },
-          { portionType: 'Half', price: '' }
+          { portionType: 'Regular', price: '' }
         ]
       });
       setImagePreview(null);
@@ -105,10 +102,14 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     if (!formData.name.trim()) newErrors.name = 'Dish name is required';
 
     if (formData.hasPortions) {
-      const fullPortion = formData.portions.find(p => p.portionType === 'Full');
-      const halfPortion = formData.portions.find(p => p.portionType === 'Half');
-      if (!fullPortion?.price || Number(fullPortion.price) <= 0) newErrors.fullPrice = 'Full price required';
-      if (!halfPortion?.price || Number(halfPortion.price) <= 0) newErrors.halfPrice = 'Half price required';
+      if (!formData.portions || formData.portions.length === 0) {
+        newErrors.portions = 'At least one size is required';
+      } else {
+        formData.portions.forEach((p, index) => {
+          if (!p.portionType?.trim()) newErrors[`portionType_${index}`] = 'Size name required';
+          if (!p.price || Number(p.price) <= 0) newErrors[`portionPrice_${index}`] = 'Valid price required';
+        });
+      }
     } else {
       if (!formData.price || Number(formData.price) <= 0) newErrors.price = 'Valid price required';
     }
@@ -152,21 +153,33 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
     }
   };
 
-  // Helper to update specific portion price
-  const updatePortionPrice = (type, price) => {
+  // Helpers to update portions
+  const updatePortion = (index, field, value) => {
+    setFormData(prev => {
+      const newPortions = [...prev.portions];
+      newPortions[index] = { ...newPortions[index], [field]: value };
+      return { ...prev, portions: newPortions };
+    });
+  };
+
+  const addPortion = () => {
     setFormData(prev => ({
       ...prev,
-      portions: prev.portions.map(p => p.portionType === type ? { ...p, price } : p)
+      portions: [...prev.portions, { portionType: '', price: '' }]
     }));
-    if (errors.fullPrice || errors.halfPrice) {
-      setErrors(prev => ({ ...prev, fullPrice: null, halfPrice: null }));
-    }
+  };
+
+  const removePortion = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      portions: prev.portions.filter((_, i) => i !== index)
+    }));
   };
 
   return (
-    <div className="bg-[#0F172A] rounded-[2.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border border-white/10 max-w-6xl w-full mx-auto animate-in zoom-in-95 duration-500">
+    <div className="bg-[#0F172A] rounded-[2rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border border-white/10 max-w-4xl w-full mx-auto animate-in zoom-in-95 duration-500">
       {/* Header Section */}
-      <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+      <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-[#D4AF37] flex items-center justify-center shadow-lg shadow-[#D4AF37]/20">
             <UtensilsCrossed className="w-6 h-6 text-[#0F172A]" />
@@ -183,12 +196,12 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-8">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <form onSubmit={handleSubmit} className="p-6">
+        <div className="grid lg:grid-cols-2 gap-5">
 
-          {/* Form Content - Name, Category, Prep Time */}
-          <div className="space-y-6">
-            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-4">
+          {/* Left Column: Details & Description */}
+          <div className="space-y-4 flex flex-col">
+            <div className="p-4 bg-white/[0.03] rounded-[1.5rem] border border-white/5 space-y-3">
               <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
                 <Sparkles className="w-3 h-3" /> Basic Identity
               </h3>
@@ -199,38 +212,48 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
                   value={formData.name}
                   onChange={e => handleInputChange('name', e.target.value)}
                   placeholder="Lobster Thermidor..."
-                  className={`w-full bg-white/5 border ${errors.name ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] transition-all`}
+                  className={`w-full bg-white/5 border ${errors.name ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-[#D4AF37] transition-all`}
                 />
                 {errors.name && <p className="text-[9px] text-rose-500 ml-1">{errors.name}</p>}
               </div>
 
-              <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Cuisine Group</label>
-                <select
+                <input
+                  list="cuisine-categories"
                   value={formData.category}
                   onChange={e => handleInputChange('category', e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37]"
-                >
-                  {['Main Course', 'Bites', 'Desserts', 'Beverages'].map(c => <option key={c} value={c} className="text-black">{c}</option>)}
-                </select>
+                  placeholder="Type or select a category..."
+                  className={`w-full bg-white/5 border ${errors.category ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-[#D4AF37] transition-all`}
+                />
+                <datalist id="cuisine-categories">
+                  {Array.from(new Set([
+                    'Rice', 'Koththu', 'Noodles', 'Chicken', 'Fish', 'Prawns', 'Cuttle Fish', 
+                    'Mutton', 'Pork', 'Omelet', 'Vegetables & Sides', 'Salad', 'Soup', 
+                    'Starters', 'Outdoor Party', 'Beverages', 'Desserts', 
+                    ...existingCategories
+                  ])).map(c => <option key={c} value={c} />)}
+                </datalist>
+                {errors.category && <p className="text-[9px] text-rose-500 ml-1">{errors.category}</p>}
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Prep Time (Min)</label>
-                <div className="relative">
-                  <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-                  <input
-                    type="number"
-                    value={formData.prepTime}
-                    onChange={e => handleInputChange('prepTime', e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37]"
-                  />
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Prep Time (Min)</label>
+                  <div className="relative">
+                    <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                    <input
+                      type="number"
+                      value={formData.prepTime}
+                      onChange={e => handleInputChange('prepTime', e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-white outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Visibility Settings */}
-            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 flex items-center justify-between">
+            <div className="p-4 bg-white/[0.03] rounded-[1.5rem] border border-white/5 flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-black text-white uppercase tracking-widest">Visibility</p>
                 <p className="text-[8px] text-slate-500 font-bold uppercase mt-1">Live in Menu</p>
@@ -240,71 +263,7 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
                 <div className="w-10 h-5 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-slate-400 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D4AF37] peer-checked:after:bg-white"></div>
               </label>
             </div>
-          </div>
 
-          {/* Pricing and Portion Logic */}
-          <div className="space-y-6">
-            <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-5">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
-                  <DollarSign className="w-3 h-3" /> Cost Structure
-                </h3>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl ${formData.hasPortions ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-white/5 text-slate-500'}`}>
-                    <Layers className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Multi-Portions</h3>
-                    <p className="text-[7px] text-slate-500 font-bold uppercase mt-0.5">Enable Full/Half pricing</p>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" checked={formData.hasPortions} onChange={e => handleInputChange('hasPortions', e.target.checked)} className="sr-only peer" />
-                  <div className="w-12 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-slate-400 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37] peer-checked:after:bg-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] peer-checked:shadow-[0_0_15px_rgba(212,175,55,0.3)]"></div>
-                </label>
-              </div>
-
-              {formData.hasPortions ? (
-                <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-300">
-                  <div className="space-y-1.5">
-                    <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Full Portion</label>
-                    <input
-                      type="number"
-                      value={formData.portions.find(p => p.portionType === 'Full')?.price || ''}
-                      onChange={e => updatePortionPrice('Full', e.target.value)}
-                      className={`w-full bg-white/5 border ${errors.fullPrice ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
-                      placeholder="Rs"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Half Portion</label>
-                    <input
-                      type="number"
-                      value={formData.portions.find(p => p.portionType === 'Half')?.price || ''}
-                      onChange={e => updatePortionPrice('Half', e.target.value)}
-                      className={`w-full bg-white/5 border ${errors.halfPrice ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
-                      placeholder="Rs"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Standard Price</label>
-                  <input
-                    type="number"
-                    value={formData.price}
-                    onChange={e => handleInputChange('price', e.target.value)}
-                    className={`w-full bg-white/5 border ${errors.price ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
-                    placeholder="Rs 0.00"
-                  />
-                  {errors.price && <p className="text-[9px] text-rose-500 ml-1">{errors.price}</p>}
-                </div>
-              )}
-            </div>
-
-            {/* Description Textarea */}
             <div className="p-6 bg-white/[0.03] rounded-[2rem] border border-white/5 space-y-4 flex-1">
               <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
                 <Layers className="w-3 h-3" /> The Story
@@ -314,15 +273,15 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
                 value={formData.description}
                 onChange={e => handleInputChange('description', e.target.value)}
                 placeholder="Textures, aromas, heritage..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-300 outline-none focus:border-[#D4AF37] resize-none h-[110px]"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-300 outline-none focus:border-[#D4AF37] resize-none flex-1 min-h-[120px]"
               />
             </div>
           </div>
 
-          {/* Image Upload and Preview */}
-          <div className="space-y-6">
-            <div className={`p-4 bg-white/[0.03] rounded-[2.5rem] border ${errors.image ? 'border-rose-500' : 'border-white/5'} relative group h-full flex flex-col`}>
-              <div className="relative aspect-square lg:aspect-auto lg:flex-1 rounded-[2rem] overflow-hidden bg-white/5 border border-white/10">
+          {/* Right Column: Image & Pricing */}
+            <div className="space-y-4 flex flex-col">
+              <div className={`p-3 bg-white/[0.03] rounded-[1.5rem] border ${errors.image ? 'border-rose-500' : 'border-white/5'} relative group h-32 md:h-48 flex-shrink-0 flex flex-col`}>
+              <div className="relative w-full h-full rounded-[2rem] overflow-hidden bg-white/5 border border-white/10">
                 {imagePreview ? (
                   <>
                     <ImageWithFallback src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
@@ -343,21 +302,85 @@ export default function AddMenuItemForm({ initialItem, onSaved, onCancel }) {
                   </label>
                 )}
               </div>
+            </div>
 
-              <div className="mt-4 px-2">
-                <div className="flex justify-between items-start gap-4">
-                  <h4 className="text-lg text-white font-normal truncate" style={{ fontFamily: "DM Serif Display, serif" }}>{formData.name || 'New Dish'}</h4>
-                  <p className="text-md font-black text-[#D4AF37] whitespace-nowrap">
-                    {formData.hasPortions ? 'Varied' : `Rs ${Number(formData.price || 0).toLocaleString()}`}
-                  </p>
+              <div className="p-4 bg-white/[0.03] rounded-[1.5rem] border border-white/5 space-y-4 flex-1 flex flex-col">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
+                    <DollarSign className="w-3 h-3" /> Cost Structure
+                  </h3>
                 </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5 mb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl ${formData.hasPortions ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-white/5 text-slate-500'}`}>
+                    <Layers className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Multi-Portions</h3>
+                    <p className="text-[7px] text-slate-500 font-bold uppercase mt-0.5">Custom portion sizes</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={formData.hasPortions} onChange={e => handleInputChange('hasPortions', e.target.checked)} className="sr-only peer" />
+                  <div className="w-12 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-slate-400 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37] peer-checked:after:bg-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] peer-checked:shadow-[0_0_15px_rgba(212,175,55,0.3)]"></div>
+                </label>
               </div>
+
+              {formData.hasPortions ? (
+                <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                  {formData.portions.map((portion, index) => (
+                    <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-4 items-end">
+                      <div className="space-y-1.5">
+                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Size (e.g. Full, Half, ml, L)</label>
+                        <input
+                          value={portion.portionType}
+                          onChange={e => updatePortion(index, 'portionType', e.target.value)}
+                          className={`w-full bg-white/5 border ${errors[`portionType_${index}`] ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
+                          placeholder="Size Name"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Price</label>
+                        <input
+                          type="number"
+                          value={portion.price}
+                          onChange={e => updatePortion(index, 'price', e.target.value)}
+                          onWheel={(e) => e.target.blur()}
+                          className={`w-full bg-white/5 border ${errors[`portionPrice_${index}`] ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
+                          placeholder="Rs"
+                        />
+                      </div>
+                      {formData.portions.length > 1 && (
+                        <button type="button" onClick={() => removePortion(index)} className="p-3 mb-[1px] bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-colors">
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" onClick={addPortion} className="w-full py-3 mt-2 border-2 border-dashed border-white/10 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-[#D4AF37] hover:text-[#D4AF37] transition-colors">
+                    + Add Another Size
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest ml-1">Standard Price</label>
+                  <input
+                    type="number"
+                    value={formData.price}
+                    onChange={e => handleInputChange('price', e.target.value)}
+                    onWheel={(e) => e.target.blur()}
+                    className={`w-full bg-white/5 border ${errors.price ? 'border-rose-500' : 'border-white/10'} rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-[#D4AF37] font-black`}
+                    placeholder="Rs 0.00"
+                  />
+                  {errors.price && <p className="text-[9px] text-rose-500 ml-1">{errors.price}</p>}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-10 flex items-center justify-end gap-6 pt-6 border-t border-white/5">
+        <div className="mt-8 flex items-center justify-end gap-6 pt-6 border-t border-white/5">
           <button
             type="button"
             onClick={onCancel}

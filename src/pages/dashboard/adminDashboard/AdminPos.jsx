@@ -22,7 +22,9 @@ import {
   Truck,
   Printer,
   Banknote,
-  TrendingUp
+  TrendingUp,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast, Toaster } from 'sonner';
@@ -35,7 +37,7 @@ const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefi
 const PosMenuItem = React.memo(({ item, handleAddVisualItem }) => {
   return (
     <div
-      className={`bg-[#1E293B] rounded-xl border border-white/5 flex flex-row items-center p-2.5 gap-3 hover:border-slate-500 transition-colors shadow-sm ${!item.isAvailable ? 'opacity-50 grayscale' : 'cursor-pointer'
+      className={`bg-white rounded-xl border border-slate-200 flex flex-row items-center p-2.5 gap-3 hover:border-slate-300 transition-colors shadow-sm ${!item.isAvailable ? 'opacity-50 grayscale' : 'cursor-pointer'
         }`}
       onClick={() => {
         if (!item.hasPortions && item.isAvailable) {
@@ -43,7 +45,7 @@ const PosMenuItem = React.memo(({ item, handleAddVisualItem }) => {
         }
       }}
     >
-      <div className="relative w-[70px] h-[70px] bg-slate-900 rounded-lg flex-shrink-0 overflow-hidden">
+      <div className="relative w-[70px] h-[70px] bg-slate-100 rounded-lg flex-shrink-0 overflow-hidden">
         {item.image ? (
           <img
             src={getImageUrl(item.image)}
@@ -58,15 +60,15 @@ const PosMenuItem = React.memo(({ item, handleAddVisualItem }) => {
           </div>
         )}
         {!item.isAvailable && (
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
-            <span className="text-[8px] font-black text-white uppercase tracking-widest bg-rose-500 px-1 rounded-sm">Out</span>
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-xs flex items-center justify-center">
+            <span className="text-[8px] font-black text-slate-900 uppercase tracking-widest bg-rose-500 px-1 rounded-sm">Out</span>
           </div>
         )}
       </div>
 
       <div className="flex-1 flex flex-col justify-center min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="font-bold text-white text-xs leading-tight line-clamp-2">{item.name}</h4>
+          <h4 className="font-bold text-slate-900 text-xs leading-tight line-clamp-2">{item.name}</h4>
           {!item.hasPortions && (
             <div className="text-xs font-black text-emerald-400 flex-shrink-0">{formatCurrency(item.price)}</div>
           )}
@@ -79,7 +81,7 @@ const PosMenuItem = React.memo(({ item, handleAddVisualItem }) => {
                 key={p.portionType}
                 disabled={!item.isAvailable}
                 onClick={() => handleAddVisualItem(item, p.portionType)}
-                className="px-2 py-1 bg-slate-800 hover:bg-[#D4AF37] hover:text-[#0F172A] border border-slate-700 text-slate-300 rounded-md text-[9px] font-black uppercase transition-colors"
+                className="px-2 py-1 bg-slate-100 hover:bg-[#D4AF37] hover:text-[#0F172A] border border-slate-200 text-slate-600 rounded-md text-[9px] font-black uppercase transition-colors"
               >
                 {p.portionType[0]}: {formatCurrency(p.price).replace('Rs ', '').split('.')[0]}
               </button>
@@ -102,10 +104,11 @@ const [validationErrors, setValidationErrors] = useState({});
 // Luxury Tabbed POS States
 const [activeTab, setActiveTab] = useState('terminal'); // 'terminal', 'kitchen', 'analytics'
 const [selectedCategory, setSelectedCategory] = useState('All');
+const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
 const [menuSearch, setMenuSearch] = useState('');
 const [portionModalItem, setPortionModalItem] = useState(null);
 const [currentPage, setCurrentPage] = useState(1);
-const itemsPerPage = 12;
+const itemsPerPage = 8;
 
 const clearError = (field) => {
   if (validationErrors[field]) {
@@ -555,7 +558,10 @@ const handlePrintReceipt = (order) => {
         <head>
           <title>${settings.hotelName} - Receipt #${order._id.slice(-8)}</title>
           <style>
-            @media print { @page { margin: 0; } body { margin: 0.2cm; } }
+            @media print { 
+              @page { size: 80mm auto; margin: 0; } 
+              body { margin: 0; padding: 2mm; width: 75mm; } 
+            }
             body { 
               font-family: 'Courier New', Courier, monospace; 
               font-size: 11px; 
@@ -801,7 +807,7 @@ const todayRevenue = todayOrders.filter(o => o.paymentStatus === 'Paid').reduce(
 
 // Helper sub-render functions for clean tabs layout
 const renderHeader = () => (
-  <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-white/5">
+  <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-200">
     <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-[#D4AF37]/5 rounded-full blur-[60px] -mr-16 -mt-16" />
 
     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -814,7 +820,7 @@ const renderHeader = () => (
         </h2>
       </div>
 
-      <div className="flex p-1 bg-slate-950 rounded-xl border border-white/10 shadow-lg">
+      <div className="flex p-1 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 shadow-lg">
         {[
           { id: 'terminal', label: 'Cashier Terminal', icon: ShoppingCart },
           { id: 'kitchen', label: 'Kitchen Sync', icon: Clock },
@@ -842,15 +848,15 @@ const renderStats = () => (
     {[
       { label: 'Today Orders', value: todayOrders.length, icon: ShoppingCart, color: 'blue' },
       { label: 'Active Kitchen', value: activeOrdersCount, icon: Clock, color: 'amber' },
-      { label: 'Net Revenue', value: formatCurrency(todayRevenue), icon: Gem, color: 'emerald' }
+      { label: 'Today Net Revenue', value: formatCurrency(todayRevenue), icon: Gem, color: 'emerald' }
     ].map((stat, i) => (
-      <div key={i} className="bg-[#0F172A] p-3 rounded-xl shadow-sm border border-white/5 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-900 text-[#D4AF37] border border-white/5">
+      <div key={i} className="bg-slate-50 p-3 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-100 text-[#D4AF37] border border-slate-200">
           <stat.icon className="w-4 h-4" />
         </div>
         <div>
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
-          <h3 className="text-sm font-black text-white mt-1">{stat.value}</h3>
+          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">{stat.label}</p>
+          <h3 className="text-sm font-black text-slate-900 mt-1">{stat.value}</h3>
         </div>
       </div>
     ))}
@@ -862,42 +868,70 @@ const renderTerminal = () => (
     {/* Left Column: Culinary Grid */}
     <div className="flex-1 space-y-4 min-w-0 w-full">
       {/* Search & Categories (Sticky) */}
-      <div className="sticky top-0 z-20 bg-[#0F172A] p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <div className="sticky top-0 z-20 bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
           <input
             type="text"
             placeholder="Search dishes..."
             value={menuSearch}
             onChange={e => setMenuSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-white/5 text-white placeholder:text-slate-500 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/20 transition-all"
+            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-[#D4AF37]/30 text-slate-900 placeholder:text-slate-400 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all hover:border-[#D4AF37]/60"
           />
         </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto py-1 custom-scrollbar">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-300 border whitespace-nowrap ${selectedCategory === cat
-                ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] shadow-lg shadow-[#D4AF37]/15'
-                : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="relative w-full sm:w-auto min-w-[200px] z-20">
+          <button
+            type="button"
+            onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+            className="w-full flex items-center justify-between pl-11 pr-4 py-3 bg-slate-50 border border-[#D4AF37]/30 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/50 transition-all hover:border-[#D4AF37]/60 cursor-pointer"
+          >
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
+            <span className="truncate">{selectedCategory}</span>
+            <ChevronDown className={`w-4 h-4 text-[#D4AF37] transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {isCategoryDropdownOpen && (
+            <>
+              {/* Backdrop */}
+              <div 
+                className="fixed inset-0 z-40 cursor-default" 
+                onClick={() => setIsCategoryDropdownOpen(false)}
+              />
+              
+              {/* Options List */}
+              <div className="absolute right-0 left-0 mt-2 bg-slate-50 border border-[#D4AF37]/30 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto custom-scrollbar divide-y divide-[#D4AF37]/10 animate-in fade-in slide-in-from-top-2 duration-150">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      setIsCategoryDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
+                      selectedCategory === cat 
+                        ? 'bg-[#D4AF37] text-[#0F172A]' 
+                        : 'text-slate-900 hover:bg-white/5'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Grid of Dishes */}
       {filteredMenuItems.length === 0 ? (
-        <div className="bg-[#0F172A] py-20 text-center rounded-[2rem] border border-white/5">
+        <div className="bg-slate-50 py-20 text-center rounded-[2rem] border border-slate-200">
           <Utensils className="w-12 h-12 mx-auto text-slate-500 mb-3 animate-pulse" />
-          <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">No Dishes Found</p>
+          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">No Dishes Found</p>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
             {paginatedMenuItems.map(item => (
               <PosMenuItem key={item._id} item={item} handleAddVisualItem={handleAddVisualItem} />
             ))}
@@ -905,19 +939,19 @@ const renderTerminal = () => (
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-3 mt-4 bg-slate-900 px-4 py-2.5 rounded-xl border border-white/5 w-fit mx-auto animate-in fade-in duration-300">
+            <div className="flex justify-center items-center gap-3 mt-4 bg-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 w-fit mx-auto animate-in fade-in duration-300">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
                   currentPage === 1 
-                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-transparent" 
-                    : "bg-slate-800 text-slate-300 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-white/5"
+                    ? "bg-slate-100 text-slate-500 cursor-not-allowed border border-transparent" 
+                    : "bg-slate-100 text-slate-600 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-slate-200"
                 }`}
               >
                 Prev
               </button>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
                 Page {currentPage} of {totalPages}
               </span>
               <button
@@ -925,8 +959,8 @@ const renderTerminal = () => (
                 disabled={currentPage === totalPages}
                 className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
                   currentPage === totalPages 
-                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-transparent" 
-                    : "bg-slate-800 text-slate-300 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-white/5"
+                    ? "bg-slate-100 text-slate-500 cursor-not-allowed border border-transparent" 
+                    : "bg-slate-100 text-slate-600 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-slate-200"
                 }`}
               >
                 Next
@@ -938,9 +972,9 @@ const renderTerminal = () => (
     </div>
 
     {/* Right Column: Checkout Cart */}
-    <div className="w-full lg:w-[320px] xl:w-[350px] shrink-0 bg-[#0F172A] p-4 rounded-2xl shadow-lg border border-white/5 text-white flex flex-col sticky top-6 max-h-[calc(100vh-120px)] h-fit z-10">
+    <div className="w-full lg:w-[400px] xl:w-[480px] shrink-0 bg-slate-50 p-4 rounded-2xl shadow-lg border border-slate-200 text-slate-900 flex flex-col sticky top-6 max-h-[calc(100vh-120px)] h-fit z-10">
       <div className="flex flex-col max-h-[calc(100vh-160px)] space-y-4 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-white/5 pb-2 shrink-0">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-2 shrink-0">
           <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Order <span className="text-[#D4AF37]">Checkout</span></h3>
           <Receipt className="w-4 h-4 text-[#D4AF37]" />
         </div>
@@ -948,13 +982,13 @@ const renderTerminal = () => (
         {/* Checkout Form */}
         <div className="grid grid-cols-2 gap-3 shrink-0">
           <div className="space-y-1">
-            <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Type</label>
-            <select value={posForm.orderType} onChange={e => setPosForm({ ...posForm, orderType: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none">
+            <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Type</label>
+            <select value={posForm.orderType} onChange={e => setPosForm({ ...posForm, orderType: e.target.value })} className="w-full bg-white/5 border border-slate-200 rounded-xl px-2 py-1.5 text-[11px] outline-none">
               {['Dine-in', 'Room', 'Delivery', 'Take-away'].map(t => <option key={t} value={t} className="text-black">{t}</option>)}
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Guest Name</label>
+            <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Guest Name</label>
             <input
               type="text"
               placeholder="Kasun Tharaka"
@@ -966,7 +1000,7 @@ const renderTerminal = () => (
                   clearError('customerName');
                 }
               }}
-              className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+              className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
             />
             {validationErrors.customerName && <p className="text-[9px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.customerName}</p>}
           </div>
@@ -974,19 +1008,19 @@ const renderTerminal = () => (
           {posForm.orderType === 'Dine-in' && (
             <>
               <div className="space-y-1">
-                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Table</label>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Assign Table</label>
                 <select
                   value={posForm.tableNumber}
                   onChange={e => { setPosForm({ ...posForm, tableNumber: e.target.value }); clearError('tableNumber'); }}
-                  className={`w-full bg-white/5 border ${validationErrors.tableNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.tableNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] text-slate-900 outline-none`}
                 >
-                  <option value="" className="bg-slate-900 text-white">Select Table</option>
-                  {[...Array(15)].map((_, i) => <option key={i} value={`T-${i + 1}`} className="bg-slate-900 text-white">Table {i + 1}</option>)}
+                  <option value="" className="bg-slate-100 text-slate-900">Select Table</option>
+                  {[...Array(15)].map((_, i) => <option key={i} value={`T-${i + 1}`} className="bg-slate-100 text-slate-900">Table {i + 1}</option>)}
                 </select>
                 {validationErrors.tableNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.tableNumber}</p>}
               </div>
               <div className="space-y-1">
-                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Contact Phone</label>
                 <input
                   type="tel"
                   placeholder="07XXXXXXXX"
@@ -998,7 +1032,7 @@ const renderTerminal = () => (
                       clearError('contactNumber');
                     }
                   }}
-                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                 />
                 {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
               </div>
@@ -1008,19 +1042,19 @@ const renderTerminal = () => (
           {posForm.orderType === 'Room' && (
             <>
               <div className="space-y-1">
-                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Assign Room</label>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Assign Room</label>
                 <select
                   value={posForm.roomNumber}
                   onChange={e => { setPosForm({ ...posForm, roomNumber: e.target.value }); clearError('roomNumber'); }}
-                  className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] text-white outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] text-slate-900 outline-none`}
                 >
-                  <option value="" className="bg-slate-900 text-white">Select Room</option>
-                  {[...Array(10)].map((_, i) => <option key={i} value={`${i + 1}`} className="bg-slate-900 text-white">Room {i + 1}</option>)}
+                  <option value="" className="bg-slate-100 text-slate-900">Select Room</option>
+                  {[...Array(10)].map((_, i) => <option key={i} value={`${i + 1}`} className="bg-slate-100 text-slate-900">Room {i + 1}</option>)}
                 </select>
                 {validationErrors.roomNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.roomNumber}</p>}
               </div>
               <div className="space-y-1">
-                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Contact Phone</label>
                 <input
                   type="tel"
                   placeholder="07XXXXXXXX"
@@ -1032,7 +1066,7 @@ const renderTerminal = () => (
                       clearError('contactNumber');
                     }
                   }}
-                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                 />
                 {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
               </div>
@@ -1042,29 +1076,29 @@ const renderTerminal = () => (
           {posForm.orderType === 'Delivery' && (
             <>
               <div className="space-y-1 col-span-2">
-                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Address</label>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Delivery Address</label>
                 <input
                   type="text"
                   placeholder="123 Main Street, Dompe"
                   value={posForm.deliveryAddress}
                   onChange={e => { setPosForm({ ...posForm, deliveryAddress: e.target.value }); clearError('deliveryAddress'); }}
                   onBlur={(e) => autoGeocode(e.target.value)}
-                  className={`w-full bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                 />
                 {validationErrors.deliveryAddress && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.deliveryAddress}</p>}
               </div>
               <div className="space-y-1">
-                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Delivery Fee (Rs)</label>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Delivery Fee (Rs)</label>
                 <input
                   type="number"
                   placeholder="0.00"
                   value={posForm.deliveryFee}
                   onChange={e => setPosForm({ ...posForm, deliveryFee: Number(e.target.value) })}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black"
+                  className="w-full bg-white/5 border border-slate-200 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Phone</label>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Contact Phone</label>
                 <input
                   type="tel"
                   placeholder="07XXXXXXXX"
@@ -1076,7 +1110,7 @@ const renderTerminal = () => (
                       clearError('contactNumber');
                     }
                   }}
-                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                 />
                 {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
               </div>
@@ -1085,7 +1119,7 @@ const renderTerminal = () => (
 
           {posForm.orderType === 'Take-away' && (
             <div className="space-y-1 col-span-2">
-              <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Contact Number</label>
+              <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Contact Number</label>
               <input
                 type="tel"
                 placeholder="0771234567"
@@ -1097,7 +1131,7 @@ const renderTerminal = () => (
                     clearError('contactNumber');
                   }
                 }}
-                className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-white/10'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
               />
               {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
             </div>
@@ -1112,7 +1146,7 @@ const renderTerminal = () => (
             </div>
           ) : (
             cart.map(item => (
-              <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5 text-[10px] shrink-0">
+              <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-slate-200 text-[10px] shrink-0">
                 <div><span className="font-bold">{item.name}</span> {item.portion && <span className="text-[#D4AF37] text-[8px] ml-1">({item.portion})</span>}</div>
                 <div className="flex items-center gap-3">
                   <span>{item.quantity}x {formatCurrency(item.price)}</span>
@@ -1124,25 +1158,25 @@ const renderTerminal = () => (
         </div>
 
         {/* Totals & Settlement */}
-        <div className="pt-3 border-t border-white/10 space-y-2 shrink-0">
-          <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-400">
+        <div className="pt-3 border-t border-slate-200 space-y-2 shrink-0">
+          <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-500">
             {serviceCharge > 0 && <div className="flex justify-between col-span-2"><span>Service Charge (10%)</span><span className="text-[#D4AF37] font-bold">+{formatCurrency(serviceCharge)}</span></div>}
             {deliveryFee > 0 && <div className="flex justify-between col-span-2"><span>Delivery Fee (Dist: {distance.toFixed(1)}km)</span><span className="text-blue-400 font-bold">+{formatCurrency(deliveryFee)}</span></div>}
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Bill</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Total Bill</span>
             <span className="text-xl font-black text-[#D4AF37]">{formatCurrency(grandTotal)}</span>
           </div>
 
           <div className="grid grid-cols-4 gap-2">
             <div className="space-y-1">
               <label className="text-[7px] text-slate-500 uppercase tracking-widest">Discount</label>
-              <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white font-bold" />
+              <input type="number" placeholder="0" value={posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full bg-white/5 border border-slate-200 rounded-lg px-2 py-1 text-[10px] outline-none text-slate-900 font-bold" />
             </div>
             <div className="space-y-1">
               <label className="text-[7px] text-slate-500 uppercase tracking-widest">Received</label>
-              <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none text-white font-bold" />
+              <input type="number" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-slate-200 rounded-lg px-2 py-1 text-[10px] outline-none text-slate-900 font-bold" />
             </div>
             <div className="flex flex-col justify-center items-center gap-1">
               <label className="text-[7px] text-slate-500 uppercase tracking-widest">Paid</label>
@@ -1164,17 +1198,25 @@ const renderTerminal = () => (
 );
 
 const renderKitchen = () => (
-  <div className="bg-[#0F172A] rounded-[2rem] border border-white/5 flex flex-col overflow-hidden shadow-sm p-6">
-    <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-      <h3 className="text-md font-bold text-white" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-[#D4AF37]">Sync Monitor</span></h3>
-      <div className="flex items-center gap-2 text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+  <div className="bg-white rounded-[2rem] border border-slate-200 flex flex-col overflow-hidden shadow-sm p-6">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+        <h3 className="text-md font-bold text-slate-900 shrink-0" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-[#D4AF37]">Sync Monitor</span></h3>
+        <div className="flex flex-wrap items-center gap-3 text-[9px] font-black uppercase tracking-widest">
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" /><span className="text-amber-600">Pending</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" /><span className="text-blue-600">Preparing</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" /><span className="text-emerald-600">Completed</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" /><span className="text-rose-600">Cancelled</span></div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 text-[8px] text-slate-500 font-bold uppercase tracking-widest shrink-0">
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
         Live {lastPollTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
       </div>
     </div>
 
     {orders.length === 0 ? (
-      <div className="py-24 text-center text-slate-500 uppercase tracking-widest font-bold text-xs opacity-45">No Incoming Orders</div>
+      <div className="py-24 text-center text-slate-500 uppercase tracking-widest font-bold text-xs opacity-80">No Incoming Orders</div>
     ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {orders.map((order, idx) => {
@@ -1184,12 +1226,12 @@ const renderKitchen = () => (
 
           const statusStyles =
             order.orderStatus === 'Completed' ? { border: 'border-emerald-500/20', hover: 'hover:border-emerald-500/60', bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-500', borderLight: 'border-emerald-500/20' } :
-              order.orderStatus === 'Preparing' ? { border: 'border-blue-500/20', hover: 'hover:border-blue-500/60', bg: 'bg-blue-505/10', text: 'text-blue-400', dot: 'bg-blue-500', borderLight: 'border-blue-500/20' } :
-                order.orderStatus === 'Cancelled' ? { border: 'border-rose-500/20', hover: 'hover:border-rose-500/60', bg: 'bg-rose-505/10', text: 'text-rose-400', dot: 'bg-rose-500', borderLight: 'border-rose-500/20' } :
-                  { border: 'border-amber-500/20', hover: 'hover:border-amber-500/60', bg: 'bg-amber-505/10', text: 'text-amber-400', dot: 'bg-amber-500', borderLight: 'border-amber-500/20' };
+              order.orderStatus === 'Preparing' ? { border: 'border-blue-500/20', hover: 'hover:border-blue-500/60', bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-500', borderLight: 'border-blue-500/20' } :
+                order.orderStatus === 'Cancelled' ? { border: 'border-rose-500/20', hover: 'hover:border-rose-500/60', bg: 'bg-rose-500/10', text: 'text-rose-400', dot: 'bg-rose-500', borderLight: 'border-rose-500/20' } :
+                  { border: 'border-amber-500/20', hover: 'hover:border-amber-500/60', bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-500', borderLight: 'border-amber-500/20' };
 
           return (
-            <div key={order._id} className={`relative group p-5 rounded-[2rem] border bg-slate-900 hover:bg-slate-950 transition-all duration-500 ${statusStyles.border} ${statusStyles.hover}`}>
+            <div key={order._id} className={`relative group p-5 rounded-[2rem] border bg-slate-100 hover:bg-slate-50 transition-all duration-500 shadow-md ${statusStyles.border} ${statusStyles.hover}`}>
               <div className={`absolute left-0 top-1/4 bottom-1/4 w-1.5 rounded-r-full ${statusStyles.dot} shadow-[0_0_15px_${statusStyles.dot}]`} />
 
               <div className="pl-3 space-y-4">
@@ -1202,23 +1244,23 @@ const renderKitchen = () => (
                   </div>
                   <div className="text-right">
                     <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString('en-GB')}</p>
-                    <p className="text-[9px] text-slate-300 font-black tracking-widest">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    <p className="text-[9px] text-slate-600 font-black tracking-widest">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                 </div>
 
                 <div className="flex justify-between items-end">
                   <div>
-                    <h4 className="text-sm font-black text-white uppercase tracking-wider">
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">
                       {order.orderType === 'Dine-in' ? `Table ${order.tableNumber}` :
                         order.orderType === 'Room' ? `Room ${order.roomNumber}` : order.orderType}
                     </h4>
-                    <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                    <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
                       <User className="w-3 h-3 text-[#D4AF37]" />
                       {order.customerName || 'Boutique Guest'}
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className={`text-[7px] font-black uppercase px-2.5 py-1 rounded-full ${order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-white' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                    <span className={`text-[7px] font-black uppercase px-2.5 py-1 rounded-full ${order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-slate-900' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
                       {order.paymentStatus}
                     </span>
                     <p className="text-lg font-black text-[#D4AF37] mt-2 leading-none" style={{ fontFamily: 'DM Serif Display, serif' }}>
@@ -1227,22 +1269,22 @@ const renderKitchen = () => (
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 pt-3 border-t border-white/5">
+                <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-200">
                   {order.items.map((it, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-slate-950/20 px-3 py-1.5 rounded-xl border border-white/5 text-[9px] font-black text-slate-300">
+                    <div key={idx} className="flex items-center gap-2 bg-slate-50/20 px-3 py-1.5 rounded-xl border border-slate-200 text-[9px] font-black text-slate-600">
                       <span className="text-[#D4AF37] font-black text-[10px]">{it.quantity}x</span>
                       <span className="uppercase tracking-wider">{it.name}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t border-white/5">
-                  <select value={order.orderStatus} onChange={e => updateOrderStatus(order._id, e.target.value)} className="flex-1 bg-slate-950/40 border border-white/10 text-slate-300 rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none cursor-pointer">
-                    {['Pending', 'Preparing', 'Completed', 'Cancelled'].map(s => <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>)}
+                <div className="flex gap-2 pt-2 border-t border-slate-200">
+                  <select value={order.orderStatus} onChange={e => updateOrderStatus(order._id, e.target.value)} className="flex-1 bg-slate-50/40 border border-slate-200 text-slate-600 rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none cursor-pointer">
+                    {['Pending', 'Preparing', 'Completed', 'Cancelled'].map(s => <option key={s} value={s} className="bg-slate-100 text-slate-900">{s}</option>)}
                   </select>
                   <button
                     onClick={() => handlePrintReceipt(order)}
-                    className="px-2.5 py-1.5 bg-slate-950/40 text-slate-400 hover:text-[#D4AF37] rounded-lg border border-white/10 flex items-center gap-1.5 transition-all"
+                    className="px-2.5 py-1.5 bg-slate-50/40 text-slate-500 hover:text-[#D4AF37] rounded-lg border border-slate-200 flex items-center gap-1.5 transition-all"
                     title="Print Bill"
                   >
                     <Printer className="w-3.5 h-3.5" />
@@ -1271,20 +1313,20 @@ const renderKitchen = () => (
 );
 
 const renderAnalyticsTab = () => (
-  <div className="bg-[#0F172A] p-6 rounded-[2rem] border border-white/5 shadow-sm">
+  <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 shadow-sm">
     <div className="flex items-center justify-between mb-6">
       <div>
-        <h3 className="text-md font-bold text-white" style={{ fontFamily: "DM Serif Display, serif" }}>
+        <h3 className="text-md font-bold text-slate-900" style={{ fontFamily: "DM Serif Display, serif" }}>
           Dish <span className="text-[#D4AF37]">Popularity Trends</span>
         </h3>
-        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Top Selling Items in Restaurant & POS</p>
+        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Top Selling Items in Restaurant & POS</p>
       </div>
       <TrendingUp className="w-5 h-5 text-[#D4AF37]" />
     </div>
 
     {popularityData.length === 0 ? (
       <div className="py-12 text-center opacity-30">
-        <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-slate-400" />
+        <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-slate-500" />
         <p className="text-xs font-bold uppercase tracking-wider">No Sales Data Available</p>
       </div>
     ) : (
@@ -1329,36 +1371,36 @@ const renderGroupSettleModal = () => {
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0F172A]/90 backdrop-blur-sm" onClick={() => setSettleModalOrder(null)} />
-      <div className="relative w-full max-w-lg bg-[#0F172A] rounded-[2rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+      <div className="absolute inset-0 bg-slate-50/90 backdrop-blur-sm" onClick={() => setSettleModalOrder(null)} />
+      <div className="relative w-full max-w-lg bg-slate-50 rounded-[2rem] border border-slate-200 shadow-2xl overflow-hidden flex flex-col">
         
-        <div className="bg-slate-950/40 px-8 py-6 flex items-center justify-between border-b border-white/5">
+        <div className="bg-slate-50/40 px-8 py-6 flex items-center justify-between border-b border-slate-200">
           <div>
-            <h2 className="text-xl text-white font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Order <span className="text-[#D4AF37]">Settlement</span></h2>
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">
+            <h2 className="text-xl text-slate-900 font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Order <span className="text-[#D4AF37]">Settlement</span></h2>
+            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">
               #{settleModalOrder._id.slice(-8).toUpperCase()}
             </p>
           </div>
-          <button onClick={() => setSettleModalOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-white hover:bg-white/10 transition-all">
+          <button onClick={() => setSettleModalOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-900 hover:bg-white/10 transition-all">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-8 space-y-6">
-          <div className="flex justify-between items-end border-b border-white/5 pb-6">
+          <div className="flex justify-between items-end border-b border-slate-200 pb-6">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount Due</p>
-              <h3 className="text-4xl font-black text-white" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(total)}</h3>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Amount Due</p>
+              <h3 className="text-4xl font-black text-slate-900" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(total)}</h3>
             </div>
             <div className="text-right">
                 <p className="text-[8px] font-black text-[#D4AF37] uppercase tracking-[0.2em]">{settleModalOrder.orderType}</p>
-                <p className="text-xs font-black text-white">{settleModalOrder.tableNumber ? `Table ${settleModalOrder.tableNumber}` : settleModalOrder.roomNumber ? `Room ${settleModalOrder.roomNumber}` : settleModalOrder.customerName}</p>
+                <p className="text-xs font-black text-slate-900">{settleModalOrder.tableNumber ? `Table ${settleModalOrder.tableNumber}` : settleModalOrder.roomNumber ? `Room ${settleModalOrder.roomNumber}` : settleModalOrder.customerName}</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash Received (Rs)</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cash Received (Rs)</label>
               <div className="relative">
                 <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
                 <input 
@@ -1367,7 +1409,7 @@ const renderGroupSettleModal = () => {
                   value={customAmount} 
                   onChange={e => setCustomAmount(e.target.value)}
                   placeholder="Enter amount..."
-                  className="w-full pl-14 pr-6 py-5 bg-slate-950 border border-white/10 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-white outline-none"
+                  className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
                 />
               </div>
             </div>
@@ -1380,13 +1422,13 @@ const renderGroupSettleModal = () => {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-white/5 space-y-4">
+          <div className="pt-6 border-t border-slate-200 space-y-4">
             <div className="flex gap-2">
               {['Cash', 'Card', 'Room Charge', 'Other'].map(method => (
                 <button
                   key={method}
                   onClick={() => setPaymentMethod(method)}
-                  className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${paymentMethod === method ? 'bg-white text-black border-white shadow-lg' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30'}`}
+                  className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${paymentMethod === method ? 'bg-white text-black border-white shadow-lg' : 'bg-transparent text-slate-500 border-slate-200 hover:border-white/30'}`}
                 >
                   {method}
                 </button>

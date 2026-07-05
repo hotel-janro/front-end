@@ -13,7 +13,7 @@ import {
   History,
   ArrowUpRight,
   Wallet,
-  Receipt,
+  ScrollText as Receipt,
   CreditCard,
   UtensilsCrossed,
   Edit,
@@ -142,7 +142,7 @@ export function MyOrders() {
         merchant_id: merchantId,
         return_url: `${window.location.origin}/my-orders`,
         cancel_url: `${window.location.origin}/my-orders`,
-        notify_url: "https://sandbox.payhere.lk/pay/checkout",
+        notify_url: `${API_BASE}/api/payments/payhere-notify`,
         order_id: order._id,
         items: `Hotel Food Order #${order.orderNumber || order._id.slice(-6)}`,
         amount: amount,
@@ -245,7 +245,7 @@ export function MyOrders() {
       setEditingOrder(null);
       loadMyOrders();
     } catch (error) {
-      alert(`Update failed: ${error.message}`);
+      toast.error(`Update failed: ${error.message}`);
     } finally {
       setIsUpdating(false);
     }
@@ -259,7 +259,7 @@ export function MyOrders() {
 
   function removeItem(idx) {
     if (editingOrder.items.length <= 1) {
-      alert("Order must have at least one item. Cancel the order instead if needed.");
+      toast.error("Order must have at least one item. Cancel the order instead if needed.");
       return;
     }
     const newItems = editingOrder.items.filter((_, i) => i !== idx);
@@ -446,7 +446,7 @@ export function MyOrders() {
         {/* Main Content Area based on Tabs */}
         <section className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
-          <article className="xl:col-span-2 space-y-8">
+          <article className="xl:col-span-3 space-y-8">
             {/* ORDERS TAB */}
             {activeTab === "orders" && (
               <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden">
@@ -758,38 +758,7 @@ export function MyOrders() {
             )}
           </article>
 
-          {/* Right Sidebar Widget */}
-          <div className="space-y-8">
-            <article className="rounded-[2.5rem] bg-[#0F172A] p-10 text-white relative overflow-hidden group shadow-2xl">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-[#D4AF37]/20 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-[#D4AF37]/40 transition-all duration-700" />
-              <h4 className="text-2xl font-normal text-[#D4AF37] mb-3" style={{ fontFamily: "DM Serif Display, serif" }}>Premium Rewards</h4>
-              <p className="text-sm text-slate-300 font-light leading-relaxed mb-8 opacity-90">
-                Earn points on every exquisite dish. Unlock exclusive dining experiences and complimentary upgrades.
-              </p>
-              <div className="flex items-end justify-between border-t border-white/10 pt-6">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Available Points</p>
-                  <p className="text-3xl font-bold text-white">1,250 <span className="text-sm text-[#D4AF37] font-medium tracking-normal">pts</span></p>
-                </div>
-                <button className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all cursor-pointer backdrop-blur-sm border border-white/10 group-hover:border-[#D4AF37]/50">
-                  <ArrowUpRight className="h-5 w-5" />
-                </button>
-              </div>
-            </article>
-
-            <article className="rounded-[2.5rem] bg-white border border-slate-100 p-10 text-center shadow-xl shadow-slate-200/40">
-              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <AlertCircle className="h-8 w-8 text-amber-500" />
-              </div>
-              <h3 className="text-xl text-slate-900 font-normal mb-3" style={{ fontFamily: "DM Serif Display, serif" }}>Need Assistance?</h3>
-              <p className="text-slate-500 text-sm font-light leading-relaxed mb-6">
-                Our dedicated guest services team is available 24/7 to ensure your experience is flawless.
-              </p>
-              <button className="text-[#0F172A] font-black uppercase tracking-[0.2em] text-[10px] hover:text-[#D4AF37] transition-colors border-b-2 border-transparent hover:border-[#D4AF37] pb-1">
-                Contact Concierge
-              </button>
-            </article>
-          </div>
+          {/* Sidebar widget removed to simplify UI */}
 
         </section>
       </div>
