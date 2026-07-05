@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Bell, Lock, CreditCard, Loader2, Eye, EyeOff, User, Phone, Mail, Plus, Trash2 } from 'lucide-react';
+import { Save, Building2, Bell, Lock, CreditCard, Loader2, Eye, EyeOff, User, Phone, Mail, Plus, Trash2, X } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext';
 import './AdminSettings.css';
 
@@ -10,6 +10,7 @@ export function AdminSettings() {
   const { settings, fetchSettings } = useSettings();
   
   // Profile Tab State
+  const [user, setUser] = useState(null);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -68,17 +69,30 @@ export function AdminSettings() {
     accountHolderName: ''
   });
 
+  // 2FA Setup State
+  const [is2faModalOpen, setIs2faModalOpen] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [totpSecret, setTotpSecret] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [twoFactorError, setTwoFactorError] = useState('');
+
   useEffect(() => {
     const storedUser = localStorage.getItem('janro_user');
     if (storedUser) {
-      const parsed = JSON.parse(storedUser);
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
       setProfileData({
-        name: parsed.name || '',
-        email: parsed.email || '',
-        phone: parsed.phone || ''
+        name: parsedUser.name || '',
+        email: parsedUser.email || '',
+        phone: parsedUser.phone || ''
       });
+      setTwoFactorEnabled(parsedUser.twoFactorEnabled || false);
     }
+    fetchSettings();
+  }, []);
 
+  useEffect(() => {
     if (settings) {
       setFormData({
         hotelName: settings.hotelName || '',
@@ -338,6 +352,99 @@ export function AdminSettings() {
   const handleNewBankChange = (e) => {
     const { name, value } = e.target;
     setNewBankAccount(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEnable2FA = async () => {
+    setTwoFactorError('');
+    setVerificationCode('');
+    try {
+      const token = localStorage.getItem('janro_token');
+      const response = await fetch(`${API_BASE}/api/auth/2fa/setup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const result = await response.json();
+      if (result.success) {
+        setQrCodeUrl(result.qrCodeUrl);
+        setTotpSecret(result.secret);
+        setIs2faModalOpen(true);
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Failed to initialize 2FA setup.' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An error occurred during 2FA initialization.' });
+    }
+  };
+
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    setTwoFactorError('');
+    if (!verificationCode || verificationCode.length !== 6) {
+      setTwoFactorError('Please enter a valid 6-digit code');
+      return;
+    }
+    try {
+      const token = localStorage.getItem('janro_token');
+      const response = await fetch(`${API_BASE}/api/auth/2fa/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ secret: totpSecret, code: verificationCode })
+      });
+      const result = await response.json();
+      if (result.success) {
+        setTwoFactorEnabled(true);
+        setIs2faModalOpen(false);
+        setMessage({ type: 'success', text: 'Two-Factor Authentication has been successfully enabled!' });
+        
+        // Update local storage
+        const storedUser = JSON.parse(localStorage.getItem('janro_user'));
+        const updatedUser = { ...storedUser, twoFactorEnabled: true };
+        localStorage.setItem('janro_user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+      } else {
+        setTwoFactorError(result.message || 'Invalid verification code. Please try again.');
+      }
+    } catch (error) {
+      setTwoFactorError('Failed to verify code. Please try again.');
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!window.confirm('Are you sure you want to disable Two-Factor Authentication? This will make your account less secure.')) {
+      return;
+    }
+    setMessage({ type: '', text: '' });
+    try {
+      const token = localStorage.getItem('janro_token');
+      const response = await fetch(`${API_BASE}/api/auth/2fa/disable`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const result = await response.json();
+      if (result.success) {
+        setTwoFactorEnabled(false);
+        setMessage({ type: 'success', text: 'Two-Factor Authentication has been successfully disabled.' });
+        
+        // Update local storage
+        const storedUser = JSON.parse(localStorage.getItem('janro_user'));
+        const updatedUser = { ...storedUser, twoFactorEnabled: false };
+        localStorage.setItem('janro_user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Failed to disable 2FA.' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An error occurred while disabling 2FA.' });
+    }
   };
 
   const handleDeleteBankAccount = (idx) => {
@@ -635,10 +742,30 @@ export function AdminSettings() {
                   <div className="pt-4 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-gray-900">Two-Factor Authentication</p>
-                        <p className="text-sm text-gray-500">Add an extra layer of security</p>
+                        <p className="font-medium text-gray-900">Two-Factor Authentication (2FA)</p>
+                        <p className="text-sm text-gray-500">
+                          {twoFactorEnabled 
+                            ? 'Your account is secured with Two-Factor Authentication.' 
+                            : 'Add an extra layer of security by requiring a verification code when logging in.'}
+                        </p>
                       </div>
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">Enable 2FA</button>
+                      {twoFactorEnabled ? (
+                        <button
+                          type="button"
+                          onClick={handleDisable2FA}
+                          className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors text-sm font-semibold border border-red-200"
+                        >
+                          Disable 2FA
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleEnable2FA}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                        >
+                          Enable 2FA
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -877,6 +1004,66 @@ export function AdminSettings() {
           </div>
         </div>
       </div>
+
+      {/* 2FA Setup Modal */}
+      {is2faModalOpen && (
+        <div className="admin-staff-modal-overlay" style={{ zIndex: 9999 }}>
+          <div className="admin-staff-modal-card max-w-md">
+            <div className="admin-staff-modal-header">
+              <div>
+                <h2 className="admin-staff-modal-title">Set Up Two-Factor Authentication</h2>
+                <p className="admin-staff-modal-subtitle">Scan the QR code to secure your admin account.</p>
+              </div>
+              <button type="button" className="admin-staff-close-button" onClick={() => setIs2faModalOpen(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleVerify2FA} className="admin-staff-modal-form space-y-4">
+              {twoFactorError && (
+                <p className="admin-staff-form-error mb-4">{twoFactorError}</p>
+              )}
+
+              <div className="flex flex-col items-center justify-center py-2 bg-slate-50 rounded-2xl border border-slate-100">
+                <img src={qrCodeUrl} alt="2FA QR Code" className="w-48 h-48 border border-slate-200 rounded-xl bg-white p-2" />
+                <p className="text-xs text-slate-500 mt-2">Scan this QR code with Google Authenticator or a similar app.</p>
+              </div>
+
+              <div>
+                <label className="admin-settings-label text-xs">Manual Entry Key</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={totpSecret}
+                  className="admin-settings-control text-sm font-mono text-center bg-slate-100 select-all"
+                />
+              </div>
+
+              <div>
+                <label className="admin-settings-label text-xs">Verification Code</label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g. 123456"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  className="admin-settings-control text-center text-lg font-mono tracking-widest focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div className="admin-staff-modal-actions pt-4 border-t border-gray-100">
+                <button type="button" className="admin-staff-secondary-button" onClick={() => setIs2faModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="admin-staff-primary-button">
+                  Verify and Activate
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
