@@ -224,11 +224,9 @@ export function ReceptionWedding() {
     if (selectedHall) total += selectedHall.price;
 
     if (formData.guestCount) {
-      if (formData.bookingCategory === 'Wedding') {
-        if (formData.cateringPackage) {
-          total += packagePrices[formData.cateringPackage] * Number(formData.guestCount);
-        }
-      } else {
+      if (formData.cateringPackage && packagePrices[formData.cateringPackage]) {
+        total += packagePrices[formData.cateringPackage] * Number(formData.guestCount);
+      } else if (formData.bookingCategory !== 'Wedding') {
         formData.selectedMeals?.forEach(meal => {
           total += (mealPrices[meal] || 0) * Number(formData.guestCount);
         });

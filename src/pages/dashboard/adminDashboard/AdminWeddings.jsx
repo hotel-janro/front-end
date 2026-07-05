@@ -509,13 +509,11 @@ export function AdminWedding() {
     if (selectedHall) subtotal += selectedHall.price;
 
     if (formData.guestCount) {
-      if (formData.bookingCategory === 'Wedding') {
-        if (formData.cateringPackage && packageDetails[formData.cateringPackage]) {
-          subtotal += packageDetails[formData.cateringPackage].price * Number(formData.guestCount);
-        } else if (formData.cateringPackage === 'Custom') {
-          subtotal += Number(formData.customPackagePrice || 0) * Number(formData.guestCount);
-        }
-      } else {
+      if (formData.cateringPackage && packageDetails[formData.cateringPackage]) {
+        subtotal += packageDetails[formData.cateringPackage].price * Number(formData.guestCount);
+      } else if (formData.cateringPackage === 'Custom') {
+        subtotal += Number(formData.customPackagePrice || 0) * Number(formData.guestCount);
+      } else if (formData.bookingCategory !== 'Wedding') {
         formData.selectedMeals?.forEach(meal => {
           subtotal += (mealPrices[meal] || 0) * Number(formData.guestCount);
         });
