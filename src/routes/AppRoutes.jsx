@@ -32,7 +32,7 @@ import { AdminWedding } from "../pages/dashboard/adminDashboard/AdminWeddings.js
 import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory.jsx";
 import { AdminMessages } from "../pages/dashboard/adminDashboard/AdminMessages.jsx";
 
-import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
+import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashboard.jsx";
 import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
 import { ReceptionGym } from "../pages/dashboard/receptionDashboard/ReceptionGym.jsx";
 import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
