@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Bell, Lock, CreditCard, Loader2, Eye, EyeOff, User, Phone, Mail, Plus, Trash2, X } from 'lucide-react';
+import { Save, Building2, Bell, Lock, CreditCard, Loader2, Eye, EyeOff, User, Phone, Mail, Plus, Trash2, X, Pencil } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext';
 import './AdminSettings.css';
 
@@ -76,6 +76,9 @@ export function AdminSettings() {
   const [totpSecret, setTotpSecret] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [twoFactorError, setTwoFactorError] = useState('');
+
+  // Editing state for bank account cards
+  const [editingAccountIndex, setEditingAccountIndex] = useState(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('janro_user');
@@ -287,6 +290,33 @@ export function AdminSettings() {
     }
   };
 
+  const handleEditBankAccountClick = (idx) => {
+    const account = bankAccounts[idx];
+    setNewBankAccount({
+      bankName: account.bankName || '',
+      branchName: account.branchName || '',
+      accountNumber: account.accountNumber || '',
+      accountHolderName: account.accountHolderName || ''
+    });
+    setEditingAccountIndex(idx);
+    
+    // Smooth scroll to the form element
+    const formElement = document.getElementById('bank-form-header');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setNewBankAccount({
+      bankName: '',
+      branchName: '',
+      accountNumber: '',
+      accountHolderName: ''
+    });
+    setEditingAccountIndex(null);
+  };
+
   const handlePaymentSave = async () => {
     setIsSaving(true);
     setMessage({ type: '', text: '' });
@@ -295,20 +325,60 @@ export function AdminSettings() {
       const hasInputs = newBankAccount.bankName || newBankAccount.branchName || newBankAccount.accountNumber || newBankAccount.accountHolderName;
 
       if (hasInputs) {
-        if (!newBankAccount.bankName || !newBankAccount.branchName || !newBankAccount.accountNumber || !newBankAccount.accountHolderName) {
+        const bankNameTrimmed = (newBankAccount.bankName || '').trim();
+        const branchNameTrimmed = (newBankAccount.branchName || '').trim();
+        const accountHolderNameTrimmed = (newBankAccount.accountHolderName || '').trim();
+        const rawAccountNumber = (newBankAccount.accountNumber || '').replace(/\s+/g, '');
+
+        if (!bankNameTrimmed || !branchNameTrimmed || !rawAccountNumber || !accountHolderNameTrimmed) {
           setMessage({ type: 'error', text: 'Please fill in all bank account details' });
           setIsSaving(false);
           return;
         }
 
-        const rawAccountNumber = newBankAccount.accountNumber.replace(/\s+/g, '');
+        if (bankNameTrimmed.length < 2) {
+          setMessage({ type: 'error', text: 'Bank name must be at least 2 characters long' });
+          setIsSaving(false);
+          return;
+        }
+
+        if (branchNameTrimmed.length < 2) {
+          setMessage({ type: 'error', text: 'Branch name must be at least 2 characters long' });
+          setIsSaving(false);
+          return;
+        }
+
+        if (accountHolderNameTrimmed.length < 2) {
+          setMessage({ type: 'error', text: 'Account holder name must be at least 2 characters long' });
+          setIsSaving(false);
+          return;
+        }
+
+        // Account holder name validation (only letters, spaces, dots, dashes, parentheses)
+        const nameRegex = /^[a-zA-Z\s.,()-]+$/;
+        if (!nameRegex.test(accountHolderNameTrimmed)) {
+          setMessage({ type: 'error', text: 'Account holder name must contain only letters, spaces, dots, or dashes' });
+          setIsSaving(false);
+          return;
+        }
+
         if (!/^\d{6,20}$/.test(rawAccountNumber)) {
           setMessage({ type: 'error', text: 'Account number must contain only digits (6 to 20 numbers)' });
           setIsSaving(false);
           return;
         }
 
-        updatedAccounts.push({ ...newBankAccount, accountNumber: rawAccountNumber });
+        const updatedDetail = {
+          bankName: bankNameTrimmed,
+          branchName: branchNameTrimmed,
+          accountHolderName: accountHolderNameTrimmed,
+          accountNumber: rawAccountNumber
+        };
+        if (editingAccountIndex !== null) {
+          updatedAccounts[editingAccountIndex] = updatedDetail;
+        } else {
+          updatedAccounts.push(updatedDetail);
+        }
       }
 
       const token = localStorage.getItem('janro_token');
@@ -330,7 +400,7 @@ export function AdminSettings() {
       
       const result = await response.json();
       if (result.success) {
-        setMessage({ type: 'success', text: 'Payment settings updated successfully!' });
+        setMessage({ type: 'success', text: editingAccountIndex !== null ? 'Bank account updated successfully!' : 'Payment settings updated successfully!' });
         setBankAccounts(updatedAccounts);
         setNewBankAccount({
           bankName: '',
@@ -338,12 +408,69 @@ export function AdminSettings() {
           accountNumber: '',
           accountHolderName: ''
         });
+        setEditingAccountIndex(null);
         fetchSettings(); // Refresh global settings
       } else {
         setMessage({ type: 'error', text: result.message || 'Failed to update payment settings' });
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'An error occurred while saving payment settings' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteBankAccount = async (idx) => {
+    if (!window.confirm('Are you sure you want to delete this bank account?')) {
+      return;
+    }
+    
+    const updatedAccounts = bankAccounts.filter((_, i) => i !== idx);
+    setIsSaving(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const token = localStorage.getItem('janro_token');
+      const primaryBankDetails = updatedAccounts.length > 0 ? updatedAccounts[0] : {
+        bankName: '',
+        branchName: '',
+        accountNumber: '',
+        accountHolderName: ''
+      };
+      
+      const response = await fetch(`${API_BASE}/api/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ bankDetails: primaryBankDetails, bankAccounts: updatedAccounts })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Bank account deleted successfully!' });
+        setBankAccounts(updatedAccounts);
+        
+        // If we were editing the deleted account, cancel the edit mode
+        if (editingAccountIndex === idx) {
+          setNewBankAccount({
+            bankName: '',
+            branchName: '',
+            accountNumber: '',
+            accountHolderName: ''
+          });
+          setEditingAccountIndex(null);
+        } else if (editingAccountIndex > idx) {
+          // Adjust editing index if it shifted
+          setEditingAccountIndex(prev => prev - 1);
+        }
+        
+        fetchSettings(); // Refresh global settings
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Failed to delete bank account' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An error occurred while deleting bank account' });
     } finally {
       setIsSaving(false);
     }
@@ -447,10 +574,7 @@ export function AdminSettings() {
     }
   };
 
-  const handleDeleteBankAccount = (idx) => {
-    setBankAccounts(prev => prev.filter((_, i) => i !== idx));
-    setMessage({ type: 'success', text: 'Bank account removed locally. Click "Save Changes" to persist.' });
-  };
+
 
   const onSave = () => {
     if (activeTab === 'profile') {
@@ -846,9 +970,20 @@ export function AdminSettings() {
                   {/* Right Column: Bank Details Form */}
                   <div className="lg:col-span-7 flex flex-col justify-between">
                     <div className="space-y-4">
-                      <h3 className="font-bold text-gray-800 text-base pb-2 border-b border-gray-100 flex items-center gap-2">
-                        <Building2 className="w-5 h-5 text-blue-600" />
-                        Settlement Account Details
+                      <h3 id="bank-form-header" className="font-bold text-gray-800 text-base pb-2 border-b border-gray-100 flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <Building2 className="w-5 h-5 text-blue-600" />
+                          {editingAccountIndex !== null ? 'Edit Bank Account Details' : 'Settlement Account Details'}
+                        </span>
+                        {editingAccountIndex !== null && (
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            className="text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 rounded-lg transition-colors border border-slate-200/50 font-medium"
+                          >
+                            Cancel Edit
+                          </button>
+                        )}
                       </h3>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -932,20 +1067,28 @@ export function AdminSettings() {
                               <span className="text-sm font-bold tracking-wide truncate max-w-[140px] drop-shadow-sm uppercase text-slate-100 mt-0.5">
                                 {account.bankName}
                               </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {/* Circular Bank Logo */}
-                              <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm shadow-sm">
-                                <Building2 className="w-4 h-4 text-slate-300" />
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteBankAccount(idx)}
-                                className="p-1.5 bg-red-500/25 hover:bg-red-600 text-red-400 hover:text-white rounded-full transition-all duration-200 shadow-sm"
-                                title="Delete Bank Account"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                                 <div className="flex items-center gap-1.5">
+                               {/* Circular Bank Logo */}
+                               <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                                 <Building2 className="w-4 h-4 text-slate-300" />
+                               </div>
+                               <button
+                                 type="button"
+                                 onClick={() => handleEditBankAccountClick(idx)}
+                                 className="p-1.5 bg-blue-500/25 hover:bg-blue-600 text-blue-400 hover:text-white rounded-full transition-all duration-200 shadow-sm"
+                                 title="Edit Bank Account"
+                               >
+                                 <Pencil className="w-3 h-3" />
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => handleDeleteBankAccount(idx)}
+                                 className="p-1.5 bg-red-500/25 hover:bg-red-600 text-red-400 hover:text-white rounded-full transition-all duration-200 shadow-sm"
+                                 title="Delete Bank Account"
+                               >
+                                 <Trash2 className="w-3 h-3" />
+                               </button>
+                             </div>
                             </div>
                           </div>
 
