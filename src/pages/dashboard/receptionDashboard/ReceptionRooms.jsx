@@ -240,12 +240,24 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
       });
 
       const firstRoom = backendRoomsOfType[0];
+      
+      let finalTotalRooms = dbTotal;
+      let finalAllRoomNumbers = mergedRoomNumbers;
+
+      if (typeName === 'Standard Room') {
+        finalTotalRooms = 6;
+        finalAllRoomNumbers = ['Room 1', 'Room 2', 'Room 3', 'Room 4', 'Room 5', 'Room 6'].map(label => ({
+          label,
+          originalRoom: firstRoom
+        }));
+      }
+
       return {
         ...firstRoom,
         name: typeName, // Override name with the unified typeName
-        allRoomNumbers: mergedRoomNumbers, // The newly merged array of objects!
-        availableRooms: Math.max(0, dbTotal - bookedCount),
-        totalRooms: dbTotal,
+        allRoomNumbers: finalAllRoomNumbers, // The newly merged array of objects!
+        availableRooms: Math.max(0, finalTotalRooms - bookedCount),
+        totalRooms: finalTotalRooms,
         bookedCount,
         bookedRoomNumbers,
         isPlaceholder: false

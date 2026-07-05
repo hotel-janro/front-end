@@ -562,14 +562,25 @@ export function AdminRooms() {
         ? (backendRoomsOfType.find(r => r.name?.toLowerCase() === 'ac standard room') || backendRoomsOfType[0])
         : backendRoomsOfType[0];
         
+      let finalTotalRooms = dbTotal;
+      let finalAllRoomNumbers = mergedRoomNumbers.length > 0 ? mergedRoomNumbers : null;
+
+      if (typeName === 'Standard Room') {
+        finalTotalRooms = 6;
+        finalAllRoomNumbers = ['Room 1', 'Room 2', 'Room 3', 'Room 4', 'Room 5', 'Room 6'].map(label => ({
+          label,
+          originalRoom: firstRoom
+        }));
+      }
+
       return {
         ...firstRoom,
         name: typeName,
-        totalRooms: dbTotal,
-        availableRooms: Math.max(0, dbTotal - bookedCount),
+        totalRooms: finalTotalRooms,
+        availableRooms: Math.max(0, finalTotalRooms - bookedCount),
         bookedCount,
         bookedRoomNumbers,
-        allRoomNumbers: mergedRoomNumbers.length > 0 ? mergedRoomNumbers : null,
+        allRoomNumbers: finalAllRoomNumbers,
         isPlaceholder: false
       };
     }
