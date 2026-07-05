@@ -172,7 +172,8 @@ export function AdminRooms() {
     'non ac room',
     'photo location',
     'ac standard room',
-    'non-ac standard room'
+    'non-ac standard room',
+    'new room type'
   ]);
 
   const roomTypeOptions = [
