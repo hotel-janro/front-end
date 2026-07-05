@@ -675,8 +675,8 @@ export function AdminGym() {
         <button
           onClick={() => setActiveTab('passes')}
           className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'passes'
-              ? 'border-[#0F172A] text-[#0F172A]'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
+            ? 'border-[#0F172A] text-[#0F172A]'
+            : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
         >
           <Dumbbell className="w-5 h-5" />
@@ -686,8 +686,8 @@ export function AdminGym() {
         <button
           onClick={() => setActiveTab('members')}
           className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'members'
-              ? 'border-[#0F172A] text-[#0F172A]'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
+            ? 'border-[#0F172A] text-[#0F172A]'
+            : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
         >
           <Users className="w-5 h-5" />
@@ -697,8 +697,8 @@ export function AdminGym() {
         <button
           onClick={() => setActiveTab('gate')}
           className={`pb-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'gate'
-              ? 'border-emerald-500 text-emerald-700'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
+            ? 'border-emerald-500 text-emerald-700'
+            : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
         >
           <QrCode className="w-5 h-5" />
@@ -1050,8 +1050,8 @@ export function AdminGym() {
             <div className="lg:col-span-7 flex flex-col gap-6">
               {scanResult && (
                 <div className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-350 ${scanResult.success
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-lg shadow-emerald-500/10'
-                    : 'bg-red-50 border-red-200 text-red-800 shadow-lg shadow-red-500/10'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-lg shadow-emerald-500/10'
+                  : 'bg-red-50 border-red-200 text-red-800 shadow-lg shadow-red-500/10'
                   }`}>
                   <div className="flex items-start gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${scanResult.success ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
@@ -1203,6 +1203,7 @@ export function AdminGym() {
                       </div>
                     </div>
                   ))}
+
                   {isAttendanceLoading && (
                     <div className="py-12 text-center text-slate-500 text-xs font-medium">Loading activity...</div>
                   )}
@@ -1216,7 +1217,7 @@ export function AdminGym() {
         </div>
       )}
 
-      {/* MODAL: Issue Gym Pass (Enforces selection for monthly, allows typing for day pass) */}
+      {/*Issue Gym Pass (Enforces selection for monthly, allows typing for day pass) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl my-4 border border-white/20 flex flex-col max-h-[90vh] overflow-hidden">
@@ -1260,6 +1261,7 @@ export function AdminGym() {
                   onChange={(e) => {
                     handleFormChange(e);
                     // Clear autofills on switch
+                    //clear autofills 
                     setFormData(prev => ({
                       ...prev,
                       passType: e.target.value,
@@ -1458,15 +1460,17 @@ export function AdminGym() {
             </div>
 
             {/* Stepper Progress Bar */}
+
+
             <div className="px-8 pt-6 pb-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
               {[1, 2, 3].map((s) => (
                 <React.Fragment key={s}>
                   <div className="flex items-center gap-2">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${regStep === s
-                        ? 'bg-[#0F172A] text-[#D4AF37] ring-4 ring-[#D4AF37]/20 shadow-md'
-                        : regStep > s
-                          ? 'bg-emerald-500 text-white shadow-sm'
-                          : 'bg-slate-200 text-slate-500'
+                      ? 'bg-[#0F172A] text-[#D4AF37] ring-4 ring-[#D4AF37]/20 shadow-md'
+                      : regStep > s
+                        ? 'bg-emerald-500 text-white shadow-sm'
+                        : 'bg-slate-200 text-slate-500'
                       }`}>
                       {regStep > s ? <Check className="w-4 h-4" /> : s}
                     </div>
