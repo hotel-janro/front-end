@@ -313,6 +313,14 @@ export function Restaurant({ onOrder, user }) {
     );
   };
 
+  // Track pending order to avoid duplicates if they retry payment without changing cart
+  const [pendingOrderId, setPendingOrderId] = useState(null);
+
+  useEffect(() => {
+    // If cart changes, we can't reuse the old pending order
+    setPendingOrderId(null);
+  }, [cart]);
+
   const handlePlaceOrder = async () => {
     if (!user) {
       toast.error("Please log in to place an order.");
@@ -363,40 +371,50 @@ export function Restaurant({ onOrder, user }) {
 
     try {
       setIsPlacingOrder(true);
-      const orderData = {
-        items: cart.map(item => ({
-          menuItemId: item._id,
-          quantity: item.quantity,
-          portion: item.portion || ""
-        })),
-        orderType,
-        deliveryAddress: orderType === "Delivery" ? deliveryAddress : "",
-        contactNumber,
-        tableNumber: orderType === "Dine-in" ? tableNumber : "",
-        roomNumber: orderType === "Room" ? roomNumber : "",
-        coordinates,
-        customerName,
-        customerUser: user._id,
-        subtotal,
-        serviceCharge,
-        deliveryFee,
-        specialNotes,
-        totalAmount: grandTotal,
-        paymentMethod
-      };
+      let orderId = pendingOrderId;
 
-      const result = await apiFetch("/orders", {
-        method: "POST",
-        body: JSON.stringify(orderData),
-      });
+      if (!orderId) {
+        const orderData = {
+          items: cart.map(item => ({
+            menuItemId: item._id,
+            quantity: item.quantity,
+            portion: item.portion || ""
+          })),
+          orderType,
+          deliveryAddress: orderType === "Delivery" ? deliveryAddress : "",
+          contactNumber,
+          tableNumber: orderType === "Dine-in" ? tableNumber : "",
+          roomNumber: orderType === "Room" ? roomNumber : "",
+          coordinates,
+          customerName,
+          customerUser: user._id,
+          subtotal,
+          serviceCharge,
+          deliveryFee,
+          specialNotes,
+          totalAmount: grandTotal,
+          paymentMethod
+        };
 
-      const order = result.data || result; // Fallback in case backend returns plain order
+        const result = await apiFetch("/orders", {
+          method: "POST",
+          body: JSON.stringify(orderData),
+        });
+
+        const order = result.data || result; // Fallback in case backend returns plain order
+        orderId = order._id;
+        if (paymentMethod === "Card") {
+          setPendingOrderId(orderId);
+        }
+      }
 
       const completeSuccess = () => {
         toast.success("Exceptional choice! Your order is being prepared.");
         setCart([]);
+        setPendingOrderId(null);
         setShowCart(false);
-        if (onOrder) onOrder(result);
+        // Dispatch event if onOrder doesn't cover everything
+        if (onOrder) onOrder({ _id: orderId });
       };
 
       if (paymentMethod === "Card") {
@@ -404,7 +422,7 @@ export function Restaurant({ onOrder, user }) {
           const hashRes = await apiFetch("/payments/payhere-hash", {
             method: "POST",
             body: JSON.stringify({
-              orderId: order._id,
+              orderId: orderId,
               amount: grandTotal
             })
           });
@@ -423,7 +441,7 @@ export function Restaurant({ onOrder, user }) {
             return_url: `${window.location.origin}/my-orders`,
             cancel_url: `${window.location.origin}/restaurant`,
             notify_url: `${API_BASE}/api/payments/payhere-notify`,
-            order_id: order._id,
+            order_id: orderId,
             items: `Restaurant Order - ${cart.length} items`,
             amount: amount,
             currency: currency,
@@ -438,29 +456,24 @@ export function Restaurant({ onOrder, user }) {
             custom_1: "order" // Signal to backend that this is a restaurant order
           };
 
-          window.payhere.onCompleted = function onCompleted(orderId) {
+          window.payhere.onCompleted = function onCompleted(completedOrderId) {
             completeSuccess();
-            // Optional: redirect to my orders page if you prefer
-            // window.location.href = "/my-orders";
           };
 
           window.payhere.onDismissed = function onDismissed() {
-            toast.error("Payment window closed. Order is saved as Unpaid in your dashboard.");
-            setCart([]);
-            setShowCart(false);
+            toast.info("Payment cancelled. You can retry anytime — your cart is saved.");
+            // Do not clear cart here so user can retry!
           };
 
           window.payhere.onError = function onError(error) {
             toast.error("Payment failed: " + error);
-            setCart([]);
-            setShowCart(false);
+            // Do not clear cart here so user can retry!
           };
 
           window.payhere.startPayment(payment);
         } catch (err) {
           toast.error("Could not start payment: " + err.message);
-          setCart([]);
-          setShowCart(false);
+          // Do not clear cart here so user can retry!
         }
       } else {
         // Cash payment
