@@ -1,6 +1,7 @@
 // AppRoutes.jsx - Application Routes 
 import React, { useState } from "react";
 import { apiFetch } from "../api";
+import { toast } from "sonner";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Home } from "../pages/website/Home.jsx";
 import { Rooms } from "../pages/website/Rooms.jsx";
@@ -32,15 +33,15 @@ import { AdminWedding } from "../pages/dashboard/adminDashboard/AdminWeddings.js
 import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory.jsx";
 import { AdminMessages } from "../pages/dashboard/adminDashboard/AdminMessages.jsx";
 
-import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
-import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
+import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashboard.jsx";
+import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReceptionPool.jsx";
 import { ReceptionGym } from "../pages/dashboard/receptionDashboard/ReceptionGym.jsx";
 import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
 import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionRooms.jsx";
 import { ReceptionWedding } from "../pages/dashboard/receptionDashboard/ReceptionWedding.jsx";
 import { ReceptionProfile } from "../pages/dashboard/receptionDashboard/ReceptionProfile.jsx";
 import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
-import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
+import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashboard.jsx";
 import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
 import { CashierPayments } from "../pages/dashboard/cashierDashboard/CashierPayments.jsx";
 import { CashierReceipts } from "../pages/dashboard/cashierDashboard/CashierReceipts.jsx";
@@ -124,11 +125,17 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
               const { merchantId, currency, hash, amount } = hashRes.data;
               const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "").replace(/\/$/, "");
 
+              const redirectPath = isAdmin 
+                ? "/admin/bookings" 
+                : isReception 
+                ? "/reception/bookings" 
+                : "/my-bookings";
+
               const payment = {
                 sandbox: true,
                 merchant_id: merchantId,
-                return_url: `${window.location.origin}/my-bookings`,
-                cancel_url: `${window.location.origin}/rooms`,
+                return_url: `${window.location.origin}${redirectPath}`,
+                cancel_url: `${window.location.origin}${redirectPath}`,
                 notify_url: `${API_BASE}/api/payments/payhere-notify`,
                 order_id: booking._id,
                 items: `Room Booking - ${data.room.name}`,
@@ -157,20 +164,31 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
                 showSuccessModal();
               };
 
-              window.payhere.onDismissed = function onDismissed() {
-                alert("Payment window closed. Your booking is saved as Unpaid in your dashboard.");
-                window.location.href = "/my-bookings";
+              window.payhere.onDismissed = async function onDismissed() {
+                try {
+                  await apiFetch(`/bookings/${booking._id || booking.id}/abandon`, { method: 'DELETE' });
+                } catch (e) {
+                  console.error("Failed to abandon unpaid booking", e);
+                }
+                toast.info("Payment Cancelled", { description: "The transaction was cancelled. You can try again or select a different payment method." });
               };
 
-              window.payhere.onError = function onError(error) {
-                alert("Payment failed: " + error);
-                window.location.href = "/my-bookings";
+              window.payhere.onError = async function onError(error) {
+                try {
+                  await apiFetch(`/bookings/${booking._id || booking.id}/abandon`, { method: 'DELETE' });
+                } catch (e) {}
+                toast.error("Payment Failed", { description: error + ". Please try again or select a different payment method." });
               };
 
               window.payhere.startPayment(payment);
             } catch (err) {
-              alert("Could not start payment: " + err.message);
-              window.location.href = "/my-bookings";
+              const redirectPath = isAdmin 
+                ? "/admin/bookings" 
+                : isReception 
+                ? "/reception/bookings" 
+                : "/my-bookings";
+              toast.error("Payment Error", { description: "Could not start payment: " + err.message });
+              window.location.href = redirectPath;
             }
           } else {
             // Cash payment - directly show success
@@ -178,7 +196,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
           }
         }
       } catch (error) {
-        alert(`Booking failed: ${error.message}`);
+        toast.error("Booking Failed", { description: error.message });
       }
       return;
     }
@@ -192,7 +210,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
     }
     const total = Number(data?.totalAmount || data?.total || 0);
     const orderType = data?.orderType || "Dine-in";
-    alert(`Order placed successfully!\n\nThank you, ${user?.name || "Guest"}.\nTotal: Rs ${total.toLocaleString()}\nType: ${orderType}\n\nOur kitchen has received your order and is preparing it now.`);
+    toast.success("Order placed successfully!", {
+      description: `Thank you, ${user?.name || "Guest"}. Total: Rs ${total.toLocaleString()} (${orderType}). Our kitchen is preparing it now.`
+    });
   };
 
   return (

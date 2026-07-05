@@ -40,9 +40,12 @@ function ScrollToTop() {
 }
 function AppInner() {
     const navigate = useNavigate();
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [user, setUser] = useState(null);
-    const [authChecked, setAuthChecked] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("janro_token"));
+    const [user, setUser] = useState(() => {
+        const storedUser = localStorage.getItem("janro_user");
+        return storedUser ? JSON.parse(storedUser) : null;
+    });
+    const [authChecked, setAuthChecked] = useState(true);
     const socket = useSocket();
 
     // Listen for real-time order status updates for the customer
@@ -70,18 +73,6 @@ function AppInner() {
             socket.off("orderUpdated", handleOrderUpdated);
         };
     }, [socket, user]);
-
-    // Restore session on mount
-    useEffect(() => {
-        const storedUser = localStorage.getItem("janro_user");
-        const token = localStorage.getItem("janro_token");
-
-        if (storedUser && token) {
-            setUser(JSON.parse(storedUser));
-            setIsLoggedIn(true);
-        }
-        setAuthChecked(true);
-    }, []);
 
     // Inactivity logout for staff roles (admin, receptionist, cashier, staff) - PCI-DSS Compliant
     useEffect(() => {
