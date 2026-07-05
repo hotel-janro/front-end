@@ -32,15 +32,15 @@ import { AdminWedding } from "../pages/dashboard/adminDashboard/AdminWeddings.js
 import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory.jsx";
 import { AdminMessages } from "../pages/dashboard/adminDashboard/AdminMessages.jsx";
 
-import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashbord.jsx";
-import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
+import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashboard.jsx";
+import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReceptionPool.jsx";
 import { ReceptionGym } from "../pages/dashboard/receptionDashboard/ReceptionGym.jsx";
 import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
 import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionRooms.jsx";
 import { ReceptionWedding } from "../pages/dashboard/receptionDashboard/ReceptionWedding.jsx";
 import { ReceptionProfile } from "../pages/dashboard/receptionDashboard/ReceptionProfile.jsx";
 import { ReceptionLayout } from "../pages/dashboard/ReceptionLayout.jsx";
-import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashbord.jsx";
+import { CashierDashboard } from "../pages/dashboard/cashierDashboard/CashierDashboard.jsx";
 import { CashierOrders } from "../pages/dashboard/cashierDashboard/CashierOrders.jsx";
 import { CashierPayments } from "../pages/dashboard/cashierDashboard/CashierPayments.jsx";
 import { CashierReceipts } from "../pages/dashboard/cashierDashboard/CashierReceipts.jsx";
@@ -48,7 +48,6 @@ import { CashierProfile } from "../pages/dashboard/cashierDashboard/CashierProfi
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
-import { VerifyOTP } from "../pages/website/VerifyOTP.jsx";
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, onLogout, onGoogleLogin, onUpdateUser }) {
   const navigate = useNavigate();
@@ -89,85 +88,19 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
         });
 
         if (response.success) {
-          const booking = response.data; // The returned booking object
+          const decorationText = data.decorationItems?.length
+            ? data.decorationItems.join(", ")
+            : null;
 
-          const showSuccessModal = () => {
-            const decorationText = data.decorationItems?.length
-              ? data.decorationItems.join(", ")
-              : null;
-
-            setBookingSuccess({
-              name: user?.name || "Guest",
-              roomName: data.room.name,
-              guests: data.guests,
-              decorations: decorationText
-            });
-            
-            // Refresh room counts after short delay
-            setTimeout(() => window.location.reload(), 3000);
-          };
-
-          if (data.paymentMethod === "Card") {
-            try {
-              const hashRes = await apiFetch("/payments/payhere-hash", {
-                method: "POST",
-                body: JSON.stringify({
-                  orderId: booking._id,
-                  amount: booking.totalPrice
-                })
-              });
-
-              if (!hashRes || !hashRes.success) {
-                throw new Error("Failed to generate payment signature for booking.");
-              }
-
-              const { merchantId, currency, hash, amount } = hashRes.data;
-              const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "").replace(/\/$/, "");
-
-              const payment = {
-                sandbox: true,
-                merchant_id: merchantId,
-                return_url: `${window.location.origin}/my-bookings`,
-                cancel_url: `${window.location.origin}/rooms`,
-                notify_url: `${API_BASE}/api/payments/payhere-notify`,
-                order_id: booking._id,
-                items: `Room Booking - ${data.room.name}`,
-                amount: amount,
-                currency: currency,
-                hash: hash,
-                first_name: user?.name?.split(" ")[0] || "Valued",
-                last_name: user?.name?.split(" ")[1] || "Guest",
-                email: user?.email || data.email,
-                phone: user?.phone || data.phone,
-                address: "Hotel Janro Guest",
-                city: "Colombo",
-                country: "Sri Lanka",
-                custom_1: "room" // Signal to backend that this is a room booking
-              };
-
-              window.payhere.onCompleted = async function onCompleted(orderId) {
-                showSuccessModal();
-              };
-
-              window.payhere.onDismissed = function onDismissed() {
-                alert("Payment window closed. Your booking is saved as Unpaid in your dashboard.");
-                window.location.href = "/my-bookings";
-              };
-
-              window.payhere.onError = function onError(error) {
-                alert("Payment failed: " + error);
-                window.location.href = "/my-bookings";
-              };
-
-              window.payhere.startPayment(payment);
-            } catch (err) {
-              alert("Could not start payment: " + err.message);
-              window.location.href = "/my-bookings";
-            }
-          } else {
-            // Cash payment - directly show success
-            showSuccessModal();
-          }
+          setBookingSuccess({
+            name: user?.name || "Guest",
+            roomName: data.room.name,
+            guests: data.guests,
+            decorations: decorationText
+          });
+          
+          // Refresh room counts after short delay
+          setTimeout(() => window.location.reload(), 3000);
         }
       } catch (error) {
         alert(`Booking failed: ${error.message}`);
@@ -219,9 +152,6 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
                 )}
               </div>
             )}
-            <p className="text-xs font-medium text-emerald-600 mb-6 bg-emerald-50 py-2 px-3 rounded-lg border border-emerald-100">
-              A confirmation email will be sent to your inbox shortly by the hotel.
-            </p>
             <button
               onClick={() => setBookingSuccess(null)}
               className="w-full py-3 rounded-xl font-semibold text-white"
@@ -244,7 +174,6 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/forgot-password" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ForgotPassword />} />
       <Route path="/reset-password/:token" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ResetPassword />} />
-      <Route path="/verify-otp" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <VerifyOTP />} />
 
       <Route
         path="/login"
@@ -293,12 +222,11 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
         <Route path="pool" element={<ReceptionPool />} />
         <Route path="gym" element={<ReceptionGym />} />
         <Route path="customers" element={<AdminGuests />} />
-        <Route path="profile" element={<ReceptionProfile />} />
       </Route>
 
       <Route
         path="/cashier"
-        element={isLoggedIn && isCashier ? <CashierLayout user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} /> : <Navigate to="/login" replace />}
+        element={isLoggedIn && isCashier ? <CashierLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<CashierDashboard />} />
         <Route path="orders" element={<CashierOrders />} />

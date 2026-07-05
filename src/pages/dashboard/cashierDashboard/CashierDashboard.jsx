@@ -17,7 +17,7 @@ import {
 import { useSettings } from "../../../context/SettingsContext.jsx";
 import { useSocket } from "../../../context/SocketContext.jsx";
 import { toast } from "sonner";
-import "./CashierDashbord.css";
+import "./CashierDashboard.css";
 
 
 function formatCurrency(value) {
@@ -38,11 +38,11 @@ function RealTimeClock({ className = "" }) {
   return (
     <div className={`flex items-center gap-2 px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md shadow-lg shadow-black/5 ${className}`}>
       <div className="p-1.5 bg-white/20 rounded-lg">
-        <Clock className="w-4 h-4 text-slate-900" />
+        <Clock className="w-4 h-4 text-white" />
       </div>
-      <div className="flex items-center gap-2 text-slate-900">
+      <div className="flex items-center gap-2 text-white">
         <span className="font-medium tracking-wide text-xs sm:text-sm">{formatDate(currentTime)}</span>
-        <span className="text-slate-900/40 text-xs sm:text-sm">|</span>
+        <span className="text-white/40 text-xs sm:text-sm">|</span>
         <span className="font-bold tracking-wider text-xs sm:text-sm">{formatTime(currentTime)}</span>
       </div>
     </div>
@@ -112,18 +112,18 @@ function CashierOrders() {
   
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-200">
+      <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-white border border-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-[80px] -mr-32 -mt-32" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div>
-            <h2 className="text-3xl md:text-5xl text-slate-900 font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
+            <h2 className="text-3xl md:text-5xl font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
               Order <span className="text-blue-400">Management</span>
             </h2>
-            <p className="text-slate-500 mt-2">Monitor all active and past kitchen sync orders</p>
+            <p className="text-slate-400 mt-2">Monitor all active and past kitchen sync orders</p>
           </div>
           <div className="flex flex-col sm:flex-row md:items-center gap-4 self-start md:self-auto">
             <RealTimeClock />
-            <div className="bg-white/10 p-4 rounded-2xl text-center border border-slate-200 shrink-0 w-full sm:w-auto">
+            <div className="bg-white/10 p-4 rounded-2xl text-center border border-white/10 shrink-0 w-full sm:w-auto">
               <p className="text-xs text-blue-300 font-bold uppercase tracking-widest">Active Tickets</p>
               <p className="text-3xl font-black">{activeOrders}</p>
             </div>
@@ -141,7 +141,7 @@ function CashierOrders() {
           ) : (
             <table className="w-full text-left border-separate border-spacing-y-4">
               <thead>
-                <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                   <th className="px-8 pb-2">Order Info</th>
                   <th className="px-8 pb-2 text-center">Status</th>
                   <th className="px-8 pb-2 text-center">Items</th>
@@ -153,7 +153,7 @@ function CashierOrders() {
                   <tr key={order._id} className="bg-slate-50 hover:bg-slate-100/50 transition-colors">
                     <td className="px-8 py-6 rounded-l-[2rem]">
                       <p className="font-bold text-slate-900">{order.customerName || 'Guest'} - {order.orderType}</p>
-                      <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">{new Date(order.createdAt).toLocaleString()}</p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{new Date(order.createdAt).toLocaleString()}</p>
                     </td>
                     <td className="px-8 py-6 text-center">
                       <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
@@ -233,18 +233,18 @@ function CashierPayments() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-200">
+      <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-white border border-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-[80px] -mr-32 -mt-32" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div>
-            <h2 className="text-3xl md:text-5xl text-slate-900 font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
+            <h2 className="text-3xl md:text-5xl font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
               Payment <span className="text-emerald-400">Gateway</span>
             </h2>
-            <p className="text-slate-500 mt-2">Track financial transactions and pending settlements</p>
+            <p className="text-slate-400 mt-2">Track financial transactions and pending settlements</p>
           </div>
           <div className="flex flex-col sm:flex-row md:items-center gap-4 self-start md:self-auto">
             <RealTimeClock />
-            <div className="bg-white/10 p-4 rounded-2xl text-center border border-slate-200 shrink-0 w-full sm:w-auto">
+            <div className="bg-white/10 p-4 rounded-2xl text-center border border-white/10 shrink-0 w-full sm:w-auto">
               <p className="text-xs text-emerald-300 font-bold uppercase tracking-widest">Total Collected</p>
               <p className="text-3xl font-black text-emerald-400">{formatCurrency(paidTotal)}</p>
             </div>
@@ -262,7 +262,7 @@ function CashierPayments() {
           ) : (
             <table className="w-full text-left border-separate border-spacing-y-4">
               <thead>
-                <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                   <th className="px-8 pb-2">Transaction ID</th>
                   <th className="px-8 pb-2 text-center">Status</th>
                   <th className="px-8 pb-2 text-center">Payment Method</th>
@@ -274,11 +274,11 @@ function CashierPayments() {
                   <tr key={order._id} className="bg-slate-50 hover:bg-slate-100/50 transition-colors">
                     <td className="px-8 py-6 rounded-l-[2rem]">
                       <p className="font-bold text-slate-900">#{order._id.slice(-8)}</p>
-                      <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">{new Date(order.createdAt).toLocaleString()}</p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{new Date(order.createdAt).toLocaleString()}</p>
                     </td>
                     <td className="px-8 py-6 text-center">
                       <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                        order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-slate-900' : 'bg-rose-100 text-rose-600'
+                        order.paymentStatus === 'Paid' ? 'bg-emerald-500 text-white' : 'bg-rose-100 text-rose-600'
                       }`}>
                         {order.paymentStatus}
                       </span>
@@ -532,14 +532,14 @@ function CashierReceipts() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-200">
+      <div className="bg-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-white border border-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-[80px] -mr-32 -mt-32" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div>
-            <h2 className="text-3xl md:text-5xl text-slate-900 font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
+            <h2 className="text-3xl md:text-5xl font-normal leading-tight" style={{ fontFamily: "DM Serif Display, serif" }}>
               Digital <span className="text-[#D4AF37]">Receipts</span>
             </h2>
-            <p className="text-slate-500 mt-2">Access and print official bills for completed payments</p>
+            <p className="text-slate-400 mt-2">Access and print official bills for completed payments</p>
           </div>
           <RealTimeClock className="self-start md:self-auto" />
         </div>
@@ -549,7 +549,7 @@ function CashierReceipts() {
         {loading ? (
           <div className="col-span-full py-20 text-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-[#D4AF37] rounded-full animate-spin mx-auto" /></div>
         ) : orders.length === 0 ? (
-          <div className="col-span-full py-20 text-center text-slate-500">
+          <div className="col-span-full py-20 text-center text-slate-400">
             <Receipt className="w-16 h-16 mx-auto mb-4 opacity-50" />
             <p>No settled bills found.</p>
           </div>
@@ -560,7 +560,7 @@ function CashierReceipts() {
                  <div className="w-12 h-12 bg-[#D4AF37]/10 text-[#D4AF37] rounded-2xl flex items-center justify-center">
                    <Receipt className="w-6 h-6" />
                  </div>
-                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">#{order._id.slice(-8)}</span>
+                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">#{order._id.slice(-8)}</span>
                </div>
                <h3 className="text-xl font-bold text-slate-900">{formatCurrency(order.totalAmount)}</h3>
                <p className="text-xs text-slate-500 mt-1">{new Date(order.createdAt).toLocaleString()}</p>
@@ -568,7 +568,7 @@ function CashierReceipts() {
                <div className="mt-6 pt-6 border-t border-slate-100">
                  <button 
                    onClick={() => handlePrintReceipt(order)}
-                   className="w-full py-3 bg-slate-50 hover:bg-slate-50 hover:text-slate-900 text-slate-700 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                   className="w-full py-3 bg-slate-50 hover:bg-[#0F172A] hover:text-white text-slate-700 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
                  >
                    Print Bill
                  </button>
