@@ -33,7 +33,7 @@ import { AdminInventory } from "../pages/dashboard/adminDashboard/AdminInventory
 import { AdminMessages } from "../pages/dashboard/adminDashboard/AdminMessages.jsx";
 
 import { ReceptionDashboard } from "../pages/dashboard/receptionDashboard/ReceptionDashboard.jsx";
-import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReciptionPool.jsx";
+import { ReceptionPool } from "../pages/dashboard/receptionDashboard/ReceptionPool.jsx";
 import { ReceptionGym } from "../pages/dashboard/receptionDashboard/ReceptionGym.jsx";
 import { ReceptionBookings } from "../pages/dashboard/receptionDashboard/ReceptionBookings.jsx";
 import { ReceptionRooms } from "../pages/dashboard/receptionDashboard/ReceptionRooms.jsx";
