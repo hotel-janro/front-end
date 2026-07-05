@@ -481,8 +481,19 @@ export function Restaurant({ onOrder, user }) {
             custom_1: "order" // Signal to backend that this is a restaurant order
           };
 
-          window.payhere.onCompleted = function onCompleted(completedOrderId) {
-            completeSuccess();
+          window.payhere.onCompleted = async function onCompleted(completedOrderId) {
+            try {
+              // Local fallback update for localhost testing (since notify_url won't reach localhost)
+              await apiFetch(`/orders/${orderId}`, {
+                method: "PUT",
+                body: JSON.stringify({ paymentStatus: "Paid", orderStatus: "Completed" })
+              });
+              completeSuccess();
+            } catch (err) {
+              console.error("Local status update failed:", err);
+              // Still call completeSuccess so user sees the UI update even if local fallback fails
+              completeSuccess();
+            }
           };
 
           window.payhere.onDismissed = function onDismissed() {
