@@ -173,23 +173,7 @@ const serviceCharge = useMemo(() => {
   return (posForm.orderType === "Dine-in" || posForm.orderType === "Room") ? subtotal * 0.1 : 0;
 }, [subtotal, posForm.orderType]);
 
-const { deliveryFee, distance } = useMemo(() => {
-  if (posForm.orderType === "Delivery") {
-    // Prioritize manual input if available
-    if (posForm.deliveryFee > 0) {
-      return { deliveryFee: posForm.deliveryFee, distance: 0 };
-    }
-    if (posForm.coordinates) {
-      const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
-      // Apply a 1.2x winding factor to estimate actual road distance
-      const dist = straightDist * 1.2;
-      // First 1km free, then 10% for every additional 1km 
-      const fee = (dist > 1 && dist <= 15) ? subtotal * 0.1 * Math.ceil(dist - 1) : 0;
-      return { deliveryFee: fee, distance: dist };
-    }
-  }
-  return { deliveryFee: 0, distance: 0 };
-}, [subtotal, posForm.orderType, posForm.coordinates, posForm.deliveryFee]);
+const deliveryFee = posForm.orderType === "Delivery" ? Number(posForm.deliveryFee || 0) : 0;
 
 const discountValue = Number(posForm.discount || 0);
 const grandTotal = Math.max(subtotal + serviceCharge + deliveryFee - discountValue, 0);
@@ -634,40 +618,21 @@ const handlePrintReceipt = (order) => {
             ${combinedServiceCharge > 0 ? `<div>Service (10%): Rs ${combinedServiceCharge.toLocaleString()}</div>` : ''}
             ${(function() {
               if (combinedDeliveryFee > 0) {
-                if (order?.orderType === 'Delivery' && order?.coordinates) {
-                  const HOTEL_COORDS = { lat: 6.9458, lng: 80.1250 };
-                  const R = 6371;
-                  const dLat = (order.coordinates.lat - HOTEL_COORDS.lat) * Math.PI / 180;
-                  const dLon = (order.coordinates.lng - HOTEL_COORDS.lng) * Math.PI / 180;
-                  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(HOTEL_COORDS.lat * Math.PI / 180) * Math.cos(order.coordinates.lat * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                  const straightDist = R * c;
-                  const dist = straightDist * 1.2; // Winding factor
-                  
-                  const calculatedFee = (dist > 1 && dist <= 15) ? (combinedSubtotal * 0.1 * Math.ceil(dist - 1)) : 0;
-                  
-                  // Check if it's auto-calculated or manually overridden
-                  if (Math.abs(calculatedFee - combinedDeliveryFee) <= 1 && dist > 1) {
-                    const payableKm = Math.ceil(dist - 1);
-                    return `
-                      <div class="divider"></div>
-                      <div style="text-align: right;">
-                        <div style="font-weight:bold;">Delivery Distance: ${dist.toFixed(1)} km</div>
-                        <div style="font-size: 8px; color: #555; margin-bottom: 2px;">(1km Free + ${payableKm}km @ 10% Subtotal)</div>
-                        <div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>
-                      </div>
-                    `;
-                  } else {
-                    return `
-                      <div class="divider"></div>
-                      <div style="text-align: right;">
-                        <div style="font-weight:bold;">Delivery Distance: ${dist.toFixed(1)} km</div>
-                        <div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>
-                      </div>
-                    `;
-                  }
-                }
-                return `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>`;
+                let distanceLabel = "";
+                if (combinedDeliveryFee === 150) distanceLabel = "1-3 km";
+                else if (combinedDeliveryFee === 250) distanceLabel = "3-6 km";
+                else if (combinedDeliveryFee === 350) distanceLabel = "6-9 km";
+                else if (combinedDeliveryFee === 450) distanceLabel = "9-12 km";
+                else if (combinedDeliveryFee === 550) distanceLabel = "12-15 km";
+                else distanceLabel = "Distance-based";
+                
+                return `
+                  <div class="divider"></div>
+                  <div style="text-align: right;">
+                    <div style="font-weight:bold;">Delivery Distance: ${distanceLabel}</div>
+                    <div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>
+                  </div>
+                `;
               }
               return '';
             })()}
@@ -1093,13 +1058,18 @@ const renderTerminal = () => (
               </div>
               <div className="space-y-1">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Delivery Fee (Rs)</label>
-                <input
-                  type="number"
-                  placeholder="0.00"
+                <select
                   value={posForm.deliveryFee}
                   onChange={e => setPosForm({ ...posForm, deliveryFee: Number(e.target.value) })}
                   className="w-full bg-white/5 border border-slate-400 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black"
-                />
+                >
+                  <option value="0" className="text-black">0 - 1 km (Free)</option>
+                  <option value="150" className="text-black">1 - 3 km (Rs 150)</option>
+                  <option value="250" className="text-black">3 - 6 km (Rs 250)</option>
+                  <option value="350" className="text-black">6 - 9 km (Rs 350)</option>
+                  <option value="450" className="text-black">9 - 12 km (Rs 450)</option>
+                  <option value="550" className="text-black">12 - 15 km (Rs 550)</option>
+                </select>
               </div>
               <div className="space-y-1">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Contact Phone</label>
@@ -1165,7 +1135,7 @@ const renderTerminal = () => (
         <div className="pt-3 border-t border-slate-400 space-y-2 shrink-0">
           <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-500">
             {serviceCharge > 0 && <div className="flex justify-between col-span-2"><span>Service Charge (10%)</span><span className="text-[#D4AF37] font-bold">+{formatCurrency(serviceCharge)}</span></div>}
-            {deliveryFee > 0 && <div className="flex justify-between col-span-2"><span>Delivery Fee (Dist: {distance.toFixed(1)}km)</span><span className="text-blue-400 font-bold">+{formatCurrency(deliveryFee)}</span></div>}
+            {deliveryFee > 0 && <div className="flex justify-between col-span-2"><span>Delivery Fee</span><span className="text-blue-400 font-bold">+{formatCurrency(deliveryFee)}</span></div>}
           </div>
 
           <div className="flex justify-between items-center">
