@@ -179,14 +179,26 @@ const { deliveryFee, distance } = useMemo(() => {
     if (posForm.deliveryFee > 0) {
       return { deliveryFee: posForm.deliveryFee, distance: 0 };
     }
-    if (posForm.coordinates) {
-      const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
-      // Apply a 1.2x winding factor to estimate actual road distance
-      const dist = straightDist * 1.2;
-      // First 1km free, then 10% for every additional 1km 
-      const fee = (dist > 1 && dist <= 15) ? subtotal * 0.1 * Math.ceil(dist - 1) : 0;
-      return { deliveryFee: fee, distance: dist };
-    }
+      if (posForm.coordinates) {
+        const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
+        // Apply a 1.2x winding factor to estimate actual road distance
+        const dist = straightDist * 1.2;
+        let fee = 0;
+        if (dist > 0 && dist <= 1) {
+          fee = 0;
+        } else if (dist > 1 && dist <= 3) {
+          fee = 150;
+        } else if (dist > 3 && dist <= 6) {
+          fee = 250;
+        } else if (dist > 6 && dist <= 9) {
+          fee = 350;
+        } else if (dist > 9 && dist <= 12) {
+          fee = 450;
+        } else if (dist > 12 && dist <= 15) {
+          fee = 550;
+        }
+        return { deliveryFee: fee, distance: dist };
+      }
   }
   return { deliveryFee: 0, distance: 0 };
 }, [subtotal, posForm.orderType, posForm.coordinates, posForm.deliveryFee]);
@@ -644,28 +656,13 @@ const handlePrintReceipt = (order) => {
                   const straightDist = R * c;
                   const dist = straightDist * 1.2; // Winding factor
                   
-                  const calculatedFee = (dist > 1 && dist <= 15) ? (combinedSubtotal * 0.1 * Math.ceil(dist - 1)) : 0;
-                  
-                  // Check if it's auto-calculated or manually overridden
-                  if (Math.abs(calculatedFee - combinedDeliveryFee) <= 1 && dist > 1) {
-                    const payableKm = Math.ceil(dist - 1);
-                    return `
-                      <div class="divider"></div>
-                      <div style="text-align: right;">
-                        <div style="font-weight:bold;">Delivery Distance: ${dist.toFixed(1)} km</div>
-                        <div style="font-size: 8px; color: #555; margin-bottom: 2px;">(1km Free + ${payableKm}km @ 10% Subtotal)</div>
-                        <div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>
-                      </div>
-                    `;
-                  } else {
-                    return `
+                  return `
                       <div class="divider"></div>
                       <div style="text-align: right;">
                         <div style="font-weight:bold;">Delivery Distance: ${dist.toFixed(1)} km</div>
                         <div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>
                       </div>
                     `;
-                  }
                 }
                 return `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>`;
               }
@@ -1081,15 +1078,24 @@ const renderTerminal = () => (
             <>
               <div className="space-y-1 col-span-2">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Delivery Address</label>
-                <input
-                  type="text"
-                  placeholder="123 Main Street, Dompe"
-                  value={posForm.deliveryAddress}
-                  onChange={e => { setPosForm({ ...posForm, deliveryAddress: e.target.value }); clearError('deliveryAddress'); }}
-                  onBlur={(e) => autoGeocode(e.target.value)}
-                  className={`w-full bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="123 Main Street, Dompe"
+                    value={posForm.deliveryAddress}
+                    onChange={e => { setPosForm({ ...posForm, deliveryAddress: e.target.value }); clearError('deliveryAddress'); }}
+                    className={`flex-1 bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => autoGeocode(posForm.deliveryAddress)}
+                    className="bg-[#D4AF37] text-slate-900 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37]/90 transition-all"
+                  >
+                    Search
+                  </button>
+                </div>
                 {validationErrors.deliveryAddress && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.deliveryAddress}</p>}
+                {distance > 15 && <p className="text-[9px] text-rose-500 font-black uppercase mt-1 ml-1">Warning: Distance is {distance.toFixed(1)}km (Too far!)</p>}
               </div>
               <div className="space-y-1">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Delivery Fee (Rs)</label>

@@ -50,7 +50,7 @@ export function MyOrders() {
   const [payingOrderId, setPayingOrderId] = useState(null);
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 30000);
+    const timer = setInterval(() => setNow(new Date()), 1000);
     loadMenu();
     return () => clearInterval(timer);
   }, []);
@@ -522,13 +522,13 @@ export function MyOrders() {
                                 <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                               </button>
                               
-                              {order.orderStatus === "Pending" && (
+                              {order.orderStatus === "Pending" && getRemainingTime(order.createdAt) && (
                                 <button 
                                   onClick={() => setEditingOrder(JSON.parse(JSON.stringify(order)))}
                                   className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#0F172A] border-2 border-[#0F172A] hover:border-[#D4AF37] hover:text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 cursor-pointer"
                                 >
                                   <Edit className="w-3 h-3" />
-                                  Edit Order
+                                  Edit Order ({getRemainingTime(order.createdAt)})
                                 </button>
                               )}
                             </div>
