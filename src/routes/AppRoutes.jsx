@@ -21,7 +21,7 @@ import { AdminRooms } from "../pages/dashboard/adminDashboard/AdminRooms.jsx";
 import { AdminRestaurant } from "../pages/dashboard/adminDashboard/AdminRestaurant.jsx";
 import { AdminPOS } from "../pages/dashboard/adminDashboard/AdminPos.jsx";
 import { AdminReports } from "../pages/dashboard/adminDashboard/AdminReports.jsx";
-import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayemnts.jsx";
+import { AdminPayments } from "../pages/dashboard/adminDashboard/AdminPayments.jsx";
 import { AdminPool } from "../pages/dashboard/adminDashboard/AdminPool.jsx";
 import { AdminGym } from "../pages/dashboard/adminDashboard/AdminGym.jsx";
 import { AdminStaff } from "../pages/dashboard/adminDashboard/AdminStaff.jsx";
