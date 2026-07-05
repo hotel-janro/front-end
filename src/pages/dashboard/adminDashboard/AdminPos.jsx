@@ -1281,18 +1281,6 @@ const renderKitchen = () => (
                     <Printer className="w-3.5 h-3.5" />
                     <span className="text-[10px] font-black uppercase tracking-widest">Bill</span>
                   </button>
-                  {(order.paymentStatus === 'Unpaid' || order.paymentStatus === 'Partial') && (
-                    <button
-                      onClick={() => {
-                        setSettleModalOrder(order);
-                        setCustomAmount('');
-                        setItemSplitChecked({});
-                      }}
-                      className="px-3 py-1 bg-[#D4AF37] hover:bg-[#b08d27] text-[#0F172A] text-[9px] font-black uppercase rounded-lg transition-all shadow-sm"
-                    >
-                      Settle Bill
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
