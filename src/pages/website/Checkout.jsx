@@ -25,7 +25,7 @@ export function Checkout() {
   useEffect(() => {
     const fetchRealItems = async () => {
       try {
-        const menuData = await apiFetch("/api/menu");
+        const menuData = await apiFetch("/menu");
         if (menuData && menuData.length > 0) {
           const updatedItems = cartItems.map((item, idx) => {
             // Swap numeric mock IDs (like 1 or 2) with real MongoDB ObjectIds
@@ -55,6 +55,79 @@ export function Checkout() {
   const tax = subtotal * 0.1;
   const total = subtotal + tax;
 
+  // Track an existing unpaid order so we don't create duplicates on PayHere retry
+  const [pendingOrderId, setPendingOrderId] = useState(null);
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+  const launchPayHere = async (orderId, totalAmount) => {
+    const user = JSON.parse(localStorage.getItem("janro_user") || "null");
+
+    const hashRes = await apiFetch("/payments/payhere-hash", {
+      method: "POST",
+      body: JSON.stringify({
+        orderId: orderId,
+        amount: totalAmount
+      })
+    });
+
+    if (!hashRes || !hashRes.success) {
+      throw new Error(hashRes?.message || "Failed to generate payment signature hash");
+    }
+
+    const { merchantId, currency, hash, amount } = hashRes.data;
+
+    const payment = {
+      sandbox: true,
+      merchant_id: merchantId,
+      return_url: `${window.location.origin}/my-orders`,
+      cancel_url: `${window.location.origin}/checkout`,
+      notify_url: `${API_BASE}/api/payments/payhere-notify`,
+      order_id: orderId,
+      items: `Hotel Food Order`,
+      amount: amount,
+      currency: currency,
+      first_name: user?.name?.split(" ")[0] || "Valued",
+      last_name: user?.name?.split(" ")[1] || "Guest",
+      email: user?.email || "guest@hoteljanro.com",
+      phone: user?.phone || "0771234567",
+      address: user?.address || "123 Luxury Avenue",
+      city: "Colombo",
+      country: "Sri Lanka",
+      hash: hash,
+      custom_1: "order"
+    };
+
+    window.payhere.onCompleted = async function onCompleted(completedOrderId) {
+      try {
+        await apiFetch(`/orders/${orderId}`, {
+          method: "PUT",
+          body: JSON.stringify({ paymentStatus: "Paid", orderStatus: "Completed" })
+        });
+        localStorage.removeItem("janro_cart");
+        setPendingOrderId(null);
+        setIsSuccess(true);
+        toast.success("Payment completed successfully!");
+      } catch (err) {
+        console.error("Local status update failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    window.payhere.onDismissed = function onDismissed() {
+      setLoading(false);
+      toast.info("Payment cancelled. You can retry anytime — your order is saved.");
+    };
+
+    window.payhere.onError = function onError(error) {
+      setLoading(false);
+      toast.error(`Payment failed: ${error}`);
+    };
+
+    window.payhere.startPayment(payment);
+  };
+
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
     if (cartItems.length === 0) {
@@ -71,7 +144,13 @@ export function Checkout() {
     try {
       const user = JSON.parse(localStorage.getItem("janro_user") || "null");
 
-      // 1. Create the Order in MongoDB (Unpaid initially)
+      if (method === "card" && pendingOrderId) {
+        // Reuse existing unpaid order — just re-open PayHere
+        await launchPayHere(pendingOrderId, total);
+        return;
+      }
+
+      // Create a new Order in MongoDB (Unpaid initially)
       const orderPayload = {
         orderType: delivery === "room" ? "Room" : "Take-away",
         roomNumber: delivery === "room" ? selectedRoom : undefined,
@@ -90,7 +169,7 @@ export function Checkout() {
         customerUser: user?.id || user?._id || undefined
       };
 
-      const order = await apiFetch("/api/orders", {
+      const order = await apiFetch("/orders", {
         method: "POST",
         body: JSON.stringify(orderPayload)
       });
@@ -100,80 +179,15 @@ export function Checkout() {
       }
 
       if (method === "cash") {
-        // 2a. Direct Cash checkout
+        // Direct Cash checkout
         localStorage.removeItem("janro_cart");
         setLoading(false);
         setIsSuccess(true);
         toast.success("Order placed successfully");
       } else {
-        // 2b. PayHere Card flow
-        // Fetch generated MD5 hash signature
-        const hashRes = await apiFetch("/payments/payhere-hash", {
-          method: "POST",
-          body: JSON.stringify({
-            orderId: order._id,
-            amount: total
-          })
-        });
-
-        if (!hashRes || !hashRes.success) {
-          throw new Error(hashRes?.message || "Failed to generate payment signature hash");
-        }
-
-        const { merchantId, currency, hash, amount } = hashRes.data;
-
-        // Configure PayHere JS SDK Popup Window
-        const payment = {
-          sandbox: true,
-          merchant_id: merchantId,
-          return_url: `${window.location.origin}/my-orders`,
-          cancel_url: `${window.location.origin}/checkout`,
-          notify_url: `${API_BASE}/api/payments/payhere-notify`, // Note: fallback check updates locally below
-          order_id: order._id,
-          items: `Hotel Food Order #${order.orderNumber || order._id.slice(-6)}`,
-          amount: amount,
-          currency: currency,
-          first_name: user?.name?.split(" ")[0] || "Valued",
-          last_name: user?.name?.split(" ")[1] || "Guest",
-          email: user?.email || "guest@hoteljanro.com",
-          phone: user?.phone || "0771234567",
-          address: user?.address || "123 Luxury Avenue",
-          city: "Colombo",
-          country: "Sri Lanka",
-          hash: hash,
-          custom_1: "order"
-        };
-
-        // Bind PayHere modal callback handlers
-        window.payhere.onCompleted = async function onCompleted(orderId) {
-          try {
-            // Local fallback validation update in case of local server localhost notify restrictions
-            await apiFetch(`/api/orders/${order._id}`, {
-              method: "PUT",
-              body: JSON.stringify({ paymentStatus: "Paid", orderStatus: "Completed" })
-            });
-            localStorage.removeItem("janro_cart");
-            setIsSuccess(true);
-            toast.success("Payment completed successfully!");
-          } catch (err) {
-            console.error("Local status update failed:", err);
-          } finally {
-            setLoading(false);
-          }
-        };
-
-        window.payhere.onDismissed = function onDismissed() {
-          setLoading(false);
-          toast.error("Payment dismissed");
-        };
-
-        window.payhere.onError = function onError(error) {
-          setLoading(false);
-          toast.error(`Payment failed: ${error}`);
-        };
-
-        // Open PayHere modal
-        window.payhere.startPayment(payment);
+        // Card flow — save order ID for retry and launch PayHere
+        setPendingOrderId(order._id);
+        await launchPayHere(order._id, total);
       }
     } catch (err) {
       setLoading(false);

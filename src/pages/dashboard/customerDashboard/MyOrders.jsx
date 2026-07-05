@@ -25,7 +25,7 @@ import {
   Download,
   Banknote
 } from "lucide-react";
-import { apiFetch } from "../../../api.js";
+import { apiFetch, API_HOST } from "../../../api.js";
 import { useSettings } from "../../../context/SettingsContext.jsx";
 import { useSocket } from "../../../context/SocketContext.jsx";
 import { toast } from "sonner";
@@ -122,7 +122,7 @@ export function MyOrders() {
     try {
       setPayingOrderId(order._id);
       
-      const hashRes = await apiFetch("/api/payments/payhere-hash", {
+      const hashRes = await apiFetch("/payments/payhere-hash", {
         method: "POST",
         body: JSON.stringify({
           orderId: order._id,
@@ -142,7 +142,7 @@ export function MyOrders() {
         merchant_id: merchantId,
         return_url: `${window.location.origin}/my-orders`,
         cancel_url: `${window.location.origin}/my-orders`,
-        notify_url: `${API_BASE}/api/payments/payhere-notify`,
+        notify_url: `${API_HOST}/api/payments/payhere-notify`,
         order_id: order._id,
         items: `Hotel Food Order #${order.orderNumber || order._id.slice(-6)}`,
         amount: amount,
@@ -160,7 +160,7 @@ export function MyOrders() {
 
       window.payhere.onCompleted = async function onCompleted(orderId) {
         try {
-          await apiFetch(`/api/orders/${order._id}`, {
+          await apiFetch(`/orders/${order._id}`, {
             method: "PUT",
             body: JSON.stringify({ paymentStatus: "Paid", orderStatus: "Completed" })
           });
