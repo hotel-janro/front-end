@@ -23,7 +23,8 @@ import {
   X,
   CalendarDays,
   Download,
-  Banknote
+  Banknote,
+  XCircle
 } from "lucide-react";
 import { apiFetch } from "../../../api.js";
 import { useSettings } from "../../../context/SettingsContext.jsx";
@@ -50,7 +51,7 @@ export function MyOrders() {
   const [payingOrderId, setPayingOrderId] = useState(null);
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
+    const timer = setInterval(() => setNow(new Date()), 30000);
     loadMenu();
     return () => clearInterval(timer);
   }, []);
@@ -245,11 +246,25 @@ export function MyOrders() {
       setEditingOrder(null);
       loadMyOrders();
     } catch (error) {
-      toast.error(`Update failed: ${error.message}`);
+      toast.error("Failed to update order");
     } finally {
       setIsUpdating(false);
     }
   }
+
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm("Are you sure you want to cancel this order?")) return;
+    try {
+      await apiFetch(`/orders/${orderId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ orderStatus: 'Cancelled' })
+      });
+      toast.success("Order cancelled");
+      loadMyOrders();
+    } catch (error) {
+      toast.error("Failed to cancel order");
+    }
+  };
 
   function updateItemQuantity(idx, delta) {
     const newItems = [...editingOrder.items];
@@ -522,14 +537,23 @@ export function MyOrders() {
                                 <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                               </button>
                               
-                              {order.orderStatus === "Pending" && getRemainingTime(order.createdAt) && (
-                                <button 
-                                  onClick={() => setEditingOrder(JSON.parse(JSON.stringify(order)))}
-                                  className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#0F172A] border-2 border-[#0F172A] hover:border-[#D4AF37] hover:text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 cursor-pointer"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                  Edit Order ({getRemainingTime(order.createdAt)})
-                                </button>
+                              {order.orderStatus === "Pending" && (
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={() => setEditingOrder(JSON.parse(JSON.stringify(order)))}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#0F172A] border-2 border-[#0F172A] hover:border-[#D4AF37] hover:text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 cursor-pointer"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                    Edit Order
+                                  </button>
+                                  <button 
+                                    onClick={() => handleCancelOrder(order._id)}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-rose-500 border-2 border-rose-500 hover:bg-rose-50 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 cursor-pointer"
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                    Cancel
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>
