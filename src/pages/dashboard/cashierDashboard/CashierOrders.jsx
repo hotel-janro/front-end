@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, Clock, CheckCircle, XCircle, ChevronDown, 
   ChevronUp, Check, X, Coffee, MapPin, Printer, Zap,
-  RefreshCcw, Gem, Banknote, Calendar, User, ShoppingCart, Package, Activity, CreditCard
+  RefreshCcw, Gem, Banknote, Calendar, User, ShoppingCart, Package, Activity, CreditCard,
+  Edit, Minus, Plus, Save, Loader2, Search as SearchIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../api.js';
@@ -18,6 +19,83 @@ export function CashierOrders() {
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Edit Order State
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [menuItems, setMenuItems] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showMenuDropdown, setShowMenuDropdown] = useState(false);
+
+  // Load menu for editing
+  const loadMenu = async () => {
+    try {
+      const data = await apiFetch('/menu');
+      setMenuItems(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    loadMenu();
+  }, []);
+
+  function updateItemQuantity(idx, delta) {
+    const newItems = [...editingOrder.items];
+    newItems[idx].quantity = Math.max(1, newItems[idx].quantity + delta);
+    setEditingOrder({ ...editingOrder, items: newItems });
+  }
+
+  function removeItem(idx) {
+    if (editingOrder.items.length <= 1) {
+      toast.error("Order must have at least one item. Cancel the order instead if needed.");
+      return;
+    }
+    const newItems = editingOrder.items.filter((_, i) => i !== idx);
+    setEditingOrder({ ...editingOrder, items: newItems });
+  }
+
+  function addNewItem(menuItem, portion = "") {
+    const existingIdx = editingOrder.items.findIndex(i => i.menuItemId === menuItem._id && i.portion === portion);
+    if (existingIdx !== -1) {
+      updateItemQuantity(existingIdx, 1);
+    } else {
+      let price = menuItem.price;
+      if (menuItem.hasPortions && portion) {
+        const pDetails = menuItem.portions.find(p => p.portionType === portion);
+        if (pDetails) price = pDetails.price;
+      }
+      const newItem = {
+        menuItemId: menuItem._id,
+        name: menuItem.name,
+        portion: portion,
+        price: price,
+        quantity: 1
+      };
+      setEditingOrder({ ...editingOrder, items: [...editingOrder.items, newItem] });
+    }
+    setSearchTerm("");
+    setShowMenuDropdown(false);
+  }
+
+  async function handleUpdateOrder() {
+    if (!editingOrder) return;
+    setIsUpdating(true);
+    try {
+      await apiFetch(`/orders/${editingOrder._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ items: editingOrder.items })
+      });
+      setEditingOrder(null);
+      loadOrders();
+      toast.success("Order updated successfully!");
+    } catch (error) {
+      toast.error("Failed to update order");
+    } finally {
+      setIsUpdating(false);
+    }
+  }
 
   // Payment settlement state
   const [settlingOrder, setSettlingOrder] = useState(null);
@@ -616,6 +694,14 @@ export function CashierOrders() {
                              Print Receipt
                            </button>
                          )}
+                         {order.orderStatus === 'Pending' && (
+                           <button 
+                             onClick={() => setEditingOrder(JSON.parse(JSON.stringify(order)))}
+                             className="px-6 py-4 border border-slate-200 bg-slate-100 text-slate-500 rounded-2xl hover:text-[#D4AF37] hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/10 transition-all active:scale-95"
+                           >
+                             <Edit className="w-5 h-5" />
+                           </button>
+                         )}
                          <button 
                            onClick={() => handleCancelOrder(order._id)}
                            className="px-6 py-4 border border-slate-200 bg-slate-100 text-slate-500 rounded-2xl hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-95"
@@ -770,6 +856,179 @@ export function CashierOrders() {
           </div>
         );
       })()}
+
+      {/* Edit Order Modal */}
+      {editingOrder && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setEditingOrder(null)} />
+          <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden animate-in zoom-in-95 duration-500 border border-white/10">
+            <header className="px-10 py-7 border-b border-slate-100 flex items-center justify-between bg-[#0F172A] text-white">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/10 text-[#D4AF37] flex items-center justify-center">
+                  <Edit className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-2xl text-white font-normal" style={{ fontFamily: "DM Serif Display, serif" }}>Modify <span className="text-[#D4AF37]">Order</span></h3>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">Ref: #{editingOrder.orderNumber || editingOrder._id.slice(-8)}</p>
+                </div>
+              </div>
+              <button onClick={() => setEditingOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 text-white hover:bg-rose-500/20 hover:text-rose-400 transition-all cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            <div className="p-10 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-slate-50/10">
+              {/* Add New Item Search */}
+              <div className="relative mb-8">
+                <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest mb-3">Add More Delicacies</p>
+                <div className="relative">
+                  <input 
+                    type="text"
+                    placeholder="Search menu..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setShowMenuDropdown(true);
+                    }}
+                    onFocus={() => setShowMenuDropdown(true)}
+                    className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all"
+                  />
+                  <SearchIcon className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                </div>
+
+                {showMenuDropdown && searchTerm && (
+                  <div className="absolute z-10 w-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto overflow-x-hidden">
+                    {menuItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase())).length > 0 ? menuItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase())).map(item => (
+                      <div key={item._id} className="p-4 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100" />
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">{item.name}</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase">{item.category}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            {item.hasPortions ? (
+                              item.portions.map(p => (
+                                <button 
+                                  key={p.portionType}
+                                  onClick={() => addNewItem(item, p.portionType)}
+                                  className="px-3 py-1.5 bg-[#D4AF37]/10 text-[#D4AF37] rounded-lg text-[9px] font-black uppercase hover:bg-[#D4AF37] hover:text-white transition-all cursor-pointer border border-[#D4AF37]/20"
+                                >
+                                  + {p.portionType}
+                                </button>
+                              ))
+                            ) : (
+                              <button 
+                                onClick={() => addNewItem(item)}
+                                className="px-3 py-1.5 bg-[#0F172A] text-[#D4AF37] rounded-lg text-[9px] font-black uppercase hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all cursor-pointer"
+                              >
+                                + Add
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="p-8 text-center text-slate-400 text-xs italic">No items found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Current Selection</p>
+                {editingOrder.items.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 bg-white border border-slate-150 rounded-2xl shadow-sm">
+                    <div className="flex-1">
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">{item.name}</h4>
+                      <p className="text-[10px] text-[#D4AF37] font-black uppercase tracking-widest mt-1">
+                        {item.portion || "Standard"} • {formatCurrency(item.price)}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <button 
+                          onClick={() => updateItemQuantity(idx, -1)}
+                          className="p-2 hover:bg-[#0F172A] hover:text-[#D4AF37] text-slate-400 hover:border-transparent transition-colors"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <span className="w-8 text-center text-xs font-black text-slate-900">{item.quantity}</span>
+                        <button 
+                          onClick={() => updateItemQuantity(idx, 1)}
+                          className="p-2 hover:bg-[#0F172A] hover:text-[#D4AF37] text-slate-400 hover:border-transparent transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <button 
+                        onClick={() => removeItem(idx)}
+                        className="p-2.5 text-rose-400 hover:bg-rose-50 rounded-xl transition-all hover:scale-105 active:scale-95"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <footer className="p-8 border-t border-slate-150 bg-slate-50/70 flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-1 w-full">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-3 border-b border-slate-200 pb-3">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtotal</div>
+                  <div className="text-right text-xs font-black text-slate-700">
+                    {formatCurrency(editingOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0))}
+                  </div>
+                  
+                  {editingOrder.serviceCharge > 0 && (
+                    <>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Service Charge</div>
+                      <div className="text-right text-xs font-black text-slate-700">{formatCurrency(editingOrder.serviceCharge)}</div>
+                    </>
+                  )}
+                  
+                  {editingOrder.deliveryFee > 0 && (
+                    <>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Delivery Fee</div>
+                      <div className="text-right text-xs font-black text-slate-700">{formatCurrency(editingOrder.deliveryFee)}</div>
+                    </>
+                  )}
+                  
+                  {editingOrder.discount > 0 && (
+                    <>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-rose-500">Discount</div>
+                      <div className="text-right text-xs font-black text-rose-500">-{formatCurrency(editingOrder.discount)}</div>
+                    </>
+                  )}
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.2em] mb-0.5">New Grand Total</p>
+                    <p className="text-3xl font-black text-[#0F172A]" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                      {formatCurrency(editingOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0) + (editingOrder.serviceCharge || 0) + (editingOrder.deliveryFee || 0) - (editingOrder.discount || 0))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={handleUpdateOrder}
+                disabled={isUpdating}
+                className="w-full md:w-auto flex items-center justify-center gap-3 px-10 py-5 bg-[#0F172A] text-[#D4AF37] rounded-2xl text-[11px] font-black uppercase tracking-[0.3em] hover:bg-[#D4AF37] hover:text-[#0F172A] hover:shadow-[0_10px_25px_rgba(212,175,55,0.3)] transition-all shadow-2xl disabled:opacity-50 cursor-pointer border border-transparent"
+              >
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Confirm Changes
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
