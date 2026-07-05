@@ -1372,23 +1372,22 @@ export function AdminStaff() {
 
       {/* Co-Admin Create/Edit Modal */}
       {isCoAdminModalOpen && (
-        <div className="admin-staff-modal-overlay">
-          <div className="admin-staff-modal-content max-w-lg">
+        <div className="admin-staff-modal-overlay" role="dialog" aria-modal="true" aria-label="Co-admin management dialog">
+          <div className="admin-staff-modal-card">
             <div className="admin-staff-modal-header">
-              <h2 className="admin-staff-modal-title">{isEditingCoAdmin ? 'Edit Co-Admin Account' : 'Create Co-Admin Account'}</h2>
-              <button className="admin-staff-modal-close" onClick={() => setIsCoAdminModalOpen(false)}>
-                <X />
+              <div>
+                <h2 className="admin-staff-modal-title">{isEditingCoAdmin ? 'Edit Co-Admin Account' : 'Create Co-Admin Account'}</h2>
+                <p className="admin-staff-modal-subtitle">Set up credentials and settings for secondary administrator.</p>
+              </div>
+              <button type="button" className="admin-staff-close-button" onClick={() => setIsCoAdminModalOpen(false)}>
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {formError && (
-              <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 border border-red-200 rounded-lg">
-                {formError}
-              </div>
-            )}
+            <form onSubmit={handleSaveCoAdmin} className="admin-staff-modal-form">
+              {formError && <p className="admin-staff-form-error">{formError}</p>}
 
-            <form onSubmit={handleSaveCoAdmin}>
-              <div className="grid grid-cols-1 gap-4 py-4">
+              <div className="admin-staff-form-grid">
                 <label className="admin-staff-form-label">
                   Name *
                   <input
@@ -1396,6 +1395,7 @@ export function AdminStaff() {
                     className="admin-staff-form-input"
                     value={coAdminForm.name}
                     onChange={(e) => setCoAdminForm(p => ({ ...p, name: e.target.value }))}
+                    placeholder="Enter full name"
                     required
                   />
                 </label>
@@ -1407,8 +1407,8 @@ export function AdminStaff() {
                     className="admin-staff-form-input"
                     value={coAdminForm.email}
                     onChange={(e) => setCoAdminForm(p => ({ ...p, email: e.target.value }))}
+                    placeholder="name@hoteljanro.com"
                     required
-                    disabled={isEditingCoAdmin}
                   />
                 </label>
 
@@ -1425,11 +1425,10 @@ export function AdminStaff() {
 
                 <label className="admin-staff-form-label">
                   Password {isEditingCoAdmin ? '(Leave blank to keep current)' : '*'}
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <div className="relative flex items-center">
                     <input
                       type={showCoAdminPassword ? "text" : "password"}
-                      className="admin-staff-form-input"
-                      style={{ paddingRight: '40px', width: '100%' }}
+                      className="admin-staff-form-input pr-10 w-full"
                       value={coAdminForm.password}
                       onChange={(e) => setCoAdminForm(p => ({ ...p, password: e.target.value }))}
                       required={!isEditingCoAdmin}
@@ -1438,18 +1437,7 @@ export function AdminStaff() {
                     <button
                       type="button"
                       onClick={() => setShowCoAdminPassword(!showCoAdminPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '12px',
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#64748B'
-                      }}
+                      className="absolute right-3 focus:outline-none text-slate-500 hover:text-slate-700 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer animate-fadeIn"
                     >
                       {showCoAdminPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
@@ -1457,7 +1445,7 @@ export function AdminStaff() {
                 </label>
               </div>
 
-              <div className="admin-staff-modal-actions mt-4">
+              <div className="admin-staff-modal-actions mt-6">
                 <button type="button" className="admin-staff-secondary-button" onClick={() => setIsCoAdminModalOpen(false)}>
                   Cancel
                 </button>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Bell, Lock, CreditCard, Loader2, Eye, EyeOff, User, Phone, Mail } from 'lucide-react';
+import { Save, Building2, Bell, Lock, CreditCard, Loader2, Eye, EyeOff, User, Phone, Mail, Plus, Trash2 } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext';
 import './AdminSettings.css';
 
@@ -59,6 +59,15 @@ export function AdminSettings() {
     accountHolderName: ''
   });
 
+  // Bank Accounts State (Multiple accounts)
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [newBankAccount, setNewBankAccount] = useState({
+    bankName: '',
+    branchName: '',
+    accountNumber: '',
+    accountHolderName: ''
+  });
+
   useEffect(() => {
     const storedUser = localStorage.getItem('janro_user');
     if (storedUser) {
@@ -90,12 +99,23 @@ export function AdminSettings() {
         accountNumber: settings.bankDetails?.accountNumber || '',
         accountHolderName: settings.bankDetails?.accountHolderName || ''
       });
+      setBankAccounts(settings.bankAccounts || []);
     }
   }, [settings]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleBankChange = (e) => {
+    const { name, value } = e.target;
+    setBankDetails(prev => ({ ...prev, [name]: value }));
+  };
+
+  const formatAccountNumber = (num) => {
+    if (!num) return '•••• •••• •••• ••••';
+    return num.replace(/\s+/g, '').replace(/(\d{4})/g, '$1 ').trim();
   };
 
 
@@ -257,28 +277,72 @@ export function AdminSettings() {
     setIsSaving(true);
     setMessage({ type: '', text: '' });
     try {
+      let updatedAccounts = [...bankAccounts];
+      const hasInputs = newBankAccount.bankName || newBankAccount.branchName || newBankAccount.accountNumber || newBankAccount.accountHolderName;
+
+      if (hasInputs) {
+        if (!newBankAccount.bankName || !newBankAccount.branchName || !newBankAccount.accountNumber || !newBankAccount.accountHolderName) {
+          setMessage({ type: 'error', text: 'Please fill in all bank account details' });
+          setIsSaving(false);
+          return;
+        }
+
+        const rawAccountNumber = newBankAccount.accountNumber.replace(/\s+/g, '');
+        if (!/^\d{6,20}$/.test(rawAccountNumber)) {
+          setMessage({ type: 'error', text: 'Account number must contain only digits (6 to 20 numbers)' });
+          setIsSaving(false);
+          return;
+        }
+
+        updatedAccounts.push({ ...newBankAccount, accountNumber: rawAccountNumber });
+      }
+
       const token = localStorage.getItem('janro_token');
+      const primaryBankDetails = updatedAccounts.length > 0 ? updatedAccounts[0] : {
+        bankName: '',
+        branchName: '',
+        accountNumber: '',
+        accountHolderName: ''
+      };
+      
       const response = await fetch(`${API_BASE}/api/settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ bankDetails })
+        body: JSON.stringify({ bankDetails: primaryBankDetails, bankAccounts: updatedAccounts })
       });
       
       const result = await response.json();
       if (result.success) {
-        setMessage({ type: 'success', text: 'Bank details updated successfully!' });
+        setMessage({ type: 'success', text: 'Payment settings updated successfully!' });
+        setBankAccounts(updatedAccounts);
+        setNewBankAccount({
+          bankName: '',
+          branchName: '',
+          accountNumber: '',
+          accountHolderName: ''
+        });
         fetchSettings(); // Refresh global settings
       } else {
-        setMessage({ type: 'error', text: result.message || 'Failed to update bank details' });
+        setMessage({ type: 'error', text: result.message || 'Failed to update payment settings' });
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'An error occurred while saving bank details' });
+      setMessage({ type: 'error', text: 'An error occurred while saving payment settings' });
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleNewBankChange = (e) => {
+    const { name, value } = e.target;
+    setNewBankAccount(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleDeleteBankAccount = (idx) => {
+    setBankAccounts(prev => prev.filter((_, i) => i !== idx));
+    setMessage({ type: 'success', text: 'Bank account removed locally. Click "Save Changes" to persist.' });
   };
 
   const onSave = () => {
@@ -325,6 +389,7 @@ export function AdminSettings() {
                 { id: 'general', label: 'Hotel Settings', icon: Building2 },
                 { id: 'notifications', label: 'Notifications', icon: Bell },
                 { id: 'security', label: 'Security', icon: Lock },
+                { id: 'payment', label: 'Payment Settings', icon: CreditCard },
               ].map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -580,10 +645,229 @@ export function AdminSettings() {
               </div>
             )}
 
+            {activeTab === 'payment' && (
+              <div className="space-y-8 animate-fadeIn">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Payment & Settlement Settings</h2>
+                  <p className="text-sm text-gray-500">Configure your official bank accounts for settlements and direct deposits.</p>
+                </div>
+
+                {/* Add Bank Account Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                  {/* Left Column: Bank Account Card Preview */}
+                  <div className="lg:col-span-5 flex flex-col justify-center items-center">
+                    <p className="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">Live Bank Card Preview</p>
+                    
+                    {/* Visual Bank Card */}
+                    <div className="relative w-full max-w-[320px] aspect-[1.586/1] bg-gradient-to-br from-[#1e293b] via-[#151f32] to-[#0f172a] text-white p-5 rounded-[20px] shadow-xl border border-slate-700/50 flex flex-col justify-between overflow-hidden select-none">
+                      {/* Decorative elements */}
+                      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0.01)_50%,transparent_100%)] pointer-events-none"></div>
+                      <div className="absolute -right-6 -top-6 w-28 h-28 bg-white/5 rounded-full blur-lg pointer-events-none"></div>
+                      <div className="absolute -left-12 -bottom-12 w-32 h-32 bg-blue-950/20 rounded-full blur-md pointer-events-none"></div>
+                      
+                      {/* Card Top: Bank Brand & Safe Icon */}
+                      <div className="flex justify-between items-start z-10">
+                        <div className="flex flex-col">
+                          <span className="text-[8px] uppercase tracking-widest text-slate-400 font-medium">Settlement Bank</span>
+                          <span className="text-sm font-bold tracking-wide truncate max-w-[160px] drop-shadow-sm uppercase text-slate-100 mt-0.5">
+                            {newBankAccount.bankName || 'BANK NAME'}
+                          </span>
+                        </div>
+                        {/* Circular Bank Logo */}
+                        <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                          <Building2 className="w-4 h-4 text-slate-300" />
+                        </div>
+                      </div>
+
+                      {/* Gold Chip */}
+                      <div className="w-10 h-8 bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 rounded-md relative overflow-hidden shadow border border-amber-600/30">
+                        <div className="absolute inset-y-0 left-1/3 w-[1px] bg-amber-800/20"></div>
+                        <div className="absolute inset-y-0 left-2/3 w-[1px] bg-amber-800/20"></div>
+                        <div className="absolute inset-x-0 top-1/4 h-[1px] bg-amber-800/20"></div>
+                        <div className="absolute inset-x-0 top-2/4 h-[1px] bg-amber-800/20"></div>
+                        <div className="absolute inset-x-0 top-3/4 h-[1px] bg-amber-800/20"></div>
+                      </div>
+
+                      {/* Card Middle: Account Number */}
+                      <div className="z-10">
+                        <span className="text-[8px] uppercase tracking-widest text-slate-400 block mb-0.5">Account Number</span>
+                        <p className="text-lg font-mono tracking-widest text-slate-100 drop-shadow-sm truncate">
+                          {formatAccountNumber(newBankAccount.accountNumber)}
+                        </p>
+                      </div>
+
+                      {/* Card Bottom: Holder, Branch, Hologram */}
+                      <div className="flex justify-between items-end z-10 pt-2 border-t border-slate-700/20">
+                        <div className="max-w-[45%]">
+                          <span className="text-[8px] uppercase tracking-wider text-slate-400 block">Holder</span>
+                          <span className="text-xs font-semibold tracking-wide truncate uppercase text-slate-200 block mt-0.5">
+                            {newBankAccount.accountHolderName || 'HOLDER NAME'}
+                          </span>
+                        </div>
+                        <div className="max-w-[35%] text-left ml-2">
+                          <span className="text-[8px] uppercase tracking-wider text-slate-400 block">Branch</span>
+                          <span className="text-xs font-semibold truncate text-slate-200 block mt-0.5 uppercase">
+                            {newBankAccount.branchName || 'BRANCH'}
+                          </span>
+                        </div>
+                        {/* Hologram Circle */}
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-teal-400 to-blue-500 opacity-80 shadow-sm shadow-teal-500/20"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Bank Details Form */}
+                  <div className="lg:col-span-7 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      <h3 className="font-bold text-gray-800 text-base pb-2 border-b border-gray-100 flex items-center gap-2">
+                        <Building2 className="w-5 h-5 text-blue-600" />
+                        Settlement Account Details
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="admin-settings-label text-xs">Bank Name</label>
+                          <input 
+                            type="text" 
+                            name="bankName"
+                            value={newBankAccount.bankName} 
+                            onChange={handleNewBankChange}
+                            placeholder="e.g., Bank of Ceylon"
+                            className="admin-settings-control text-sm focus:ring-2 focus:ring-blue-500" 
+                          />
+                        </div>
+                        <div>
+                          <label className="admin-settings-label text-xs">Branch Name</label>
+                          <input 
+                            type="text" 
+                            name="branchName"
+                            value={newBankAccount.branchName} 
+                            onChange={handleNewBankChange}
+                            placeholder="e.g., Colombo Fort"
+                            className="admin-settings-control text-sm focus:ring-2 focus:ring-blue-500" 
+                          />
+                        </div>
+                        <div>
+                          <label className="admin-settings-label text-xs">Account Number</label>
+                          <input 
+                            type="text" 
+                            name="accountNumber"
+                            value={newBankAccount.accountNumber} 
+                            onChange={handleNewBankChange}
+                            placeholder="e.g., 0012345678"
+                            className="admin-settings-control text-sm font-mono focus:ring-2 focus:ring-blue-500" 
+                          />
+                        </div>
+                        <div>
+                          <label className="admin-settings-label text-xs">Account Holder Name</label>
+                          <input 
+                            type="text" 
+                            name="accountHolderName"
+                            value={newBankAccount.accountHolderName} 
+                            onChange={handleNewBankChange}
+                            placeholder="e.g., Hotel Janro (Pvt) Ltd"
+                            className="admin-settings-control text-sm focus:ring-2 focus:ring-blue-500" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Configured Bank Cards List */}
+                <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-6">
+                  <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+                    <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-800">Active Accounts</h3>
+                      <p className="text-xs text-gray-500">Settlement destinations displayed as official debit cards</p>
+                    </div>
+                  </div>
+
+                  {bankAccounts.length === 0 ? (
+                    <div className="text-center py-8 bg-white rounded-xl border border-dashed border-gray-200">
+                      <Building2 className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No bank accounts configured yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {bankAccounts.map((account, idx) => (
+                        <div key={idx} className="relative aspect-[1.586/1] bg-gradient-to-br from-[#1e293b] via-[#151f32] to-[#0f172a] text-white p-5 rounded-[20px] shadow-lg border border-slate-700/50 flex flex-col justify-between overflow-hidden group select-none transition-all duration-300 hover:shadow-xl">
+                          {/* Card Gloss Overlay */}
+                          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0.01)_50%,transparent_100%)] pointer-events-none"></div>
+
+                          {/* Top Row: Bank Brand & Safe Icon */}
+                          <div className="flex justify-between items-start z-10">
+                            <div className="flex flex-col">
+                              <span className="text-[8px] uppercase tracking-widest text-slate-400 font-medium">Settlement Bank</span>
+                              <span className="text-sm font-bold tracking-wide truncate max-w-[140px] drop-shadow-sm uppercase text-slate-100 mt-0.5">
+                                {account.bankName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {/* Circular Bank Logo */}
+                              <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm shadow-sm">
+                                <Building2 className="w-4 h-4 text-slate-300" />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteBankAccount(idx)}
+                                className="p-1.5 bg-red-500/25 hover:bg-red-600 text-red-400 hover:text-white rounded-full transition-all duration-200 shadow-sm"
+                                title="Delete Bank Account"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Gold Chip */}
+                          <div className="w-10 h-8 bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 rounded-md relative overflow-hidden shadow border border-amber-600/30">
+                            <div className="absolute inset-y-0 left-1/3 w-[1px] bg-amber-800/20"></div>
+                            <div className="absolute inset-y-0 left-2/3 w-[1px] bg-amber-800/20"></div>
+                            <div className="absolute inset-x-0 top-1/4 h-[1px] bg-amber-800/20"></div>
+                            <div className="absolute inset-x-0 top-2/4 h-[1px] bg-amber-800/20"></div>
+                            <div className="absolute inset-x-0 top-3/4 h-[1px] bg-amber-800/20"></div>
+                          </div>
+
+                          {/* Card Middle: Account Number */}
+                          <div className="z-10">
+                            <span className="text-[8px] uppercase tracking-widest text-slate-400 block mb-0.5">Account Number</span>
+                            <p className="text-base font-mono tracking-widest text-slate-100 drop-shadow-sm truncate">
+                              {formatAccountNumber(account.accountNumber)}
+                            </p>
+                          </div>
+
+                          {/* Card Bottom: Holder, Branch, Hologram */}
+                          <div className="flex justify-between items-end z-10 pt-2 border-t border-slate-700/20">
+                            <div className="max-w-[45%]">
+                              <span className="text-[8px] uppercase tracking-wider text-slate-400 block">Holder</span>
+                              <span className="text-xs font-semibold tracking-wide truncate uppercase text-slate-200 block mt-0.5">
+                                {account.accountHolderName}
+                              </span>
+                            </div>
+                            <div className="max-w-[35%] text-left ml-2">
+                              <span className="text-[8px] uppercase tracking-wider text-slate-400 block">Branch</span>
+                              <span className="text-xs font-semibold truncate text-slate-200 block mt-0.5 uppercase">
+                                {account.branchName}
+                              </span>
+                            </div>
+                            {/* Hologram Circle */}
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-teal-400 to-blue-500 opacity-80 shadow-sm shadow-teal-500/20"></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end pt-6 border-t border-gray-200 mt-6">
               <button 
                 onClick={onSave}
-                disabled={isSaving || (activeTab !== 'profile' && activeTab !== 'general' && activeTab !== 'security' && activeTab !== 'notifications')}
+                disabled={isSaving || (activeTab !== 'profile' && activeTab !== 'general' && activeTab !== 'security' && activeTab !== 'notifications' && activeTab !== 'payment')}
                 className={`admin-settings-primary-btn ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}

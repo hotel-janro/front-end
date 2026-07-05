@@ -617,12 +617,23 @@ export function AdminGym() {
     }, 0);
   }, [passes]);
 
+  const isPassActive = (pass) => {
+    if (pass.status === 'Cancelled' || pass.status === 'Expired') return false;
+    return new Date(pass.validDate) >= new Date();
+  };
+
+  const getPassStatus = (pass) => {
+    if (pass.status === 'Cancelled') return 'Cancelled';
+    if (new Date(pass.validDate) < new Date()) return 'Expired';
+    return pass.status; // 'Active'
+  };
+
   const activeMembersCount = useMemo(() => {
     return members.filter((m) => m.status === 'Active').length;
   }, [members]);
 
   const activeDayPassCount = useMemo(() => {
-    return passes.filter((p) => p.status === 'Active' && p.passType === 'Day Pass').length;
+    return passes.filter((p) => isPassActive(p) && p.passType === 'Day Pass').length;
   }, [passes]);
 
   return (
@@ -821,11 +832,21 @@ export function AdminGym() {
                         {new Date(pass.validDate).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${pass.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                          }`}>
-                          {pass.status === 'Active' ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                          {pass.status}
-                        </span>
+                        {(() => {
+                          const currentStatus = getPassStatus(pass);
+                          const isActive = currentStatus === 'Active';
+                          const isExpired = currentStatus === 'Expired';
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              isActive ? 'bg-emerald-50 text-emerald-700' : 
+                              isExpired ? 'bg-amber-50 text-amber-700 border border-amber-200' : 
+                              'bg-red-50 text-red-700'
+                            }`}>
+                              {isActive ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                              {currentStatus}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <button
@@ -1040,7 +1061,7 @@ export function AdminGym() {
               </div>
               <div>
                 <p className="text-sm text-slate-500 font-medium">Active Passes</p>
-                <h3 className="text-2xl font-bold text-slate-800">{passes.filter(p => p.status === 'Active').length}</h3>
+                <h3 className="text-2xl font-bold text-slate-800">{passes.filter(p => isPassActive(p)).length}</h3>
               </div>
             </div>
           </div>
