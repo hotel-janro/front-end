@@ -767,6 +767,7 @@ export function AdminWedding() {
           customerNIC: '', customerAddress: '', discountPercentage: 0, complimentaryItems: [],
           nekathTimes: { poruwa: '', teaTime: '', lunchDinner: '' }
         });
+        setSearchTerm(''); // Clear search term to prevent lingering searches
         fetchData();
       }
     } catch (error) {
@@ -984,6 +985,8 @@ export function AdminWedding() {
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input 
                   type="text" 
+                  name="adminWeddingSearch"
+                  autoComplete="off"
                   placeholder={
                     activeTab === 'bookings' ? 'Search bookings by customer name...' : 
                     activeTab === 'halls' ? 'Search halls...' : 'Search packages...'
