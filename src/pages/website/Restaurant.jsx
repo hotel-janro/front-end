@@ -1006,7 +1006,7 @@ export function Restaurant({ onOrder, user }) {
 
                   <div className="px-6 md:px-8 py-4 md:py-6 bg-white border-t border-slate-50 mt-auto shrink-0">
                     <button
-                      disabled={isPlacingOrder || cart.length === 0}
+                      disabled={isPlacingOrder}
                       onClick={handlePlaceOrder}
                       className="w-full py-5 rounded-2xl bg-[#0F172A] text-[#D4AF37] font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] active:scale-95 shadow-xl flex items-center justify-center gap-3 cursor-pointer"
                     >
