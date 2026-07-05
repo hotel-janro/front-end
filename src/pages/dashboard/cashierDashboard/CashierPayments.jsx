@@ -3,7 +3,7 @@ import {
   Search, FileText, CheckCircle, Clock, 
   TrendingUp, Download, ArrowUpRight, Check,
   CreditCard, Calendar, BarChart3, Filter,
-  Activity, Wifi, RefreshCcw, Gem, Banknote, User, ChevronDown
+  Activity, Wifi, RefreshCcw, Gem, Banknote, User, ChevronDown, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { apiFetch } from '../../../api.js';
 
@@ -18,6 +18,15 @@ export function CashierPayments() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastPollTime, setLastPollTime] = useState(new Date());
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterMethod, filterStatus, dateFilter]);
 
   // Fetch orders on mount
   useEffect(() => {
@@ -86,6 +95,13 @@ export function CashierPayments() {
 
     return matchSearch && matchMethod && matchStatus && matchDate;
   });
+
+  // Pagination calculation
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedPayments = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Calculate totals for stats based on filtered results
   const totalSettled = filtered
@@ -313,7 +329,7 @@ export function CashierPayments() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filtered.map((payment) => {
+                {paginatedPayments.map((payment) => {
                   const MIcon = getMethodIcon(payment.method);
                   return (
                     <tr key={payment.id} className="group hover:bg-slate-100/50 transition-all duration-300 cursor-default">
@@ -372,6 +388,48 @@ export function CashierPayments() {
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && totalPages > 1 && (
+          <div className="p-6 border-t border-slate-400 flex items-center justify-between bg-slate-50">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+              Showing <span className="text-slate-900">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-slate-900">{Math.min(currentPage * itemsPerPage, filtered.length)}</span> of <span className="text-slate-900">{filtered.length}</span> Entries
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-xl bg-slate-100 border border-slate-300 text-slate-600 hover:bg-[#D4AF37] hover:text-[#0F172A] hover:border-[#D4AF37] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              
+              <div className="flex flex-wrap items-center gap-1">
+                {Array.from({ length: totalPages }).map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentPage(idx + 1)}
+                    className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
+                      currentPage === idx + 1 
+                        ? 'bg-[#D4AF37] text-[#0F172A] shadow-md' 
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-xl bg-slate-100 border border-slate-300 text-slate-600 hover:bg-[#D4AF37] hover:text-[#0F172A] hover:border-[#D4AF37] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
