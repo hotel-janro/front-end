@@ -112,7 +112,7 @@ function CashierOrders() {
   
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-200">
+      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-400">
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-[80px] -mr-32 -mt-32" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div>
@@ -123,7 +123,7 @@ function CashierOrders() {
           </div>
           <div className="flex flex-col sm:flex-row md:items-center gap-4 self-start md:self-auto">
             <RealTimeClock />
-            <div className="bg-white/10 p-4 rounded-2xl text-center border border-slate-200 shrink-0 w-full sm:w-auto">
+            <div className="bg-white/10 p-4 rounded-2xl text-center border border-slate-400 shrink-0 w-full sm:w-auto">
               <p className="text-xs text-blue-300 font-bold uppercase tracking-widest">Active Tickets</p>
               <p className="text-3xl font-black">{activeOrders}</p>
             </div>
@@ -131,13 +131,13 @@ function CashierOrders() {
         </div>
       </div>
 
-      <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-10 border-b border-slate-50 flex justify-between items-center">
+      <div className="bg-white rounded-[3rem] shadow-sm border border-slate-300 overflow-hidden">
+        <div className="p-10 border-b border-slate-300 flex justify-between items-center">
           <h3 className="text-2xl font-normal text-slate-900" style={{ fontFamily: "DM Serif Display, serif" }}>Order History</h3>
         </div>
         <div className="p-10 overflow-x-auto">
           {loading ? (
-            <div className="py-20 text-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin mx-auto" /></div>
+            <div className="py-20 text-center"><div className="w-10 h-10 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin mx-auto" /></div>
           ) : (
             <table className="w-full text-left border-separate border-spacing-y-4">
               <thead>
@@ -233,7 +233,7 @@ function CashierPayments() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-200">
+      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-400">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-[80px] -mr-32 -mt-32" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div>
@@ -244,7 +244,7 @@ function CashierPayments() {
           </div>
           <div className="flex flex-col sm:flex-row md:items-center gap-4 self-start md:self-auto">
             <RealTimeClock />
-            <div className="bg-white/10 p-4 rounded-2xl text-center border border-slate-200 shrink-0 w-full sm:w-auto">
+            <div className="bg-white/10 p-4 rounded-2xl text-center border border-slate-400 shrink-0 w-full sm:w-auto">
               <p className="text-xs text-emerald-300 font-bold uppercase tracking-widest">Total Collected</p>
               <p className="text-3xl font-black text-emerald-400">{formatCurrency(paidTotal)}</p>
             </div>
@@ -252,13 +252,13 @@ function CashierPayments() {
         </div>
       </div>
 
-      <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-10 border-b border-slate-50 flex justify-between items-center">
+      <div className="bg-white rounded-[3rem] shadow-sm border border-slate-300 overflow-hidden">
+        <div className="p-10 border-b border-slate-300 flex justify-between items-center">
           <h3 className="text-2xl font-normal text-slate-900" style={{ fontFamily: "DM Serif Display, serif" }}>Transaction Ledger</h3>
         </div>
         <div className="p-10 overflow-x-auto">
           {loading ? (
-             <div className="py-20 text-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin mx-auto" /></div>
+             <div className="py-20 text-center"><div className="w-10 h-10 border-4 border-slate-300 border-t-emerald-600 rounded-full animate-spin mx-auto" /></div>
           ) : (
             <table className="w-full text-left border-separate border-spacing-y-4">
               <thead>
@@ -532,7 +532,7 @@ function CashierReceipts() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-200">
+      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-10 rounded-[3rem] shadow-2xl relative overflow-hidden border border-slate-400">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-[80px] -mr-32 -mt-32" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div>
@@ -547,7 +547,7 @@ function CashierReceipts() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-full py-20 text-center"><div className="w-10 h-10 border-4 border-slate-100 border-t-[#D4AF37] rounded-full animate-spin mx-auto" /></div>
+          <div className="col-span-full py-20 text-center"><div className="w-10 h-10 border-4 border-slate-300 border-t-[#D4AF37] rounded-full animate-spin mx-auto" /></div>
         ) : orders.length === 0 ? (
           <div className="col-span-full py-20 text-center text-slate-500">
             <Receipt className="w-16 h-16 mx-auto mb-4 opacity-50" />
@@ -555,7 +555,7 @@ function CashierReceipts() {
           </div>
         ) : (
           orders.map(order => (
-            <div key={order._id} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-[#D4AF37]/5 transition-all group">
+            <div key={order._id} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-300 hover:shadow-xl hover:shadow-[#D4AF37]/5 transition-all group">
                <div className="flex justify-between items-start mb-6">
                  <div className="w-12 h-12 bg-[#D4AF37]/10 text-[#D4AF37] rounded-2xl flex items-center justify-center">
                    <Receipt className="w-6 h-6" />
@@ -565,7 +565,7 @@ function CashierReceipts() {
                <h3 className="text-xl font-bold text-slate-900">{formatCurrency(order.totalAmount)}</h3>
                <p className="text-xs text-slate-500 mt-1">{new Date(order.createdAt).toLocaleString()}</p>
                
-               <div className="mt-6 pt-6 border-t border-slate-100">
+               <div className="mt-6 pt-6 border-t border-slate-300">
                  <button 
                    onClick={() => handlePrintReceipt(order)}
                    className="w-full py-3 bg-slate-50 hover:bg-slate-50 hover:text-slate-900 text-slate-700 text-xs font-black uppercase tracking-widest rounded-xl transition-all"

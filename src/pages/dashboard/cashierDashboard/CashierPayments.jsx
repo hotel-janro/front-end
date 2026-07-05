@@ -120,7 +120,7 @@ export function CashierPayments() {
       case 'Cash': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
       case 'Online': return 'bg-violet-500/10 text-violet-400 border-violet-500/20';
       case 'Room Charge': return 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/20';
-      default: return 'bg-slate-100 text-slate-500 border-slate-200';
+      default: return 'bg-slate-100 text-slate-500 border-slate-400';
     }
   };
 
@@ -131,7 +131,7 @@ export function CashierPayments() {
       icon: CheckCircle,
       color: 'text-emerald-400',
       bg: 'bg-emerald-500/10',
-      border: 'border-slate-200',
+      border: 'border-slate-400',
       trend: 'up'
     },
     {
@@ -140,7 +140,7 @@ export function CashierPayments() {
       icon: Clock,
       color: 'text-amber-400',
       bg: 'bg-amber-500/10',
-      border: 'border-slate-200',
+      border: 'border-slate-400',
       trend: 'neutral'
     },
     {
@@ -149,7 +149,7 @@ export function CashierPayments() {
       icon: TrendingUp,
       color: 'text-[#D4AF37]',
       bg: 'bg-[#D4AF37]/10',
-      border: 'border-slate-200',
+      border: 'border-slate-400',
       trend: 'up'
     },
     {
@@ -158,7 +158,7 @@ export function CashierPayments() {
       icon: Activity,
       color: 'text-blue-400',
       bg: 'bg-blue-500/10',
-      border: 'border-slate-200',
+      border: 'border-slate-400',
       trend: 'neutral'
     },
   ];
@@ -166,7 +166,7 @@ export function CashierPayments() {
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
       {/* Premium Header */}
-      <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-200 mb-8">
+      <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-400 mb-8">
         <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-emerald-500/10 rounded-full blur-[60px] -mr-16 -mt-16" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -198,7 +198,7 @@ export function CashierPayments() {
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className="group relative p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm hover:shadow-lg hover:border-[#D4AF37]/30 transition-all duration-300">
+            <div key={stat.label} className="group relative p-4 bg-slate-50 border border-slate-400 rounded-2xl shadow-sm hover:shadow-lg hover:border-[#D4AF37]/30 transition-all duration-300">
               <div className="flex items-start justify-between mb-3">
                 <div className={`p-2 rounded-xl transition-transform duration-300 group-hover:scale-110 ${stat.bg} ${stat.color}`}>
                   <Icon className="w-4 h-4" />
@@ -223,7 +223,7 @@ export function CashierPayments() {
         {Object.entries(methodCounts).map(([method, count]) => {
           const MIcon = getMethodIcon(method);
           return (
-            <div key={method} className="bg-slate-100 rounded-xl border border-slate-200 px-5 py-3 flex items-center gap-4 shadow-sm hover:border-[#D4AF37]/30 transition-all group text-slate-900">
+            <div key={method} className="bg-slate-100 rounded-xl border border-slate-400 px-5 py-3 flex items-center gap-4 shadow-sm hover:border-[#D4AF37]/30 transition-all group text-slate-900">
               <div className={`p-2 rounded-lg transition-all group-hover:scale-110 ${getMethodStyles(method)}`}>
                 <MIcon className="w-4 h-4" />
               </div>
@@ -237,8 +237,8 @@ export function CashierPayments() {
       </div>
 
       {/* Payment Table Section */}
-      <div className="bg-slate-50 rounded-3xl border border-slate-200 shadow-xl overflow-hidden mt-6">
-        <div className="p-6 border-b border-slate-200 flex flex-col lg:flex-row gap-4">
+      <div className="bg-slate-50 rounded-3xl border border-slate-400 shadow-xl overflow-hidden mt-6">
+        <div className="p-6 border-b border-slate-400 flex flex-col lg:flex-row gap-4">
           <div className="flex-1 relative group">
             <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#D4AF37] transition-colors" />
             <input
@@ -246,7 +246,7 @@ export function CashierPayments() {
               placeholder="Locate payment record or guest..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-14 pr-8 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-sm font-bold text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+              className="w-full pl-14 pr-8 py-4 bg-slate-50 border border-slate-400 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-sm font-bold text-slate-900 placeholder:text-slate-400 transition-all outline-none"
             />
           </div>
           <div className="flex gap-3">
@@ -254,7 +254,7 @@ export function CashierPayments() {
               <select
                 value={filterMethod}
                 onChange={(e) => setFilterMethod(e.target.value)}
-                className="pl-6 pr-10 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-[10px] font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[160px] text-center"
+                className="pl-6 pr-10 py-4 bg-slate-50 border border-slate-400 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-[10px] font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[160px] text-center"
               >
                 <option value="All">All Channels</option>
                 <option value="Card">Card</option>
@@ -267,7 +267,7 @@ export function CashierPayments() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="pl-6 pr-10 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-[10px] font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[160px] text-center"
+                className="pl-6 pr-10 py-4 bg-slate-50 border border-slate-400 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-[10px] font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[160px] text-center"
               >
                 <option value="All">All Fulfillment</option>
                 <option value="Settled">Settled</option>
@@ -280,7 +280,7 @@ export function CashierPayments() {
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="pl-6 pr-10 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-[10px] font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[160px] text-center"
+                className="pl-6 pr-10 py-4 bg-slate-50 border border-slate-400 rounded-2xl focus:ring-4 focus:ring-[#D4AF37]/5 text-[10px] font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[160px] text-center"
               >
                 <option value="All">All Time</option>
                 <option value="Today">Today</option>
@@ -297,13 +297,13 @@ export function CashierPayments() {
         <div className="overflow-x-auto custom-scrollbar">
           {loading && orders.length === 0 ? (
              <div className="py-40 text-center">
-                <div className="w-16 h-16 border-4 border-slate-200 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6" />
+                <div className="w-16 h-16 border-4 border-slate-400 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6" />
                 <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px]">Syncing Financial Boutique History...</p>
              </div>
           ) : (
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-slate-50/20 border-b border-slate-200">
+                <tr className="bg-slate-50/20 border-b border-slate-400">
                   <th className="px-6 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Transaction</th>
                   <th className="px-6 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Guest</th>
                   <th className="px-6 py-4 text-left text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Channel</th>
@@ -326,7 +326,7 @@ export function CashierPayments() {
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[#D4AF37] group-hover:bg-[#D4AF37] group-hover:text-[#0F172A] transition-all duration-300">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-400 flex items-center justify-center text-[#D4AF37] group-hover:bg-[#D4AF37] group-hover:text-[#0F172A] transition-all duration-300">
                             <User className="w-4 h-4" />
                           </div>
                           <span className="text-xs font-black text-slate-900 uppercase tracking-widest">{payment.customerName}</span>
@@ -364,7 +364,7 @@ export function CashierPayments() {
           )}
           {!loading && filtered.length === 0 && (
             <div className="py-48 text-center bg-slate-50/20">
-              <div className="w-24 h-24 bg-slate-100 rounded-[3rem] border border-slate-200 flex items-center justify-center mx-auto mb-8 shadow-xl">
+              <div className="w-24 h-24 bg-slate-100 rounded-[3rem] border border-slate-400 flex items-center justify-center mx-auto mb-8 shadow-xl">
                 <CreditCard className="w-10 h-10 text-slate-600" />
               </div>
               <h4 className="text-lg font-black text-slate-900 uppercase tracking-widest mb-2">No Records Found</h4>

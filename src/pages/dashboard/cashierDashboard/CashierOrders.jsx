@@ -165,7 +165,7 @@ export function CashierOrders() {
       case 'Preparing': return 'bg-blue-50 text-blue-600 border-blue-100';
       case 'Completed': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
       case 'Cancelled': return 'bg-rose-50 text-rose-600 border-rose-100';
-      default: return 'bg-slate-50 text-slate-600 border-slate-100';
+      default: return 'bg-slate-50 text-slate-600 border-slate-300';
     }
   };
 
@@ -185,7 +185,7 @@ export function CashierOrders() {
       case 'Delivery': return 'bg-blue-50 text-blue-600 border-blue-100';
       case 'Take-away': return 'bg-pink-50 text-pink-600 border-pink-100';
       case 'Room': return 'bg-purple-50 text-purple-600 border-purple-100';
-      default: return 'bg-slate-50 text-slate-600 border-slate-100';
+      default: return 'bg-slate-50 text-slate-600 border-slate-300';
     }
   };
 
@@ -393,7 +393,7 @@ export function CashierOrders() {
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
       {/* Premium Header */}
-      <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-200 mb-8">
+      <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-400 mb-8">
         <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-blue-500/10 rounded-full blur-[60px] -mr-16 -mt-16" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -421,7 +421,7 @@ export function CashierOrders() {
       </div>
 
       {/* Luxury Search & Filters */}
-      <div className="bg-slate-50 rounded-[2.5rem] border border-slate-200 shadow-2xl p-2 text-slate-900">
+      <div className="bg-slate-50 rounded-[2.5rem] border border-slate-400 shadow-2xl p-2 text-slate-900">
         <div className="flex flex-col lg:flex-row gap-2">
           <div className="flex-1 relative group">
             <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#D4AF37] transition-colors" />
@@ -439,7 +439,7 @@ export function CashierOrders() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="pl-6 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
+                className="pl-6 pr-10 py-3 bg-slate-50 border border-slate-400 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
               >
                 <option value="All">All Types</option>
                 <option value="Dine-in">Dine-in</option>
@@ -454,7 +454,7 @@ export function CashierOrders() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="pl-6 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
+                className="pl-6 pr-10 py-3 bg-slate-50 border border-slate-400 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
               >
                 <option value="All">All Status</option>
                 <option value="Pending">Pending</option>
@@ -469,7 +469,7 @@ export function CashierOrders() {
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="pl-6 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
+                className="pl-6 pr-10 py-3 bg-slate-50 border border-slate-400 rounded-xl focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-black uppercase tracking-widest text-slate-600 cursor-pointer appearance-none min-w-[140px] text-center"
               >
                 <option value="All">All Time</option>
                 <option value="Today">Today</option>
@@ -487,7 +487,7 @@ export function CashierOrders() {
       <div className="grid grid-cols-1 gap-4">
         {loading && orders.length === 0 ? (
            <div className="py-32 text-center">
-              <div className="w-16 h-16 border-4 border-slate-100 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6 shadow-inner" />
+              <div className="w-16 h-16 border-4 border-slate-300 border-t-[#D4AF37] rounded-full animate-spin mx-auto mb-6 shadow-inner" />
               <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[10px]">Syncing with Kitchen...</p>
            </div>
         ) : filteredOrders.map((order) => {
@@ -502,7 +502,7 @@ export function CashierOrders() {
           return (
             <div
               key={order._id}
-              className={`group bg-slate-50 rounded-[2.5rem] border transition-all duration-700 overflow-hidden relative ${isExpanded ? 'border-[#D4AF37]/30 shadow-[0_30px_70px_-20px_rgba(212,175,55,0.15)] ring-1 ring-[#D4AF37]/10' : 'border-slate-200 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-20px_rgba(212,175,55,0.1)] hover:border-[#D4AF37]/20'}`}
+              className={`group bg-slate-50 rounded-[2.5rem] border transition-all duration-700 overflow-hidden relative ${isExpanded ? 'border-[#D4AF37]/30 shadow-[0_30px_70px_-20px_rgba(212,175,55,0.15)] ring-1 ring-[#D4AF37]/10' : 'border-slate-400 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-20px_rgba(212,175,55,0.1)] hover:border-[#D4AF37]/20'}`}
             >
               <div className={`absolute left-0 top-0 w-1.5 h-full bg-[#D4AF37] transition-all duration-700 ${isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}`} />
 
@@ -518,7 +518,7 @@ export function CashierOrders() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <span className="px-3 py-1 bg-slate-50 text-[#D4AF37] text-[8px] font-black uppercase tracking-[0.2em] rounded-full border border-slate-200">
+                        <span className="px-3 py-1 bg-slate-50 text-[#D4AF37] text-[8px] font-black uppercase tracking-[0.2em] rounded-full border border-slate-400">
                           Order {dailySequenceNum.toString().padStart(3, '0')}
                         </span>
                         <p className="text-sm font-black text-slate-500 tracking-widest uppercase">#{order._id.slice(-8).toUpperCase()}</p>
@@ -537,7 +537,7 @@ export function CashierOrders() {
                       </div>
                       <div className="flex items-center gap-4 mt-2">
                         <div className="flex items-center gap-1.5">
-                          <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                          <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center border border-slate-400">
                             <User className="w-2.5 h-2.5 text-slate-500" />
                           </div>
                           <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">{order.customerName || 'Guest'}</span>
@@ -574,7 +574,7 @@ export function CashierOrders() {
                         {formatCurrency(order.totalAmount)}
                       </p>
                     </div>
-                    <div className={`w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center transition-all duration-500 ${isExpanded ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] rotate-180' : 'bg-slate-50 text-slate-500 group-hover:border-slate-200'}`}>
+                    <div className={`w-10 h-10 rounded-xl border border-slate-400 flex items-center justify-center transition-all duration-500 ${isExpanded ? 'bg-[#D4AF37] border-[#D4AF37] text-[#0F172A] rotate-180' : 'bg-slate-50 text-slate-500 group-hover:border-slate-400'}`}>
                       <ChevronDown className="w-5 h-5" />
                     </div>
                   </div>
@@ -584,7 +584,7 @@ export function CashierOrders() {
               {/* Expanded Luxury Details */}
               {isExpanded && (
                 <div className="px-8 pb-8 bg-slate-50/20 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-slate-200">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-6 border-t border-slate-400">
                     <div>
                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
                         <Package className="w-3 h-3 text-[#D4AF37]" />
@@ -592,7 +592,7 @@ export function CashierOrders() {
                       </h4>
                       <div className="space-y-2">
                         {order.items?.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between py-4 px-5 bg-slate-100 rounded-2xl border border-slate-200 shadow-sm hover:border-[#D4AF37]/30 transition-all group/item">
+                          <div key={idx} className="flex items-center justify-between py-4 px-5 bg-slate-100 rounded-2xl border border-slate-400 shadow-sm hover:border-[#D4AF37]/30 transition-all group/item">
                             <div className="flex items-center gap-4">
                               <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center group-hover/item:bg-[#D4AF37] transition-colors">
                                 <span className="text-xs font-black text-[#D4AF37] group-hover/item:text-[#0F172A]">{item.quantity}x</span>
@@ -613,7 +613,7 @@ export function CashierOrders() {
                     <div className="flex flex-col justify-between">
                       <div>
                         <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4">Financial Summary</h4>
-                        <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
+                        <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-400 shadow-sm space-y-4">
                           <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
                             <span>Subtotal</span>
                             <span className="text-slate-900">{formatCurrency(order.subtotal)}</span>
@@ -636,7 +636,7 @@ export function CashierOrders() {
                               <span>-{formatCurrency(order.discount)}</span>
                             </div>
                           )}
-                          <div className="pt-4 border-t border-dashed border-slate-200 flex justify-between items-center">
+                          <div className="pt-4 border-t border-dashed border-slate-400 flex justify-between items-center">
                             <span className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Net Total</span>
                             <span className="text-2xl font-black text-slate-900" style={{ fontFamily: 'DM Serif Display, serif' }}>
                               {formatCurrency(order.totalAmount)}
@@ -660,7 +660,7 @@ export function CashierOrders() {
                                 className={`flex-1 py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all duration-300 ${
                                   isCurrent
                                     ? 'bg-[#D4AF37] text-[#0F172A] border-[#D4AF37] shadow-[0_5px_15px_rgba(212,175,55,0.15)] scale-[1.02]'
-                                    : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-900'
+                                    : 'bg-slate-100 text-slate-500 border-slate-400 hover:bg-slate-50 hover:text-slate-900'
                                 }`}
                               >
                                 {status}
@@ -697,14 +697,14 @@ export function CashierOrders() {
                          {order.orderStatus === 'Pending' && (
                            <button 
                              onClick={() => setEditingOrder(JSON.parse(JSON.stringify(order)))}
-                             className="px-6 py-4 border border-slate-200 bg-slate-100 text-slate-500 rounded-2xl hover:text-[#D4AF37] hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/10 transition-all active:scale-95"
+                             className="px-6 py-4 border border-slate-400 bg-slate-100 text-slate-500 rounded-2xl hover:text-[#D4AF37] hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/10 transition-all active:scale-95"
                            >
                              <Edit className="w-5 h-5" />
                            </button>
                          )}
                          <button 
                            onClick={() => handleCancelOrder(order._id)}
-                           className="px-6 py-4 border border-slate-200 bg-slate-100 text-slate-500 rounded-2xl hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-95"
+                           className="px-6 py-4 border border-slate-400 bg-slate-100 text-slate-500 rounded-2xl hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-95"
                          >
                            <XCircle className="w-5 h-5" />
                          </button>
@@ -718,8 +718,8 @@ export function CashierOrders() {
         })}
 
         {!loading && filteredOrders.length === 0 && (
-          <div className="bg-slate-50 rounded-[3rem] border border-slate-200 shadow-2xl p-24 text-center">
-            <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-slate-200">
+          <div className="bg-slate-50 rounded-[3rem] border border-slate-400 shadow-2xl p-24 text-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-slate-400">
               <ShoppingCart className="w-10 h-10 text-slate-600" />
             </div>
             <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-xs">No active orders found</p>
@@ -736,9 +736,9 @@ export function CashierOrders() {
         return (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-50/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setSettlingOrder(null)} />
-            <div className="relative bg-slate-50 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500 border border-slate-200">
+            <div className="relative bg-slate-50 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500 border border-slate-400">
               {/* Modal Header */}
-              <div className="bg-slate-50/40 px-8 py-6 flex items-center justify-between border-b border-slate-200">
+              <div className="bg-slate-50/40 px-8 py-6 flex items-center justify-between border-b border-slate-400">
                 <div>
                   <h2 className="text-xl text-slate-900 font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Settle <span className="text-[#D4AF37]">Order</span></h2>
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">
@@ -752,7 +752,7 @@ export function CashierOrders() {
 
               {/* Modal Content */}
               <div className="p-8 space-y-6">
-                <div className="flex justify-between items-end border-b border-slate-200 pb-6">
+                <div className="flex justify-between items-end border-b border-slate-400 pb-6">
                   <div>
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{isMultiple ? 'Combined Total' : 'Total Amount Due'}</p>
                     <h3 className="text-4xl font-black text-slate-900" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(combinedTotal)}</h3>
@@ -764,18 +764,18 @@ export function CashierOrders() {
                 </div>
 
                 {isMultiple && (
-                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-400">
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Order Group Summary</p>
                     <div className="space-y-3">
                       {relatedOrders.map(o => (
                         <div key={o._id} className="space-y-1">
-                          <div className="flex justify-between text-[9px] font-black text-slate-600 uppercase tracking-wider border-b border-slate-200 pb-1">
+                          <div className="flex justify-between text-[9px] font-black text-slate-600 uppercase tracking-wider border-b border-slate-400 pb-1">
                             <span>{new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} Order</span>
                             <span className="text-[#D4AF37]">{formatCurrency(o.totalAmount)}</span>
                           </div>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {(o.items || []).map((it, idx) => (
-                              <span key={idx} className="text-[7px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded uppercase">{it.quantity}x {it.name}</span>
+                              <span key={idx} className="text-[7px] font-bold text-slate-500 bg-slate-100 border border-slate-400 px-1.5 py-0.5 rounded uppercase">{it.quantity}x {it.name}</span>
                             ))}
                           </div>
                         </div>
@@ -818,7 +818,7 @@ export function CashierOrders() {
                             placeholder="Enter amount..."
                             value={cashReceived}
                             onChange={(e) => setCashReceived(e.target.value)}
-                            className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
+                            className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-400 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
                           />
                         </div>
                       </div>
@@ -862,7 +862,7 @@ export function CashierOrders() {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setEditingOrder(null)} />
           <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.4)] overflow-hidden animate-in zoom-in-95 duration-500 border border-white/10">
-            <header className="px-10 py-7 border-b border-slate-100 flex items-center justify-between bg-[#0F172A] text-white">
+            <header className="px-10 py-7 border-b border-slate-300 flex items-center justify-between bg-[#0F172A] text-white">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/10 text-[#D4AF37] flex items-center justify-center">
                   <Edit className="h-5 w-5" />
@@ -891,15 +891,15 @@ export function CashierOrders() {
                       setShowMenuDropdown(true);
                     }}
                     onFocus={() => setShowMenuDropdown(true)}
-                    className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all"
+                    className="w-full pl-12 pr-4 py-4 bg-white border border-slate-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] transition-all"
                   />
                   <SearchIcon className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                 </div>
 
                 {showMenuDropdown && menuSearchTerm && (
-                  <div className="absolute z-10 w-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto overflow-x-hidden">
+                  <div className="absolute z-10 w-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-300 max-h-60 overflow-y-auto overflow-x-hidden">
                     {menuItems.filter(item => item.name.toLowerCase().includes(menuSearchTerm.toLowerCase())).length > 0 ? menuItems.filter(item => item.name.toLowerCase().includes(menuSearchTerm.toLowerCase())).map(item => (
-                      <div key={item._id} className="p-4 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors">
+                      <div key={item._id} className="p-4 hover:bg-slate-50 border-b border-slate-300 last:border-0 transition-colors">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100" />
@@ -941,7 +941,7 @@ export function CashierOrders() {
               <div className="space-y-4">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Current Selection</p>
                 {editingOrder.items.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-white border border-slate-150 rounded-2xl shadow-sm">
+                  <div key={idx} className="flex items-center justify-between p-4 bg-white border border-slate-300 rounded-2xl shadow-sm">
                     <div className="flex-1">
                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">{item.name}</h4>
                       <p className="text-[10px] text-[#D4AF37] font-black uppercase tracking-widest mt-1">
@@ -950,7 +950,7 @@ export function CashierOrders() {
                     </div>
                     
                     <div className="flex items-center gap-4">
-                      <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                      <div className="flex items-center bg-white border border-slate-400 rounded-xl overflow-hidden shadow-sm">
                         <button 
                           onClick={() => updateItemQuantity(idx, -1)}
                           className="p-2 hover:bg-[#0F172A] hover:text-[#D4AF37] text-slate-400 hover:border-transparent transition-colors"
@@ -978,9 +978,9 @@ export function CashierOrders() {
               </div>
             </div>
 
-            <footer className="p-8 border-t border-slate-150 bg-slate-50/70 flex flex-col md:flex-row items-center gap-6">
+            <footer className="p-8 border-t border-slate-300 bg-slate-50/70 flex flex-col md:flex-row items-center gap-6">
               <div className="flex-1 w-full">
-                <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-3 border-b border-slate-200 pb-3">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-3 border-b border-slate-400 pb-3">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtotal</div>
                   <div className="text-right text-xs font-black text-slate-700">
                     {formatCurrency(editingOrder.items.reduce((s, i) => s + (i.price * i.quantity), 0))}

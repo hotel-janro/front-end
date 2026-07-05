@@ -154,7 +154,7 @@ export function CashierProfile() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header Section */}
-      <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-200 mb-8">
+      <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-400 mb-8">
         <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-purple-500/10 rounded-full blur-[60px] -mr-16 -mt-16" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -172,10 +172,11 @@ export function CashierProfile() {
             </div>
           </div>
 
-        {/* Status Badge */}
-        <div className="flex items-center gap-3 px-5 py-3 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md self-start md:self-center">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-white text-xs font-black uppercase tracking-widest">Active Session</span>
+          {/* Status Badge */}
+          <div className="flex items-center gap-3 px-5 py-3 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md self-start md:self-center">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-white text-xs font-black uppercase tracking-widest">Active Session</span>
+          </div>
         </div>
       </div>
 
@@ -183,7 +184,7 @@ export function CashierProfile() {
       <div className="bg-white rounded-2xl shadow-sm border border-[#0F172A]/10 overflow-hidden">
         <div className="flex flex-col md:flex-row">
           {/* Sidebar Tabs */}
-          <div className="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-100 bg-slate-50/50">
+          <div className="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-300 bg-slate-50/50">
             <nav className="p-4 space-y-2">
               <button
                 onClick={() => {
@@ -241,7 +242,7 @@ export function CashierProfile() {
                     name="name"
                     value={profileData.name}
                     onChange={handleProfileChange}
-                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium text-sm"
+                    className="w-full px-5 py-3 rounded-xl border border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium text-sm"
                     placeholder="Enter full name"
                     required
                   />
@@ -257,7 +258,7 @@ export function CashierProfile() {
                     name="email"
                     value={profileData.email}
                     onChange={handleProfileChange}
-                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium text-sm"
+                    className="w-full px-5 py-3 rounded-xl border border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium text-sm"
                     placeholder="Enter email address"
                     required
                   />
@@ -273,7 +274,7 @@ export function CashierProfile() {
                     name="phone"
                     value={profileData.phone}
                     onChange={handleProfileChange}
-                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium text-sm"
+                    className="w-full px-5 py-3 rounded-xl border border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium text-sm"
                     placeholder="Enter phone number"
                   />
                 </div>
@@ -283,7 +284,7 @@ export function CashierProfile() {
                     <Shield className="w-4 h-4 text-[#D4AF37]" />
                     System Role
                   </label>
-                  <div className="px-5 py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-900 font-bold text-sm select-none">
+                  <div className="px-5 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 font-bold text-sm select-none">
                     <span className="px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] rounded-full text-[10px] font-black uppercase tracking-widest">
                       {user?.role || "Cashier"}
                     </span>
@@ -321,7 +322,7 @@ export function CashierProfile() {
                       name="currentPassword"
                       value={passwordData.currentPassword}
                       onChange={handlePasswordChange}
-                      className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
+                      className="w-full px-5 py-3 rounded-xl border border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
                       placeholder="Enter current password"
                       required
                     />
@@ -346,7 +347,7 @@ export function CashierProfile() {
                       name="newPassword"
                       value={passwordData.newPassword}
                       onChange={handlePasswordChange}
-                      className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
+                      className="w-full px-5 py-3 rounded-xl border border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
                       placeholder="Enter new password"
                       required
                     />
@@ -371,7 +372,7 @@ export function CashierProfile() {
                       name="confirmPassword"
                       value={passwordData.confirmPassword}
                       onChange={handlePasswordChange}
-                      className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
+                      className="w-full px-5 py-3 rounded-xl border border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/10 outline-none transition-all font-medium pr-12 text-sm"
                       placeholder="Confirm new password"
                       required
                     />

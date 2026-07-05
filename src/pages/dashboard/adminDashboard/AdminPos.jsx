@@ -37,7 +37,7 @@ const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefi
 const PosMenuItem = React.memo(({ item, handleAddVisualItem }) => {
   return (
     <div
-      className={`bg-white rounded-xl border border-slate-200 flex flex-row items-center p-2.5 gap-3 hover:border-slate-300 transition-colors shadow-sm ${!item.isAvailable ? 'opacity-50 grayscale' : 'cursor-pointer'
+      className={`bg-white rounded-xl border border-slate-400 flex flex-row items-center p-2.5 gap-3 hover:border-slate-300 transition-colors shadow-sm ${!item.isAvailable ? 'opacity-50 grayscale' : 'cursor-pointer'
         }`}
       onClick={() => {
         if (!item.hasPortions && item.isAvailable) {
@@ -81,7 +81,7 @@ const PosMenuItem = React.memo(({ item, handleAddVisualItem }) => {
                 key={p.portionType}
                 disabled={!item.isAvailable}
                 onClick={() => handleAddVisualItem(item, p.portionType)}
-                className="px-2 py-1 bg-slate-100 hover:bg-[#D4AF37] hover:text-[#0F172A] border border-slate-200 text-slate-600 rounded-md text-[9px] font-black uppercase transition-colors"
+                className="px-2 py-1 bg-slate-100 hover:bg-[#D4AF37] hover:text-[#0F172A] border border-slate-400 text-slate-600 rounded-md text-[9px] font-black uppercase transition-colors"
               >
                 {p.portionType[0]}: {formatCurrency(p.price).replace('Rs ', '').split('.')[0]}
               </button>
@@ -179,26 +179,14 @@ const { deliveryFee, distance } = useMemo(() => {
     if (posForm.deliveryFee > 0) {
       return { deliveryFee: posForm.deliveryFee, distance: 0 };
     }
-      if (posForm.coordinates) {
-        const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
-        // Apply a 1.2x winding factor to estimate actual road distance
-        const dist = straightDist * 1.2;
-        let fee = 0;
-        if (dist > 0 && dist <= 1) {
-          fee = 0;
-        } else if (dist > 1 && dist <= 3) {
-          fee = 150;
-        } else if (dist > 3 && dist <= 6) {
-          fee = 250;
-        } else if (dist > 6 && dist <= 9) {
-          fee = 350;
-        } else if (dist > 9 && dist <= 12) {
-          fee = 450;
-        } else if (dist > 12 && dist <= 15) {
-          fee = 550;
-        }
-        return { deliveryFee: fee, distance: dist };
-      }
+    if (posForm.coordinates) {
+      const straightDist = calculateDistance(HOTEL_COORDS.lat, HOTEL_COORDS.lng, posForm.coordinates.lat, posForm.coordinates.lng);
+      // Apply a 1.2x winding factor to estimate actual road distance
+      const dist = straightDist * 1.2;
+      // First 1km free, then 10% for every additional 1km 
+      const fee = (dist > 1 && dist <= 15) ? subtotal * 0.1 * Math.ceil(dist - 1) : 0;
+      return { deliveryFee: fee, distance: dist };
+    }
   }
   return { deliveryFee: 0, distance: 0 };
 }, [subtotal, posForm.orderType, posForm.coordinates, posForm.deliveryFee]);
@@ -656,13 +644,28 @@ const handlePrintReceipt = (order) => {
                   const straightDist = R * c;
                   const dist = straightDist * 1.2; // Winding factor
                   
-                  return `
+                  const calculatedFee = (dist > 1 && dist <= 15) ? (combinedSubtotal * 0.1 * Math.ceil(dist - 1)) : 0;
+                  
+                  // Check if it's auto-calculated or manually overridden
+                  if (Math.abs(calculatedFee - combinedDeliveryFee) <= 1 && dist > 1) {
+                    const payableKm = Math.ceil(dist - 1);
+                    return `
+                      <div class="divider"></div>
+                      <div style="text-align: right;">
+                        <div style="font-weight:bold;">Delivery Distance: ${dist.toFixed(1)} km</div>
+                        <div style="font-size: 8px; color: #555; margin-bottom: 2px;">(1km Free + ${payableKm}km @ 10% Subtotal)</div>
+                        <div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>
+                      </div>
+                    `;
+                  } else {
+                    return `
                       <div class="divider"></div>
                       <div style="text-align: right;">
                         <div style="font-weight:bold;">Delivery Distance: ${dist.toFixed(1)} km</div>
                         <div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>
                       </div>
                     `;
+                  }
                 }
                 return `<div>Delivery Fee: Rs ${combinedDeliveryFee.toLocaleString()}</div>`;
               }
@@ -808,7 +811,7 @@ const todayRevenue = todayOrders.filter(o => o.paymentStatus === 'Paid').reduce(
 
 // Helper sub-render functions for clean tabs layout
 const renderHeader = () => (
-  <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-200">
+  <div className="relative rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] p-5 py-6 shadow-2xl overflow-hidden border border-slate-400">
     <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-[#D4AF37]/5 rounded-full blur-[60px] -mr-16 -mt-16" />
 
     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -851,8 +854,8 @@ const renderStats = () => (
       { label: 'Active Kitchen', value: activeOrdersCount, icon: Clock, color: 'amber' },
       { label: 'Today Net Revenue', value: formatCurrency(todayRevenue), icon: Gem, color: 'emerald' }
     ].map((stat, i) => (
-      <div key={i} className="bg-slate-50 p-3 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-100 text-[#D4AF37] border border-slate-200">
+      <div key={i} className="bg-slate-50 p-3 rounded-xl shadow-sm border border-slate-400 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-100 text-[#D4AF37] border border-slate-400">
           <stat.icon className="w-4 h-4" />
         </div>
         <div>
@@ -869,7 +872,7 @@ const renderTerminal = () => (
     {/* Left Column: Culinary Grid */}
     <div className="flex-1 space-y-4 min-w-0 w-full">
       {/* Search & Categories (Sticky) */}
-      <div className="sticky top-0 z-20 bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+      <div className="sticky top-0 z-20 bg-slate-50 p-4 rounded-2xl border border-slate-400 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
           <input
@@ -926,7 +929,7 @@ const renderTerminal = () => (
 
       {/* Grid of Dishes */}
       {filteredMenuItems.length === 0 ? (
-        <div className="bg-slate-50 py-20 text-center rounded-[2rem] border border-slate-200">
+        <div className="bg-slate-50 py-20 text-center rounded-[2rem] border border-slate-400">
           <Utensils className="w-12 h-12 mx-auto text-slate-500 mb-3 animate-pulse" />
           <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">No Dishes Found</p>
         </div>
@@ -940,14 +943,14 @@ const renderTerminal = () => (
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-3 mt-4 bg-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 w-fit mx-auto animate-in fade-in duration-300">
+            <div className="flex justify-center items-center gap-3 mt-4 bg-slate-100 px-4 py-2.5 rounded-xl border border-slate-400 w-fit mx-auto animate-in fade-in duration-300">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
                   currentPage === 1 
                     ? "bg-slate-100 text-slate-500 cursor-not-allowed border border-transparent" 
-                    : "bg-slate-100 text-slate-600 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-slate-200"
+                    : "bg-slate-100 text-slate-600 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-slate-400"
                 }`}
               >
                 Prev
@@ -961,7 +964,7 @@ const renderTerminal = () => (
                 className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
                   currentPage === totalPages 
                     ? "bg-slate-100 text-slate-500 cursor-not-allowed border border-transparent" 
-                    : "bg-slate-100 text-slate-600 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-slate-200"
+                    : "bg-slate-100 text-slate-600 hover:bg-[#D4AF37] hover:text-[#0F172A] active:scale-95 border border-slate-400"
                 }`}
               >
                 Next
@@ -973,9 +976,9 @@ const renderTerminal = () => (
     </div>
 
     {/* Right Column: Checkout Cart */}
-    <div className="w-full lg:w-[400px] xl:w-[480px] shrink-0 bg-slate-50 p-4 rounded-2xl shadow-lg border border-slate-200 text-slate-900 flex flex-col sticky top-6 max-h-[calc(100vh-120px)] h-fit z-10">
+    <div className="w-full lg:w-[400px] xl:w-[480px] shrink-0 bg-slate-50 p-4 rounded-2xl shadow-lg border border-slate-400 text-slate-900 flex flex-col sticky top-6 max-h-[calc(100vh-120px)] h-fit z-10">
       <div className="flex flex-col max-h-[calc(100vh-160px)] space-y-4 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-2 shrink-0">
+        <div className="flex items-center justify-between border-b border-slate-400 pb-2 shrink-0">
           <h3 className="text-md font-bold" style={{ fontFamily: "DM Serif Display, serif" }}>Order <span className="text-[#D4AF37]">Checkout</span></h3>
           <Receipt className="w-4 h-4 text-[#D4AF37]" />
         </div>
@@ -984,7 +987,7 @@ const renderTerminal = () => (
         <div className="grid grid-cols-2 gap-3 shrink-0">
           <div className="space-y-1">
             <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Type</label>
-            <select value={posForm.orderType} onChange={e => setPosForm({ ...posForm, orderType: e.target.value })} className="w-full bg-white/5 border border-slate-200 rounded-xl px-2 py-1.5 text-[11px] outline-none">
+            <select value={posForm.orderType} onChange={e => setPosForm({ ...posForm, orderType: e.target.value })} className="w-full bg-white/5 border border-slate-400 rounded-xl px-2 py-1.5 text-[11px] outline-none">
               {['Dine-in', 'Room', 'Delivery', 'Take-away'].map(t => <option key={t} value={t} className="text-black">{t}</option>)}
             </select>
           </div>
@@ -1001,7 +1004,7 @@ const renderTerminal = () => (
                   clearError('customerName');
                 }
               }}
-              className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+              className={`w-full bg-white/5 border ${validationErrors.customerName ? 'border-rose-500' : 'border-slate-400'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
             />
             {validationErrors.customerName && <p className="text-[9px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.customerName}</p>}
           </div>
@@ -1013,7 +1016,7 @@ const renderTerminal = () => (
                 <select
                   value={posForm.tableNumber}
                   onChange={e => { setPosForm({ ...posForm, tableNumber: e.target.value }); clearError('tableNumber'); }}
-                  className={`w-full bg-white/5 border ${validationErrors.tableNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] text-slate-900 outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.tableNumber ? 'border-rose-500' : 'border-slate-400'} rounded-xl px-2 py-1.5 text-[11px] text-slate-900 outline-none`}
                 >
                   <option value="" className="bg-slate-100 text-slate-900">Select Table</option>
                   {[...Array(15)].map((_, i) => <option key={i} value={`T-${i + 1}`} className="bg-slate-100 text-slate-900">Table {i + 1}</option>)}
@@ -1033,7 +1036,7 @@ const renderTerminal = () => (
                       clearError('contactNumber');
                     }
                   }}
-                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-400'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                 />
                 {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
               </div>
@@ -1047,7 +1050,7 @@ const renderTerminal = () => (
                 <select
                   value={posForm.roomNumber}
                   onChange={e => { setPosForm({ ...posForm, roomNumber: e.target.value }); clearError('roomNumber'); }}
-                  className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] text-slate-900 outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.roomNumber ? 'border-rose-500' : 'border-slate-400'} rounded-xl px-2 py-1.5 text-[11px] text-slate-900 outline-none`}
                 >
                   <option value="" className="bg-slate-100 text-slate-900">Select Room</option>
                   {[...Array(10)].map((_, i) => <option key={i} value={`${i + 1}`} className="bg-slate-100 text-slate-900">Room {i + 1}</option>)}
@@ -1067,7 +1070,7 @@ const renderTerminal = () => (
                       clearError('contactNumber');
                     }
                   }}
-                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-400'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                 />
                 {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
               </div>
@@ -1078,24 +1081,15 @@ const renderTerminal = () => (
             <>
               <div className="space-y-1 col-span-2">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Delivery Address</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="123 Main Street, Dompe"
-                    value={posForm.deliveryAddress}
-                    onChange={e => { setPosForm({ ...posForm, deliveryAddress: e.target.value }); clearError('deliveryAddress'); }}
-                    className={`flex-1 bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => autoGeocode(posForm.deliveryAddress)}
-                    className="bg-[#D4AF37] text-slate-900 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37]/90 transition-all"
-                  >
-                    Search
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  placeholder="123 Main Street, Dompe"
+                  value={posForm.deliveryAddress}
+                  onChange={e => { setPosForm({ ...posForm, deliveryAddress: e.target.value }); clearError('deliveryAddress'); }}
+                  onBlur={(e) => autoGeocode(e.target.value)}
+                  className={`w-full bg-white/5 border ${validationErrors.deliveryAddress ? 'border-rose-500' : 'border-slate-400'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                />
                 {validationErrors.deliveryAddress && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.deliveryAddress}</p>}
-                {distance > 15 && <p className="text-[9px] text-rose-500 font-black uppercase mt-1 ml-1">Warning: Distance is {distance.toFixed(1)}km (Too far!)</p>}
               </div>
               <div className="space-y-1">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Delivery Fee (Rs)</label>
@@ -1104,7 +1098,7 @@ const renderTerminal = () => (
                   placeholder="0.00"
                   value={posForm.deliveryFee}
                   onChange={e => setPosForm({ ...posForm, deliveryFee: Number(e.target.value) })}
-                  className="w-full bg-white/5 border border-slate-200 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black"
+                  className="w-full bg-white/5 border border-slate-400 rounded-xl px-2 py-1.5 text-[11px] outline-none text-[#D4AF37] font-black"
                 />
               </div>
               <div className="space-y-1">
@@ -1120,7 +1114,7 @@ const renderTerminal = () => (
                       clearError('contactNumber');
                     }
                   }}
-                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                  className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-400'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
                 />
                 {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
               </div>
@@ -1141,7 +1135,7 @@ const renderTerminal = () => (
                     clearError('contactNumber');
                   }
                 }}
-                className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
+                className={`w-full bg-white/5 border ${validationErrors.contactNumber ? 'border-rose-500' : 'border-slate-400'} rounded-xl px-2 py-1.5 text-[11px] outline-none`}
               />
               {validationErrors.contactNumber && <p className="text-[10px] text-rose-500 font-black uppercase mt-1 ml-1">{validationErrors.contactNumber}</p>}
             </div>
@@ -1156,7 +1150,7 @@ const renderTerminal = () => (
             </div>
           ) : (
             cart.map(item => (
-              <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-slate-200 text-[10px] shrink-0">
+              <div key={item.cartItemId} className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-slate-400 text-[10px] shrink-0">
                 <div><span className="font-bold">{item.name}</span> {item.portion && <span className="text-[#D4AF37] text-[8px] ml-1">({item.portion})</span>}</div>
                 <div className="flex items-center gap-3">
                   <span>{item.quantity}x {formatCurrency(item.price)}</span>
@@ -1168,7 +1162,7 @@ const renderTerminal = () => (
         </div>
 
         {/* Totals & Settlement */}
-        <div className="pt-3 border-t border-slate-200 space-y-2 shrink-0">
+        <div className="pt-3 border-t border-slate-400 space-y-2 shrink-0">
           <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-500">
             {serviceCharge > 0 && <div className="flex justify-between col-span-2"><span>Service Charge (10%)</span><span className="text-[#D4AF37] font-bold">+{formatCurrency(serviceCharge)}</span></div>}
             {deliveryFee > 0 && <div className="flex justify-between col-span-2"><span>Delivery Fee (Dist: {distance.toFixed(1)}km)</span><span className="text-blue-400 font-bold">+{formatCurrency(deliveryFee)}</span></div>}
@@ -1183,13 +1177,13 @@ const renderTerminal = () => (
             <div className="space-y-1 col-span-2">
               <label className="text-[7px] text-slate-500 uppercase tracking-widest">Payment Method</label>
               <div className="flex gap-1 h-[26px]">
-                <button type="button" onClick={() => { setPosForm({...posForm, paymentMethod: 'Cash'}); setAmountReceived(''); setIsPaidToggle(false); }} className={`flex-1 rounded-md text-[9px] font-black uppercase transition-all ${posForm.paymentMethod === 'Cash' ? 'bg-[#D4AF37] text-slate-900' : 'bg-white/5 text-slate-500 border border-slate-200 hover:bg-white/10'}`}>Cash</button>
-                <button type="button" onClick={() => { setPosForm({...posForm, paymentMethod: 'Card'}); setAmountReceived(grandTotal); setIsPaidToggle(true); }} className={`flex-1 rounded-md text-[9px] font-black uppercase transition-all ${posForm.paymentMethod === 'Card' ? 'bg-blue-500 text-white' : 'bg-white/5 text-slate-500 border border-slate-200 hover:bg-white/10'}`}>Card</button>
+                <button type="button" onClick={() => { setPosForm({...posForm, paymentMethod: 'Cash'}); setAmountReceived(''); setIsPaidToggle(false); }} className={`flex-1 rounded-md text-[9px] font-black uppercase transition-all ${posForm.paymentMethod === 'Cash' ? 'bg-[#D4AF37] text-slate-900' : 'bg-white/5 text-slate-500 border border-slate-400 hover:bg-white/10'}`}>Cash</button>
+                <button type="button" onClick={() => { setPosForm({...posForm, paymentMethod: 'Card'}); setAmountReceived(grandTotal); setIsPaidToggle(true); }} className={`flex-1 rounded-md text-[9px] font-black uppercase transition-all ${posForm.paymentMethod === 'Card' ? 'bg-blue-500 text-white' : 'bg-white/5 text-slate-500 border border-slate-400 hover:bg-white/10'}`}>Card</button>
               </div>
             </div>
             <div className="space-y-1">
               <label className="text-[7px] text-slate-500 uppercase tracking-widest">Discount</label>
-              <input type="number" placeholder="0" value={posForm.discount === 0 || posForm.discount === "0" ? '' : posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full h-[26px] bg-white/5 border border-slate-200 rounded-lg px-2 text-[10px] outline-none text-slate-900 font-bold" />
+              <input type="number" placeholder="0" value={posForm.discount === 0 || posForm.discount === "0" ? '' : posForm.discount} onChange={e => setPosForm({ ...posForm, discount: e.target.value })} className="w-full h-[26px] bg-white/5 border border-slate-400 rounded-lg px-2 text-[10px] outline-none text-slate-900 font-bold" />
             </div>
             <div className="flex flex-col justify-center items-center gap-1">
               <label className="text-[7px] text-slate-500 uppercase tracking-widest">Paid</label>
@@ -1201,7 +1195,7 @@ const renderTerminal = () => (
             <div className="grid grid-cols-2 gap-2 mt-2">
               <div className="space-y-1">
                 <label className="text-[7px] text-slate-500 uppercase tracking-widest">Received (Rs)</label>
-                <input type="number" placeholder="0" value={amountReceived === 0 || amountReceived === "0" ? '' : amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] outline-none text-slate-900 font-bold" />
+                <input type="number" placeholder="0" value={amountReceived === 0 || amountReceived === "0" ? '' : amountReceived} onChange={e => setAmountReceived(e.target.value)} className="w-full bg-white/5 border border-slate-400 rounded-lg px-2 py-1.5 text-[10px] outline-none text-slate-900 font-bold" />
               </div>
               <div className="text-right flex flex-col justify-center">
                 <label className="text-[7px] text-slate-500 uppercase tracking-widest">Balance</label>
@@ -1225,8 +1219,8 @@ const renderTerminal = () => (
 );
 
 const renderKitchen = () => (
-  <div className="bg-white rounded-[2rem] border border-slate-200 flex flex-col overflow-hidden shadow-sm p-6">
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 mb-6 gap-4">
+  <div className="bg-white rounded-[2rem] border border-slate-400 flex flex-col overflow-hidden shadow-sm p-6">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-400 pb-4 mb-6 gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
         <h3 className="text-md font-bold text-slate-900 shrink-0" style={{ fontFamily: "DM Serif Display, serif" }}>Kitchen <span className="text-[#D4AF37]">Sync Monitor</span></h3>
         <div className="flex flex-wrap items-center gap-3 text-[9px] font-black uppercase tracking-widest">
@@ -1296,22 +1290,22 @@ const renderKitchen = () => (
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-200">
+                <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-400">
                   {order.items.map((it, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-slate-50/20 px-3 py-1.5 rounded-xl border border-slate-200 text-[9px] font-black text-slate-600">
+                    <div key={idx} className="flex items-center gap-2 bg-slate-50/20 px-3 py-1.5 rounded-xl border border-slate-400 text-[9px] font-black text-slate-600">
                       <span className="text-[#D4AF37] font-black text-[10px]">{it.quantity}x</span>
                       <span className="uppercase tracking-wider">{it.name}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t border-slate-200">
-                  <select value={order.orderStatus} onChange={e => updateOrderStatus(order._id, e.target.value)} className="flex-1 bg-slate-50/40 border border-slate-200 text-slate-600 rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none cursor-pointer">
+                <div className="flex gap-2 pt-2 border-t border-slate-400">
+                  <select value={order.orderStatus} onChange={e => updateOrderStatus(order._id, e.target.value)} className="flex-1 bg-slate-50/40 border border-slate-400 text-slate-600 rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none cursor-pointer">
                     {['Pending', 'Preparing', 'Completed', 'Cancelled'].map(s => <option key={s} value={s} className="bg-slate-100 text-slate-900">{s}</option>)}
                   </select>
                   <button
                     onClick={() => handlePrintReceipt(order)}
-                    className="px-2.5 py-1.5 bg-slate-50/40 text-slate-500 hover:text-[#D4AF37] rounded-lg border border-slate-200 flex items-center gap-1.5 transition-all"
+                    className="px-2.5 py-1.5 bg-slate-50/40 text-slate-500 hover:text-[#D4AF37] rounded-lg border border-slate-400 flex items-center gap-1.5 transition-all"
                     title="Print Bill"
                   >
                     <Printer className="w-3.5 h-3.5" />
@@ -1340,7 +1334,7 @@ const renderKitchen = () => (
 );
 
 const renderAnalyticsTab = () => (
-  <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+  <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-400 shadow-sm">
     <div className="flex items-center justify-between mb-6">
       <div>
         <h3 className="text-md font-bold text-slate-900" style={{ fontFamily: "DM Serif Display, serif" }}>
@@ -1399,9 +1393,9 @@ const renderGroupSettleModal = () => {
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-50/90 backdrop-blur-sm" onClick={() => setSettleModalOrder(null)} />
-      <div className="relative w-full max-w-lg bg-slate-50 rounded-[2rem] border border-slate-200 shadow-2xl overflow-hidden flex flex-col">
+      <div className="relative w-full max-w-lg bg-slate-50 rounded-[2rem] border border-slate-400 shadow-2xl overflow-hidden flex flex-col">
         
-        <div className="bg-slate-50/40 px-8 py-6 flex items-center justify-between border-b border-slate-200">
+        <div className="bg-slate-50/40 px-8 py-6 flex items-center justify-between border-b border-slate-400">
           <div>
             <h2 className="text-xl text-slate-900 font-normal" style={{ fontFamily: 'DM Serif Display, serif' }}>Order <span className="text-[#D4AF37]">Settlement</span></h2>
             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">
@@ -1414,7 +1408,7 @@ const renderGroupSettleModal = () => {
         </div>
 
         <div className="p-8 space-y-6">
-          <div className="flex justify-between items-end border-b border-slate-200 pb-6">
+          <div className="flex justify-between items-end border-b border-slate-400 pb-6">
             <div>
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Amount Due</p>
               <h3 className="text-4xl font-black text-slate-900" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(total)}</h3>
@@ -1436,7 +1430,7 @@ const renderGroupSettleModal = () => {
                   value={customAmount} 
                   onChange={e => setCustomAmount(e.target.value)}
                   placeholder="Enter amount..."
-                  className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
+                  className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-400 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
                 />
               </div>
             </div>
@@ -1449,13 +1443,13 @@ const renderGroupSettleModal = () => {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-200 space-y-4">
+          <div className="pt-6 border-t border-slate-400 space-y-4">
             <div className="flex gap-2">
               {['Cash', 'Card'].map(method => (
                 <button
                   key={method}
                   onClick={() => setPaymentMethod(method)}
-                  className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${paymentMethod === method ? 'bg-white text-black border-white shadow-lg' : 'bg-transparent text-slate-500 border-slate-200 hover:border-white/30'}`}
+                  className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${paymentMethod === method ? 'bg-white text-black border-white shadow-lg' : 'bg-transparent text-slate-500 border-slate-400 hover:border-white/30'}`}
                 >
                   {method}
                 </button>
