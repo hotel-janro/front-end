@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ScrollText as Receipt
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { apiFetch } from '../../../api.js';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 

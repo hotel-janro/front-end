@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Calendar, Users, DollarSign, Plus, Search, X, Edit, Trash2, Upload, ImageIcon, Loader2, Eye, Info, Phone, Mail, MapPin, User, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Heart, Calendar, Users, Banknote, Plus, Search, X, Edit, Trash2, Upload, ImageIcon, Loader2, Eye, Info, Phone, Mail, MapPin, User, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { apiFetch, getImageUrl } from '../../../api';
 
 // Helper to convert 12-hour components back to 24-hour "HH:MM"
@@ -450,7 +450,7 @@ export function AdminWedding() {
 
     const balance = selectedBooking.totalAmount - (selectedBooking.advancePaid || 0);
     if (Number(paymentAmount) > balance) {
-      if (!window.confirm(`Amount Rs.${paymentAmount} exceeds the balance Rs.${balance}. Continue anyway?`)) return;
+      if (!window.confirm(`Amount LKR${paymentAmount} exceeds the balance Rs.${balance}. Continue anyway?`)) return;
     }
 
     try {
@@ -945,10 +945,10 @@ export function AdminWedding() {
         </div>
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-4">
-            <div className="p-4 bg-[#0F172A] rounded-2xl"><DollarSign className="w-6 h-6 text-[#D4AF37]" /></div>
+            <div className="p-4 bg-[#0F172A] rounded-2xl"><Banknote className="w-6 h-6 text-[#D4AF37]" /></div>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Revenue</p>
-              <h3 className="text-3xl font-bold text-slate-900 mt-1">Rs. {totalRevenue.toLocaleString()}</h3>
+              <h3 className="text-3xl font-bold text-slate-900 mt-1">LKR {totalRevenue.toLocaleString()}</h3>
             </div>
           </div>
         </div>
@@ -1050,9 +1050,9 @@ export function AdminWedding() {
                         <div className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider">{booking.cateringPackage} Pkg</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-bold text-slate-900">Rs. {booking.totalAmount?.toLocaleString()}</div>
-                        <div className="text-[10px] font-semibold text-emerald-600 mt-1">Paid: Rs. {booking.advancePaid?.toLocaleString()}</div>
-                        <div className="text-[10px] font-semibold text-red-500">Bal: Rs. {(booking.totalAmount - (booking.advancePaid || 0)).toLocaleString()}</div>
+                        <div className="text-sm font-bold text-slate-900">LKR {booking.totalAmount?.toLocaleString()}</div>
+                        <div className="text-[10px] font-semibold text-emerald-600 mt-1">Paid: LKR {booking.advancePaid?.toLocaleString()}</div>
+                        <div className="text-[10px] font-semibold text-red-500">Bal: LKR {(booking.totalAmount - (booking.advancePaid || 0)).toLocaleString()}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-col gap-1">
@@ -1089,7 +1089,7 @@ export function AdminWedding() {
                             <>
                               <button onClick={() => handleEditBooking(booking)} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors font-semibold flex items-center gap-1"><Edit className="w-3.5 h-3.5" /> Edit</button>
                               {booking.paymentStatus !== 'Fully Paid' && (
-                                <button onClick={() => handleAddPayment(booking)} className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors font-semibold flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" /> Pay</button>
+                                <button onClick={() => handleAddPayment(booking)} className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors font-semibold flex items-center gap-1"><Banknote className="w-3.5 h-3.5" /> Pay</button>
                               )}
                               <button onClick={() => handleStatusChange(booking._id, 'cancelled')} className="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors font-semibold flex items-center gap-1"><X className="w-3.5 h-3.5" /> Cancel</button>
                             </>
@@ -1131,7 +1131,7 @@ export function AdminWedding() {
                       </div>
                       <div className="space-y-3 mb-4">
                         <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 p-2.5 rounded-xl"><Users className="w-4 h-4 text-[#D4AF37]" />Capacity: {hall.capacity} guests</div>
-                        <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 p-2.5 rounded-xl"><DollarSign className="w-4 h-4 text-[#D4AF37]" />Rs. {hall.price?.toLocaleString()} base price</div>
+                        <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 p-2.5 rounded-xl"><Banknote className="w-4 h-4 text-[#D4AF37]" />LKR {hall.price?.toLocaleString()} base price</div>
                       </div>
                       {hall.description && (
                         <details className="mb-4 group">
@@ -1237,7 +1237,7 @@ export function AdminWedding() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-bold text-slate-900">Rs. {pkg.price?.toLocaleString()}</div>
+                        <div className="font-bold text-slate-900">LKR {pkg.price?.toLocaleString()}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-xs text-slate-500 line-clamp-1 max-w-xs">{pkg.bites || 'N/A'}</div>
@@ -1647,7 +1647,7 @@ export function AdminWedding() {
                               <div className="flex justify-between items-start mb-3">
                                 <div>
                                   <span className={`font-bold text-sm block ${formData.cateringPackage === pkg ? 'text-slate-900' : 'text-slate-600'}`}>{pkg}</span>
-                                  <span className="text-[11px] text-[#D4AF37] font-black block mt-0.5">Rs. {packageDetails[pkg].price.toLocaleString()} / plate</span>
+                                  <span className="text-[11px] text-[#D4AF37] font-black block mt-0.5">LKR {packageDetails[pkg].price.toLocaleString()} / plate</span>
                                 </div>
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
                                   formData.cateringPackage === pkg ? 'bg-[#D4AF37] text-[#0F172A]' : 'bg-slate-100 text-transparent border border-slate-200'
@@ -1706,7 +1706,7 @@ export function AdminWedding() {
                                   value={formData.customPackagePrice}
                                   onChange={e => setFormData({...formData, customPackagePrice: e.target.value})}
                                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:border-[#D4AF37] outline-none text-xs font-bold"
-                                  placeholder="Rs. 3800"
+                                  placeholder="LKR 3800"
                                   onClick={e => e.stopPropagation()}
                                 />
                               </div>
@@ -1749,7 +1749,7 @@ export function AdminWedding() {
                   <div className="space-y-6 animate-in fade-in zoom-in-95">
                     <div className="bg-[#0F172A] rounded-[2rem] p-6 text-white relative overflow-hidden shadow-2xl border border-slate-800">
                       <div className="absolute top-0 right-0 p-8 opacity-5">
-                        <DollarSign className="w-24 h-24 text-[#D4AF37]" />
+                        <Banknote className="w-24 h-24 text-[#D4AF37]" />
                       </div>
                       <div className="relative z-10 space-y-4">
                         <div className="flex justify-between items-start border-b border-white/10 pb-4">
@@ -1760,7 +1760,7 @@ export function AdminWedding() {
                           </div>
                           <div className="text-right">
                             <p className="text-white/40 text-[10px] font-bold uppercase tracking-wider">Estimated Total</p>
-                            <h3 className="text-2xl font-black text-[#D4AF37] mt-0.5">Rs. {calculateTotal().toLocaleString()}</h3>
+                            <h3 className="text-2xl font-black text-[#D4AF37] mt-0.5">LKR {calculateTotal().toLocaleString()}</h3>
                           </div>
                         </div>
 
@@ -1811,25 +1811,25 @@ export function AdminWedding() {
                             <div className="border-t border-white/10 pt-3 space-y-1.5 text-[11px]">
                               <div className="flex justify-between text-white/60">
                                 <span>Gross Subtotal:</span>
-                                <span>Rs. {calculateSubtotal().toLocaleString()}</span>
+                                <span>LKR {calculateSubtotal().toLocaleString()}</span>
                               </div>
                               {formData.discountPercentage > 0 && (
                                 <div className="flex justify-between text-[#D4AF37] font-semibold">
                                   <span>Discount ({formData.discountPercentage}%):</span>
-                                  <span>- Rs. {(calculateSubtotal() * Number(formData.discountPercentage) / 100).toLocaleString()}</span>
+                                  <span>- LKR {(calculateSubtotal() * Number(formData.discountPercentage) / 100).toLocaleString()}</span>
                                 </div>
                               )}
                               <div className="flex justify-between text-white/90 font-bold border-t border-white/5 pt-1.5">
                                 <span>Net Total:</span>
-                                <span className="text-[#D4AF37]">Rs. {calculateTotal().toLocaleString()}</span>
+                                <span className="text-[#D4AF37]">LKR {calculateTotal().toLocaleString()}</span>
                               </div>
                               <div className="flex justify-between text-emerald-400 font-bold">
                                 <span>Advance Paid:</span>
-                                <span>Rs. {Number(formData.advancePaid || 0).toLocaleString()}</span>
+                                <span>LKR {Number(formData.advancePaid || 0).toLocaleString()}</span>
                               </div>
                               <div className="flex justify-between text-red-400 font-bold border-t border-white/5 pt-1.5">
                                 <span>Balance Due:</span>
-                                <span>Rs. {Math.max(0, calculateTotal() - (Number(formData.advancePaid) || 0)).toLocaleString()}</span>
+                                <span>LKR {Math.max(0, calculateTotal() - (Number(formData.advancePaid) || 0)).toLocaleString()}</span>
                               </div>
                             </div>
                           </div>
@@ -2045,9 +2045,9 @@ export function AdminWedding() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Base Price (Rs.) *</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Base Price (LKR) *</label>
                     <div className="relative">
-                      <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Banknote className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
                         required 
                         type="number" 
@@ -2104,15 +2104,15 @@ export function AdminWedding() {
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Amount</span>
-                  <span className="text-sm font-bold text-slate-900">Rs. {selectedBooking.totalAmount.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-slate-900">LKR {selectedBooking.totalAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Paid So Far</span>
-                  <span className="text-sm font-bold text-emerald-600">Rs. {(selectedBooking.advancePaid || 0).toLocaleString()}</span>
+                  <span className="text-sm font-bold text-emerald-600">LKR {(selectedBooking.advancePaid || 0).toLocaleString()}</span>
                 </div>
                 <div className="pt-2 mt-2 border-t border-slate-200 flex justify-between">
                   <span className="text-xs text-slate-700 font-bold uppercase tracking-wider">Balance Due</span>
-                  <span className="text-lg font-black text-red-600">Rs. {(selectedBooking.totalAmount - (selectedBooking.advancePaid || 0)).toLocaleString()}</span>
+                  <span className="text-lg font-black text-red-600">LKR {(selectedBooking.totalAmount - (selectedBooking.advancePaid || 0)).toLocaleString()}</span>
                 </div>
               </div>
 
@@ -2120,7 +2120,7 @@ export function AdminWedding() {
                 <div className="mb-6">
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">New Payment Amount</label>
                   <div className="relative">
-                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black">Rs.</span>
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black">LKR</span>
                     <input 
                       autoFocus
                       required 
@@ -2244,7 +2244,7 @@ export function AdminWedding() {
                     <div className="space-y-3 text-sm">
                       <div className="flex justify-between"><span className="text-slate-500 font-medium">Package:</span> <span className="font-bold text-slate-900">{viewingBooking.cateringPackage}</span></div>
                       {viewingBooking.cateringPackage === 'Custom' && (
-                        <div className="flex justify-between"><span className="text-slate-500 font-medium">Custom Price:</span> <span className="font-bold text-slate-900">Rs. {viewingBooking.customPackagePrice?.toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500 font-medium">Custom Price:</span> <span className="font-bold text-slate-900">LKR {viewingBooking.customPackagePrice?.toLocaleString()}</span></div>
                       )}
                       {viewingBooking.selectedMeals && viewingBooking.selectedMeals.length > 0 && (
                         <div className="flex justify-between"><span className="text-slate-500 font-medium">Meals:</span> <span className="font-bold text-slate-900">{viewingBooking.selectedMeals.join(', ')}</span></div>
@@ -2291,16 +2291,16 @@ export function AdminWedding() {
                   {/* Financials */}
                   <div className="bg-[#0F172A] p-6 rounded-2xl text-white relative overflow-hidden shadow-xl">
                     <div className="absolute top-0 right-0 p-4 opacity-10">
-                      <DollarSign className="w-20 h-20 text-[#D4AF37]" />
+                      <Banknote className="w-20 h-20 text-[#D4AF37]" />
                     </div>
                     <h3 className="text-xs font-black text-[#D4AF37] uppercase tracking-widest mb-4 relative z-10">Financial Summary</h3>
                     
                     <div className="space-y-2 text-sm relative z-10">
-                      <div className="flex justify-between text-white/70"><span>Total Amount:</span> <span>Rs. {viewingBooking.totalAmount?.toLocaleString() || 0}</span></div>
-                      <div className="flex justify-between text-emerald-400"><span>Advance Paid:</span> <span>Rs. {viewingBooking.advancePaid?.toLocaleString() || 0}</span></div>
+                      <div className="flex justify-between text-white/70"><span>Total Amount:</span> <span>LKR {viewingBooking.totalAmount?.toLocaleString() || 0}</span></div>
+                      <div className="flex justify-between text-emerald-400"><span>Advance Paid:</span> <span>LKR {viewingBooking.advancePaid?.toLocaleString() || 0}</span></div>
                       <div className="pt-3 mt-3 border-t border-white/10 flex justify-between font-bold text-lg">
                         <span className="text-white">Balance Due:</span> 
-                        <span className="text-[#D4AF37]">Rs. {Math.max(0, (viewingBooking.totalAmount || 0) - (viewingBooking.advancePaid || 0)).toLocaleString()}</span>
+                        <span className="text-[#D4AF37]">LKR {Math.max(0, (viewingBooking.totalAmount || 0) - (viewingBooking.advancePaid || 0)).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -2344,7 +2344,7 @@ export function AdminWedding() {
               </div>
             </div>
             <div className="p-6 bg-slate-50 border-t border-slate-100 text-center">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Price: Rs. {packageDetails[selectedMenuPkg].price.toLocaleString()} per plate</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Price: LKR {packageDetails[selectedMenuPkg].price.toLocaleString()} per plate</p>
             </div>
           </div>
         </div>
@@ -2395,7 +2395,7 @@ export function AdminWedding() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Price per plate (Rs.) *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Price per plate (LKR) *</label>
                 <input 
                   type="number" 
                   required
@@ -2479,7 +2479,7 @@ export function AdminWedding() {
             <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-6">
               <div>
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-2">Pricing</h4>
-                <p className="text-lg font-bold text-slate-950">Rs. {viewingPackage.price?.toLocaleString()} / per plate</p>
+                <p className="text-lg font-bold text-slate-950">LKR {viewingPackage.price?.toLocaleString()} / per plate</p>
               </div>
 
               {viewingPackage.bites && (
