@@ -674,26 +674,13 @@ export function MyOrders() {
                               </div>
                             </div>
 
-                            <div className="md:text-right border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 flex flex-col items-start md:items-end justify-center">
+                            <div className="md:text-right border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 flex flex-col items-start md:items-end justify-center max-w-xs">
                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
-                              <p className="text-3xl font-black text-[#0F172A]">{formatMoney(order.totalAmount)}</p>
-                              <button
-                                onClick={() => handlePayNow(order)}
-                                disabled={payingOrderId === order._id}
-                                className="mt-4 flex items-center gap-2 px-6 py-3 bg-[#0F172A] text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all shadow-lg hover:shadow-[#D4AF37]/20 disabled:opacity-50"
-                              >
-                                {payingOrderId === order._id ? (
-                                  <>
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    Processing...
-                                  </>
-                                ) : (
-                                  <>
-                                    Pay Now
-                                    <ChevronRight className="w-3 h-3" />
-                                  </>
-                                )}
-                              </button>
+                              <p className="text-3xl font-black text-[#0F172A] mb-3">{formatMoney(order.totalAmount)}</p>
+                              <div className="bg-slate-50 border border-slate-150 rounded-xl p-3 text-left w-full">
+                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-wider mb-1">💵 Cash Payment</p>
+                                <p className="text-[9px] text-slate-500 leading-normal font-bold uppercase">Please settle in cash at the counter or upon delivery.</p>
+                              </div>
                             </div>
                           </div>
                         </div>
