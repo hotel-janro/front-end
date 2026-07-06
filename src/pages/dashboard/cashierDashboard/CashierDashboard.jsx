@@ -5,7 +5,7 @@ import { apiFetch } from "../../../api.js";
 import { 
   ShoppingCart, 
   CreditCard, 
-  Receipt, 
+  ScrollText as Receipt, 
   Search, 
   CheckCircle, 
   Clock, 
