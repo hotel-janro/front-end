@@ -1,6 +1,7 @@
 // AppRoutes.jsx - Application Routes 
 import React, { useState } from "react";
 import { apiFetch } from "../api";
+import { toast } from "sonner";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Home } from "../pages/website/Home.jsx";
 import { Rooms } from "../pages/website/Rooms.jsx";
@@ -48,6 +49,7 @@ import { CashierProfile } from "../pages/dashboard/cashierDashboard/CashierProfi
 import { CashierLayout } from "../pages/dashboard/CashierLayout.jsx";
 import { ForgotPassword } from "../pages/website/ForgotPassword.jsx";
 import { ResetPassword } from "../pages/website/ResetPassword.jsx";
+import { VerifyOTP } from "../pages/website/VerifyOTP.jsx";
 
 export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, onLogout, onGoogleLogin, onUpdateUser }) {
   const navigate = useNavigate();
@@ -88,22 +90,113 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
         });
 
         if (response.success) {
-          const decorationText = data.decorationItems?.length
-            ? data.decorationItems.join(", ")
-            : null;
+          const booking = response.data; // The returned booking object
 
-          setBookingSuccess({
-            name: user?.name || "Guest",
-            roomName: data.room.name,
-            guests: data.guests,
-            decorations: decorationText
-          });
-          
-          // Refresh room counts after short delay
-          setTimeout(() => window.location.reload(), 3000);
+          const showSuccessModal = () => {
+            const decorationText = data.decorationItems?.length
+              ? data.decorationItems.join(", ")
+              : null;
+
+            setBookingSuccess({
+              name: user?.name || "Guest",
+              roomName: data.room.name,
+              guests: data.guests,
+              decorations: decorationText
+            });
+            
+            // Refresh room counts after short delay
+            setTimeout(() => window.location.reload(), 3000);
+          };
+
+          if (data.paymentMethod === "Card") {
+            try {
+              const hashRes = await apiFetch("/payments/payhere-hash", {
+                method: "POST",
+                body: JSON.stringify({
+                  orderId: booking._id,
+                  amount: booking.totalPrice
+                })
+              });
+
+              if (!hashRes || !hashRes.success) {
+                throw new Error("Failed to generate payment signature for booking.");
+              }
+
+              const { merchantId, currency, hash, amount } = hashRes.data;
+              const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "").replace(/\/$/, "");
+
+              const redirectPath = isAdmin 
+                ? "/admin/bookings" 
+                : isReception 
+                ? "/reception/bookings" 
+                : "/my-bookings";
+
+              const payment = {
+                sandbox: true,
+                merchant_id: merchantId,
+                return_url: `${window.location.origin}${redirectPath}`,
+                cancel_url: `${window.location.origin}${redirectPath}`,
+                notify_url: `${API_BASE}/api/payments/payhere-notify`,
+                order_id: booking._id,
+                items: `Room Booking - ${data.room.name}`,
+                amount: amount,
+                currency: currency,
+                hash: hash,
+                first_name: user?.name?.split(" ")[0] || "Valued",
+                last_name: user?.name?.split(" ")[1] || "Guest",
+                email: user?.email || data.email,
+                phone: user?.phone || data.phone,
+                address: "Hotel Janro Guest",
+                city: "Colombo",
+                country: "Sri Lanka",
+                custom_1: "room" // Signal to backend that this is a room booking
+              };
+
+              window.payhere.onCompleted = async function onCompleted(orderId) {
+                try {
+                  await apiFetch(`/bookings/${booking._id || booking.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ paymentStatus: 'Paid', status: 'confirmed', paymentMethod: 'Online' })
+                  });
+                } catch (e) {
+                  console.error("Failed to sync payment status with server", e);
+                }
+                showSuccessModal();
+              };
+
+              window.payhere.onDismissed = async function onDismissed() {
+                try {
+                  await apiFetch(`/bookings/${booking._id || booking.id}/abandon`, { method: 'DELETE' });
+                } catch (e) {
+                  console.error("Failed to abandon unpaid booking", e);
+                }
+                toast.info("Payment Cancelled", { description: "The transaction was cancelled. You can try again or select a different payment method." });
+              };
+
+              window.payhere.onError = async function onError(error) {
+                try {
+                  await apiFetch(`/bookings/${booking._id || booking.id}/abandon`, { method: 'DELETE' });
+                } catch (e) {}
+                toast.error("Payment Failed", { description: error + ". Please try again or select a different payment method." });
+              };
+
+              window.payhere.startPayment(payment);
+            } catch (err) {
+              const redirectPath = isAdmin 
+                ? "/admin/bookings" 
+                : isReception 
+                ? "/reception/bookings" 
+                : "/my-bookings";
+              toast.error("Payment Error", { description: "Could not start payment: " + err.message });
+              window.location.href = redirectPath;
+            }
+          } else {
+            // Cash payment - directly show success
+            showSuccessModal();
+          }
         }
       } catch (error) {
-        alert(`Booking failed: ${error.message}`);
+        toast.error("Booking Failed", { description: error.message });
       }
       return;
     }
@@ -117,7 +210,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
     }
     const total = Number(data?.totalAmount || data?.total || 0);
     const orderType = data?.orderType || "Dine-in";
-    alert(`Order placed successfully!\n\nThank you, ${user?.name || "Guest"}.\nTotal: Rs ${total.toLocaleString()}\nType: ${orderType}\n\nOur kitchen has received your order and is preparing it now.`);
+    toast.success("Order placed successfully!", {
+      description: `Thank you, ${user?.name || "Guest"}. Total: Rs ${total.toLocaleString()} (${orderType}). Our kitchen is preparing it now.`
+    });
   };
 
   return (
@@ -152,6 +247,9 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
                 )}
               </div>
             )}
+            <p className="text-xs font-medium text-emerald-600 mb-6 bg-emerald-50 py-2 px-3 rounded-lg border border-emerald-100">
+              A confirmation email will be sent to your inbox shortly by the hotel.
+            </p>
             <button
               onClick={() => setBookingSuccess(null)}
               className="w-full py-3 rounded-xl font-semibold text-white"
@@ -174,6 +272,7 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/forgot-password" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ForgotPassword />} />
       <Route path="/reset-password/:token" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <ResetPassword />} />
+      <Route path="/verify-otp" element={isLoggedIn ? <Navigate to={postAuthPath} replace /> : <VerifyOTP />} />
 
       <Route
         path="/login"
@@ -222,11 +321,12 @@ export function AppRoutes({ isLoggedIn, user, onLogin, onVerify2FA, onRegister, 
         <Route path="pool" element={<ReceptionPool />} />
         <Route path="gym" element={<ReceptionGym />} />
         <Route path="customers" element={<AdminGuests />} />
+        <Route path="profile" element={<ReceptionProfile />} />
       </Route>
 
       <Route
         path="/cashier"
-        element={isLoggedIn && isCashier ? <CashierLayout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}
+        element={isLoggedIn && isCashier ? <CashierLayout user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<CashierDashboard />} />
         <Route path="orders" element={<CashierOrders />} />

@@ -21,6 +21,7 @@ import {
 import { apiFetch, getImageUrl } from "../../../api.js";
 import { useSettings } from "../../../context/SettingsContext.jsx";
 import { generateInvoicePDF } from "../../../utils/invoiceGenerator.js";
+import { toast } from "sonner";
 import "./CustomerDashboard.css";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -146,10 +147,10 @@ export function MyBookings() {
       await apiFetch(`/bookings/${bookingId}/cancel`, {
         method: 'PATCH'
       });
-      alert("Booking cancelled successfully!");
+      toast.success("Booking Cancelled", { description: "Your booking has been cancelled successfully." });
       fetchData();
     } catch (error) {
-      alert("Error cancelling booking: " + error.message);
+      toast.error("Error Cancelling Booking", { description: error.message });
     }
   };
 
@@ -171,11 +172,11 @@ export function MyBookings() {
         method: "PUT",
         body: JSON.stringify(editForm)
       });
-      alert("Booking updated successfully!");
+      toast.success("Booking Updated", { description: "Your booking has been updated successfully." });
       setEditingBooking(null);
       fetchData();
     } catch (error) {
-      alert("Error updating booking: " + error.message);
+      toast.error("Error Updating Booking", { description: error.message });
     }
   };
 
@@ -194,7 +195,7 @@ export function MyBookings() {
       });
 
       if (!res.success) {
-        alert("Failed to initialize payment");
+        toast.error("Payment Error", { description: "Failed to initialize payment." });
         return;
       }
 
@@ -235,25 +236,25 @@ export function MyBookings() {
               body: JSON.stringify({ paymentAmount: payAmount, method: 'Online' })
             });
           }
-          alert("Payment Completed Successfully!");
+          toast.success("Payment Completed", { description: "Your payment was processed successfully!" });
           fetchData();
         } catch (err) {
           console.error("Post payment update error:", err);
-          alert("Payment completed but status update failed locally: " + err.message);
+          toast.error("Status Update Failed", { description: "Payment completed but status update failed locally: " + err.message });
         }
       };
 
       window.payhere.onDismissed = function onDismissed() {
-        console.log("Payment window closed");
+        toast.info("Payment Cancelled", { description: "The payment window was closed." });
       };
 
       window.payhere.onError = function onError(error) {
-        alert("Payment Error: " + error);
+        toast.error("Payment Error", { description: error });
       };
 
       window.payhere.startPayment(paymentObj);
     } catch (error) {
-      alert("Payment initialization failed: " + error.message);
+      toast.error("Payment initialization failed", { description: error.message });
     }
   };
 

@@ -574,9 +574,7 @@ export function ReceptionPool() {
                         <button onClick={() => handleEditClick(booking)} className="admin-pool__action-btn admin-pool__action-btn--edit" title="Edit Booking">
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDeleteBooking(booking._id || booking.id)} className="admin-pool__action-btn admin-pool__action-btn--delete" title="Delete Booking">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+
                       </div>
                     </td>
                   </tr>
