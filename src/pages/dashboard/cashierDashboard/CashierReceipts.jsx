@@ -56,7 +56,7 @@ export function CashierReceipts() {
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
   const receipts = orders
-    .filter((o) => o.paymentStatus === 'Paid' || o.orderStatus === 'Completed')
+    .filter((o) => o.paymentStatus === 'Paid')
     .map((order) => {
       const orderDate = new Date(order.createdAt).toLocaleDateString();
       const sameDayOrders = orders.filter(o => new Date(o.createdAt).toLocaleDateString() === orderDate);
@@ -75,6 +75,8 @@ export function CashierReceipts() {
         discount: order.discount || 0,
         total: order.totalAmount,
         paymentMethod: order.paymentMethod || 'Cash',
+        amountReceived: order.amountReceived || 0,
+        balance: order.balance || 0,
         type: order.orderType,
         issuedAt: order.updatedAt || order.createdAt,
         status: 'Issued',
@@ -393,6 +395,18 @@ export function CashierReceipts() {
                   <span className="text-xs font-black text-slate-900 uppercase tracking-[0.3em]">Net Total</span>
                   <span className="text-2xl font-black text-[#0F172A]" style={{ fontFamily: 'DM Serif Display, serif' }}>{formatCurrency(selectedReceipt.total)}</span>
                 </div>
+                {selectedReceipt.amountReceived > 0 && (
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 pt-2">
+                    <span>Cash Paid</span>
+                    <span>{formatCurrency(selectedReceipt.amountReceived)}</span>
+                  </div>
+                )}
+                {selectedReceipt.balance > 0 && (
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">
+                    <span>Change Returned</span>
+                    <span>{formatCurrency(selectedReceipt.balance)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Modern Receipt Footer */}
@@ -484,6 +498,11 @@ export function CashierReceipts() {
                           ${selectedReceipt.discount > 0 ? `<div style="margin-bottom: 2px;">BOUTIQUE DISC: -${formatCurrency(selectedReceipt.discount)}</div>` : ''}
                           <div class="divider"></div>
                           <div class="total-row" style="margin-top: 5px;">NET SETTLED: ${formatCurrency(selectedReceipt.total)}</div>
+                          ${selectedReceipt.amountReceived > 0 ? `
+                            <div class="divider"></div>
+                            <div style="margin-bottom: 2px;">CASH PAID: ${formatCurrency(selectedReceipt.amountReceived)}</div>
+                            <div style="font-weight:bold; font-size: 13px; margin-top: 2px;">BALANCE: ${formatCurrency(selectedReceipt.balance)}</div>
+                          ` : ''}
                         </div>
 
                         <div class="footer">
