@@ -568,10 +568,17 @@ export function AdminRooms() {
 
       if (typeName === 'Standard Room') {
         finalTotalRooms = 6;
-        finalAllRoomNumbers = ['Room 1', 'Room 2', 'Room 3', 'Room 4', 'Room 5', 'Room 6'].map(label => ({
-          label,
-          originalRoom: firstRoom
-        }));
+        finalAllRoomNumbers = ['Room 1', 'Room 2', 'Room 3', 'Room 4', 'Room 5', 'Room 6'].map(label => {
+          const num = parseInt(label.replace('Room ', '')) || 0;
+          const matchedRoom = backendRoomsOfType.find(r => {
+            const lower = (r.name || '').toLowerCase();
+            return num >= 5 ? lower === 'ac standard room' : lower === 'non-ac standard room';
+          }) || firstRoom;
+          return {
+            label,
+            originalRoom: matchedRoom
+          };
+        });
       }
 
       return {
