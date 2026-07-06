@@ -717,8 +717,7 @@ export function AdminSettings() {
                       name="hotelName"
                       value={formData.hotelName} 
                       onChange={handleChange}
-                      readOnly
-                      className="admin-settings-control bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200 focus:ring-0 focus:border-gray-200" 
+                      className="admin-settings-control" 
                     />
                     <p className="text-xs text-gray-400 mt-1">This name is permanent and displayed across the website and in emails.</p>
                   </div>
@@ -729,8 +728,7 @@ export function AdminSettings() {
                       name="address"
                       value={formData.address}
                       onChange={handleChange}
-                      readOnly
-                      className="admin-settings-control bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200 focus:ring-0 focus:border-gray-200" 
+                      className="admin-settings-control" 
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

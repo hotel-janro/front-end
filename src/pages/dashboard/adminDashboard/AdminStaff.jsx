@@ -256,9 +256,8 @@ export function AdminStaff() {
       return basePay + otPay;
     } else {
       const basePay = Number(staff.salary) || 0;
-      const otPay = (staff.additionalHours || 0) * 300;
       const bonusPay = Number(staff.bonus) || 0;
-      return basePay + otPay + bonusPay;
+      return basePay + bonusPay;
     }
   };
 
@@ -697,9 +696,6 @@ export function AdminStaff() {
                         <span className="text-xs text-gray-500">
                           {staff.startTime && staff.endTime ? `${staff.startTime} - ${staff.endTime} (${calculateDuration(staff.startTime, staff.endTime)}h)` : 'No times set'}
                         </span>
-                        {(staff.additionalHours > 0) && (
-                          <span className="text-xs text-orange-500 font-medium">+ {staff.additionalHours}h Extra</span>
-                        )}
                       </div>
                     ) : (
                       <div className="flex flex-col">
@@ -874,18 +870,6 @@ export function AdminStaff() {
                       />
                     </label>
                     <label className="admin-staff-form-label">
-                      OT Hours (Rs. 300/hr)
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        className="admin-staff-form-input"
-                        value={newStaff.additionalHours}
-                        onChange={(e) => handleFieldChange('additionalHours', e.target.value)}
-                        placeholder="e.g. 10"
-                      />
-                    </label>
-                    <label className="admin-staff-form-label">
                       Monthly Bonus
                       <input
                         type="number"
@@ -902,12 +886,6 @@ export function AdminStaff() {
                         <span className="text-xs text-blue-700">Base Salary:</span>
                         <span className="text-sm font-semibold text-blue-900">{settings.currency.symbol}{(Number(newStaff.salary) || 0).toLocaleString()}</span>
                       </div>
-                      {(newStaff.additionalHours > 0) && (
-                        <div className="flex justify-between items-center mt-1">
-                          <span className="text-xs text-orange-600">OT Pay (Rs. 300/hr):</span>
-                          <span className="text-sm font-semibold text-orange-600">+{settings.currency.symbol}{(newStaff.additionalHours * 300).toLocaleString()}</span>
-                        </div>
-                      )}
                       {(newStaff.bonus > 0) && (
                         <div className="flex justify-between items-center mt-1">
                           <span className="text-xs text-green-600">Bonus:</span>
@@ -916,7 +894,7 @@ export function AdminStaff() {
                       )}
                       <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
                         <span className="text-xs text-blue-700">Total Month's Pay:</span>
-                        <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((Number(newStaff.salary) || 0) + (Number(newStaff.additionalHours || 0) * 300) + (Number(newStaff.bonus || 0))).toLocaleString()}</span>
+                        <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((Number(newStaff.salary) || 0) + (Number(newStaff.bonus || 0))).toLocaleString()}</span>
                       </div>
                     </div>
                   </>
@@ -1179,18 +1157,6 @@ export function AdminStaff() {
                       />
                     </label>
                     <label className="admin-staff-form-label">
-                      OT Hours (Rs. 300/hr)
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        className="admin-staff-form-input"
-                        value={editStaff.additionalHours}
-                        onChange={(e) => setEditStaff((p) => ({ ...p, additionalHours: e.target.value }))}
-                        placeholder="e.g. 10"
-                      />
-                    </label>
-                    <label className="admin-staff-form-label">
                       Monthly Bonus
                       <input
                         type="number"
@@ -1207,12 +1173,6 @@ export function AdminStaff() {
                         <span className="text-xs text-blue-700">Base Salary:</span>
                         <span className="text-sm font-semibold text-blue-900">{settings.currency.symbol}{(Number(editStaff.salary) || 0).toLocaleString()}</span>
                       </div>
-                      {(editStaff.additionalHours > 0) && (
-                        <div className="flex justify-between items-center mt-1">
-                          <span className="text-xs text-orange-600">OT Pay (Rs. 300/hr):</span>
-                          <span className="text-sm font-semibold text-orange-600">+{settings.currency.symbol}{(editStaff.additionalHours * 300).toLocaleString()}</span>
-                        </div>
-                      )}
                       {(editStaff.bonus > 0) && (
                         <div className="flex justify-between items-center mt-1">
                           <span className="text-xs text-green-600">Bonus:</span>
@@ -1221,7 +1181,7 @@ export function AdminStaff() {
                       )}
                       <div className="flex justify-between items-center mt-1 border-t border-blue-200 pt-1">
                         <span className="text-xs text-blue-700">Total Month's Pay:</span>
-                        <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((Number(editStaff.salary) || 0) + (Number(editStaff.additionalHours || 0) * 300) + (Number(editStaff.bonus || 0))).toLocaleString()}</span>
+                        <span className="text-sm font-bold text-blue-900">{settings.currency.symbol}{((Number(editStaff.salary) || 0) + (Number(editStaff.bonus || 0))).toLocaleString()}</span>
                       </div>
                     </div>
                   </>
