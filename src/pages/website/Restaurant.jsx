@@ -489,20 +489,32 @@ export function Restaurant({ onOrder, user }) {
             }
           };
 
-          window.payhere.onDismissed = function onDismissed() {
+          window.payhere.onDismissed = async function onDismissed() {
             toast.info("Payment cancelled. You can retry anytime — your cart is saved.");
-            // Do not clear cart here so user can retry!
+            try {
+              await apiFetch(`/orders/${orderId}/abandon`, { method: "DELETE" });
+            } catch (err) {
+              console.error("Failed to abandon order:", err);
+            }
           };
 
-          window.payhere.onError = function onError(error) {
+          window.payhere.onError = async function onError(error) {
             toast.error("Payment failed: " + error);
-            // Do not clear cart here so user can retry!
+            try {
+              await apiFetch(`/orders/${orderId}/abandon`, { method: "DELETE" });
+            } catch (err) {
+              console.error("Failed to abandon order:", err);
+            }
           };
 
           window.payhere.startPayment(payment);
         } catch (err) {
           toast.error("Could not start payment: " + err.message);
-          // Do not clear cart here so user can retry!
+          try {
+            await apiFetch(`/orders/${orderId}/abandon`, { method: "DELETE" });
+          } catch (abandonErr) {
+            console.error("Failed to abandon order:", abandonErr);
+          }
         }
       } else {
         // Cash payment
