@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { apiFetch, API_HOST } from '../../../api';
 import './AdminRooms.css';
+import { useSocket } from '../../../context/SocketContext.jsx';
 
 const getRoomTypeName = (roomName, roomNumberStr) => {
   if (!roomName) return 'N/A';
@@ -99,12 +100,14 @@ export function AdminRooms() {
     isActive: true
   });
 
+  const socket = useSocket();
+
   useEffect(() => {
     fetchData();
   }, [activeTab]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       // Always fetch both rooms and bookings so inventory can show booked counts
       const [roomsRes, bookingsRes] = await Promise.all([
@@ -116,9 +119,34 @@ export function AdminRooms() {
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!socket) return;
+
+    setIsConnected(socket.connected);
+
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+
+    const handleBookingUpdate = () => {
+      fetchData(true); // Silent refetch in background
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('bookingCreated', handleBookingUpdate);
+    socket.on('bookingUpdated', handleBookingUpdate);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('bookingCreated', handleBookingUpdate);
+      socket.off('bookingUpdated', handleBookingUpdate);
+    };
+  }, [socket]);
 
   const handleTypeChange = (type) => {
     // Look for an existing room of this type in the database to suggest defaults
@@ -639,6 +667,12 @@ export function AdminRooms() {
             <p className="text-slate-300 mt-2 max-w-2xl">
               Add rooms to your inventory. The count below shows your total hotel stock (Base + Added).
             </p>
+            <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-sm mt-4 w-fit shadow-inner animate-in fade-in duration-300">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]'}`}></div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                {isConnected ? 'Live Connected' : 'Connecting...'}
+              </span>
+            </div>
             <div className="flex flex-wrap gap-3 items-center mt-6">
               <button
                 className="admin-rooms__action-button"
@@ -897,7 +931,6 @@ export function AdminRooms() {
                   <th>Status</th>
                   <th>Total Amount</th>
                   <th>Details</th>
-                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -984,60 +1017,11 @@ export function AdminRooms() {
                         View
                       </button>
                     </td>
-                    <td className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {(!booking.status || booking.status === 'pending') && (
-                          <>
-                            <button
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                              title="Confirm Booking"
-                              onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              <span className="hidden md:inline">Confirm</span>
-                            </button>
-                            <button
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-500 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                              title="Reject Booking"
-                              onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                              <span className="hidden md:inline">Reject</span>
-                            </button>
-                          </>
-                        )}
-                        {booking.status?.toLowerCase() === 'confirmed' && (
-                            <button
-                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-in')}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                            >
-                                <LogIn className="w-3.5 h-3.5" />
-                                <span className="hidden md:inline">Check In</span>
-                            </button>
-                        )}
-                        {booking.status?.toLowerCase() === 'checked-in' && (
-                            <button
-                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-out')}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                            >
-                                <LogOut className="w-3.5 h-3.5" />
-                                <span className="hidden md:inline">Check Out</span>
-                            </button>
-                        )}
-                        <button 
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider flex-shrink-0"
-                          title="Delete Booking"
-                          onClick={() => handleDeleteBooking(booking._id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
                 {filteredBookings.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="p-8 text-center text-slate-500">No bookings found.</td>
+                    <td colSpan="8" className="p-8 text-center text-slate-500">No bookings found.</td>
                   </tr>
                 )}
               </tbody>

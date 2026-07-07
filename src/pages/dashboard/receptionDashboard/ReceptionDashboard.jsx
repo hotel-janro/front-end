@@ -248,8 +248,7 @@ export function ReceptionDashboard() {
             </div>
           </div>
           <Link
-            to="/reception/rooms"
-            state={{ activeTab: 'bookings' }}
+            to="/reception/bookings"
             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shadow-sm"
           >
             Review Now
