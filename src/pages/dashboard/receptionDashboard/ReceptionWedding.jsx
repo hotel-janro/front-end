@@ -653,10 +653,9 @@ export function ReceptionWedding() {
 
         if (!b.eventDate) return false;
         
-        // Comparing dates locally to avoid timezone mismatches
-        const existingDateStr = new Date(b.eventDate).toLocaleDateString('en-CA');
-        const formDateStr = new Date(formData.eventDate).toLocaleDateString('en-CA');
-        if (existingDateStr !== formDateStr) return false;
+        // Comparing dates accurately
+        const existingDateStr = b.eventDate ? b.eventDate.split('T')[0] : '';
+        if (existingDateStr !== formData.eventDate) return false;
 
         if (!b.startTime || !b.endTime) return true; 
         
@@ -709,12 +708,30 @@ export function ReceptionWedding() {
     return null;
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     const error = validateStep(currentStep);
     if (error) {
       setBookingFormError(error);
       return;
     }
+    
+    // Live availability check at Step 2
+    if (currentStep === 2) {
+      try {
+        const res = await apiFetch(`/wedding/halls/availability?date=${formData.eventDate}&startTime=${formData.startTime}&endTime=${formData.endTime}`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          const hallAvailability = data.data.find(h => h._id === formData.hallId);
+          if (hallAvailability && !hallAvailability.isAvailable) {
+            setBookingFormError(`OVERBOOKING PREVENTED: This hall is already booked for the selected date and time. Please choose another.`);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Availability check failed", err);
+      }
+    }
+
     setBookingFormError('');
     setCurrentStep(currentStep + 1);
   };
