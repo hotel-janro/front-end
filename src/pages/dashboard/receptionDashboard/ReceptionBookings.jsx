@@ -16,9 +16,12 @@ import {
   Phone,
   Mail,
   X,
-  Loader2
+  Loader2,
+  Banknote,
+  CreditCard
 } from 'lucide-react';
 import { apiFetch } from '../../../api';
+import { useSocket } from '../../../context/SocketContext.jsx';
 
 const getRoomTypeName = (roomName, roomNumberStr) => {
   if (!roomName) return 'N/A';
@@ -68,21 +71,55 @@ export function ReceptionBookings() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingBooking, setViewingBooking] = useState(null);
 
+  // Settle Payment Modal State
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [settlingBooking, setSettlingBooking] = useState(null);
+  const [settlePaymentMethod, setSettlePaymentMethod] = useState('Cash');
+  const [cashReceived, setCashReceived] = useState('');
+
+  const socket = useSocket();
+  const [isConnected, setIsConnected] = useState(socket ? socket.connected : false);
+
   useEffect(() => {
     fetchBookings();
   }, []);
 
-  const fetchBookings = async () => {
-    setLoading(true);
+  const fetchBookings = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const response = await apiFetch('/bookings');
       setBookings(response.data || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!socket) return;
+
+    setIsConnected(socket.connected);
+
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+
+    const handleBookingUpdate = () => {
+      fetchBookings(true); // Silent refetch in background
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('bookingCreated', handleBookingUpdate);
+    socket.on('bookingUpdated', handleBookingUpdate);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('bookingCreated', handleBookingUpdate);
+      socket.off('bookingUpdated', handleBookingUpdate);
+    };
+  }, [socket]);
 
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch =
@@ -130,6 +167,34 @@ export function ReceptionBookings() {
     setViewingBooking(booking);
     setShowViewModal(true);
   };
+
+  const handleOpenSettleModal = (booking) => {
+    setSettlingBooking(booking);
+    setSettlePaymentMethod('Cash');
+    setCashReceived('');
+    setShowSettleModal(true);
+  };
+
+  const handleSettlePayment = async () => {
+    if (!settlingBooking) return;
+    try {
+      const res = await apiFetch(`/bookings/${settlingBooking._id}/payment`, {
+        method: 'POST',
+        body: JSON.stringify({ paymentMethod: settlePaymentMethod })
+      });
+      if (res.success) {
+        alert('Payment settled successfully!');
+        setShowSettleModal(false);
+        setSettlingBooking(null);
+        fetchBookings();
+      } else {
+        alert(res.message || 'Failed to settle payment');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Failed to settle payment');
+    }
+  };
   
   const handleStatusAction = async (bookingId, newStatus) => {
     try {
@@ -157,7 +222,13 @@ export function ReceptionBookings() {
             Check-in, check-out, and manage guest reservations
           </p>
         </div>
-
+        
+        <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-sm self-start sm:self-auto shadow-inner animate-in fade-in duration-300">
+          <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]'}`}></div>
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+            {isConnected ? 'Live Connected' : 'Connecting...'}
+          </span>
+        </div>
       </div>
 
       {/* Filters */}
@@ -295,10 +366,35 @@ export function ReceptionBookings() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                        Rs. {booking.totalPrice?.toLocaleString()}
+                        <div>Rs. {booking.totalPrice?.toLocaleString()}</div>
+                        <div className="mt-1">
+                          <span className={`inline-flex px-2 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-md border ${
+                            booking.paymentStatus === 'Paid'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                              : 'bg-rose-50 text-rose-700 border-rose-100'
+                          }`}>
+                            {booking.paymentStatus || 'Pending'}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <div className="flex items-center gap-3">
+                            {(!booking.status || booking.status?.toLowerCase() === 'pending') && (
+                              <>
+                                <button
+                                  onClick={() => handleStatusAction(booking._id, 'confirmed')}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider animate-in fade-in zoom-in-95 duration-200"
+                                >
+                                  Confirm
+                                </button>
+                                <button
+                                  onClick={() => handleStatusAction(booking._id, 'cancelled')}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider animate-in fade-in zoom-in-95 duration-200"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
                             {booking.status?.toLowerCase() === 'confirmed' && (
                                 <button
                                     onClick={() => handleStatusAction(booking._id, 'checked-in')}
@@ -314,6 +410,15 @@ export function ReceptionBookings() {
                                 >
                                     Check Out
                                 </button>
+                            )}
+                            {booking.paymentStatus !== 'Paid' && booking.status?.toLowerCase() !== 'cancelled' && (
+                              <button
+                                onClick={() => handleOpenSettleModal(booking)}
+                                className="px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
+                              >
+                                <Banknote className="w-3.5 h-3.5" />
+                                Pay
+                              </button>
                             )}
                             <button 
                             onClick={() => handleViewDetails(booking)}
@@ -403,6 +508,8 @@ export function ReceptionBookings() {
                 <InfoItem label="Room" value={`${viewingBooking.roomNumber ? `Room ${viewingBooking.roomNumber}` : 'Unassigned'}`} />
                 <InfoItem label="Room Type" value={`${getRoomTypeName(viewingBooking.room?.name, viewingBooking.roomNumber)}`} />
                 <InfoItem label="Total Amount" value={`Rs. ${viewingBooking.totalPrice?.toLocaleString()}`} />
+                <InfoItem label="Payment Status" value={viewingBooking.paymentStatus || 'Pending'} />
+                <InfoItem label="Payment Method" value={viewingBooking.paymentMethod || 'N/A'} />
                 
                 <div className="col-span-2 grid grid-cols-2 gap-6 pt-4 border-t border-slate-200">
                   <InfoItem label="Check-in Date" value={new Date(viewingBooking.checkInDate).toLocaleDateString()} />
@@ -418,6 +525,40 @@ export function ReceptionBookings() {
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 shrink-0">
+              {viewingBooking.paymentStatus !== 'Paid' && viewingBooking.status?.toLowerCase() !== 'cancelled' && (
+                <button
+                    onClick={() => {
+                        handleOpenSettleModal(viewingBooking);
+                        setShowViewModal(false);
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors flex items-center gap-1.5"
+                >
+                    <Banknote className="w-4 h-4" />
+                    Settle Payment
+                </button>
+              )}
+              {(!viewingBooking.status || viewingBooking.status?.toLowerCase() === 'pending') && (
+                <>
+                  <button
+                      onClick={() => {
+                          handleStatusAction(viewingBooking._id, 'confirmed');
+                          setShowViewModal(false);
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors"
+                  >
+                      Confirm Booking
+                  </button>
+                  <button
+                      onClick={() => {
+                          handleStatusAction(viewingBooking._id, 'cancelled');
+                          setShowViewModal(false);
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition-colors"
+                  >
+                      Reject Booking
+                  </button>
+                </>
+              )}
               {viewingBooking.status?.toLowerCase() === 'confirmed' && (
                 <button
                     onClick={() => {
@@ -445,6 +586,126 @@ export function ReceptionBookings() {
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Settle Payment Modal */}
+      {showSettleModal && settlingBooking && (
+        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1E293B] text-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col relative border border-white/10">
+            <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-xl font-semibold" style={{ fontFamily: "DM Serif Display, serif" }}>Add Payment</h2>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Transaction Entry</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowSettleModal(false);
+                  setSettlingBooking(null);
+                  setSettlePaymentMethod('Cash');
+                  setCashReceived('');
+                }} 
+                className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Info panel */}
+              <div className="bg-slate-900/60 rounded-xl p-4 border border-white/5 space-y-3">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-400 font-medium">CUSTOMER</span>
+                  <span className="font-bold text-white">{settlingBooking.fullName || 'Valued Guest'}</span>
+                </div>
+                <div className="flex justify-between text-xs pt-2 border-t border-white/5">
+                  <span className="text-slate-400 font-medium">TOTAL AMOUNT DUE</span>
+                  <span className="font-bold text-rose-500">Rs. {settlingBooking.totalPrice?.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Payment Method Tabs */}
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Method</label>
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-900 border border-white/10 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setSettlePaymentMethod('Cash')}
+                    className={`py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                      settlePaymentMethod === 'Cash'
+                        ? 'bg-[#D4AF37] text-[#0F172A]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    💵 Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSettlePaymentMethod('Card');
+                      setCashReceived('');
+                    }}
+                    className={`py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                      settlePaymentMethod === 'Card'
+                        ? 'bg-[#D4AF37] text-[#0F172A]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    💳 Card
+                  </button>
+                </div>
+              </div>
+
+              {settlePaymentMethod === 'Cash' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Cash Received</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rs.</span>
+                      <input 
+                        type="number" 
+                        required
+                        min="1"
+                        placeholder="Enter amount received..."
+                        value={cashReceived}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '' || Number(val) >= 0) {
+                            setCashReceived(val);
+                          }
+                        }}
+                        className="w-full pl-12 pr-4 py-3.5 bg-slate-900 border border-white/10 rounded-xl focus:border-[#D4AF37] focus:outline-none text-sm font-bold text-white shadow-inner"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-900/50 flex justify-between items-center">
+                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Balance to Return</span>
+                    <span className="text-xl font-black text-emerald-400">
+                      Rs. {Math.max((Number(cashReceived) || 0) - (settlingBooking.totalPrice || 0), 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-blue-950/40 border border-blue-900/50 flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Card Settlement Mode</span>
+                    <span className="text-[8px] font-black text-blue-400 bg-blue-900/50 px-1.5 py-0.5 rounded border border-blue-800">EXACT AMOUNT</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">Process the exact booking price (Rs. {settlingBooking.totalPrice?.toLocaleString()}) on the card POS terminal.</p>
+                </div>
+              )}
+
+              <button 
+                type="button"
+                disabled={settlePaymentMethod === 'Cash' && (Number(cashReceived) || 0) < (settlingBooking.totalPrice || 0)}
+                onClick={handleSettlePayment}
+                className="w-full py-4 rounded-xl bg-[#D4AF37] text-[#0F172A] font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-[#0F172A] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Banknote className="w-4 h-4" />
+                Confirm Payment
               </button>
             </div>
           </div>
