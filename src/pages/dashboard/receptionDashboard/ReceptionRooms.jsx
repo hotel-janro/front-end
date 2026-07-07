@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext.jsx';
 import { apiFetch } from '../../../api';
+import { useSocket } from '../../../context/SocketContext.jsx';
 import '../adminDashboard/AdminRooms.css';
 import { Rooms } from '../../website/Rooms.jsx';
 
@@ -98,12 +99,15 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
     setExpandedTypes(newExpanded);
   };
 
+  const socket = useSocket();
+  const [isConnected, setIsConnected] = useState(socket ? socket.connected : false);
+
   useEffect(() => {
     fetchData();
   }, [activeTab]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       // Always fetch both rooms and bookings so inventory can show booked counts
       const [roomsRes, bookingsRes] = await Promise.all([
@@ -115,9 +119,34 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!socket) return;
+
+    setIsConnected(socket.connected);
+
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+
+    const handleBookingUpdate = () => {
+      fetchData(true); // Silent refetch in background
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('bookingCreated', handleBookingUpdate);
+    socket.on('bookingUpdated', handleBookingUpdate);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('bookingCreated', handleBookingUpdate);
+      socket.off('bookingUpdated', handleBookingUpdate);
+    };
+  }, [socket]);
 
   const handleDeleteBooking = async (bookingId) => {
     if (!window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) return;
@@ -176,38 +205,88 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
 
   // Get booked room numbers per type (using actual roomNumber from bookings)
   const getBookedRoomNumbers = (typeName) => {
+    const isStandard = typeName.toLowerCase() === 'standard room';
     return bookings
-      .filter(b =>
-        b.room?.name?.toLowerCase() === typeName.toLowerCase() &&
-        b.status !== 'cancelled' && b.status !== 'checked-out' &&
-        b.roomNumber
-      )
+      .filter(b => {
+        const roomName = (b.room?.name || '').toLowerCase();
+        const matchesType = isStandard ? roomName.includes('standard room') : roomName === typeName.toLowerCase();
+        return matchesType &&
+          b.status !== 'cancelled' && b.status !== 'checked-out' &&
+          b.roomNumber;
+      })
       .map(b => b.roomNumber);
   };
 
   // Count active bookings per room type
   const getBookedCount = (typeName) => {
-    return bookings.filter(b => 
-      b.room?.name?.toLowerCase() === typeName.toLowerCase() &&
-      b.status !== 'cancelled' && b.status !== 'checked-out'
-    ).length;
+    const isStandard = typeName.toLowerCase() === 'standard room';
+    return bookings.filter(b => {
+      const roomName = (b.room?.name || '').toLowerCase();
+      const matchesType = isStandard ? roomName.includes('standard room') : roomName === typeName.toLowerCase();
+      return matchesType &&
+        b.status !== 'cancelled' && b.status !== 'checked-out';
+    }).length;
   };
 
+  // ENSURE ALL TYPES ARE SHOWN IN THE TABLE (AND UNIFY STANDARD ROOMS)
+  const normalizedRooms = rooms.map(r => {
+    let name = r.name;
+    if (name?.toLowerCase().includes('standard room')) {
+      name = 'Standard Room';
+    }
+    return { ...r, normalizedName: name };
+  });
+
   // Only show ACTIVE rooms in the inventory table
-  const activeRooms = rooms.filter(r => r.isActive !== false);
-  const uniqueTypes = [...new Set(activeRooms.map(r => r.name).filter(Boolean))];
+  const activeRooms = normalizedRooms.filter(r => r.isActive !== false);
+  const uniqueTypes = [...new Set(activeRooms.map(r => r.normalizedName).filter(Boolean))];
   const aggregatedRooms = uniqueTypes.map(typeName => {
-    const backendRoomsOfType = activeRooms.filter(r => r.name === typeName);
+    const backendRoomsOfType = activeRooms.filter(r => r.normalizedName === typeName);
     const bookedRoomNumbers = getBookedRoomNumbers(typeName);
     const bookedCount = bookedRoomNumbers.length;
     
     if (backendRoomsOfType.length > 0) {
-      const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms || 1), 0);
+      const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms !== undefined ? r.totalRooms : 1), 0);
+      
+      // Merge allRoomNumbers arrays from all matched DB rooms
+      const mergedRoomNumbers = [];
+      backendRoomsOfType.forEach(r => {
+        if (r.allRoomNumbers && Array.isArray(r.allRoomNumbers)) {
+           r.allRoomNumbers.forEach(label => {
+             mergedRoomNumbers.push({
+               label: label,
+               originalRoom: r
+             });
+           });
+        }
+      });
+
+      // Sort merged room numbers so they appear in numerical order
+      mergedRoomNumbers.sort((a, b) => {
+        const numA = parseInt(a.label.replace('Room ', '')) || 0;
+        const numB = parseInt(b.label.replace('Room ', '')) || 0;
+        return numA - numB;
+      });
+
       const firstRoom = backendRoomsOfType[0];
+      
+      let finalTotalRooms = dbTotal;
+      let finalAllRoomNumbers = mergedRoomNumbers;
+
+      if (typeName === 'Standard Room') {
+        finalTotalRooms = 6;
+        finalAllRoomNumbers = ['Room 1', 'Room 2', 'Room 3', 'Room 4', 'Room 5', 'Room 6'].map(label => ({
+          label,
+          originalRoom: firstRoom
+        }));
+      }
+
       return {
         ...firstRoom,
-        availableRooms: Math.max(0, dbTotal - bookedCount),
-        totalRooms: dbTotal,
+        name: typeName, // Override name with the unified typeName
+        allRoomNumbers: finalAllRoomNumbers, // The newly merged array of objects!
+        availableRooms: Math.max(0, finalTotalRooms - bookedCount),
+        totalRooms: finalTotalRooms,
         bookedCount,
         bookedRoomNumbers,
         isPlaceholder: false
@@ -259,6 +338,12 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
             <p className="text-slate-300 mt-2 max-w-2xl">
               View live hotel stock, track active reservations, and manage guest bookings from one clean dashboard.
             </p>
+            <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-sm mt-4 w-fit shadow-inner animate-in fade-in duration-300">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]'}`}></div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                {isConnected ? 'Live Connected' : 'Connecting...'}
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
@@ -412,22 +497,27 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                       </tr>
                       {isExpanded && (
                         <>
-                          {/* Unified room list with continuous numbering */}
-                          {Array.from({ length: totalInStock }).map((_, i) => {
-                            const ROOM_START_NUMBERS = {
-                              'ac standard room': 1,
-                              'non-ac standard room': 4,
-                              'standard room': 1,
-                              'family room': 7,
-                              'family suite': 7,
-                              'wedding couple suite': 9,
-                              'honeymoon suite': 9,
-                            };
-                            const lower = (room.name || '').toLowerCase();
-                            const key = Object.keys(ROOM_START_NUMBERS).find(k => lower.includes(k) || k.includes(lower));
-                            const startNum = key ? ROOM_START_NUMBERS[key] : 1;
-                            const roomLabel = `Room ${startNum + i}`;
+                          {/* Unified room list with hotel-wide continuous numbering */}
+                          {(room.allRoomNumbers || []).map((roomData, i) => {
+                            // Support both strings (legacy mapping fallback) and objects (our new detailed mapping)
+                            const roomLabel = typeof roomData === 'object' ? roomData.label : roomData;
+                            const originalDbRoom = typeof roomData === 'object' ? roomData.originalRoom : room;
+                            
                             const isBooked = (room.bookedRoomNumbers || []).includes(roomLabel);
+                            const roomNumber = parseInt(roomLabel.replace('Room ', '')) || 0;
+
+                            let variantLabel = '';
+                            if ((room.name || '').toLowerCase().includes('standard room')) {
+                              const dbName = (originalDbRoom.name || '').toLowerCase();
+                              if (dbName === 'ac standard room') {
+                                variantLabel = '(AC)';
+                              } else if (dbName === 'non-ac standard room') {
+                                variantLabel = '(Non-AC)';
+                              } else {
+                                // fallback for legacy unified standard room records
+                                variantLabel = roomNumber >= 5 ? '(AC)' : '(Non-AC)';
+                              }
+                            }
 
                             return (
                               <tr 
@@ -438,7 +528,7 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                                   <div className="flex items-center gap-2">
                                     <div className={`w-1.5 h-1.5 rounded-full ${isBooked ? 'bg-red-500' : 'bg-green-500'}`}></div>
                                     <span className={`font-medium ${isBooked ? 'text-red-600' : 'text-slate-600'}`}>
-                                      {roomLabel} {(room.name || '').toLowerCase().includes('standard room') ? ((startNum + i) >= 5 ? '(AC)' : '(Non-AC)') : ''}
+                                      {roomLabel} {variantLabel}
                                     </span>
                                   </div>
                                 </td>
@@ -478,7 +568,6 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                   <th>Status</th>
                   <th>Total Amount</th>
                   <th>Details</th>
-                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -565,60 +654,11 @@ export function ReceptionRooms({ isLoggedIn, onBook }) {
                         View
                       </button>
                     </td>
-                    <td className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {(!booking.status || booking.status === 'pending') && (
-                          <>
-                            <button
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                              title="Confirm Booking"
-                              onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              <span className="hidden md:inline">Confirm</span>
-                            </button>
-                            <button
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-500 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                              title="Reject Booking"
-                              onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                              <span className="hidden md:inline">Reject</span>
-                            </button>
-                          </>
-                        )}
-                        {booking.status?.toLowerCase() === 'confirmed' && (
-                            <button
-                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-in')}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                            >
-                                <LogIn className="w-3.5 h-3.5" />
-                                <span className="hidden md:inline">Check In</span>
-                            </button>
-                        )}
-                        {booking.status?.toLowerCase() === 'checked-in' && (
-                            <button
-                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-out')}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                            >
-                                <LogOut className="w-3.5 h-3.5" />
-                                <span className="hidden md:inline">Check Out</span>
-                            </button>
-                        )}
-                        <button 
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider flex-shrink-0"
-                          title="Delete Booking"
-                          onClick={() => handleDeleteBooking(booking._id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
                 {filteredBookings.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="p-8 text-center text-slate-500">No bookings found.</td>
+                    <td colSpan="8" className="p-8 text-center text-slate-500">No bookings found.</td>
                   </tr>
                 )}
               </tbody>

@@ -9,8 +9,14 @@ const normalizeRoomName = (name) =>
   (name || "").toLowerCase().replace(/[^a-z]/g, "");
 
 // Standard Room variants
-const isAcRoomName     = (name) => normalizeRoomName(name) === "acroom";
-const isNonAcRoomName  = (name) => normalizeRoomName(name) === "nonacroom";
+const isAcRoomName     = (name) => {
+  const n = normalizeRoomName(name);
+  return n === "acroom" || n === "acstandardroom";
+};
+const isNonAcRoomName  = (name) => {
+  const n = normalizeRoomName(name);
+  return n === "nonacroom" || n === "nonacstandardroom";
+};
 const isStdRoomName    = (name) => normalizeRoomName(name) === "standardroom";
 
 // Family Room variants  — matches "Family Room AC", "Family AC Room", "Family Room Non-AC" etc.

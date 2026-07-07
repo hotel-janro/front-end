@@ -24,6 +24,7 @@ export function CashierOrders() {
   const [cashReceived, setCashReceived] = useState('');
   const [isSettling, setIsSettling] = useState(false);
   const [lastPollTime, setLastPollTime] = useState(new Date());
+  const [settlePaymentMethod, setSettlePaymentMethod] = useState('Cash'); // 'Cash' or 'Card'
 
   // Load orders and start polling
   useEffect(() => {
@@ -115,17 +116,24 @@ export function CashierOrders() {
     if (!settlingOrder) return;
     
     // Find all related unpaid orders for this table/room
-    const relatedOrders = orders.filter(o => 
+    let relatedOrders = orders.filter(o => 
       o.paymentStatus === 'Unpaid' && 
       ((settlingOrder.tableNumber && o.tableNumber === settlingOrder.tableNumber) || 
        (settlingOrder.roomNumber && o.roomNumber === settlingOrder.roomNumber))
     );
 
-    const combinedTotal = relatedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-    const received = Number(cashReceived || 0);
-    const balance = Math.max(received - combinedTotal, 0);
+    // Fallback to the current order if no table/room group orders found (e.g. for Delivery or Take-away)
+    if (relatedOrders.length === 0) {
+      relatedOrders = [settlingOrder];
+    }
 
-    if (received < combinedTotal) {
+    const combinedTotal = relatedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    
+    const isCard = settlePaymentMethod === 'Card';
+    const received = isCard ? combinedTotal : Number(cashReceived || 0);
+    const balance = isCard ? 0 : Math.max(received - combinedTotal, 0);
+
+    if (!isCard && received < combinedTotal) {
       toast.error("Insufficient amount received");
       return;
     }
@@ -139,7 +147,7 @@ export function CashierOrders() {
           method: 'PUT',
           body: JSON.stringify({
             paymentStatus: 'Paid',
-            paymentMethod: 'Cash',
+            paymentMethod: settlePaymentMethod,
             amountReceived: o._id === settlingOrder._id ? received : o.totalAmount,
             balance: o._id === settlingOrder._id ? balance : 0,
             orderStatus: 'Completed'
@@ -150,6 +158,7 @@ export function CashierOrders() {
       toast.success(`${relatedOrders.length > 1 ? 'All group orders' : 'Order'} settled successfully!`);
       setSettlingOrder(null);
       setCashReceived('');
+      setSettlePaymentMethod('Cash'); // reset to default
       loadOrders();
     } catch (error) {
       toast.error("Failed to settle order(s)");
@@ -641,13 +650,22 @@ export function CashierOrders() {
       </div>
 
       {settlingOrder && (() => {
-        const relatedOrders = [settlingOrder];
-        const combinedTotal = settlingOrder.totalAmount || 0;
-        const isMultiple = false;
+        let relatedOrders = orders.filter(o => 
+          o.paymentStatus === 'Unpaid' && 
+          ((settlingOrder.tableNumber && o.tableNumber === settlingOrder.tableNumber) || 
+           (settlingOrder.roomNumber && o.roomNumber === settlingOrder.roomNumber))
+        );
+
+        if (relatedOrders.length === 0) {
+          relatedOrders = [settlingOrder];
+        }
+
+        const isMultiple = relatedOrders.length > 1;
+        const combinedTotal = relatedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
         return (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-50/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setSettlingOrder(null)} />
+            <div className="absolute inset-0 bg-slate-50/80 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => { setSettlingOrder(null); setSettlePaymentMethod('Cash'); }} />
             <div className="relative bg-slate-50 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500 border border-slate-200">
               {/* Modal Header */}
               <div className="bg-slate-50/40 px-8 py-6 flex items-center justify-between border-b border-slate-200">
@@ -657,7 +675,7 @@ export function CashierOrders() {
                     {isMultiple ? `${relatedOrders.length} Linked Orders` : `#${settlingOrder._id.slice(-8).toUpperCase()}`}
                   </p>
                 </div>
-                <button onClick={() => setSettlingOrder(null)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-900 hover:bg-white/10 transition-all">
+                <button onClick={() => { setSettlingOrder(null); setSettlePaymentMethod('Cash'); }} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-900 hover:bg-white/10 transition-all">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -697,31 +715,81 @@ export function CashierOrders() {
                 )}
 
                 <div className="space-y-4">
+                  {/* Payment Method Selector */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cash Received (Rs)</label>
-                    <div className="relative">
-                      <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
-                      <input
-                        autoFocus
-                        type="number"
-                        placeholder="Enter amount..."
-                        value={cashReceived}
-                        onChange={(e) => setCashReceived(e.target.value)}
-                        className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
-                      />
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Payment Method</label>
+                    <div className="grid grid-cols-2 gap-3 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setSettlePaymentMethod('Cash')}
+                        className={`py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${
+                          settlePaymentMethod === 'Cash'
+                            ? 'bg-[#0F172A] text-white shadow-md'
+                            : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                      >
+                        💵 Cash
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSettlePaymentMethod('Card');
+                          setCashReceived(''); // clear cash input
+                        }}
+                        className={`py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${
+                          settlePaymentMethod === 'Card'
+                            ? 'bg-[#0F172A] text-white shadow-md'
+                            : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                      >
+                        💳 Card
+                      </button>
                     </div>
                   </div>
 
-                  <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/20 flex justify-between items-center">
-                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Balance to Return</span>
-                    <span className="text-2xl font-black text-emerald-400" style={{ fontFamily: 'DM Serif Display, serif' }}>
-                      {formatCurrency(Math.max((Number(cashReceived) || 0) - combinedTotal, 0))}
-                    </span>
-                  </div>
+                  {settlePaymentMethod === 'Cash' ? (
+                    <div className="space-y-4 animate-in fade-in duration-300">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cash Received (Rs)</label>
+                        <div className="relative">
+                          <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4AF37]" />
+                          <input
+                            autoFocus
+                            type="number"
+                            min="0"
+                            placeholder="Enter amount..."
+                            value={cashReceived}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === '' || Number(val) >= 0) {
+                                setCashReceived(val);
+                              }
+                            }}
+                            className="w-full pl-14 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 text-xl font-black text-slate-900 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/20 flex justify-between items-center">
+                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Balance to Return</span>
+                        <span className="text-2xl font-black text-emerald-400" style={{ fontFamily: 'DM Serif Display, serif' }}>
+                          {formatCurrency(Math.max((Number(cashReceived) || 0) - combinedTotal, 0))}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-5 rounded-2xl bg-blue-950/20 border border-blue-500/20 flex flex-col gap-1.5 animate-in fade-in duration-300">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Card Settlement Mode</span>
+                        <span className="text-xs font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">EXACT AMOUNT</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 leading-relaxed font-bold">This will settle the exact amount due on the card machine. No change will be returned.</p>
+                    </div>
+                  )}
                 </div>
 
                 <button
-                  disabled={isSettling || (Number(cashReceived) || 0) < combinedTotal}
+                  disabled={isSettling || (settlePaymentMethod === 'Cash' && (Number(cashReceived) || 0) < combinedTotal)}
                   onClick={handleSettleOrder}
                   className="w-full py-5 rounded-2xl bg-[#D4AF37] text-[#0F172A] font-black text-xs uppercase tracking-[0.3em] transition-all hover:bg-white hover:text-[#0F172A] active:scale-95 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
                 >

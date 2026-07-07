@@ -23,9 +23,10 @@ import {
   X,
   CalendarDays,
   Download,
-  Banknote
+  Banknote,
+  XCircle
 } from "lucide-react";
-import { apiFetch } from "../../../api.js";
+import { apiFetch, API_HOST } from "../../../api.js";
 import { useSettings } from "../../../context/SettingsContext.jsx";
 import { useSocket } from "../../../context/SocketContext.jsx";
 import { toast } from "sonner";
@@ -122,7 +123,7 @@ export function MyOrders() {
     try {
       setPayingOrderId(order._id);
       
-      const hashRes = await apiFetch("/api/payments/payhere-hash", {
+      const hashRes = await apiFetch("/payments/payhere-hash", {
         method: "POST",
         body: JSON.stringify({
           orderId: order._id,
@@ -142,7 +143,7 @@ export function MyOrders() {
         merchant_id: merchantId,
         return_url: `${window.location.origin}/my-orders`,
         cancel_url: `${window.location.origin}/my-orders`,
-        notify_url: `${API_BASE}/api/payments/payhere-notify`,
+        notify_url: `${API_HOST}/api/payments/payhere-notify`,
         order_id: order._id,
         items: `Hotel Food Order #${order.orderNumber || order._id.slice(-6)}`,
         amount: amount,
@@ -160,7 +161,7 @@ export function MyOrders() {
 
       window.payhere.onCompleted = async function onCompleted(orderId) {
         try {
-          await apiFetch(`/api/orders/${order._id}`, {
+          await apiFetch(`/orders/${order._id}`, {
             method: "PUT",
             body: JSON.stringify({ paymentStatus: "Paid", orderStatus: "Completed" })
           });
@@ -245,11 +246,25 @@ export function MyOrders() {
       setEditingOrder(null);
       loadMyOrders();
     } catch (error) {
-      toast.error(`Update failed: ${error.message}`);
+      toast.error("Failed to update order");
     } finally {
       setIsUpdating(false);
     }
   }
+
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm("Are you sure you want to cancel this order?")) return;
+    try {
+      await apiFetch(`/orders/${orderId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ orderStatus: 'Cancelled' })
+      });
+      toast.success("Order cancelled");
+      loadMyOrders();
+    } catch (error) {
+      toast.error("Failed to cancel order");
+    }
+  };
 
   function updateItemQuantity(idx, delta) {
     const newItems = [...editingOrder.items];
@@ -375,9 +390,6 @@ export function MyOrders() {
     <div className="min-h-screen bg-[#FDFDFD] font-sans selection:bg-[#D4AF37]/30 pb-20">
       {/* Compact Luxury Header */}
       <div className="relative bg-[#0F172A] overflow-hidden border-b border-white/5 py-8 px-4">
-        <div className="absolute inset-0 opacity-10">
-          <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="Luxury Dining" />
-        </div>
         <div className="absolute inset-0 bg-[#0F172A]/85" />
         <div className="absolute right-0 top-0 h-full w-1/3 bg-[#D4AF37]/10 rounded-full blur-[80px] -mr-20" />
 
@@ -526,13 +538,22 @@ export function MyOrders() {
                               </button>
                               
                               {order.orderStatus === "Pending" && getRemainingTime(order.createdAt) && (
-                                <button 
-                                  onClick={() => setEditingOrder(JSON.parse(JSON.stringify(order)))}
-                                  className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#0F172A] border-2 border-[#0F172A] hover:border-[#D4AF37] hover:text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 cursor-pointer"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                  Edit ({getRemainingTime(order.createdAt)})
-                                </button>
+                                <div className="flex gap-2 flex-wrap">
+                                  <button 
+                                    onClick={() => setEditingOrder(JSON.parse(JSON.stringify(order)))}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#0F172A] border-2 border-[#0F172A] hover:border-[#D4AF37] hover:text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 cursor-pointer"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                    Edit ({getRemainingTime(order.createdAt)})
+                                  </button>
+                                  <button 
+                                    onClick={() => handleCancelOrder(order._id)}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-rose-500 border-2 border-rose-500 hover:bg-rose-50 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 cursor-pointer"
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                    Cancel ({getRemainingTime(order.createdAt)})
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>
@@ -653,26 +674,13 @@ export function MyOrders() {
                               </div>
                             </div>
 
-                            <div className="md:text-right border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 flex flex-col items-start md:items-end justify-center">
+                            <div className="md:text-right border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 flex flex-col items-start md:items-end justify-center max-w-xs">
                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
-                              <p className="text-3xl font-black text-[#0F172A]">{formatMoney(order.totalAmount)}</p>
-                              <button
-                                onClick={() => handlePayNow(order)}
-                                disabled={payingOrderId === order._id}
-                                className="mt-4 flex items-center gap-2 px-6 py-3 bg-[#0F172A] text-[#D4AF37] rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#D4AF37] hover:text-[#0F172A] transition-all shadow-lg hover:shadow-[#D4AF37]/20 disabled:opacity-50"
-                              >
-                                {payingOrderId === order._id ? (
-                                  <>
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    Processing...
-                                  </>
-                                ) : (
-                                  <>
-                                    Pay Now
-                                    <ChevronRight className="w-3 h-3" />
-                                  </>
-                                )}
-                              </button>
+                              <p className="text-3xl font-black text-[#0F172A] mb-3">{formatMoney(order.totalAmount)}</p>
+                              <div className="bg-slate-50 border border-slate-150 rounded-xl p-3 text-left w-full">
+                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-wider mb-1">💵 Cash Payment</p>
+                                <p className="text-[9px] text-slate-500 leading-normal font-bold uppercase">Please settle in cash at the counter or upon delivery.</p>
+                              </div>
                             </div>
                           </div>
                         </div>

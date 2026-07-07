@@ -14,9 +14,13 @@ const getRoomOptionPrice = (roomName, isAc, stayMode) => {
 
   if (isFamily) {
     if (isAc) {
-      return stayMode === 'onlyNight' ? 6750 : 8750;
+      if (stayMode === 'onlyDay') return 6500;
+      if (stayMode === 'onlyNight') return 7000;
+      return 9000; // 24 hours
     } else {
-      return stayMode === 'onlyNight' ? 5500 : 6750;
+      if (stayMode === 'onlyDay') return 5500;
+      if (stayMode === 'onlyNight') return 6000;
+      return 7000; // 24 hours
     }
   } else if (isHoneymoon) {
     if (stayMode === 'onlyDay') return 9500;
@@ -127,10 +131,12 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
     return "onlyDay";
   };
 
+  const calculatedMode = stayMode === "custom" ? getCalculatedStayMode() : stayMode;
+
   const displayRoomPrice = getRoomOptionPrice(
     activeVariantRoom.name,
     isAc,
-    stayMode === "custom" ? getCalculatedStayMode() : stayMode
+    calculatedMode
   );
 
   const [selectedGuests, setSelectedGuests] = useState(1);
@@ -170,7 +176,7 @@ export function RoomCard({ room, acVariants = null, onBook, isLoggedIn = false }
   const slots = hasSelectedAllCustomDates ? calculateSlots() : 1;
   const grandTotal = isHoneymoonSuite
     ? (Number(getRoomOptionPrice(activeVariantRoom.name, isAc, "custom") || 0) + decorationTotal)
-    : (Number(displayRoomPrice || 0) * slots) + decorationTotal;
+    : (Number(displayRoomPrice || 0) * (calculatedMode === "custom" ? (slots / 2) : slots)) + decorationTotal;
 
   useEffect(() => {
     const fetchAvailableRoomNumbers = async () => {

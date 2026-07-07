@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { apiFetch, API_HOST } from '../../../api';
 import './AdminRooms.css';
+import { useSocket } from '../../../context/SocketContext.jsx';
 
 const getRoomTypeName = (roomName, roomNumberStr) => {
   if (!roomName) return 'N/A';
@@ -99,12 +100,15 @@ export function AdminRooms() {
     isActive: true
   });
 
+  const socket = useSocket();
+  const [isConnected, setIsConnected] = useState(socket ? socket.connected : false);
+
   useEffect(() => {
     fetchData();
   }, [activeTab]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       // Always fetch both rooms and bookings so inventory can show booked counts
       const [roomsRes, bookingsRes] = await Promise.all([
@@ -116,9 +120,34 @@ export function AdminRooms() {
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!socket) return;
+
+    setIsConnected(socket.connected);
+
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+
+    const handleBookingUpdate = () => {
+      fetchData(true); // Silent refetch in background
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('bookingCreated', handleBookingUpdate);
+    socket.on('bookingUpdated', handleBookingUpdate);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('bookingCreated', handleBookingUpdate);
+      socket.off('bookingUpdated', handleBookingUpdate);
+    };
+  }, [socket]);
 
   const handleTypeChange = (type) => {
     // Look for an existing room of this type in the database to suggest defaults
@@ -135,6 +164,20 @@ export function AdminRooms() {
         image: existingRoom.image || ''
       });
       setImagePreview(existingRoom.image || null);
+    } else if (type === 'Standard Room') {
+      // For Standard Room, default to AC variant and auto-fill AC price from DB
+      const acRoom = rooms.find(r => r.name?.toLowerCase().trim() === 'ac standard room' && r.isActive !== false);
+      setFormData({
+        ...formData,
+        name: type,
+        acVariant: 'ac',
+        price: acRoom?.price || 8500,
+        description: acRoom?.description || '',
+        defaultGuests: acRoom?.defaultGuests || 2,
+        amenities: (acRoom?.amenities && Array.isArray(acRoom.amenities)) ? acRoom.amenities.join(', ') : '',
+        image: acRoom?.image || ''
+      });
+      setImagePreview(acRoom?.image || null);
     } else {
       setFormData({
         ...formData,
@@ -156,7 +199,10 @@ export function AdminRooms() {
     'ac room',
     'non a/c room',
     'non ac room',
-    'photo location'
+    'photo location',
+    'ac standard room',
+    'non-ac standard room',
+    'new room type'
   ]);
 
   const roomTypeOptions = [
@@ -306,25 +352,31 @@ export function AdminRooms() {
     }
     
     let submitName = formData.name;
+    // AC Standard Room and Non-AC Standard Room are separate types with their own
+    // independent room number ranges and counts.
     if (submitName === 'Standard Room' && !editingRoom) {
       submitName = formData.acVariant === 'ac' ? 'AC Standard Room' : 'Non-AC Standard Room';
     }
 
     try {
-      // Find if this room type already exists in our database
-      const existingRoom = rooms.find(r => r.name === submitName);
+      // Always fetch live data to avoid stale state issues (especially on hosted version)
+      const liveRes = await apiFetch('/rooms/admin/list');
+      const liveRooms = liveRes.data || [];
+      // Case-insensitive match, only active rooms
+      const existingRoom = liveRooms.find(r =>
+        r.name?.trim().toLowerCase() === submitName?.trim().toLowerCase() &&
+        r.isActive !== false
+      );
 
       if (existingRoom && !editingRoom) {
         // INCREMENT MODE: Type exists, just add 1 to the count
-        const updatedCount = (existingRoom.availableRooms || 0) + 1;
-        const updatedTotal = (existingRoom.totalRooms || 0) + 1;
+        const currentTotal = existingRoom.totalRooms || 0;
+        const currentAvailable = existingRoom.availableRooms || 0;
         await apiFetch(`/rooms/${existingRoom._id}`, {
           method: 'PUT',
           body: JSON.stringify({ 
-            ...existingRoom, 
-            availableRooms: updatedCount,
-            totalRooms: updatedTotal,
-            amenities: existingRoom.amenities 
+            totalRooms: currentTotal + 1,
+            availableRooms: currentAvailable + 1,
           })
         });
       } else if (editingRoom) {
@@ -434,21 +486,27 @@ export function AdminRooms() {
 
   // Get booked room numbers per type (using actual roomNumber from bookings)
   const getBookedRoomNumbers = (typeName) => {
+    const isStandard = typeName.toLowerCase() === 'standard room';
     return bookings
-      .filter(b =>
-        b.room?.name?.toLowerCase() === typeName.toLowerCase() &&
-        b.status !== 'cancelled' && b.status !== 'checked-out' &&
-        b.roomNumber
-      )
+      .filter(b => {
+        const roomName = (b.room?.name || '').toLowerCase();
+        const matchesType = isStandard ? roomName.includes('standard room') : roomName === typeName.toLowerCase();
+        return matchesType &&
+          b.status !== 'cancelled' && b.status !== 'checked-out' &&
+          b.roomNumber;
+      })
       .map(b => b.roomNumber);
   };
 
   // Count active bookings per room type (legacy - kept for reference)
   const getBookedCount = (typeName) => {
-    return bookings.filter(b => 
-      b.room?.name?.toLowerCase() === typeName.toLowerCase() &&
-      b.status !== 'cancelled' && b.status !== 'checked-out'
-    ).length;
+    const isStandard = typeName.toLowerCase() === 'standard room';
+    return bookings.filter(b => {
+      const roomName = (b.room?.name || '').toLowerCase();
+      const matchesType = isStandard ? roomName.includes('standard room') : roomName === typeName.toLowerCase();
+      return matchesType &&
+        b.status !== 'cancelled' && b.status !== 'checked-out';
+    }).length;
   };
 
 
@@ -482,41 +540,84 @@ export function AdminRooms() {
   };
 
   // Starting room number for each room type (hotel room numbering)
-  const ROOM_START_NUMBERS = {
-    'ac standard room': 1,
-    'non-ac standard room': 4,
-    'standard room': 1,
-    'family room': 7,
-    'family suite': 7,
-    'wedding couple suite': 9,
-    'honeymoon suite': 9,
-  };
+  // Non-AC = Rooms 1-4, AC = Rooms 5-6, Family = Rooms 7-8, Wedding/Honeymoon = Rooms 9-10
+  // Note: These base definitions are now handled dynamically in the backend (roomController.js).
+  // Any extra rooms created beyond these bases will be globally numbered (Room 11, 12, etc).
 
-  const getRoomStartNumber = (name) => {
-    const lower = (name || '').toLowerCase();
-    const key = Object.keys(ROOM_START_NUMBERS).find(k => lower.includes(k) || k.includes(lower));
-    return key ? ROOM_START_NUMBERS[key] : 1;
-  };
+  // ENSURE ALL TYPES ARE SHOWN IN THE TABLE (AND UNIFY STANDARD ROOMS)
+  const normalizedRooms = rooms.map(r => {
+    let name = r.name;
+    if (name?.toLowerCase().includes('standard room')) {
+      name = 'Standard Room';
+    }
+    return { ...r, normalizedName: name };
+  });
 
-  // ENSURE ALL TYPES ARE SHOWN IN THE TABLE
-  const uniqueTypes = [...new Set(rooms.map(r => r.name).filter(Boolean))];
+  const uniqueTypes = [...new Set(normalizedRooms.map(r => r.normalizedName).filter(Boolean))];
   const aggregatedRooms = uniqueTypes.map(typeName => {
     // Only aggregate ACTIVE rooms from the database
-    const backendRoomsOfType = rooms.filter(r => 
-      r.isActive && r.name === typeName
+    const backendRoomsOfType = normalizedRooms.filter(r => 
+      r.isActive && r.normalizedName === typeName
     );
     const bookedRoomNumbers = getBookedRoomNumbers(typeName);
     const bookedCount = bookedRoomNumbers.length;
     
     if (backendRoomsOfType.length > 0) {
-      const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms || 1), 0);
-      const firstRoom = backendRoomsOfType[0];
+      const dbTotal = backendRoomsOfType.reduce((sum, r) => sum + (r.totalRooms !== undefined ? r.totalRooms : 1), 0);
+      
+      // Merge allRoomNumbers arrays from all matched DB rooms (e.g. merging AC and Non-AC arrays)
+      // Map them to objects so we know EXACTLY which db document each room number came from!
+      const mergedRoomNumbers = [];
+      backendRoomsOfType.forEach(r => {
+        if (r.allRoomNumbers && Array.isArray(r.allRoomNumbers)) {
+           r.allRoomNumbers.forEach(label => {
+             mergedRoomNumbers.push({
+               label: label,
+               originalRoom: r
+             });
+           });
+        }
+      });
+      
+      // Sort them numerically so Room 1, Room 2, Room 5, Room 11 are in correct numerical order
+      mergedRoomNumbers.sort((a, b) => {
+         const numA = parseInt(a.label.replace('Room ', '')) || 0;
+         const numB = parseInt(b.label.replace('Room ', '')) || 0;
+         return numA - numB;
+      });
+
+      // Find the first room for general details (like description/image)
+      // For Standard Room, we prefer AC if available as the base for details
+      const firstRoom = typeName === 'Standard Room' 
+        ? (backendRoomsOfType.find(r => r.name?.toLowerCase() === 'ac standard room') || backendRoomsOfType[0])
+        : backendRoomsOfType[0];
+        
+      let finalTotalRooms = dbTotal;
+      let finalAllRoomNumbers = mergedRoomNumbers.length > 0 ? mergedRoomNumbers : null;
+
+      if (typeName === 'Standard Room') {
+        finalTotalRooms = 6;
+        finalAllRoomNumbers = ['Room 1', 'Room 2', 'Room 3', 'Room 4', 'Room 5', 'Room 6'].map(label => {
+          const num = parseInt(label.replace('Room ', '')) || 0;
+          const matchedRoom = backendRoomsOfType.find(r => {
+            const lower = (r.name || '').toLowerCase();
+            return num >= 5 ? lower === 'ac standard room' : lower === 'non-ac standard room';
+          }) || firstRoom;
+          return {
+            label,
+            originalRoom: matchedRoom
+          };
+        });
+      }
+
       return {
         ...firstRoom,
-        availableRooms: Math.max(0, dbTotal - bookedCount),
-        totalRooms: dbTotal,
+        name: typeName,
+        totalRooms: finalTotalRooms,
+        availableRooms: Math.max(0, finalTotalRooms - bookedCount),
         bookedCount,
         bookedRoomNumbers,
+        allRoomNumbers: finalAllRoomNumbers,
         isPlaceholder: false
       };
     }
@@ -567,6 +668,12 @@ export function AdminRooms() {
             <p className="text-slate-300 mt-2 max-w-2xl">
               Add rooms to your inventory. The count below shows your total hotel stock (Base + Added).
             </p>
+            <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-sm mt-4 w-fit shadow-inner animate-in fade-in duration-300">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]'}`}></div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                {isConnected ? 'Live Connected' : 'Connecting...'}
+              </span>
+            </div>
             <div className="flex flex-wrap gap-3 items-center mt-6">
               <button
                 className="admin-rooms__action-button"
@@ -735,12 +842,28 @@ export function AdminRooms() {
                       {isExpanded && (
                         <>
                           {/* Unified room list with hotel-wide continuous numbering */}
-                          {Array.from({ length: totalInStock }).map((_, i) => {
-                            const roomNumber = getRoomStartNumber(room.name) + i;
-                            const roomLabel = `Room ${roomNumber}`;
+                          {(room.allRoomNumbers || []).map((roomData, i) => {
+                            // Support both strings (legacy mapping fallback) and objects (our new detailed mapping)
+                            const roomLabel = typeof roomData === 'object' ? roomData.label : roomData;
+                            const originalDbRoom = typeof roomData === 'object' ? roomData.originalRoom : room;
+                            
                             const isBooked = (room.bookedRoomNumbers || []).includes(roomLabel);
                             // Any room that is not booked can be deleted
                             const canDelete = !isBooked;
+                            const roomNumber = parseInt(roomLabel.replace('Room ', '')) || 0;
+
+                            let variantLabel = '';
+                            if ((room.name || '').toLowerCase().includes('standard room')) {
+                              const dbName = (originalDbRoom.name || '').toLowerCase();
+                              if (dbName === 'ac standard room') {
+                                variantLabel = '(AC)';
+                              } else if (dbName === 'non-ac standard room') {
+                                variantLabel = '(Non-AC)';
+                              } else {
+                                // fallback for legacy unified standard room records
+                                variantLabel = roomNumber >= 5 ? '(AC)' : '(Non-AC)';
+                              }
+                            }
 
                             return (
                               <tr 
@@ -751,7 +874,7 @@ export function AdminRooms() {
                                   <div className="flex items-center gap-2">
                                     <div className={`w-1.5 h-1.5 rounded-full ${isBooked ? 'bg-red-500' : 'bg-green-500'}`}></div>
                                     <span className={`font-medium ${isBooked ? 'text-red-600' : 'text-slate-600'}`}>
-                                      Room {roomNumber} {(room.name || '').toLowerCase().includes('standard room') ? (roomNumber >= 5 ? '(AC)' : '(Non-AC)') : ''}
+                                      {roomLabel} {variantLabel}
                                     </span>
                                   </div>
                                 </td>
@@ -769,7 +892,7 @@ export function AdminRooms() {
                                     <button 
                                       className="admin-rooms__action-btn admin-rooms__action-btn--delete" 
                                       title="Delete this room"
-                                      onClick={() => handleRemoveOneRoom(room)}
+                                      onClick={() => handleRemoveOneRoom(originalDbRoom)}
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -809,7 +932,6 @@ export function AdminRooms() {
                   <th>Status</th>
                   <th>Total Amount</th>
                   <th>Details</th>
-                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -896,60 +1018,11 @@ export function AdminRooms() {
                         View
                       </button>
                     </td>
-                    <td className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {(!booking.status || booking.status === 'pending') && (
-                          <>
-                            <button
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                              title="Confirm Booking"
-                              onClick={() => handleUpdateBookingStatus(booking._id, 'confirmed')}
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              <span className="hidden md:inline">Confirm</span>
-                            </button>
-                            <button
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-500 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                              title="Reject Booking"
-                              onClick={() => handleUpdateBookingStatus(booking._id, 'cancelled')}
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                              <span className="hidden md:inline">Reject</span>
-                            </button>
-                          </>
-                        )}
-                        {booking.status?.toLowerCase() === 'confirmed' && (
-                            <button
-                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-in')}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                            >
-                                <LogIn className="w-3.5 h-3.5" />
-                                <span className="hidden md:inline">Check In</span>
-                            </button>
-                        )}
-                        {booking.status?.toLowerCase() === 'checked-in' && (
-                            <button
-                                onClick={() => handleUpdateBookingStatus(booking._id, 'checked-out')}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider"
-                            >
-                                <LogOut className="w-3.5 h-3.5" />
-                                <span className="hidden md:inline">Check Out</span>
-                            </button>
-                        )}
-                        <button 
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm font-semibold text-[11px] uppercase tracking-wider flex-shrink-0"
-                          title="Delete Booking"
-                          onClick={() => handleDeleteBooking(booking._id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
                 {filteredBookings.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="p-8 text-center text-slate-500">No bookings found.</td>
+                    <td colSpan="8" className="p-8 text-center text-slate-500">No bookings found.</td>
                   </tr>
                 )}
               </tbody>
@@ -1058,7 +1131,11 @@ export function AdminRooms() {
                             name="acVariant" 
                             value="ac" 
                             checked={formData.acVariant === 'ac'} 
-                            onChange={(e) => setFormData({...formData, acVariant: 'ac'})} 
+                            onChange={() => {
+                              // Auto-fill price from existing AC Standard Room in DB
+                              const acRoom = rooms.find(r => r.name?.toLowerCase().trim() === 'ac standard room' && r.isActive !== false);
+                              setFormData({...formData, acVariant: 'ac', price: acRoom?.price || 8500});
+                            }} 
                             className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm font-medium text-slate-700">AC Room</span>
@@ -1069,7 +1146,11 @@ export function AdminRooms() {
                             name="acVariant" 
                             value="nonAc" 
                             checked={formData.acVariant === 'nonAc'} 
-                            onChange={(e) => setFormData({...formData, acVariant: 'nonAc'})}
+                            onChange={() => {
+                              // Auto-fill price from existing Non-AC Standard Room in DB
+                              const nonAcRoom = rooms.find(r => r.name?.toLowerCase().trim() === 'non-ac standard room' && r.isActive !== false);
+                              setFormData({...formData, acVariant: 'nonAc', price: nonAcRoom?.price || 7500});
+                            }}
                             className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm font-medium text-slate-700">Non-AC Room</span>
@@ -1083,13 +1164,22 @@ export function AdminRooms() {
                       <label className="admin-rooms__label">Total Units in Stock</label>
                       <input 
                         type="number" 
-                        className="admin-rooms__input border-slate-200 bg-slate-50 cursor-not-allowed" 
+                        className="admin-rooms__input border-slate-200 bg-slate-50" 
                         required 
-                        disabled
+                        min="0"
                         value={formData.totalRooms}
-                        onChange={(e) => setFormData({...formData, totalRooms: e.target.value})}
+                        onChange={(e) => {
+                          const val = Math.max(0, parseInt(e.target.value) || 0);
+                          // Keep availableRooms somewhat in sync when totalRooms changes manually
+                          const diff = val - formData.totalRooms;
+                          setFormData({
+                            ...formData, 
+                            totalRooms: val,
+                            availableRooms: Math.max(0, formData.availableRooms + diff)
+                          });
+                        }}
                       />
-                      <p className="text-xs text-slate-400 mt-1 italic">Note: Use the "+" and trash icons in the table to manage room instances.</p>
+                      <p className="text-xs text-slate-400 mt-1 italic">Note: Changing this directly updates the total instances of this exact room variant.</p>
                     </div>
                   )}
 

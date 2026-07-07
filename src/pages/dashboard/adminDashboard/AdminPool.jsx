@@ -12,6 +12,14 @@ const basePoolSlots = [
   { timeSlot: 'Evening Slot', startTime: '16:00', endTime: '19:00', capacity: 20, pricePerPerson: 500 },
 ];
 
+const getLocalDateString = (dateObj) => {
+  try {
+    return new Date(dateObj).toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' });
+  } catch (e) {
+    return new Date(dateObj).toISOString().split('T')[0];
+  }
+};
+
 const defaultForm = {
   guestName: '',
   guestEmail: '',
@@ -84,6 +92,7 @@ export function AdminPool() {
   const [activeTab, setActiveTab] = useState('bookings');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateString(new Date()));
   const [bookings, setBookings] = useState(mockPoolBookings.map((booking, index) => normalizeBooking(booking, index)));
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
@@ -125,13 +134,12 @@ export function AdminPool() {
   });
 
   const dynamicPoolSlots = useMemo(() => {
-    const today = new Date().toISOString();
     const slotMap = new Map();
 
     basePoolSlots.forEach((slot) => {
       slotMap.set(slot.timeSlot, {
         ...slot,
-        date: today,
+        date: selectedDate,
         bookedCount: 0,
         bookings: [],
         status: 'Available'
@@ -140,6 +148,12 @@ export function AdminPool() {
 
     bookings.forEach((booking) => {
       if (booking.status === 'Cancelled' || !booking.timeSlot) {
+        return;
+      }
+
+      // Check if the booking date matches the selectedDate in Colombo timezone
+      const bookingDateStr = getLocalDateString(booking.date);
+      if (bookingDateStr !== selectedDate) {
         return;
       }
 
@@ -153,11 +167,6 @@ export function AdminPool() {
         const existing = slotMap.get(matchedSlotKey);
         existing.bookedCount += Number(booking.numberOfGuests) || 0;
         existing.bookings.push(booking);
-        
-        if (existing.bookings.length === 1) {
-          existing.date = booking.date;
-        }
-
         existing.status = existing.bookedCount >= existing.capacity ? 'Full' : 'Available';
       }
     });
@@ -174,7 +183,7 @@ export function AdminPool() {
       status: slot.status,
       bookings: slot.bookings
     }));
-  }, [bookings]);
+  }, [bookings, selectedDate]);
 
   const filteredSlots = dynamicPoolSlots.filter((slot) =>
     slot.timeSlot.toLowerCase().includes(searchTerm.toLowerCase())
@@ -451,10 +460,10 @@ export function AdminPool() {
       guestName: '',
       guestEmail: '',
       roomNumber: '',
-      date: slot.date ? slot.date.split('T')[0] : '',
+      date: slot.date ? slot.date.split('T')[0] : selectedDate,
       timeSlot: slot.timeSlot,
-      checkInTime: '10:00',
-      checkOutTime: '12:00',
+      checkInTime: slot.startTime || '10:00',
+      checkOutTime: slot.endTime || '12:00',
       numberOfGuests: '1',
       pricePerPerson: slot.pricePerPerson.toString(),
       status: 'Confirmed'
@@ -530,10 +539,20 @@ export function AdminPool() {
               <Search className="admin-pool__search-icon" />
               <input type="text" placeholder={activeTab === 'bookings' ? 'Search by guest or room number...' : 'Search time slots...'} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="admin-pool__input" />
             </div>
-            {activeTab === 'bookings' && (
+            {activeTab === 'bookings' ? (
               <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="admin-pool__select">
                 <option>All</option><option>Confirmed</option><option>Checked-In</option><option>Completed</option><option>Cancelled</option>
               </select>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700 whitespace-nowrap">View Date:</span>
+                <input 
+                  type="date" 
+                  value={selectedDate} 
+                  onChange={(e) => setSelectedDate(e.target.value)} 
+                  className="admin-pool__select" 
+                />
+              </div>
             )}
           </div>
         </div>

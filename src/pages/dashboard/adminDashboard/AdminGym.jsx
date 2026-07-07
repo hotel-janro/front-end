@@ -837,11 +837,10 @@ export function AdminGym() {
                           const isActive = currentStatus === 'Active';
                           const isExpired = currentStatus === 'Expired';
                           return (
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                              isActive ? 'bg-emerald-50 text-emerald-700' : 
-                              isExpired ? 'bg-amber-50 text-amber-700 border border-amber-200' : 
-                              'bg-red-50 text-red-700'
-                            }`}>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${isActive ? 'bg-emerald-50 text-emerald-700' :
+                                isExpired ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                  'bg-red-50 text-red-700'
+                              }`}>
                               {isActive ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                               {currentStatus}
                             </span>
@@ -1413,7 +1412,7 @@ export function AdminGym() {
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0F172A] outline-none text-sm text-slate-800"
                 >
                   <option value="Paid">Paid / Confirmed</option>
-                  <option value="Unpaid">Unpaid / Booked</option>
+
                 </select>
               </div>
 

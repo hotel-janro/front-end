@@ -5,7 +5,7 @@ import { Button } from "../../components/common/Button.jsx";
 import { ImageWithFallback } from "../../components/common/ImageWithFallback.jsx";
 import {
   Bed, Car, UtensilsCrossed, Waves, Star,
-  ArrowRight, Quote,
+  ArrowRight, Quote, Dumbbell,
 } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext.jsx";
 import { apiFetch } from "../../api";
@@ -33,6 +33,7 @@ const facilities = [
   { icon: Waves, label: "Swimming Pool" },
   { icon: Car, label: "Free Parking" },
   { icon: UtensilsCrossed, label: "Restaurant" },
+  { icon: Dumbbell, label: "Gym" },
   { icon: DeliveryBikeIcon, label: "Food Delivery" },
 ];
 
@@ -204,7 +205,7 @@ export function Home() {
           <h2 className="text-3xl md:text-4xl text-white mb-12" style={{ fontFamily: "DM Serif Display, serif" }}>
             World-Class Facilities
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8">
             {facilities.map((f) => (
               <div key={f.label} className="flex flex-col items-center gap-3 group">
                 <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-[#D4AF37] transition-all duration-300">
