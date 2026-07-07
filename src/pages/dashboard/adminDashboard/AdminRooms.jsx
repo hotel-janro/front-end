@@ -101,6 +101,7 @@ export function AdminRooms() {
   });
 
   const socket = useSocket();
+  const [isConnected, setIsConnected] = useState(socket ? socket.connected : false);
 
   useEffect(() => {
     fetchData();
